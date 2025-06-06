@@ -2,6 +2,7 @@
 ##  SyncSpace
 
 ## Insert app image 
+## feat(client): fix, docs, style, test perf(performance inmprovement), chore(Maintenance tasks) 
 
 Highlights:
 
