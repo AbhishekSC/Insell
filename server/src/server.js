@@ -8,14 +8,15 @@ import authRoutes from "./routes/auth.route.js";
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// **Middlewares
+// **Middlewares**
+app.use(express.json());
 app.use(
   morgan("combined", {
     stream: logger.stream,
   })
 );
 
-// **Routes
+// **Routes**
 app.use("/api/auth", authRoutes);
 app.get("/health", (req, res) => {
   res.status(200).json({
@@ -24,7 +25,7 @@ app.get("/health", (req, res) => {
   });
 });
 
-// **Database connection and server initialization
+// **Database connection and server initialization**
 async function startServer() {
   try {
     connectToMongoDB();
