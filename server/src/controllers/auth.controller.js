@@ -4,6 +4,7 @@ import { sanitizeUserData } from "../utils/sanitizeUser.js";
 import { logger } from "../utils/logger.js";
 import generateAccessToken from "../services/generateToken.service.js";
 import { addTokenBlacklist } from "../services/tokenBlacklist.service.js";
+import { UpdateStreamUser } from "../services/stream.service.js";
 import {
   sendErrorResponse,
   sendSuccessResponse,
@@ -36,8 +37,6 @@ export async function signup(req, res) {
       );
     }
 
-    // TODO: Create the user in stream also
-
     const newUser = await User({
       fullName,
       email,
@@ -48,6 +47,18 @@ export async function signup(req, res) {
     if (newUser) {
       generateAccessToken(newUser, res);
       await newUser.save();
+
+      // TODO: Create the user in stream also
+      try {
+        await UpdateStreamUser({
+          id: newUser._id.toString(),
+          name: newUser.fullName,
+          image: newUser.profilePic || "",
+        });
+        logger.info(`Stream user updated successfully: ${newUser.fullName}`);
+      } catch (error) {
+        logger.error("Error updating Stream user:", error);
+      }
 
       // Log successful signup
       logger.info(`User created successfully: ${newUser.email}`);
@@ -127,7 +138,8 @@ export async function logout(req, res) {
 
   try {
     // **Invalidate the token by not sending a new one
-    const token = req.cookies.syncspace_token || req.headers.authorization?.split(" ")[1];
+    const token =
+      req.cookies.syncspace_token || req.headers.authorization?.split(" ")[1];
 
     await addTokenBlacklist(res, token);
 
