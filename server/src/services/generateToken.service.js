@@ -50,7 +50,7 @@ async function generateAccessToken(user, res) {
       httpOnly: true, // Prevents client-side JavaScript from accessing the cookie/token (prevent XSS attack)
       sameSite: "Strict", // CSRF attacks cross-site request forgery attack
       secure: NODE_ENV === "production", // Use secure cookies in production (http/https, for Production it is true)
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 day
+      maxAge: 1 * 24 * 60 * 60 * 1000, // 7 day
     };
 
     // Setting cookies

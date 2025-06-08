@@ -3,6 +3,7 @@ import User from "../models/User.model.js";
 import { sanitizeUserData } from "../utils/sanitizeUser.js";
 import { logger } from "../utils/logger.js";
 import generateAccessToken from "../services/generateToken.service.js";
+import { addTokenBlacklist } from "../services/tokenBlacklist.service.js";
 import {
   sendErrorResponse,
   sendSuccessResponse,
@@ -92,7 +93,7 @@ export async function login(req, res) {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email }).select("+password");
+    const user = await User.findOne({ email }, "+password +email");
 
     if (!user) {
       logger.warn(`Login failed - User not found: ${email}`);
@@ -119,13 +120,26 @@ export async function login(req, res) {
   }
 }
 
+// **Logout**
 export async function logout(req, res) {
   // **Log the incoming request
   logger.info(`Received logout request for user`);
 
   try {
     // **Invalidate the token by not sending a new one
-    res.clearCookie("syncspace_token");
+    const token = req.cookies.syncspace_token || req.headers.authorization?.split(" ")[1];
+
+    await addTokenBlacklist(res, token);
+
+    // **Clear authentication cookies
+    const cookieOptions = {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV !== "development",
+      maxAge: 0, // Set maxAge to 0 to delete the cookie immediately
+    };
+
+    res.cookie("syncspace_token", "", cookieOptions);
 
     logger.info(`User logged out successfully`);
     return sendSuccessResponse(res, 200, "Logout successful");

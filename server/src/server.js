@@ -1,15 +1,17 @@
 import express from "express";
-import "dotenv/config";
 import morgan from "morgan";
+import "dotenv/config";
+import cookieParser from "cookie-parser";
+import authRoutes from "./routes/auth.route.js";
 import { logger } from "./utils/logger.js";
 import { connectToMongoDB } from "./config/db.config.js";
-import authRoutes from "./routes/auth.route.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // **Middlewares**
 app.use(express.json());
+app.use(cookieParser());
 app.use(
   morgan("combined", {
     stream: logger.stream,
