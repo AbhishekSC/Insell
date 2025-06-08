@@ -80,7 +80,7 @@ const userSchema = new mongoose.Schema(
 // **Indexes**: Create indexes for email and fullName for faster queries
 userSchema.index({ fullName: 1 });
 
-// **Pre Hooks**: For password hashing
+// **Pre Hooks(Middlewares)**: For password hashing
 userSchema.pre("save", async function (next) {
   try {
     if (!this.isModified("password")) {
@@ -95,6 +95,16 @@ userSchema.pre("save", async function (next) {
     next(new Error("Failed to hash password"));
   }
 });
+
+// **Methods**
+userSchema.methods.verifyCredentials = async function (password) {
+  try {
+    return await bcrypt.compare(password, this.password);
+  } catch (error) {
+    logger.error("Error verifying credentials:", error);
+    throw new Error("Failed to verify credentials");
+  }
+};
 
 const User = mongoose.model("User", userSchema);
 
