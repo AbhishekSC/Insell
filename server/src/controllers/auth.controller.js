@@ -48,7 +48,7 @@ export async function signup(req, res) {
       generateAccessToken(newUser, res);
       await newUser.save();
 
-      // TODO: Create the user in stream also
+      // **Create the user in stream also
       try {
         await UpdateStreamUser({
           id: newUser._id.toString(),
@@ -157,6 +157,78 @@ export async function logout(req, res) {
     return sendSuccessResponse(res, 200, "Logout successful");
   } catch (error) {
     logger.error("Error during logout:", error);
+    return sendErrorResponse(res, 500, "Internal server error.");
+  }
+}
+
+// **Onboarding**
+export async function onboarding(req, res) {
+  try {
+    const userId = req.user._id;
+    logger.info(`Onboarding request for user ID: ${userId}`);
+
+    const {
+      fullName,
+      bio,
+      nativeLanguage,
+      learningLanguage,
+      location,
+      profilePic,
+    } = req.body;
+
+    if (
+      !fullName ||
+      !bio ||
+      !nativeLanguage ||
+      !learningLanguage ||
+      !location
+    ) {
+      logger.warn("Onboarding failed - Missing required fields");
+      return sendErrorResponse(res, 400, "All fields are required.", {
+        missingFields: [
+          !fullName && "fullName",
+          !bio && "bio",
+          !nativeLanguage && "nativeLanguage",
+          !learningLanguage && "learningLanguage",
+          !location && "location",
+        ].filter(Boolean),
+      });
+    }
+
+    // **Update user profile
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        ...req.body,
+        isOnboarded: true,
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      logger.warn(`Onboarding failed - User not found: ${userId}`);
+      return sendErrorResponse(res, 404, "User not found.");
+    }
+
+    try {
+      await UpdateStreamUser({
+        id: updatedUser._id.toString(),
+        name: updatedUser.fullName,
+        image: updatedUser.profilePic || "",
+      });
+      logger.info(`Stream user updated successfully: ${updatedUser.fullName}`);
+    } catch (error) {
+      logger.error("Error updating Stream user:", error.message);
+    }
+
+    const santizedUser = sanitizeUserData(updatedUser);
+
+    logger.info(`User onboarded successfully: ${updatedUser.email}`);
+    return sendSuccessResponse(res, 200, "Onboarding successful", {
+      user: santizedUser,
+    });
+  } catch (error) {
+    logger.error("Error during onboarding:", error);
     return sendErrorResponse(res, 500, "Internal server error.");
   }
 }

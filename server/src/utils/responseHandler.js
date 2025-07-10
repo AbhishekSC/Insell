@@ -8,10 +8,17 @@ export const sendSuccessResponse = (res, statusCode, message, data = {}) => {
 };
 
 // **Error response handler**
-export const sendErrorResponse = (res, statusCode, message, errors = []) => {
+export const sendErrorResponse = (
+  res,
+  statusCode,
+  message,
+  missingFields = {},
+  errors = []
+) => {
   return res.status(statusCode).json({
     status: "error",
     message: message,
+    missingFields: missingFields,
     errors: errors,
   });
 };
