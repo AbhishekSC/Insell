@@ -26,9 +26,13 @@ Highlights:
 ```
 PORT=5001
 MONGO_URI=your_mongo_uri
+MONGO_CONNECT_TIMEOUT_MS=mongo_connect_timeout_ms
+MONGO_MAX_POOL_SIZE=mongo_max_pool_size
 STEAM_API_KEY=your_steam_api_key
 STEAM_API_SECRET=your_steam_api_secret
 JWT_SECRET_KEY=your_jwt_secret
+JWT_EXPIRES_IN=jwt_expires_in
+REDIS_URI=redis_uri
 NODE_ENV=development
 ```
 
