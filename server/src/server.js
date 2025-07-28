@@ -22,7 +22,7 @@ app.use(
 
 // **Routes**
 app.use("/api/auth", authRoutes);
-app.get("/api/users", userRoutes);
+app.use("/api/users", userRoutes);
 
 // **Database connection and server initialization**
 async function startServer() {

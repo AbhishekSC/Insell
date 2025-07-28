@@ -1,3 +1,4 @@
+import { Logger } from "winston";
 import User from "../models/User.model.js";
 import { logger } from "../utils/logger.js";
 import {
@@ -15,7 +16,7 @@ export async function getRecommendedUsers(req, res) {
     const recommendedUsers = await User.find({
       $and: [
         { _id: { $ne: currentUserId } }, // exclude current user
-        { $_id: { $ne: currentUser.friends } }, // exclude current user's friends
+        { $id: { $nin: currentUser.friends } }, // exclude current user's friends
         { isOnboarded: true }, // only onboarded users
       ],
     });
@@ -34,4 +35,31 @@ export async function getRecommendedUsers(req, res) {
   }
 }
 
-export async function getMyFriends(req, res) {}
+export async function getMyFriends(req, res) {
+  try {
+    const currentUserId = req.user._id;
+    logger.info(`Fetching friends for user ID: ${currentUserId}`);
+
+    // Fetch the current user with populated friends
+    const userWithFriends = await User.findById(currentUserId)
+      .select("friends")
+      .populate(
+        "friends",
+        "fullName profilePic nativeLanguage learningLanguage location"
+      );
+
+    if (!userWithFriends) {
+      logger.warn(`User not found for ID: ${currentUserId}`);
+      return sendErrorResponse(res, 404, "User not found");
+    }
+
+    return sendSuccessResponse(res, 200, "Friends fetched successfully", {
+      friends: userWithFriends.friends,
+    });
+  } catch (error) {
+    logger.error("Error fetching friends:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
+export async function sendFriendRequest(req, res) {}

@@ -24,6 +24,7 @@ export const verifyUser = async (req, res, next) => {
     }
 
     const user = await User.findById(decoded.id);
+    console.log("User found:", user);
 
     if (!user) {
       logger.warn(
