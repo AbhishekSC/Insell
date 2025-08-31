@@ -19,7 +19,6 @@ app.use(
   })
 );
 
-
 // **Routes**
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
@@ -32,7 +31,6 @@ async function startServer() {
     app.listen(PORT, () => {
       logger.info(`Server is running on port ${PORT}`);
     });
-    
   } catch (error) {
     logger.error(`Failed to start server: ${error.message}`, {
       stack: error.stack,

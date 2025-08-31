@@ -26,4 +26,7 @@ router.get("/verify", verifyUser, (req, res) => {
   });
 });
 
+// Forget-password
+// Send reset-password email
+
 export default router;
