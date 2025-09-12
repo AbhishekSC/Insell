@@ -7,6 +7,7 @@ import userRoutes from "./routes/user.route.js";
 import chatRoutes from "./routes/chat.route.js";
 import { logger } from "./utils/logger.js";
 import { connectToMongoDB } from "./config/db.config.js";
+import { connectQueue, consumeFromQueue } from "./config/queue.config.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -30,7 +31,8 @@ async function startServer() {
   try {
     connectToMongoDB();
 
-    app.listen(PORT, () => {
+    app.listen(PORT, async () => {
+      await connectQueue();
       logger.info(`Server is running on port ${PORT}`);
     });
   } catch (error) {

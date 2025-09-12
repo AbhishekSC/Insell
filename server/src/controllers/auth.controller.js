@@ -9,6 +9,8 @@ import {
   sendErrorResponse,
   sendSuccessResponse,
 } from "../utils/responseHandler.js";
+import { sendEmail } from "../services/Email.service.js";
+import { publishToQueue } from "../config/queue.config.js";
 
 // **Signup**
 export async function signup(req, res) {
@@ -46,7 +48,7 @@ export async function signup(req, res) {
 
     if (newUser) {
       generateAccessToken(newUser, res);
-      await newUser.save();
+      const savedUser= await newUser.save();
 
       // **Create the user in stream also
       try {
@@ -64,13 +66,22 @@ export async function signup(req, res) {
       logger.info(`User created successfully: ${newUser.email}`);
 
       const sanitizedUser = sanitizeUserData(newUser);
-      return sendSuccessResponse(
+      sendSuccessResponse(
         res,
         201,
         "User created successfully",
         sanitizedUser
       );
-    } else {
+
+      // Send a welcome mail
+      try{
+        await sendEmail(savedUser.email, savedUser.fullName);
+      }catch(error){
+        logger.error("Error sending welcome email:", error);
+      }
+
+    } 
+    else {
       return sendErrorResponse(
         res,
         500,
@@ -124,7 +135,11 @@ export async function login(req, res) {
     const sanitizedUser = sanitizeUserData(user);
     logger.info(`User logged in successfully: ${user.email}`);
 
-    return sendSuccessResponse(res, 200, "Login successful", sanitizedUser);
+    // **Publish login event to message queue for welcome email
+    publishToQueue({ event: "user_logged_in", email: user.email, name: user.fullName });
+
+    sendSuccessResponse(res, 200, "Login successful", sanitizedUser);
+    
   } catch (error) {
     logger.error("Error during login:", error);
     return sendErrorResponse(res, 500, "Internal server error.");
@@ -223,7 +238,6 @@ export async function onboarding(req, res) {
 
     const santizedUser = sanitizeUserData(updatedUser);
 
-    logger.info(`User onboarded successfully: ${updatedUser.email}`);
     return sendSuccessResponse(res, 200, "Onboarding successful", {
       user: santizedUser,
     });
