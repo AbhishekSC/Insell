@@ -12,7 +12,7 @@ async function connectQueue() {
     channel = await connection.createChannel();
 
     await channel.assertQueue(process.env.QUEUE_NAME);
-    consumeFromQueue()
+    consumeFromQueue();
     logger.info("Connected to message queue");
   } catch (error) {
     logger.error("Error connecting to message queue", error);
@@ -35,12 +35,41 @@ async function publishToQueue(data) {
 async function consumeFromQueue() {
   try {
     channel.consume(process.env.QUEUE_NAME, async (data) => {
-      const parsedData= JSON.parse(Buffer.from(data.content)); // convert the binary data to js object
-      await sendEmail(parsedData.email, parsedData.name || "User");
-      channel.ack(data);
+      const parsedData = JSON.parse(Buffer.from(data.content)); // convert the binary data to js object
+
+      logger.info("Consuming from message queue: ", parsedData);
+
+      const reponse= await sendEmail(parsedData.email, parsedData.name || "User");
+
+      if(reponse.success === true){
+        return channel.ack(data);
+      }
+
+     
+      //Re-attempting to consume again
+    const maxRetries = 5;
+    let attempt = 0;
+
+  while (attempt < maxRetries) {
+    try {
+      attempt++;
+      reponse= await sendEmail(parsedData.email, parsedData.name || "User");
+      if(reponse.success === true){
+        return channel.ack(data);
+      }
+    } catch (error) {
+      logger.error(`Again consuming emails: ${parsedData.email}`);
+
+      // Wait exponentially before retrying
+      await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+
+      if (attempt >= maxRetries) {
+        logger.error(`Failed to Fail to consume emails, attempts: ${attempt}, emails: ${parsedData.email}`);
+      }
+    }
+  }      
     });
 
-    logger.info("Consuming from message queue: ", Buffer.from(data.content));
   } catch (error) {
     logger.error("Error consuming from message queue", error);
   }

@@ -1,4 +1,5 @@
 import { generateStreamToken } from "../services/stream.service.js";
+import { logger } from "../utils/logger.js";
 import {
   sendErrorResponse,
   sendSuccessResponse,
@@ -12,7 +13,7 @@ export async function getStreamToken(req, res) {
       token,
     });
   } catch (error) {
-    console.error("Error generating stream token:", error);
+    logger.error("Error generating stream token:", error);
     sendErrorResponse(
       res,
       500,

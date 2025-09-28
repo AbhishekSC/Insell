@@ -73,9 +73,9 @@ export async function signup(req, res) {
         sanitizedUser
       );
 
-      // Send a welcome mail
+      // **Publish login event to message queue for welcome email
       try{
-        await sendEmail(savedUser.email, savedUser.fullName);
+        publishToQueue({ event: "user_logged_in", email: email, name: fullName });
       }catch(error){
         logger.error("Error sending welcome email:", error);
       }
