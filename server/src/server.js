@@ -1,7 +1,9 @@
+import "dotenv/config";
 import express from "express";
 import morgan from "morgan";
-import "dotenv/config";
 import cookieParser from "cookie-parser";
+import cors from "cors";
+
 import authRoutes from "./routes/auth.route.js";
 import userRoutes from "./routes/user.route.js";
 import chatRoutes from "./routes/chat.route.js";
@@ -13,6 +15,20 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // **Middlewares**
+app.use(
+  cors({
+    origin: "http://localhost:5173", // no '*'
+    credentials: true,
+  })
+);
+app.options(
+  "*",
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 app.use(cookieParser());
 app.use(

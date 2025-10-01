@@ -47,7 +47,8 @@ async function consumeFromQueue() {
 
      
       //Re-attempting to consume again
-    const maxRetries = 5;
+    // const maxRetries = 5;
+    const maxRetries = 2;
     let attempt = 0;
 
   while (attempt < maxRetries) {

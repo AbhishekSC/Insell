@@ -3,7 +3,7 @@ import { logger } from "../utils/logger.js";
 import {
   sendErrorResponse,
   sendSuccessResponse,
-} from "../utils/responseHandler";
+} from "../utils/responseHandler.js";
 
 export async function getStreamToken(req, res) {
   try {
