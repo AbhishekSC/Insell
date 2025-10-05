@@ -27,7 +27,7 @@ const JWT_SECRET =
  */
 
 const JWT_EXPIRY = process.env.JWT_EXPIRES_IN || "4h";
-const NODE_ENV = process.env.NODE_ENV || "production";
+const NODE_ENV = process.env.NODE_ENV || "development";
 
 async function generateAccessToken(user, res) {
   try {
@@ -49,7 +49,8 @@ async function generateAccessToken(user, res) {
     const cookieOptions = {
       httpOnly: true, // Prevents client-side JavaScript from accessing the cookie/token (prevent XSS attack)
       sameSite: "None", // CSRF attacks cross-site request forgery attack
-      secure: NODE_ENV === "production" ? true : false, // Use secure cookies in production (http/https, for Production it is true)
+      // secure: NODE_ENV === "production" ? true : false, // Use secure cookies in production (http/https, for Production it is true)
+      secure: false, // Use secure cookies in production (http/https, for Production it is true)
       maxAge: 1 * 24 * 60 * 60 * 1000, // 7 day
     };
 

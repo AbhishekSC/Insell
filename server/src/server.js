@@ -15,19 +15,17 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // **Middlewares**
-app.use(
-  cors({
-    origin: "http://localhost:5173", // no '*'
-    credentials: true,
-  })
-);
-app.options(
-  "*",
-  cors({
-    origin: "http://localhost:5173",
-    credentials: true,
-  })
-);
+const corsOptions = {
+  origin: "http://localhost:5173",
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+// CORS must be before routes
+app.use(cors(corsOptions));
+// This handles preflight (OPTIONS) requests for all routes
+app.options("*", cors(corsOptions));
 
 app.use(express.json());
 app.use(cookieParser());
