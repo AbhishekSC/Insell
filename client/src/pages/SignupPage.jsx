@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import toast from "react-hot-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axiosInstance } from "../lib/axios";
+import axios from "axios";
 
 const SignupPage = () => {
   const [signupData, setSignupData] = useState({
@@ -25,13 +26,19 @@ const SignupPage = () => {
   const queryClient = useQueryClient();
 
   const { mutate, isPending, error } = useMutation({
-    mutationFn: async (newUser) => {
-      // call API with the data passed to mutate
-      const response = await axiosInstance.post("/auth/signup", newUser);
+    mutationFn: async () => {
+      // const response = await axios.post(
+      //   "http://localhost:5001/api/auth/signup",
+      //   signupData,
+      //   // { withCredentials: true }
+      // );
+
+      const response = await axiosInstance.post("/auth/signup", signupData);
       return response.data;
     },
     onSuccess: () => {
       toast.success("Signed-up to SyncSpace");
+      console.log("Redirecting to /api/auth/verify");
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
     },
     onError: (err) => {
@@ -42,11 +49,7 @@ const SignupPage = () => {
   // handle submit
   const handleSignup = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
-    setErrorMsg("");
-
-    // pass signupData explicitly to mutate
-    mutate(signupData);
+    mutate();
   };
 
   return (
@@ -167,7 +170,7 @@ const SignupPage = () => {
               {isPending ? (
                 <>
                   <span className="loading loading-spinner loading-xs"></span>
-                  Creating…
+                  Signing up...
                 </>
               ) : (
                 "Create Account"

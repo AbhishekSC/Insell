@@ -10,6 +10,7 @@ import CallPage from "./pages/CallPage";
 import { Toaster } from "react-hot-toast";
 import { useQuery } from "@tanstack/react-query";
 import { axiosInstance } from "./lib/axios";
+import axios from "axios";
 
 function App() {
   // TODO: Axios
@@ -21,13 +22,16 @@ function App() {
   } = useQuery({
     queryKey: ["authUser"],
     queryFn: async () => {
-      const res = await axiosInstance.get("/auth/verify");
+      console.log("-->Inside authUser mutation");
+      const res = await axios.get("http://localhost:5001/api/auth/verify");
+      console.log("-->Inside authUser mutation data: ", res);
       return res.data;
     },
     retry: false,
   });
 
   const authUser = authData?.user;
+  console.log(`AuthData: ${authUser}`);
 
   return (
     <div className="h-screen" data-theme="dark">
