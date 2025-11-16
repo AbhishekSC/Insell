@@ -18,12 +18,12 @@ const sender = {
  */
 async function sendEmail(email, name) {
   if (!email || !name) {
-    logger.error("sendEmail: Missing email or name");
+    // logger.error("sendEmail: Missing email or name");
     return { success: false, error: "Missing email or name" };
   }
 
   try {
-    logger.info("Attempting to send email", { from: sender.email, to: email });
+    // logger.info("Attempting to send email", { from: sender.email, to: email });
 
     const response = await resend.emails.send({
       // from: `${sender.name} <${sender.email}>`,
@@ -39,14 +39,14 @@ async function sendEmail(email, name) {
     });
 
     if (response.error) {
-      logger.error("Resend API returned an error", { error: response.error });
+      // logger.error("Resend API returned an error", { error: response.error });
       return { success: false, error: response.error };
     }
 
-    logger.info("Welcome email sent successfully", { email, id: response.id });
+    // logger.info("Welcome email sent successfully", { email, id: response.id });
     return { success: true, id: response.id };
   } catch (error) {
-    logger.error("Failed to send email due to exception", { error });
+    // logger.error("Failed to send email due to exception", { error });
     return { success: false, error };
   }
 }

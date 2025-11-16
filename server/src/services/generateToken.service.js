@@ -51,8 +51,10 @@ async function generateAccessToken(user, res) {
       sameSite: "None", // CSRF attacks cross-site request forgery attack
       // secure: NODE_ENV === "production" ? true : false, // Use secure cookies in production (http/https, for Production it is true)
       secure: false, // Use secure cookies in production (http/https, for Production it is true)
-      maxAge: 1 * 24 * 60 * 60 * 1000, // 7 day
+      maxAge: 1000 * 60 * 60 * 24, // 1 day
     };
+
+    logger.info("Generated access token for user", { email: user.email });
 
     // Setting cookies
     res.cookie("syncspace_token", accessToken, cookieOptions);

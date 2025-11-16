@@ -37,7 +37,7 @@ async function consumeFromQueue() {
     channel.consume(process.env.QUEUE_NAME, async (data) => {
       const parsedData = JSON.parse(Buffer.from(data.content)); // convert the binary data to js object
 
-      logger.info("Consuming from message queue: ", parsedData);
+      // logger.info("Consuming from message queue: ", parsedData);
 
       const reponse= await sendEmail(parsedData.email, parsedData.name || "User");
 
@@ -59,13 +59,13 @@ async function consumeFromQueue() {
         return channel.ack(data);
       }
     } catch (error) {
-      logger.error(`Again consuming emails: ${parsedData.email}`);
+      // logger.error(`Again consuming emails: ${parsedData.email}`);
 
       // Wait exponentially before retrying
       await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
 
       if (attempt >= maxRetries) {
-        logger.error(`Failed to Fail to consume emails, attempts: ${attempt}, emails: ${parsedData.email}`);
+        // logger.error(`Failed to Fail to consume emails, attempts: ${attempt}, emails: ${parsedData.email}`);
       }
     }
   }      

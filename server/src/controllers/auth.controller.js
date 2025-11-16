@@ -48,7 +48,7 @@ export async function signup(req, res) {
 
     if (newUser) {
       generateAccessToken(newUser, res);
-      const savedUser= await newUser.save();
+      const savedUser = await newUser.save();
 
       // **Create the user in stream also
       try {
@@ -60,28 +60,25 @@ export async function signup(req, res) {
         logger.info(`Stream user updated successfully: ${newUser.fullName}`);
       } catch (error) {
         logger.error("Error updating Stream user:", error);
-      }
+      } 
 
       // Log successful signup
       logger.info(`User created successfully: ${newUser.email}`);
 
       const sanitizedUser = sanitizeUserData(newUser);
-      sendSuccessResponse(
-        res,
-        201,
-        "User created successfully",
-        sanitizedUser
-      );
+      sendSuccessResponse(res, 201, "User created successfully", sanitizedUser);
 
       // **Publish login event to message queue for welcome email
-      try{
-        publishToQueue({ event: "user_logged_in", email: email, name: fullName });
-      }catch(error){
+      try {
+        publishToQueue({
+          event: "user_logged_in",
+          email: email,
+          name: fullName,
+        });
+      } catch (error) {
         logger.error("Error sending welcome email:", error);
       }
-
-    } 
-    else {
+    } else {
       return sendErrorResponse(
         res,
         500,
@@ -136,10 +133,13 @@ export async function login(req, res) {
     logger.info(`User logged in successfully: ${user.email}`);
 
     // **Publish login event to message queue for welcome email
-    publishToQueue({ event: "user_logged_in", email: user.email, name: user.fullName });
+    publishToQueue({
+      event: "user_logged_in",
+      email: user.email,
+      name: user.fullName,
+    });
 
     sendSuccessResponse(res, 200, "Login successful", sanitizedUser);
-    
   } catch (error) {
     logger.error("Error during login:", error);
     return sendErrorResponse(res, 500, "Internal server error.");
