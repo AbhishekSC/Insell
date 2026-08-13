@@ -3,7 +3,18 @@
   "version": "1.0.0",
   "main": "src/server.js",
   "scripts": {
-    "dev": "nodemon src/server.js"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "seed:users": "node scripts/seedUsers.js",
+    "migrate:users:travel": "node scripts/migrateUsersToTravel.js",
+    "migrate:users:real-estate": "node scripts/migrateUsersToMarketplace.js"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "generated/*",
+      "logs/*",
+      "uploads/*"
+    ]
   },
   "type": "module",
   "keywords": [],
@@ -13,17 +24,23 @@
   "dependencies": {
     "amqplib": "^0.10.9",
     "bcryptjs": "^3.0.2",
+    "cloudinary": "^1.41.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^4.21.0",
+    "express-session": "^1.19.0",
     "express-validator": "^7.2.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.13.2",
     "morgan": "^1.10.0",
+    "multer": "^2.2.0",
+    "multer-storage-cloudinary": "^4.0.0",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
     "redis": "^5.5.6",
-    "resend": "^6.0.3",
     "stream-chat": "^8.60.0",
+    "uuid": "^9.0.1",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0"
   },

@@ -1,0 +1,9 @@
+{
+  "ignore": [
+    "generated/",
+    "logs/",
+    "uploads/"
+  ],
+  "watch": ["src/"],
+  "ext": "js,mjs,json"
+}

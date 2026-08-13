@@ -10,25 +10,33 @@ export const verifyUser = async (req, res, next) => {
     req.cookies.syncspace_token || req.headers.authorization?.split(" ")[1];
 
   if (!token) {
-    logger.warn("Unauthorized access attempt: No token provided");
+    logger.warn("Unauthorized access attempt: No token provided", { requestId: req.id });
     return sendErrorResponse(res, 401, "Unauthorized: No token provided");
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("Decoded token:", decoded);
+    const jwtSecret = process.env.JWT_SECRET || process.env.JWT_SECRET_KEY;
+
+    if (!jwtSecret) {
+      logger.error("Auth middleware: JWT secret is not configured", { requestId: req.id });
+      return sendErrorResponse(res, 500, "Server auth configuration error");
+    }
+
+    const decoded = jwt.verify(token, jwtSecret);
+    logger.debug("Token decoded successfully", { requestId: req.id, userId: decoded.id });
 
     if (!decoded || !decoded.id) {
-      logger.warn("Unauthorized access attempt: Invalid token structure");
+      logger.warn("Unauthorized access attempt: Invalid token structure", { requestId: req.id });
       return sendErrorResponse(res, 401, "Unauthorized: Invalid token");
     }
 
     const user = await User.findById(decoded.id);
-    console.log("User found:", user);
+    logger.debug("User lookup completed", { requestId: req.id, userId: decoded.id, userFound: !!user });
 
     if (!user) {
       logger.warn(
-        `Unauthorized access attempt: User not found for ID ${decoded.id}`
+        `Unauthorized access attempt: User not found for ID ${decoded.id}`,
+        { requestId: req.id, userId: decoded.id }
       );
       return sendErrorResponse(res, 404, "Unauthorized: User not found");
     }
@@ -38,7 +46,7 @@ export const verifyUser = async (req, res, next) => {
     req.user = sanitizedUser;
     next();
   } catch (error) {
-    logger.error("Auth middleware: Token verification failed:", error);
+    logger.error("Auth middleware: Token verification failed", { requestId: req.id, error: error.message });
     return sendErrorResponse(res, 401, "Unauthorized: Invalid token");
   }
 };

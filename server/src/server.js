@@ -1,79 +1,68 @@
 import "dotenv/config";
-import express from "express";
-import morgan from "morgan";
-import cookieParser from "cookie-parser";
-import cors from "cors";
-
-import authRoutes from "./routes/auth.route.js";
-import userRoutes from "./routes/user.route.js";
-import chatRoutes from "./routes/chat.route.js";
+import app from "./app.js";
 import { logger } from "./utils/logger.js";
-import { connectToMongoDB } from "./config/db.config.js";
-import { connectQueue, consumeFromQueue } from "./config/queue.config.js";
+import { connectToMongoDB, closeMongoConnection } from "./config/db.config.js";
+import { connectQueue } from "./config/queue.config.js";
+import { testCloudinaryConnection } from "./config/cloudinary.js";
+import { connectToRedis, closeRedisConnection } from "./config/redisClient.config.js";
 
-const app = express();
-const PORT = process.env.PORT || 5001;
+let httpServer = null;
+let shuttingDown = false;
 
-// **Middlewares**
-// const corsOptions = {
-//   origin: "http://localhost:5173",
-//   credentials: true,
-//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-//   allowedHeaders: ["Content-Type", "Authorization"],
-// };
+// A single coordinated shutdown path for SIGINT/SIGTERM (real termination) and
+// SIGUSR2 (nodemon's restart signal). Previously Mongo and Redis each raced to
+// call process.exit() from their own SIGINT listener — whichever finished first
+// killed the process before the other's cleanup ran, which could leave the port
+// or a connection in a bad state for the next process to bind/connect.
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
 
-// // CORS must be before routes
-// app.use(cors(corsOptions));
-// // This handles preflight (OPTIONS) requests for all routes
-// app.options("*", cors(corsOptions));
+  logger.info(`Received ${signal}, shutting down gracefully...`);
 
-const corsOptions = {
-  origin: "http://localhost:5173",
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: [
-    "Content-Type",
-    "Authorization",
-    "X-Requested-With",
-    "Accept",
-    "Origin",
-  ],
-  exposedHeaders: ["Authorization"],
-};
+  const closeHttpServer = () =>
+    new Promise((resolve) => {
+      if (!httpServer) return resolve();
+      httpServer.close(() => resolve());
+    });
 
-app.use(cors(corsOptions));
-
-app.use(cors(corsOptions));
-
-app.use(express.json());
-app.use(cookieParser());
-app.use(
-  morgan("combined", {
-    stream: logger.stream,
-  })
-);
-
-// **Routes**
-app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/chat", chatRoutes);
-
-// **Database connection and server initialization**
-async function startServer() {
   try {
-    connectToMongoDB();
-
-    app.listen(PORT, async () => {
-      await connectQueue();
-      logger.info(`Server is running on port ${PORT}`);
-    });
+    await closeHttpServer();
+    await Promise.allSettled([closeMongoConnection(), closeRedisConnection()]);
   } catch (error) {
-    logger.error(`Failed to start server: ${error.message}`, {
-      stack: error.stack,
-    });
-    process.exit(1); // Exit the process with failure
+    logger.error(`Error during shutdown: ${error.message}`, { stack: error.stack });
+  } finally {
+    process.exit(0);
   }
 }
 
-// **Start the server
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGUSR2", () => shutdown("SIGUSR2"));
+
+async function startServer() {
+  try {
+    const PORT = process.env.PORT || 5001;
+
+    await connectToRedis();
+    await connectToMongoDB();
+    await testCloudinaryConnection();
+
+    httpServer = app.listen(PORT, async () => {
+      await connectQueue();
+      logger.info(`Server is running on port ${PORT}`);
+    }).on("error", (err) => {
+      if (err.code === "EADDRINUSE") {
+        logger.error(`Port ${PORT} is already in use. Kill the existing process and restart.`);
+      } else {
+        logger.error(`Server error: ${err.message}`);
+      }
+      process.exit(1);
+    });
+  } catch (error) {
+    logger.error(`Failed to start server: ${error.message}`, { stack: error.stack });
+    process.exit(1);
+  }
+}
+
 startServer();

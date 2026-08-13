@@ -1,0 +1,25 @@
+{
+  "name": "insell",
+  "version": "1.0.0",
+  "description": "✨ Fullstack Chat & Video Calling App ✨ ##  SyncSpace",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "start": "npm run start --prefix server",
+    "build": "npm install --prefix server && npm install --prefix client && npm run build --prefix client"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AbhishekSC/syncspace.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/AbhishekSC/syncspace/issues"
+  },
+  "homepage": "https://github.com/AbhishekSC/syncspace#readme"
+}

@@ -1,3 +1,701 @@
+@import "leaflet/dist/leaflet.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+	html,
+	body,
+	#root {
+		min-height: 100%;
+	}
+
+	body {
+		font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+		@apply bg-base-200 text-base-content antialiased transition-colors duration-300;
+	}
+}
+
+@layer components {
+	.app-ambient {
+		@apply bg-[radial-gradient(circle_at_14%_18%,hsl(var(--p)/0.14),transparent_40%),radial-gradient(circle_at_84%_10%,hsl(var(--s)/0.14),transparent_38%),radial-gradient(circle_at_80%_86%,hsl(var(--a)/0.12),transparent_42%),linear-gradient(180deg,hsl(var(--b2)),hsl(var(--b1)))];
+	}
+
+	.glass-wrap {
+		@apply rounded-3xl border border-base-300/70 bg-base-100/75 shadow-2xl shadow-base-300/15 backdrop-blur-xl;
+	}
+
+	.shell-panel {
+		@apply rounded-3xl border border-base-300/70 bg-gradient-to-b from-base-100/95 to-base-100/75 shadow-lg shadow-base-300/15 backdrop-blur;
+	}
+
+	.section-card {
+		@apply rounded-2xl border border-base-300/80 bg-base-100/85 p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md overflow-hidden;
+	}
+
+	.section-title {
+		@apply text-lg font-bold tracking-tight text-base-content;
+	}
+
+	.empty-box {
+		@apply rounded-2xl border border-dashed border-base-300 bg-base-100/80 p-5 text-sm text-base-content/65;
+	}
+
+	.metric-chip {
+		@apply rounded-full border border-base-300/80 bg-base-100/70 px-3 py-1 text-xs font-semibold text-base-content/70;
+	}
+
+	.surface-card {
+		@apply rounded-2xl border border-base-300/70 bg-base-100/85 p-4 shadow-sm transition duration-200 hover:border-primary/45 hover:shadow-md;
+	}
+
+	.hero-title {
+		@apply text-3xl font-black tracking-tight sm:text-4xl;
+	}
+
+	.muted-copy {
+		@apply text-sm text-base-content/70 sm:text-base;
+	}
+
+	.chat-whatsapp-wrapper {
+		@apply bg-[linear-gradient(180deg,hsl(var(--b1)),hsl(var(--b2)))];
+	}
+
+	.chat-whatsapp-wrapper .str-chat {
+		--str-chat__message-bubble-border-radius: 14px;
+		--str-chat__avatar-size: 32px;
+		height: 100%;
+	}
+
+	.chat-whatsapp-wrapper .str-chat__container,
+	.chat-whatsapp-wrapper .str-chat__channel,
+	.chat-whatsapp-wrapper .str-chat__main-panel,
+	.chat-whatsapp-wrapper .str-chat__channel-main {
+		height: 100%;
+	}
+
+	.chat-whatsapp-wrapper .str-chat__main-panel,
+	.chat-whatsapp-wrapper .str-chat__channel-main {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.chat-whatsapp-wrapper .str-chat__virtual-message__wrapper,
+	.chat-whatsapp-wrapper .str-chat__message-list-scroll,
+	.chat-whatsapp-wrapper .str-chat__message-list-main-panel {
+		flex: 1;
+		min-height: 0;
+	}
+
+	.chat-whatsapp-wrapper .str-chat__list {
+		@apply bg-base-200/40;
+	}
+
+	.chat-whatsapp-wrapper .str-chat__channel-header,
+	.chat-whatsapp-wrapper .str-chat__thread-header,
+	.chat-whatsapp-wrapper .str-chat__thread {
+		@apply bg-base-100/90 backdrop-blur;
+	}
+
+	.chat-whatsapp-wrapper .str-chat__message-simple__content {
+		@apply shadow-sm;
+	}
+
+	.chat-whatsapp-wrapper .str-chat__message-simple--me .str-chat__message-simple__content {
+		@apply border border-primary/20;
+	}
+
+	.chat-whatsapp-wrapper .str-chat__message-text {
+		@apply text-sm leading-relaxed;
+	}
+
+	.chat-whatsapp-wrapper .str-chat__textarea textarea {
+		@apply text-sm;
+	}
+
+	.chat-whatsapp-wrapper .str-chat__input-flat-wrapper,
+	.chat-whatsapp-wrapper .str-chat__quoted-message-preview,
+	.chat-whatsapp-wrapper .str-chat__thread-start {
+		@apply bg-base-100;
+	}
+
+	.telegram-chat-layout {
+		@apply grid gap-4 xl:grid-cols-[350px_minmax(0,1fr)];
+	}
+
+	.telegram-sidebar {
+		@apply rounded-2xl border border-base-300/80 bg-base-100/90 shadow-sm backdrop-blur;
+	}
+
+	.telegram-conversation-panel {
+		@apply rounded-2xl border border-base-300/80 bg-base-100/90 shadow-sm backdrop-blur;
+	}
+
+	.chat-welcome {
+		@apply bg-[radial-gradient(circle_at_50%_38%,hsl(var(--p)/0.12),transparent_35%),linear-gradient(180deg,hsl(var(--b1)/0.95),hsl(var(--b2)/0.65))];
+	}
+
+	.telegram-chat-shell {
+		@apply bg-base-100;
+		height: 100%;
+	}
+
+	.telegram-chat-shell .str-chat {
+		--str-chat__message-bubble-border-radius: 16px;
+		--str-chat__avatar-size: 34px;
+		--str-chat__background-core-app: hsl(var(--b1));
+		--str-chat__background-core-elevation-0: hsl(var(--b1));
+		--str-chat__background-core-elevation-1: hsl(var(--b1));
+		--str-chat__background-core-elevation-2: hsl(var(--b2));
+		--str-chat__background-core-surface-default: hsl(var(--b2));
+		--str-chat__background-core-surface-subtle: hsl(var(--b2));
+		--str-chat__border-core-default: hsl(var(--b3));
+		--str-chat__border-core-subtle: hsl(var(--b3) / 0.72);
+		--str-chat__text-primary: hsl(var(--bc));
+		--str-chat__text-secondary: hsl(var(--bc) / 0.7);
+		--str-chat__text-tertiary: hsl(var(--bc) / 0.52);
+		--str-chat__input-text-default: hsl(var(--bc));
+		--str-chat__input-text-placeholder: hsl(var(--bc) / 0.5);
+		--str-chat__input-text-icon: hsl(var(--bc) / 0.55);
+		--str-chat__chat-bg-incoming: hsl(var(--b2));
+		--str-chat__chat-text-incoming: hsl(var(--bc));
+		--str-chat__chat-border-incoming: hsl(var(--b3));
+		--str-chat__chat-bg-outgoing: hsl(var(--p) / 0.16);
+		--str-chat__chat-text-outgoing: hsl(var(--bc));
+		--str-chat__chat-border-outgoing: hsl(var(--p) / 0.32);
+		--str-chat__chat-text-timestamp: hsl(var(--bc) / 0.55);
+		--str-chat__chat-text-read: hsl(var(--p));
+		height: 100%;
+	}
+
+	.telegram-chat-shell,
+	.telegram-chat-shell * {
+		scrollbar-color: color-mix(in oklch, currentColor 35%, transparent) transparent;
+	}
+
+	.telegram-chat-shell .str-chat .str-chat__message-composer-container {
+		flex: 0 0 auto;
+		gap: 0;
+		padding: 0.55rem 0.75rem;
+		border-top: 1px solid hsl(var(--b3) / 0.8);
+		background: hsl(var(--b1) / 0.96);
+	}
+
+	.str-chat .str-chat__message-composer-container {
+		width: 100%;
+		min-height: -webkit-fit-content;
+		min-height: fit-content;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--str-chat__spacing-md);
+		justify-content: center;
+		padding: var(--str-chat__message-composer-padding);
+		min-width: 0;
+		border-top: 1px solid var(--str-chat__border-core-default);
+		background: var(--str-chat__background-core-elevation-1);
+	}
+
+	.telegram-chat-shell .str-chat__dropzone-root {
+		position: relative;
+		min-height: 0;
+		min-width: 0;
+		max-width: 100%;
+		max-height: 100%;
+	}
+
+	.str-chat__dropzone-root {
+		position: relative;
+		min-height: 0;
+		min-width: 0;
+		max-width: 100%;
+		max-height: 100%;
+	}
+
+	.telegram-chat-shell .str-chat__window {
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.telegram-chat-shell .str-chat__container,
+	.telegram-chat-shell .str-chat__channel,
+	.telegram-chat-shell .str-chat__main-panel,
+	.telegram-chat-shell .str-chat__channel-main {
+		height: 100%;
+	}
+
+	.telegram-chat-shell .str-chat__main-panel,
+	.telegram-chat-shell .str-chat__channel-main {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.telegram-chat-shell .str-chat__virtual-message__wrapper,
+	.telegram-chat-shell .str-chat__message-list-scroll,
+	.telegram-chat-shell .str-chat__message-list-main-panel {
+		flex: 1;
+		min-height: 0;
+	}
+
+	.telegram-chat-shell .str-chat__channel-header,
+	.telegram-chat-shell .str-chat__thread-header {
+		@apply border-b border-base-300/80 bg-base-100;
+	}
+
+	.telegram-chat-shell .stream-conversation-header {
+		@apply border-b border-base-300/80 bg-base-100/90 backdrop-blur-xl;
+	}
+
+	.telegram-chat-shell .conversation-header {
+		position: sticky;
+		top: 0;
+		z-index: 20;
+	}
+
+	.telegram-chat-shell .str-chat__message-list,
+	.telegram-chat-shell .str-chat__list {
+		@apply bg-[radial-gradient(circle_at_12%_8%,hsl(var(--p)/0.055),transparent_24%),linear-gradient(180deg,hsl(var(--b1)),hsl(var(--b2)/0.48))];
+		flex: 1;
+		min-height: 0;
+	}
+
+	.telegram-chat-shell .str-chat__message-list-scroll {
+		padding: 1rem clamp(0.8rem, 2.4vw, 1.5rem);
+		scroll-behavior: smooth;
+	}
+
+	.telegram-chat-shell .str-chat__message-list-main-panel {
+		flex: 1;
+		min-height: 0;
+	}
+
+	.telegram-chat-shell .str-chat__message-simple {
+		margin-bottom: 0.7rem;
+	}
+
+	.telegram-chat-shell .str-chat__message-bubble,
+	.telegram-chat-shell .str-chat__message-simple__content {
+		@apply border border-base-300/70 shadow-sm;
+		max-width: min(76%, 600px);
+	}
+
+	.telegram-chat-shell .str-chat__message--me .str-chat__message-bubble,
+	.telegram-chat-shell .str-chat__message-simple--me .str-chat__message-simple__content {
+		@apply border-primary/30 bg-primary/15 shadow-primary/5;
+	}
+
+	.telegram-chat-shell .str-chat__message-simple__text-inner {
+		line-height: 1.45;
+	}
+
+	.telegram-chat-shell .str-chat__date-separator {
+		@apply text-xs text-base-content/55;
+	}
+
+	.telegram-chat-shell .str-chat__message-input {
+		@apply p-0;
+	}
+
+	.telegram-chat-shell .str-chat__textarea textarea {
+		@apply bg-transparent px-2 py-1.5 text-sm shadow-none;
+		min-height: 28px;
+		max-height: 96px;
+	}
+
+	.telegram-chat-shell .str-chat__message-composer {
+		align-items: center;
+		gap: 0.45rem;
+		max-width: 100%;
+	}
+
+	.telegram-chat-shell .str-chat__message-composer > .str-chat__attachment-selector {
+		width: 2.4rem;
+		max-width: 2.4rem;
+	}
+
+	.telegram-chat-shell .str-chat__attachment-selector__menu-button {
+		@apply grid size-9 place-items-center rounded-xl border border-base-300/80 bg-base-100 text-base-content/65 shadow-sm transition hover:border-primary/35 hover:text-primary;
+	}
+
+	.telegram-chat-shell .str-chat__message-composer-compose-area {
+		@apply rounded-2xl border border-base-300/80 bg-base-100 shadow-sm transition focus-within:border-primary/45 focus-within:ring-2 focus-within:ring-primary/10;
+	}
+
+	.telegram-chat-shell .str-chat__message-composer-controls {
+		gap: 0.35rem;
+		padding: 0.3rem;
+	}
+
+	.telegram-chat-shell .str-chat__send-button {
+		@apply grid size-8 place-items-center rounded-xl bg-primary p-0 text-primary-content shadow-sm transition hover:bg-primary/90 disabled:bg-base-300 disabled:text-base-content/35;
+	}
+
+	.telegram-chat-shell .str-chat__input-flat-wrapper,
+	.telegram-chat-shell .str-chat__quoted-message-preview,
+	.telegram-chat-shell .str-chat__thread-start,
+	.telegram-chat-shell .str-chat__thread {
+		@apply border-t border-base-300/70 bg-base-100/95 backdrop-blur-xl;
+	}
+
+	.telegram-chat-shell .str-chat__quoted-message-preview {
+		@apply rounded-xl border border-base-300/70;
+	}
+
+	.call-lobby-grid {
+		@apply grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px];
+	}
+
+	.call-stage {
+		@apply bg-base-100/90;
+	}
+
+	.call-stage__hero {
+		@apply relative overflow-hidden border-b border-base-300/70 px-5 py-7 sm:px-7 sm:py-8;
+		background: radial-gradient(circle at 88% 20%, hsl(var(--s) / 0.22), transparent 24rem), linear-gradient(130deg, hsl(var(--p) / 0.15), hsl(var(--b1) / 0.96) 55%);
+	}
+
+	.call-stage__hero h2 {
+		@apply mt-4 text-2xl font-black tracking-tight sm:text-3xl;
+	}
+
+	.call-stage__hero p {
+		@apply mt-2 max-w-xl text-sm leading-relaxed text-base-content/65;
+	}
+
+	.call-stage__orb {
+		@apply absolute -right-5 -top-5 grid size-36 place-items-center rounded-full border border-primary/15 bg-primary/10 text-primary/35 sm:right-8 sm:top-2;
+	}
+
+	.call-stage__orb svg {
+		@apply size-16;
+	}
+
+	.call-status-pill {
+		@apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold;
+	}
+
+	.call-status-pill--ready {
+		@apply bg-success/10 text-success;
+	}
+
+	.call-status-pill--waiting {
+		@apply bg-warning/15 text-warning;
+	}
+
+	.call-preview-card {
+		@apply min-h-[330px] rounded-2xl border border-base-300/75 bg-[radial-gradient(circle_at_50%_45%,hsl(var(--p)/0.1),transparent_35%),linear-gradient(180deg,hsl(var(--b1)),hsl(var(--b2)/0.6))];
+	}
+
+	.call-incoming-banner {
+		@apply mb-4 flex items-center gap-3 rounded-2xl border border-success/25 bg-success/10 p-3;
+	}
+
+	.call-sidebar__title {
+		@apply flex items-center gap-3;
+	}
+
+	.call-sidebar__title h3 {
+		@apply text-base font-bold;
+	}
+
+	.call-sidebar__title p {
+		@apply mt-0.5 text-xs text-base-content/55;
+	}
+
+	.call-friend-list {
+		@apply mt-4 max-h-64 space-y-1 overflow-y-auto pr-1;
+	}
+
+	.call-friend-row {
+		@apply flex w-full items-center gap-3 rounded-xl border border-transparent p-2 text-left transition-all duration-200 hover:bg-base-200/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary;
+	}
+
+	.call-friend-row--selected {
+		@apply border-primary/25 bg-primary/10 shadow-sm;
+	}
+
+	.call-privacy-note {
+		@apply mt-5 flex items-start gap-2 rounded-xl bg-base-200/70 px-3 py-2.5 text-xs leading-relaxed text-base-content/60;
+	}
+
+	.call-privacy-note svg {
+		@apply mt-0.5 shrink-0 text-primary;
+	}
+
+	.call-empty-rooms {
+		@apply mt-3 rounded-xl border border-dashed border-base-300 bg-base-200/40 px-3 py-4 text-center text-xs text-base-content/55;
+	}
+
+	.call-active-room {
+		@apply flex items-center justify-between gap-3 rounded-xl border border-base-300/70 bg-base-100/75 p-3 shadow-sm;
+	}
+
+	.call-live-shell {
+		@apply overflow-hidden;
+		background: radial-gradient(circle at 85% 0%, hsl(var(--p) / 0.12), transparent 28rem), hsl(var(--b1));
+	}
+
+	.notification-layout {
+		@apply grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1.65fr)_330px];
+	}
+
+	.notification-inbox,
+	.notification-discover,
+	.notification-network {
+		@apply p-4 sm:p-5;
+	}
+
+	.notification-section-heading {
+		@apply flex items-center gap-3;
+	}
+
+	.notification-section-heading h2 {
+		@apply text-base font-bold tracking-tight;
+	}
+
+	.notification-section-heading p {
+		@apply mt-0.5 text-xs text-base-content/55;
+	}
+
+	.notification-count {
+		@apply ml-auto grid size-7 place-items-center rounded-full bg-base-200 text-xs font-bold text-base-content/55;
+	}
+
+	.notification-count--active {
+		@apply bg-success text-success-content;
+	}
+
+	.notification-request-card {
+		@apply flex items-center gap-3 rounded-2xl border border-success/20 bg-success/5 p-3 transition hover:border-success/35 hover:bg-success/10;
+	}
+
+	.notification-person-card {
+		@apply rounded-2xl border border-base-300/75 bg-base-100/75 p-3.5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md;
+	}
+
+	.notification-empty {
+		@apply mt-4 flex items-center gap-3 rounded-2xl border border-dashed border-base-300 bg-base-200/40 p-4 text-sm text-base-content/60;
+	}
+
+	.notification-empty p:first-child {
+		@apply text-sm text-base-content;
+	}
+
+	.notification-empty p + p {
+		@apply mt-0.5 text-xs;
+	}
+
+	.notification-search {
+		@apply rounded-xl border-base-300/80 bg-base-200/45 transition focus-within:border-primary/45 focus-within:bg-base-100;
+	}
+
+	.notification-subheading {
+		@apply text-[11px] font-bold uppercase tracking-[0.12em] text-base-content/45;
+	}
+
+	.notification-network-row {
+		@apply flex items-center gap-2.5 rounded-xl border border-transparent p-2 transition hover:border-base-300/80 hover:bg-base-200/55;
+	}
+
+	.notification-skeleton {
+		@apply h-64 animate-pulse rounded-3xl border border-base-300/60 bg-base-100/65;
+	}
+
+	@media (max-width: 639px) {
+		.telegram-chat-layout {
+			min-height: calc(100dvh - 17.5rem);
+		}
+
+		.telegram-sidebar,
+		.telegram-conversation-panel {
+			border-radius: 1.25rem;
+		}
+
+		.telegram-chat-shell .str-chat__message-simple__content {
+			max-width: 86%;
+		}
+	}
+
+	.zoom-call-shell {
+		@apply relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-base-300/40 bg-[#0f172a] shadow-2xl;
+	}
+
+	.live-call-room-layout {
+		@apply flex h-full min-h-0 flex-col;
+	}
+
+	.zoom-call-topbar {
+		@apply flex items-center justify-between border-b border-white/10 bg-black/35 px-4 py-3 text-xs font-medium text-white/85 backdrop-blur-xl;
+	}
+
+	.zoom-live-badge {
+		@apply rounded-full border border-success/35 bg-success/15 px-2.5 py-1 text-[11px] font-bold text-success;
+	}
+
+	.zoom-call-stage {
+		@apply relative flex-1 min-h-0 overflow-hidden bg-[#0b1220];
+		background-image: radial-gradient(circle at 50% 20%, rgba(30, 64, 175, 0.22), transparent 42%);
+	}
+
+	.zoom-call-stage .str-video,
+	.zoom-call-stage .str-video__call,
+	.zoom-call-stage .str-video__speaker-layout,
+	.zoom-call-stage .str-video__participant-view {
+		height: 100%;
+	}
+
+	.zoom-call-stage .str-video__speaker-layout__participants-bar {
+		@apply bg-black/35 backdrop-blur;
+	}
+
+	.zoom-call-stage .str-video__participant-view {
+		border-radius: 14px;
+		overflow: hidden;
+	}
+
+	.zoom-local-preview {
+		@apply absolute bottom-24 right-4 z-[5] h-28 w-20 overflow-hidden rounded-xl border border-white/30 bg-black/70 shadow-xl sm:h-36 sm:w-24;
+	}
+
+	.zoom-local-preview .str-video__participant-view,
+	.zoom-local-preview .str-video__video {
+		height: 100%;
+		width: 100%;
+	}
+
+	.zoom-local-preview .str-video__participant-details {
+		@apply text-[10px];
+	}
+
+	.zoom-call-controls {
+		@apply absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-2xl border border-white/20 bg-black/75 px-3 py-2 shadow-2xl backdrop-blur-xl;
+		max-width: calc(100% - 1.5rem);
+		overflow-x: auto;
+		overflow-y: hidden;
+		white-space: nowrap;
+	}
+
+	.zoom-call-controls .str-video__call-controls {
+		background: transparent;
+		border: 0;
+		padding: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.45rem;
+		flex-wrap: nowrap;
+		min-width: max-content;
+	}
+
+	.zoom-call-controls-custom {
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		flex-wrap: nowrap;
+		min-width: max-content;
+	}
+
+	.zoom-call-controls .str-video__call-controls__button,
+	.zoom-call-controls .str-video__composite-button__button-group {
+		background-color: rgba(255, 255, 255, 0.12);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		color: #ffffff;
+		border-radius: 9999px;
+		min-width: 2.1rem;
+		width: 2.1rem;
+		height: 2.1rem;
+		flex: 0 0 auto;
+		transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+	}
+
+	.zoom-call-controls .str-video__call-controls__button:hover,
+	.zoom-call-controls .str-video__composite-button__button-group:hover {
+		background-color: rgba(255, 255, 255, 0.2);
+		transform: translateY(-1px);
+	}
+
+	.zoom-call-controls .str-video__call-controls__button--variant-danger,
+	.zoom-call-controls .str-video__composite-button__button-group.str-video__composite-button__button-group--active {
+		background-color: rgba(239, 68, 68, 0.88);
+		border-color: rgba(248, 113, 113, 0.95);
+		color: #ffffff;
+	}
+
+	.zoom-call-controls .str-video__icon {
+		background-color: currentColor;
+		opacity: 1;
+		width: 1rem;
+		height: 1rem;
+	}
+
+	.zoom-call-controls .str-video__composite-button {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		padding: 0 0.55rem;
+		width: auto;
+		min-width: 2.1rem;
+	}
+
+	.zoom-call-controls .str-video__composite-button__caption {
+		display: inline;
+		font-size: 0.68rem;
+		line-height: 1;
+		font-weight: 600;
+		letter-spacing: 0.01em;
+		color: rgba(255, 255, 255, 0.92);
+		white-space: nowrap;
+	}
+
+	.zoom-call-controls .str-video__composite-button--caption {
+		display: inline;
+		font-size: 0.68rem;
+		line-height: 1;
+		font-weight: 600;
+		letter-spacing: 0.01em;
+		color: rgba(255, 255, 255, 0.92);
+		white-space: nowrap;
+	}
+
+	.zoom-screen-share-control,
+	.zoom-screen-share-control .str-video__composite-button {
+		display: inline-flex;
+		align-items: center;
+	}
+
+	.zoom-screen-share-control .str-video__composite-button__button-group {
+		width: auto;
+		min-width: 0;
+		background-color: rgba(16, 185, 129, 0.5);
+		border: 1px solid rgba(110, 231, 183, 0.9);
+		color: #ffffff;
+		border-radius: 9999px;
+		height: 2.35rem;
+		padding: 0 0.75rem;
+	}
+
+	.zoom-screen-share-control .str-video__composite-button__button-group:hover {
+		background-color: rgba(16, 185, 129, 0.6);
+		border-color: rgba(134, 239, 172, 0.95);
+	}
+
+	.zoom-screen-share-control .str-video__composite-button--caption,
+	.zoom-screen-share-control .str-video__composite-button__caption {
+		display: inline;
+		font-size: 0.72rem;
+		font-weight: 700;
+		color: #ffffff;
+		white-space: nowrap;
+	}
+
+	.zoom-call-controls::-webkit-scrollbar {
+		height: 4px;
+	}
+
+	.zoom-call-controls::-webkit-scrollbar-thumb {
+		background: rgba(255, 255, 255, 0.25);
+		border-radius: 9999px;
+	}
+}

@@ -1,0 +1,43 @@
+import express from "express";
+
+import authRoutes from "./auth.routes.js";
+import userRoutes from "./user.routes.js";
+import chatRoutes from "./chat.routes.js";
+import sessionRoutes from "./session.routes.js";
+import communityRoutes from "./community.routes.js";
+import propertyPostRoutes from "./propertyPost.routes.js";
+import expenseRoutes from "./expense.routes.js";
+import notificationRoutes from "./notification.route.js";
+import commentRoutes from "./comment.routes.js";
+import newsRoutes from "./news.route.js";
+import storyRoutes from "./story.route.js";
+import personalizationRoutes from "./personalization.route.js";
+import verificationRoutes from "./verification.route.js";
+import searchRoutes from "./search.route.js";
+import roleStatsRoutes from "./roleStats.route.js";
+import amenitiesRoutes from "./amenities.route.js";
+import locationRoutes from "./location.route.js";
+
+const router = new express.Router();
+
+router.use("/auth", authRoutes);
+router.use("/users", userRoutes);
+router.use("/accounts", userRoutes);
+router.use("/chat", chatRoutes);
+router.use("/sessions", sessionRoutes);
+router.use("/community", communityRoutes);
+router.use("/marketplace", communityRoutes);
+router.use("/posts", propertyPostRoutes);
+router.use("/expenses", expenseRoutes);
+router.use("/notifications", notificationRoutes);
+router.use("/comments", commentRoutes);
+router.use("/news", newsRoutes);
+router.use("/stories", storyRoutes);
+router.use("/personalization", personalizationRoutes);
+router.use("/verification", verificationRoutes);
+router.use("/search", searchRoutes);
+router.use("/role-stats", roleStatsRoutes);
+router.use("/amenities", amenitiesRoutes);
+router.use("/location", locationRoutes);
+
+export default router;

@@ -4,6 +4,11 @@ import {
   logout,
   onboarding,
   signup,
+  googleAuth,
+  googleAuthCallback,
+  requestPasswordReset,
+  verifyResetOTP,
+  resetPassword,
 } from "../controllers/auth.controller.js";
 import {
   loginValidation,
@@ -12,19 +17,29 @@ import {
 import { verifyUser } from "../middlewares/auth.middleware.js";
 import { sendSuccessResponse } from "../utils/responseHandler.js";
 
-const router = new express.Router();
+const router = express.Router();
 
 router.post("/signup", signupValidation, signup);
 router.post("/login", loginValidation, login);
 router.post("/logout", logout);
 
 router.post("/onboarding", verifyUser, onboarding);
+router.post("/profile-setup", verifyUser, onboarding);
 
 router.get("/verify", verifyUser, (req, res) => {
   sendSuccessResponse(res, 200, "User verified successfully", {
     user: req.user,
   });
 });
+
+// Google OAuth routes
+router.get("/google", googleAuth);
+router.get("/google/callback", googleAuthCallback);
+
+// Password Reset routes
+router.post("/password-reset/request", requestPasswordReset);
+router.post("/password-reset/verify-otp", verifyResetOTP);
+router.post("/password-reset/reset", resetPassword);
 
 // Forget-password
 // Send reset-password email

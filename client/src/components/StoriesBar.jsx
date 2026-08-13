@@ -1,0 +1,535 @@
+import { useState, useEffect } from "react";
+import { Plus, X, ChevronLeft, ChevronRight, Eye, Heart, MessageCircle, Share2, MapPin, Building2, IndianRupee, Clock } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axiosInstance from "../lib/axios";
+import toast from "react-hot-toast";
+
+const STORY_CATEGORIES = [
+  { label: "Premium Projects", category: "premium", color: "from-amber-400 to-orange-500" },
+  { label: "Luxury Homes", category: "luxury", color: "from-purple-400 to-pink-500" },
+  { label: "New Launches", category: "new", color: "from-emerald-400 to-teal-500" },
+  { label: "Verified Brokers", category: "verified", color: "from-blue-400 to-indigo-500" },
+  { label: "Price Drops", category: "price-drop", color: "from-rose-400 to-red-500" },
+  { label: "Commercial", category: "commercial", color: "from-slate-400 to-gray-500" },
+  { label: "Investment", category: "investment", color: "from-violet-400 to-purple-500" },
+  { label: "Trending", category: "trending", color: "from-cyan-400 to-blue-500" },
+];
+
+export default function StoriesBar({ onCategorySelect }) {
+  const [activeStory, setActiveStory] = useState(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
+  const queryClient = useQueryClient();
+  const authData = queryClient.getQueryData(["authUser"]);
+  const authUser = authData?.data?.user || authData?.data || null;
+
+  // Fetch active stories
+  const { data: storiesData, isLoading } = useQuery({
+    queryKey: ["stories"],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/stories");
+      return response.data?.data?.stories || [];
+    },
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
+  // Create story mutation
+  const { mutate: createStory, isPending: creating } = useMutation({
+    mutationFn: async (storyData) => {
+      const response = await axiosInstance.post("/stories", storyData);
+      return response.data?.data?.story;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["stories"] });
+      toast.success("Story created successfully");
+      setIsCreating(false);
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to create story");
+    },
+  });
+
+  // Upload media mutation
+  const { mutate: uploadMedia, isPending: uploading } = useMutation({
+    mutationFn: async (file) => {
+      const formData = new FormData();
+      formData.append("media", file);
+      const response = await axiosInstance.post("/stories/upload-media", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data?.data;
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to upload media");
+    },
+  });
+
+  const stories = storiesData || [];
+
+  // Group stories by author
+  const storiesByAuthor = stories.reduce((acc, story) => {
+    const authorId = story.author?._id;
+    if (!acc[authorId]) {
+      acc[authorId] = {
+        author: story.author,
+        stories: [],
+      };
+    }
+    acc[authorId].stories.push(story);
+    return acc;
+  }, {});
+
+  const authorStoriesArray = Object.values(storiesByAuthor);
+
+  const handleStoryClick = (authorStories, index = 0) => {
+    setActiveStory({ stories: authorStories, currentIndex: index });
+    setCurrentStoryIndex(index);
+  };
+
+  const handleNextStory = () => {
+    if (!activeStory) return;
+    const nextIndex = currentStoryIndex + 1;
+    if (nextIndex < activeStory.stories.length) {
+      setCurrentStoryIndex(nextIndex);
+    } else {
+      // Move to next author
+      const currentAuthorIndex = authorStoriesArray.findIndex(
+        (a) => a.author._id === activeStory.stories[0].author._id
+      );
+      const nextAuthorIndex = currentAuthorIndex + 1;
+      if (nextAuthorIndex < authorStoriesArray.length) {
+        handleStoryClick(authorStoriesArray[nextAuthorIndex].stories, 0);
+      } else {
+        setActiveStory(null);
+      }
+    }
+  };
+
+  const handlePreviousStory = () => {
+    if (!activeStory) return;
+    const prevIndex = currentStoryIndex - 1;
+    if (prevIndex >= 0) {
+      setCurrentStoryIndex(prevIndex);
+    } else {
+      setActiveStory(null);
+    }
+  };
+
+  const handleCreateStory = async (file, caption, visibility) => {
+    if (uploading) return;
+
+    uploadMedia(file, {
+      onSuccess: (mediaData) => {
+        createStory({
+          mediaUrl: mediaData.mediaUrl,
+          mediaType: mediaData.mediaType,
+          caption,
+          visibility,
+        });
+      },
+    });
+  };
+
+  return (
+    <>
+      {/* Stories Bar */}
+      <div className="flex items-center gap-4 overflow-x-auto pb-2 scrollbar-hide">
+        {/* Create Story Button - Always show */}
+        <button
+          type="button"
+          className="flex min-w-[4.5rem] flex-col items-center gap-1"
+          onClick={() => setIsCreating(true)}
+        >
+          <div className="relative flex size-16 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-indigo-300 bg-indigo-50 transition hover:border-indigo-400 hover:bg-indigo-100">
+            <Plus className="size-6 text-indigo-600" />
+          </div>
+          <span className="text-[11px] font-semibold text-slate-700">Add Story</span>
+        </button>
+
+        {/* Only show stories if they exist */}
+        {!isLoading && stories.length > 0 && (
+          <>
+            {/* All User Stories - Grouped by author */}
+            {authorStoriesArray.map((authorStory) => (
+              <button
+                key={authorStory.author._id}
+                type="button"
+                className="flex min-w-[4.5rem] flex-col items-center gap-1 relative"
+                onClick={() => handleStoryClick(authorStory.stories)}
+              >
+                <span className="block size-16 overflow-hidden rounded-full p-[2px] bg-gradient-to-br from-indigo-500 via-violet-500 to-pink-500">
+                  <img
+                    src={authorStory.author.profilePic || "https://placehold.co/100x100?text=User"}
+                    alt={authorStory.author.fullName}
+                    className="size-full rounded-full object-cover"
+                  />
+                </span>
+                <span className="text-[11px] font-semibold text-slate-700 line-clamp-1 w-full text-center">
+                  {authorStory.author.fullName?.split(" ")[0]}
+                </span>
+              </button>
+            ))}
+          </>
+        )}
+
+        {isLoading && (
+          <div className="flex min-w-[4.5rem] flex-col items-center gap-1">
+            <div className="size-16 animate-pulse rounded-full bg-slate-200" />
+            <span className="text-[11px] text-slate-400">Loading...</span>
+          </div>
+        )}
+      </div>
+
+      {/* Story Viewer Modal */}
+      {activeStory && (
+        <StoryViewer
+          story={activeStory.stories[currentStoryIndex]}
+          currentIndex={currentStoryIndex}
+          totalStories={activeStory.stories.length}
+          onNext={handleNextStory}
+          onPrevious={handlePreviousStory}
+          onClose={() => setActiveStory(null)}
+        />
+      )}
+
+      {/* Create Story Modal */}
+      {isCreating && (
+        <CreateStoryModal
+          onClose={() => setIsCreating(false)}
+          onCreate={handleCreateStory}
+          isPending={creating || uploading}
+        />
+      )}
+    </>
+  );
+}
+
+function StoryViewer({ story, currentIndex, totalStories, onNext, onPrevious, onClose }) {
+  const [progress, setProgress] = useState(0);
+
+  // Auto-advance after 5 seconds
+  useEffect(() => {
+    setProgress(0);
+    const interval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          onNext();
+          return 0;
+        }
+        return prev + 2; // 2% every 100ms = 5 seconds total
+      });
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [story, onNext]);
+
+  const isVideo = story.mediaType === "video";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black">
+      {/* Progress Bar */}
+      <div className="absolute top-4 left-4 right-4 flex gap-1 z-10">
+        {Array.from({ length: totalStories }).map((_, i) => (
+          <div
+            key={i}
+            className={`h-1 flex-1 rounded-full ${i === currentIndex ? "bg-white" : "bg-white/30"}`}
+          >
+            {i === currentIndex && (
+              <div
+                className="h-full rounded-full bg-white transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Close Button */}
+      <button
+        type="button"
+        className="absolute top-6 right-4 text-white hover:text-slate-300 z-20"
+        onClick={onClose}
+      >
+        <X className="size-6" />
+      </button>
+
+      {/* Navigation */}
+      <button
+        type="button"
+        className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-slate-300 z-20"
+        onClick={onPrevious}
+      >
+        <ChevronLeft className="size-8" />
+      </button>
+      <button
+        type="button"
+        className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-slate-300 z-20"
+        onClick={onNext}
+      >
+        <ChevronRight className="size-8" />
+      </button>
+
+      {/* Story Content */}
+      <div className="relative h-full w-full max-w-lg overflow-hidden">
+        {isVideo ? (
+          <video
+            src={story.mediaUrl.startsWith('http') ? story.mediaUrl : `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}${story.mediaUrl}`}
+            className="h-full w-full object-contain"
+            autoPlay
+            controls
+          />
+        ) : (
+          <img
+            src={story.mediaUrl.startsWith('http') ? story.mediaUrl : `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}${story.mediaUrl}`}
+            alt="Story"
+            className="h-full w-full object-contain"
+          />
+        )}
+
+        {/* Story Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30">
+          {/* Header */}
+          <div className="absolute top-6 left-4 flex items-center gap-3">
+            <img
+              src={story.author?.profilePic || "https://placehold.co/50x50?text=User"}
+              alt={story.author?.fullName}
+              className="size-10 rounded-full border-2 border-white object-cover"
+            />
+            <div>
+              <p className="text-sm font-semibold text-white">
+                {story.author?.fullName}
+                {story.author?.isVerified && (
+                  <span className="ml-1 text-emerald-400">✓</span>
+                )}
+              </p>
+              <p className="text-xs text-slate-300">
+                {story.author?.activeRole || story.author?.primaryRole} • {relativeTime(story.createdAt)}
+              </p>
+            </div>
+          </div>
+
+          {/* Caption */}
+          {story.caption && (
+            <div className="absolute bottom-20 left-4 right-4">
+              <p className="text-sm text-white">{story.caption}</p>
+            </div>
+          )}
+
+          {/* Property Link */}
+          {story.propertyId && (
+            <div className="absolute bottom-4 left-4 right-4 rounded-xl bg-white/10 backdrop-blur p-3">
+              <div className="flex items-center gap-3">
+                <Building2 className="size-5 text-white" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white line-clamp-1">
+                    {story.propertyId.title}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs text-slate-300">
+                    <span className="flex items-center gap-1">
+                      <IndianRupee className="size-3" />
+                      {formatMoney(story.propertyId.price)}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <MapPin className="size-3" />
+                      {story.propertyId.city}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Engagement */}
+          <div className="absolute bottom-4 right-4 flex items-center gap-4 text-white">
+            <div className="flex items-center gap-1">
+              <Eye className="size-4" />
+              <span className="text-xs">{story.viewCount}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Heart className="size-4" />
+              <span className="text-xs">{story.likedBy?.length || 0}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CreateStoryModal({ onClose, onCreate, isPending }) {
+  const [file, setFile] = useState(null);
+  const [caption, setCaption] = useState("");
+  const [visibility, setVisibility] = useState("public");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!file) {
+      toast.error("Please select an image or video");
+      return;
+    }
+    onCreate(file, caption, visibility);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h2 className="text-lg font-semibold text-slate-800">Create Story</h2>
+          <button
+            type="button"
+            className="p-1 hover:bg-slate-100 rounded-full transition"
+            onClick={onClose}
+          >
+            <X className="size-5 text-slate-500" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* File Upload */}
+          <div className="relative">
+            <input
+              type="file"
+              accept="image/*,video/*"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="hidden"
+              id="story-file"
+            />
+            <label
+              htmlFor="story-file"
+              className="flex aspect-[9/16] max-h-80 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50 transition-all"
+            >
+              {file ? (
+                <div className="relative h-full w-full">
+                  {file.type.startsWith("video") ? (
+                    <video
+                      src={URL.createObjectURL(file)}
+                      className="h-full w-full object-cover rounded-xl"
+                    />
+                  ) : (
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt="Preview"
+                      className="h-full w-full object-cover rounded-xl"
+                    />
+                  )}
+                  <button
+                    type="button"
+                    className="absolute top-2 right-2 p-2 bg-black/50 rounded-full text-white hover:bg-black/70 transition"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setFile(null);
+                    }}
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center p-6">
+                  <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-indigo-100">
+                    <Plus className="size-7 text-indigo-600" />
+                  </div>
+                  <p className="text-sm font-medium text-slate-700">Add photo or video</p>
+                  <p className="text-xs text-slate-500 mt-1">Max 30 seconds for videos</p>
+                </div>
+              )}
+            </label>
+          </div>
+
+          {/* Caption */}
+          <div>
+            <textarea
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 outline-none transition resize-none text-sm"
+              placeholder="Write a caption..."
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              maxLength={500}
+              rows={3}
+            />
+            <p className="text-xs text-slate-400 mt-1 text-right">{caption.length}/500</p>
+          </div>
+
+          {/* Visibility */}
+          <div>
+            <label className="text-sm font-medium text-slate-700 mb-2 block">Who can see this story?</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                className={`flex items-center gap-2 p-3 rounded-xl border-2 transition ${
+                  visibility === "public"
+                    ? "border-indigo-500 bg-indigo-50"
+                    : "border-slate-200 bg-slate-50 hover:border-slate-300"
+                }`}
+                onClick={() => setVisibility("public")}
+              >
+                <div className="flex size-8 items-center justify-center rounded-full bg-indigo-100">
+                  <span className="text-lg">🌍</span>
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-medium text-slate-800">Public</p>
+                  <p className="text-xs text-slate-500">Everyone</p>
+                </div>
+              </button>
+              <button
+                type="button"
+                className={`flex items-center gap-2 p-3 rounded-xl border-2 transition ${
+                  visibility === "private"
+                    ? "border-indigo-500 bg-indigo-50"
+                    : "border-slate-200 bg-slate-50 hover:border-slate-300"
+                }`}
+                onClick={() => setVisibility("private")}
+              >
+                <div className="flex size-8 items-center justify-center rounded-full bg-indigo-100">
+                  <span className="text-lg">👥</span>
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-medium text-slate-800">Private</p>
+                  <p className="text-xs text-slate-500">Followers only</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-3 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isPending || !file}
+            >
+              {isPending ? "Sharing..." : "Share Story"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function relativeTime(dateString) {
+  if (!dateString) return "Just now";
+  const time = new Date(dateString).getTime();
+  const delta = Date.now() - time;
+  const hours = Math.floor(delta / (1000 * 60 * 60));
+  if (hours < 1) return "Just now";
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function formatMoney(value) {
+  const amount = Number(value || 0);
+  if (!Number.isFinite(amount) || amount <= 0) return "Price on request";
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}

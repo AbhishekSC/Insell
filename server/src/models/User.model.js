@@ -29,11 +29,45 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
     },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationCode: {
+      type: String,
+      select: false, // Exclude from queries by default
+    },
+    verificationCodeExpires: {
+      type: Date,
+      select: false,
+    },
+    resetOTP: {
+      type: String,
+      select: false, // Exclude from queries by default
+    },
+    resetOTPExpires: {
+      type: Date,
+      select: false,
+    },
     password: {
       type: String,
-      required: [true, "Password is required"],
+      required: function() {
+        // Password is required only if not using OAuth
+        return !this.googleId;
+      },
       minlength: PASSWORD_MIN_LENGTH,
       select: false, // Exclude password from queries by default
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true, // Allows multiple null values
+      select: false,
+    },
+    provider: {
+      type: String,
+      enum: ['local', 'google'],
+      default: 'local',
     },
     bio: {
       type: String,
@@ -48,6 +82,68 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    mobileNumber: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    preferredLanguage: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    primaryRole: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    activeRole: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    userRoles: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+    city: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    preferredLocalities: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+    propertyTypePreferences: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+    budgetMin: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    budgetMax: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    listingIntent: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    roleProfiles: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
     nativeLanguage: {
       type: String,
       trim: true,
@@ -58,14 +154,66 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    homeBase: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    travelStyle: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    travelInterests: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+    favoriteDestinations: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
     location: {
       type: String,
       trim: true,
       default: "",
     },
+    locationDetails: {
+      type: {
+        latitude: Number,
+        longitude: Number,
+        country: String,
+        countryCode: String,
+        city: String,
+        state: String,
+        address: String,
+        formattedAddress: String,
+      },
+      default: null,
+    },
     isOnboarded: {
       type: Boolean,
       default: false,
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    profileCompletion: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    responseRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
     },
     friends: [
       {
@@ -73,6 +221,118 @@ const userSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    likedPosts: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "PropertyPost",
+      },
+    ],
+    savedPosts: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "PropertyPost",
+      },
+    ],
+    viewedPosts: [
+      {
+        post: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "PropertyPost",
+        },
+        viewedAt: {
+          type: Date,
+          default: Date.now,
+        },
+        duration: {
+          type: Number,
+          default: 0, // seconds spent viewing
+        },
+      },
+    ],
+    searchHistory: [
+      {
+        query: {
+          type: String,
+          trim: true,
+        },
+        searchedAt: {
+          type: Date,
+          default: Date.now,
+        },
+        resultCount: {
+          type: Number,
+          default: 0,
+        },
+      },
+    ],
+    commentAnalytics: {
+      totalComments: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      avgCommentLength: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      commonKeywords: [
+        {
+          type: String,
+          trim: true,
+        },
+      ],
+      sentimentDistribution: {
+        positive: {
+          type: Number,
+          default: 0,
+          min: 0,
+        },
+        neutral: {
+          type: Number,
+          default: 0,
+          min: 0,
+        },
+        negative: {
+          type: Number,
+          default: 0,
+          min: 0,
+        },
+      },
+      interestCategories: [
+        {
+          type: String,
+          trim: true,
+        },
+      ],
+      detectedIntents: [
+        {
+          type: String,
+          trim: true,
+        },
+      ],
+      propertyTypeInterests: [
+        {
+          type: {
+            type: String,
+            trim: true,
+          },
+          frequency: {
+            type: Number,
+            default: 1,
+            min: 1,
+          },
+          lastMentioned: {
+            type: Date,
+            default: Date.now,
+          },
+        },
+      ],
+      lastCommentAt: {
+        type: Date,
+        default: null,
+      },
+    },
   },
   { timestamps: true }
 );

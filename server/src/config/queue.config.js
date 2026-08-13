@@ -1,7 +1,7 @@
 import amqplib from "amqplib";
 import { logger } from "../utils/logger.js";
 import "dotenv/config";
-import { sendEmail } from "../services/Email.service.js";
+import { sendEmail } from "../services/email.service.js";
 
 let channel = null;
 let connection = null;

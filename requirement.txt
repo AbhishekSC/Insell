@@ -1,0 +1,9 @@
+WIP: Nearby amenities - Show schools, hospitals, metro stations, malls on map view
+Neighborhood insights - Crime rates, noise levels, air quality scores
+Price history - Track price trends for similar properties in the area
+Mortgage calculator - EMI calculator for buyers
+Comparison reports - Download PDF comparison of selected properties
+Review system - User reviews for properties and neighborhoods
+Agent ratings - Rate sellers/agents based on responsiveness and transparency
+Featured listings - Paid promotion for visibility
+Verified badges - Phone, email, ID verification (you have email, could add phone/ID)

@@ -1,20 +1,30 @@
 import { validationResult } from "express-validator";
-import User from "../models/User.model.js";
-import { sanitizeUserData } from "../utils/sanitizeUser.js";
+import UserRepository from "../repositories/UserRepository.js";
 import { logger } from "../utils/logger.js";
 import generateAccessToken from "../services/generateToken.service.js";
 import { addTokenBlacklist } from "../services/tokenBlacklist.service.js";
 import { UpdateStreamUser } from "../services/stream.service.js";
+import AuthService from "../services/AuthService.js";
 import {
   sendErrorResponse,
   sendSuccessResponse,
 } from "../utils/responseHandler.js";
-import { sendEmail } from "../services/Email.service.js";
 import { publishToQueue } from "../config/queue.config.js";
+import User from "../models/User.model.js";
+import passport from "../config/googleAuth.config.js";
+import { generateResetOTP, verifyOTP } from "../services/otp.service.js";
+import { sendResetOTPEmail } from "../utils/emailClient.js";
+
+const authService = new AuthService({
+  userRepository: new UserRepository(),
+  tokenIssuer: generateAccessToken,
+  streamUpdater: UpdateStreamUser,
+  queuePublisher: publishToQueue,
+  tokenBlacklistService: addTokenBlacklist,
+});
 
 // **Signup**
 export async function signup(req, res) {
-  // Log the incoming request
   logger.info(`Received signup request: ${req.body.email}`);
 
   const errors = validationResult(req);
@@ -29,75 +39,17 @@ export async function signup(req, res) {
   const { fullName, email, password } = req.body;
 
   try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      logger.warn(`Signup failed- Email already exist:  ${email}`);
-      return sendErrorResponse(
-        res,
-        400,
-        "Email already exists. Please use a different email."
-      );
-    }
-
-    const newUser = await User({
-      fullName,
-      email,
-      password,
-      profilePic: "",
-    });
-
-    if (newUser) {
-      generateAccessToken(newUser, res);
-      const savedUser = await newUser.save();
-
-      // **Create the user in stream also
-      try {
-        await UpdateStreamUser({
-          id: newUser._id.toString(),
-          name: newUser.fullName,
-          image: newUser.profilePic || "",
-        });
-        logger.info(`Stream user updated successfully: ${newUser.fullName}`);
-      } catch (error) {
-        logger.error("Error updating Stream user:", error);
-      } 
-
-      // Log successful signup
-      logger.info(`User created successfully: ${newUser.email}`);
-
-      const sanitizedUser = sanitizeUserData(newUser);
-      sendSuccessResponse(res, 201, "User created successfully", sanitizedUser);
-
-      // **Publish login event to message queue for welcome email
-      try {
-        publishToQueue({
-          event: "user_logged_in",
-          email: email,
-          name: fullName,
-        });
-      } catch (error) {
-        logger.error("Error sending welcome email:", error);
-      }
-    } else {
-      return sendErrorResponse(
-        res,
-        500,
-        "Failed to create user. Please try again later."
-      );
-    }
+    const user = await authService.signup({ fullName, email, password, res });
+    logger.info(`User created successfully: ${email}`);
+    return sendSuccessResponse(res, 201, "User created successfully", user);
   } catch (error) {
     logger.error("Error during signup:", error);
-    return sendErrorResponse(
-      res,
-      500,
-      "Internal server error. Please try again later."
-    );
+    return sendErrorResponse(res, error?.statusCode || 500, error?.message || "Internal server error. Please try again later.", error?.details || {});
   }
 }
 
 // **Login**
 export async function login(req, res) {
-  // Log the incoming request
   logger.info(`Received login request: ${req.body.email}`);
 
   const errors = validationResult(req);
@@ -112,67 +64,30 @@ export async function login(req, res) {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email }, "+password +email");
-
-    if (!user) {
-      logger.warn(`Login failed - User not found: ${email}`);
-      return sendErrorResponse(res, 404, "Invalid credentials.");
-    }
-
-    const isPasswordValid = await user.verifyCredentials(password);
-
-    if (!isPasswordValid) {
-      logger.warn(`Login failed - Invalid password for user: ${email}`);
-      return sendErrorResponse(res, 401, "Invalid credentials.");
-    }
-
-    // **Generate access token
-    generateAccessToken(user, res);
-
-    const sanitizedUser = sanitizeUserData(user);
-    logger.info(`User logged in successfully: ${user.email}`);
-
-    // **Publish login event to message queue for welcome email
-    publishToQueue({
-      event: "user_logged_in",
-      email: user.email,
-      name: user.fullName,
-    });
-
-    sendSuccessResponse(res, 200, "Login successful", sanitizedUser);
+    const user = await authService.login({ email, password, res });
+    logger.info(`User logged in successfully: ${email}`);
+    return sendSuccessResponse(res, 200, "Login successful", user);
   } catch (error) {
     logger.error("Error during login:", error);
-    return sendErrorResponse(res, 500, "Internal server error.");
+    return sendErrorResponse(res, error?.statusCode || 500, error?.message || "Internal server error.", error?.details || {});
   }
 }
 
 // **Logout**
 export async function logout(req, res) {
-  // **Log the incoming request
   logger.info(`Received logout request for user`);
 
   try {
-    // **Invalidate the token by not sending a new one
     const token =
       req.cookies.syncspace_token || req.headers.authorization?.split(" ")[1];
 
-    await addTokenBlacklist(res, token);
-
-    // **Clear authentication cookies
-    const cookieOptions = {
-      httpOnly: true,
-      sameSite: "strict",
-      secure: process.env.NODE_ENV !== "development",
-      maxAge: 0, // Set maxAge to 0 to delete the cookie immediately
-    };
-
-    res.cookie("syncspace_token", "", cookieOptions);
+    await authService.logout({ token, res });
 
     logger.info(`User logged out successfully`);
     return sendSuccessResponse(res, 200, "Logout successful");
   } catch (error) {
     logger.error("Error during logout:", error);
-    return sendErrorResponse(res, 500, "Internal server error.");
+    return sendErrorResponse(res, error?.statusCode || 500, error?.message || "Internal server error.", error?.details || {});
   }
 }
 
@@ -182,67 +97,170 @@ export async function onboarding(req, res) {
     const userId = req.user._id;
     logger.info(`Onboarding request for user ID: ${userId}`);
 
-    const {
-      fullName,
-      bio,
-      nativeLanguage,
-      learningLanguage,
-      location,
-      profilePic,
-    } = req.body;
-
-    if (
-      !fullName ||
-      !bio ||
-      !nativeLanguage ||
-      !learningLanguage ||
-      !location
-    ) {
-      logger.warn("Onboarding failed - Missing required fields");
-      return sendErrorResponse(res, 400, "All fields are required.", {
-        missingFields: [
-          !fullName && "fullName",
-          !bio && "bio",
-          !nativeLanguage && "nativeLanguage",
-          !learningLanguage && "learningLanguage",
-          !location && "location",
-        ].filter(Boolean),
-      });
-    }
-
-    // **Update user profile
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      {
-        ...req.body,
-        isOnboarded: true,
-      },
-      { new: true }
-    );
-
-    if (!updatedUser) {
-      logger.warn(`Onboarding failed - User not found: ${userId}`);
-      return sendErrorResponse(res, 404, "User not found.");
-    }
-
-    try {
-      await UpdateStreamUser({
-        id: updatedUser._id.toString(),
-        name: updatedUser.fullName,
-        image: updatedUser.profilePic || "",
-      });
-      logger.info(`Stream user updated successfully: ${updatedUser.fullName}`);
-    } catch (error) {
-      logger.error("Error updating Stream user:", error.message);
-    }
-
-    const santizedUser = sanitizeUserData(updatedUser);
+    const sanitizedUser = await authService.onboarding({
+      currentUserId: userId,
+      payload: req.body || {},
+    });
 
     return sendSuccessResponse(res, 200, "Onboarding successful", {
-      user: santizedUser,
+      user: sanitizedUser,
     });
   } catch (error) {
     logger.error("Error during onboarding:", error);
-    return sendErrorResponse(res, 500, "Internal server error.");
+    return sendErrorResponse(res, error?.statusCode || 500, error?.message || "Internal server error.", error?.details || {});
+  }
+}
+
+// **Google OAuth Login/Signup**
+export async function googleAuth(req, res, next) {
+  // Check if Google OAuth is configured
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    logger.warn('Google OAuth attempt but credentials not configured');
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    return res.redirect(`${clientUrl}/login?error=google_not_configured`);
+  }
+  
+  passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+}
+
+export async function googleAuthCallback(req, res, next) {
+  // Check if Google OAuth is configured
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    logger.warn('Google OAuth callback but credentials not configured');
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    return res.redirect(`${clientUrl}/login?error=google_not_configured`);
+  }
+
+  passport.authenticate('google', { session: false }, async (err, user) => {
+    if (err || !user) {
+      logger.error('Google authentication failed:', err);
+      const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+      return res.redirect(`${clientUrl}/login?error=google_auth_failed`);
+    }
+
+    try {
+      // Generate JWT token and set cookie
+      const token = generateAccessToken(user, res);
+      logger.info(`Generated token for Google user: ${user.email}`);
+      logger.info(`Cookie set for Google user: ${user.email}`);
+
+      logger.info(`Google authentication successful for user: ${user.email}`);
+      
+      // Redirect to frontend with success
+      const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+      res.redirect(`${clientUrl}/login?success=true`);
+    } catch (error) {
+      logger.error('Error generating token after Google auth:', error);
+      const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+      res.redirect(`${clientUrl}/login?error=token_generation_failed`);
+    }
+  })(req, res, next);
+}
+
+// **Password Reset - Request OTP**
+export async function requestPasswordReset(req, res) {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return sendErrorResponse(res, 400, "Email is required");
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Don't reveal if user exists or not for security
+      logger.info(`Password reset requested for non-existent email: ${email}`);
+      return sendSuccessResponse(res, 200, "If an account exists with this email, you will receive an OTP");
+    }
+
+    // Check if user has a password (not OAuth user)
+    if (user.provider === 'google' && !user.password) {
+      return sendErrorResponse(res, 400, "Google OAuth users cannot reset password. Please use Google login.");
+    }
+
+    // Generate OTP
+    const { otp, expiry } = generateResetOTP();
+
+    // Store OTP in user document
+    user.resetOTP = otp;
+    user.resetOTPExpires = expiry;
+    await user.save();
+
+    // Send OTP email
+    const emailResult = await sendResetOTPEmail({ email, otp });
+
+    if (!emailResult.success) {
+      logger.error('Failed to send reset OTP email:', emailResult.error);
+      return sendErrorResponse(res, 500, "Failed to send OTP email");
+    }
+
+    logger.info(`Password reset OTP sent to: ${email}`);
+    return sendSuccessResponse(res, 200, "OTP sent successfully to your email");
+  } catch (error) {
+    logger.error("Error in requestPasswordReset:", error);
+    return sendErrorResponse(res, 500, "Failed to process password reset request");
+  }
+}
+
+// **Password Reset - Verify OTP**
+export async function verifyResetOTP(req, res) {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return sendErrorResponse(res, 400, "Email and OTP are required");
+    }
+
+    const user = await User.findOne({ email }).select('+resetOTP +resetOTPExpires');
+    if (!user) {
+      return sendErrorResponse(res, 404, "User not found");
+    }
+
+    // Verify OTP
+    const isValid = verifyOTP(user.resetOTP, otp, user.resetOTPExpires);
+    if (!isValid) {
+      return sendErrorResponse(res, 400, "Invalid or expired OTP");
+    }
+
+    // Clear OTP after successful verification
+    user.resetOTP = undefined;
+    user.resetOTPExpires = undefined;
+    await user.save();
+
+    logger.info(`OTP verified for: ${email}`);
+    return sendSuccessResponse(res, 200, "OTP verified successfully");
+  } catch (error) {
+    logger.error("Error in verifyResetOTP:", error);
+    return sendErrorResponse(res, 500, "Failed to verify OTP");
+  }
+}
+
+// **Password Reset - Set New Password**
+export async function resetPassword(req, res) {
+  try {
+    const { email, newPassword } = req.body;
+
+    if (!email || !newPassword) {
+      return sendErrorResponse(res, 400, "Email and new password are required");
+    }
+
+    if (newPassword.length < 6) {
+      return sendErrorResponse(res, 400, "Password must be at least 6 characters long");
+    }
+
+    const user = await User.findOne({ email }).select('+password');
+    if (!user) {
+      return sendErrorResponse(res, 404, "User not found");
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    logger.info(`Password reset successful for: ${email}`);
+    return sendSuccessResponse(res, 200, "Password reset successfully");
+  } catch (error) {
+    logger.error("Error in resetPassword:", error);
+    return sendErrorResponse(res, 500, "Failed to reset password");
   }
 }
