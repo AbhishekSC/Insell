@@ -340,7 +340,7 @@ export default function PropertyMapView() {
       </div>
 
       {/* Map Container */}
-      <div className="relative h-[calc(100vh-64px)]">
+      <div className="relative h-[calc(100dvh-64px)]">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -549,7 +549,7 @@ export default function PropertyMapView() {
 
         {/* Selected Property Badge */}
         {selectedProperty && (
-          <div className="absolute top-20 left-4 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-4 py-3 z-[1000] border border-slate-200 max-w-xs">
+          <div className="absolute top-20 left-4 right-4 sm:right-auto bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-4 py-3 z-[1000] border border-slate-200 sm:max-w-xs">
             <div className="flex items-start gap-3">
               {selectedProperty.mediaUrls?.[0] && (
                 <img
@@ -626,7 +626,7 @@ export default function PropertyMapView() {
 
         {/* Filter Panel */}
         {showFilters && (
-          <div className="absolute top-20 right-4 bg-white/95 backdrop-blur-sm rounded-xl shadow-xl p-5 z-[1000] border border-slate-200 w-80 max-h-[calc(100vh-120px)] overflow-visible">
+          <div className={`absolute ${selectedProperty ? "top-56 sm:top-20" : "top-20"} left-4 right-4 sm:left-auto bg-white/95 backdrop-blur-sm rounded-xl shadow-xl p-5 z-[1000] border border-slate-200 sm:w-80 max-h-[calc(100dvh-120px)] overflow-y-auto`}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-slate-900">Filters</h3>
               {hasActiveFilters && (

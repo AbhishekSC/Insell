@@ -1301,7 +1301,13 @@ export default function MarketplacePage() {
             </div>
           </aside>
 
-          <main className="min-w-0 flex-1 rounded-2xl bg-transparent p-1 pb-6 xl:h-[calc(100dvh-7.1rem)] xl:overflow-y-auto">
+          <main
+            className={`min-w-0 flex-1 rounded-2xl bg-transparent p-1 pb-6 xl:h-[calc(100dvh-7.1rem)] xl:overflow-y-auto ${
+              activeSection === "chat" || activeSection === "communities"
+                ? "h-[calc(100dvh-9rem)] overflow-hidden"
+                : ""
+            }`}
+          >
             {activeSection === "marketplace" ? (
               <>
                 <StoriesBar onCategorySelect={setActiveCategory} />

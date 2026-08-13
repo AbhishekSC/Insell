@@ -212,7 +212,7 @@ export default function ChatContent() {
         </div>
       </section>
 
-      <section className={`telegram-main min-h-0 h-full overflow-hidden ${showConversation ? "" : "hidden sm:block"}`}>
+      <section className={`telegram-conversation-panel min-h-0 h-full overflow-hidden ${showConversation ? "" : "hidden sm:block"}`}>
         {!hasActiveConversation ? (
           <div className="flex h-full flex-col items-center justify-center p-8 text-center">
             <div className="mb-4 grid size-20 place-items-center rounded-full bg-indigo-50">

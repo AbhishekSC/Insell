@@ -332,9 +332,12 @@ export default function CommunityChat({ community, onBack }) {
           )}
         </div>
 
-        {/* Members Sidebar */}
+        {/* Members Sidebar — overlay on mobile so it doesn't squeeze the chat down to nothing */}
         {showMembers && (
-          <div className="w-72 border-l border-slate-200 bg-white overflow-y-auto">
+          <div className="fixed inset-0 z-40 bg-black/30 sm:hidden" onClick={() => setShowMembers(false)} />
+        )}
+        {showMembers && (
+          <div className="fixed inset-y-0 right-0 z-50 w-72 max-w-[85vw] border-l border-slate-200 bg-white overflow-y-auto sm:static sm:z-auto sm:max-w-none">
             <div className="sticky top-0 border-b border-slate-200 bg-white px-4 py-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-slate-900">Members</h3>
@@ -433,7 +436,7 @@ export default function CommunityChat({ community, onBack }) {
 
       {/* Add Member Modal */}
       {showAddMemberModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-slate-900">
@@ -511,7 +514,7 @@ export default function CommunityChat({ community, onBack }) {
 
       {/* Leave Community Confirmation Modal */}
       {showLeaveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-900">Leave community?</h2>
@@ -548,7 +551,7 @@ export default function CommunityChat({ community, onBack }) {
 
       {/* Destroy Community Confirmation Modal */}
       {showDestroyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-900">Delete community?</h2>
