@@ -298,7 +298,7 @@ export default function PropertyDetailPage() {
     new Date(postData.updatedAt).getTime() - new Date(postData.createdAt).getTime() > 60000;
 
   return (
-    <AppShell hideHero hideBottomNav>
+    <AppShell hideHero>
       <div className="min-h-screen bg-slate-50">
         {/* Fullscreen Image Modal */}
         {isFullscreen && (

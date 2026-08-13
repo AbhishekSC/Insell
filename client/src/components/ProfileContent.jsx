@@ -123,45 +123,40 @@ export default function ProfileContent() {
   });
 
   return (
-    <div className="grid gap-5 lg:grid-cols-3 pb-6">
-      <section className="space-y-5 lg:col-span-2">
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="grid size-11 place-items-center rounded-2xl bg-gradient-to-br from-indigo-100 via-violet-100 to-sky-100 ring-1 ring-indigo-200">
-              <Sparkles className="size-5 text-indigo-600" />
+    <div className="grid gap-3 sm:gap-5 lg:grid-cols-3 pb-6">
+      <section className="space-y-3 sm:space-y-5 lg:col-span-2">
+        <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="grid size-9 sm:size-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-indigo-100 via-violet-100 to-sky-100 ring-1 ring-indigo-200">
+              <Sparkles className="size-4 sm:size-5 text-indigo-600" />
             </div>
-            <div className="flex items-center gap-2">
-              <div>
-                <p className="text-sm font-semibold text-slate-600">Profile Studio</p>
-                <h2 className="text-xl font-extrabold text-slate-800">Update your public buyer-seller card</h2>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs sm:text-sm font-semibold text-slate-600">Profile Studio</p>
+                {authUser?.isVerified && (
+                  <span className="inline-flex items-center gap-1 text-emerald-600">
+                    <BadgeCheck className="size-3.5 sm:size-4" />
+                    <span className="text-[11px] sm:text-xs font-semibold">Verified</span>
+                  </span>
+                )}
               </div>
-              {authUser?.isVerified && (
-                <div className="flex items-center gap-1 text-emerald-600">
-                  <BadgeCheck className="size-4" />
-                  <span className="text-xs font-semibold">Verified</span>
-                </div>
-              )}
+              <h2 className="text-base sm:text-xl font-extrabold text-slate-800 break-words">Update your public buyer-seller card</h2>
             </div>
           </div>
         </div>
 
         {/* Verification Banner - only show if not verified */}
         {!authUser?.isVerified && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="rounded-full bg-amber-100 p-2">
-                  <Sparkles className="size-5 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-amber-800">Verify your email to get the verified badge</p>
-                  <p className="text-xs text-amber-600">Increase your credibility and get better recommendations</p>
-                </div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <div className="flex items-center gap-2.5">
+              <div className="shrink-0 rounded-full bg-amber-100 p-1.5">
+                <Sparkles className="size-4 text-amber-600" />
               </div>
+              <p className="min-w-0 flex-1 text-xs sm:text-sm font-semibold text-amber-800">Get verified</p>
               <button
                 type="button"
                 onClick={() => setShowVerification(!showVerification)}
-                className="btn btn-sm bg-amber-600 text-white hover:bg-amber-700"
+                className="btn btn-xs sm:btn-sm bg-amber-600 text-white hover:bg-amber-700 shrink-0"
               >
                 {showVerification ? "Hide" : "Verify Now"}
               </button>
@@ -174,40 +169,40 @@ export default function ProfileContent() {
           </div>
         )}
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-600">
-            <UserCircle className="size-4 text-indigo-600" />
+        <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+          <div className="mb-3 sm:mb-4 flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600">
+            <UserCircle className="size-3.5 sm:size-4 text-indigo-600" />
             Basics
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             <label className="form-control">
-              <span className="label-text mb-1 text-slate-700">Full name</span>
+              <span className="label-text mb-1 text-xs sm:text-sm text-slate-700">Full name</span>
               <input
                 type="text"
-                className="input input-bordered border-slate-200 bg-slate-50 focus:border-indigo-300"
+                className="input input-sm sm:input-md input-bordered border-slate-200 bg-slate-50 focus:border-indigo-300"
                 value={form.fullName}
                 onChange={(e) => setForm((prev) => ({ ...prev, fullName: e.target.value }))}
               />
             </label>
 
             <label className="form-control">
-              <span className="label-text mb-1 text-slate-700">Bio</span>
+              <span className="label-text mb-1 text-xs sm:text-sm text-slate-700">Bio</span>
               <textarea
-                className="textarea textarea-bordered min-h-24 border-slate-200 bg-slate-50 focus:border-indigo-300"
+                className="textarea textarea-bordered min-h-16 sm:min-h-24 text-sm border-slate-200 bg-slate-50 focus:border-indigo-300"
                 value={form.bio}
                 onChange={(e) => setForm((prev) => ({ ...prev, bio: e.target.value }))}
               />
             </label>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
               <label className="form-control">
-                <span className="label-text mb-1 text-slate-700">City</span>
+                <span className="label-text mb-1 text-xs sm:text-sm text-slate-700">City</span>
                 <div className="relative">
                   <MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
-                    className="input input-bordered w-full border-slate-200 bg-slate-50 pl-9 focus:border-indigo-300"
+                    className="input input-sm sm:input-md input-bordered w-full border-slate-200 bg-slate-50 pl-9 focus:border-indigo-300"
                     value={form.city}
                     onChange={(e) => setForm((prev) => ({ ...prev, city: e.target.value }))}
                   />
@@ -215,11 +210,11 @@ export default function ProfileContent() {
               </label>
 
               <label className="form-control">
-                <span className="label-text mb-1 text-slate-700">Location</span>
+                <span className="label-text mb-1 text-xs sm:text-sm text-slate-700">Location</span>
                 <button
                   type="button"
                   onClick={() => setShowLocationPicker(!showLocationPicker)}
-                  className="btn btn-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  className="btn btn-xs sm:btn-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                 >
                   <MapPin className="size-4" />
                   {locationDetails?.city ? locationDetails.city : "Set precise location"}
@@ -282,19 +277,19 @@ export default function ProfileContent() {
             )}
 
             <label className="form-control">
-              <span className="label-text mb-1 text-slate-700">Primary role</span>
+              <span className="label-text mb-1 text-xs sm:text-sm text-slate-700">Primary role</span>
               <input
                 type="text"
-                className="input input-bordered border-slate-200 bg-slate-50 focus:border-indigo-300"
+                className="input input-sm sm:input-md input-bordered border-slate-200 bg-slate-50 focus:border-indigo-300"
                 value={form.primaryRole}
                 onChange={(e) => setForm((prev) => ({ ...prev, primaryRole: e.target.value }))}
               />
             </label>
 
             <label className="form-control sm:col-span-2">
-              <span className="label-text mb-1 text-slate-700">Active role (role switcher)</span>
+              <span className="label-text mb-1 text-xs sm:text-sm text-slate-700">Active role (role switcher)</span>
               <select
-                className="select select-bordered border-slate-200 bg-slate-50 focus:border-indigo-300"
+                className="select select-sm sm:select-md select-bordered border-slate-200 bg-slate-50 focus:border-indigo-300"
                 value={form.activeRole}
                 onChange={(e) => setForm((prev) => ({ ...prev, activeRole: e.target.value }))}
               >
@@ -306,16 +301,16 @@ export default function ProfileContent() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-600">
-            <Camera className="size-4 text-violet-600" />
+        <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+          <div className="mb-3 sm:mb-4 flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600">
+            <Camera className="size-3.5 sm:size-4 text-violet-600" />
             Profile Photo
           </div>
 
-          <div className="mb-4 flex flex-wrap gap-2">
+          <div className="mb-3 sm:mb-4 flex flex-wrap gap-2">
             <button
               type="button"
-              className={`btn btn-sm ${imageMode === "upload" ? "bg-indigo-600 text-white hover:bg-indigo-500" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
+              className={`btn btn-xs sm:btn-sm ${imageMode === "upload" ? "bg-indigo-600 text-white hover:bg-indigo-500" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
               onClick={() => setImageMode("upload")}
             >
               <UploadCloud className="size-4" />
@@ -323,7 +318,7 @@ export default function ProfileContent() {
             </button>
             <button
               type="button"
-              className={`btn btn-sm ${imageMode === "url" ? "bg-indigo-600 text-white hover:bg-indigo-500" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
+              className={`btn btn-xs sm:btn-sm ${imageMode === "url" ? "bg-indigo-600 text-white hover:bg-indigo-500" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
               onClick={() => setImageMode("url")}
             >
               <Link2 className="size-4" />
@@ -333,10 +328,10 @@ export default function ProfileContent() {
 
           {imageMode === "url" ? (
             <label className="form-control">
-              <span className="label-text mb-1 text-slate-700">Profile image URL</span>
+              <span className="label-text mb-1 text-xs sm:text-sm text-slate-700">Profile image URL</span>
               <input
                 type="url"
-                className="input input-bordered border-slate-200 bg-slate-50 focus:border-indigo-300"
+                className="input input-sm sm:input-md input-bordered border-slate-200 bg-slate-50 focus:border-indigo-300"
                 placeholder="https://..."
                 value={form.profilePic}
                 onChange={(e) => {
@@ -347,10 +342,10 @@ export default function ProfileContent() {
             </label>
           ) : (
             <label className="form-control">
-              <span className="label-text mb-1 text-slate-700">Upload image file</span>
+              <span className="label-text mb-1 text-xs sm:text-sm text-slate-700">Upload image file</span>
               <input
                 type="file"
-                className="file-input file-input-bordered border-slate-200 bg-slate-50"
+                className="file-input file-input-sm sm:file-input-md file-input-bordered border-slate-200 bg-slate-50"
                 accept="image/png,image/jpeg,image/webp"
                 onChange={(e) => {
                   setForm((prev) => ({ ...prev, profilePic: "" }));
@@ -360,7 +355,7 @@ export default function ProfileContent() {
             </label>
           )}
 
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-[11px] sm:text-xs text-slate-500">
             Upload mode and URL mode are mutually exclusive for clarity.
           </p>
         </div>
@@ -375,7 +370,7 @@ export default function ProfileContent() {
         </button>
       </section>
 
-      <aside className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <aside className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Live preview</p>
 
         <div className="mt-4 rounded-3xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-slate-100 p-5">
@@ -383,11 +378,11 @@ export default function ProfileContent() {
             <img
               src={previewUrl || "https://placehold.co/240x240?text=Profile"}
               alt="Profile preview"
-              className="h-36 w-36 rounded-3xl object-cover ring-2 ring-slate-300"
+              className="h-24 w-24 sm:h-36 sm:w-36 rounded-3xl object-cover ring-2 ring-slate-300"
             />
-            <p className="text-lg font-bold text-slate-800">{form.fullName || "Your Name"}</p>
-            <p className="max-w-xs text-sm text-slate-600">{form.bio || "Your bio will appear here."}</p>
-            <div className="mt-1 flex flex-wrap justify-center gap-2 text-xs text-slate-600">
+            <p className="text-base sm:text-lg font-bold text-slate-800">{form.fullName || "Your Name"}</p>
+            <p className="max-w-xs text-xs sm:text-sm text-slate-600">{form.bio || "Your bio will appear here."}</p>
+            <div className="mt-1 flex flex-wrap justify-center gap-2 text-[11px] sm:text-xs text-slate-600">
               {form.city ? <span className="badge badge-outline border-slate-300 bg-white">{form.city}</span> : null}
               {form.primaryRole ? <span className="badge badge-outline border-slate-300 bg-white">{form.primaryRole}</span> : null}
               {form.activeRole ? <span className="badge badge-primary badge-outline border-indigo-300 bg-indigo-50 text-indigo-700">Active: {form.activeRole}</span> : null}

@@ -1165,7 +1165,6 @@ export default function MarketplacePage() {
     <AppShell
       hideHero
       lockPageScroll
-      hideBottomNav
       title="Marketplace"
       subtitle="Social-first discovery"
       marketplaceSearch={search}
@@ -1966,49 +1965,15 @@ export default function MarketplacePage() {
         </div>
       </div>
 
-      {/* Mobile bottom nav — the left sidebar above is xl:flex only, so below that
-          breakpoint this is the only way to reach Activity/Map/Communities/etc.
-          AppShell's own global nav is suppressed (hideBottomNav) on this page so
-          the two don't stack. */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex items-stretch gap-1 overflow-x-auto border-t border-slate-200 bg-white/95 px-1 backdrop-blur xl:hidden">
-        {LEFT_NAV_ITEMS.map(({ label, icon: Icon, section }) => {
-          let badgeCount = 0;
-          if (section === "activity") badgeCount = totalUnreadCount;
-          else if (section === "connections") badgeCount = incomingRequests.length;
-          else if (section === "chat") badgeCount = messageRequests;
+      {/* AppShell's own shared bottom nav (mirroring LEFT_NAV_ITEMS) now covers
+          mobile navigation here too, so this page no longer needs its own
+          duplicate nav — same component renders identically on every page. */}
 
-          return (
-            <button
-              key={label}
-              type="button"
-              className={`flex shrink-0 flex-col items-center gap-0.5 px-3 py-2 text-[10px] font-medium ${
-                activeSection === section ? "text-indigo-600" : "text-slate-500"
-              }`}
-              onClick={() => {
-                if (section === "map") {
-                  navigate("/map-view");
-                } else {
-                  setActiveSection(section);
-                }
-              }}
-            >
-              <div className="relative">
-                {Icon ? <Icon className="size-5" /> : null}
-                {badgeCount > 0 && (
-                  <span className="absolute -right-2 -top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
-                    {badgeCount > 9 ? "9+" : badgeCount}
-                  </span>
-                )}
-              </div>
-              {label}
-            </button>
-          );
-        })}
-      </nav>
-
-      <button type="button" className="btn btn-circle fixed bottom-24 right-5 z-40 h-14 w-14 border-none bg-indigo-600 text-white shadow-xl hover:bg-indigo-500 xl:hidden" onClick={() => setIsComposerOpen(true)}>
-        <Plus className="size-6" />
-      </button>
+      {activeSection === "marketplace" && (
+        <button type="button" className="btn btn-circle fixed bottom-24 right-5 z-40 h-14 w-14 border-none bg-indigo-600 text-white shadow-xl hover:bg-indigo-500 xl:hidden" onClick={() => setIsComposerOpen(true)}>
+          <Plus className="size-6" />
+        </button>
+      )}
 
       {selectedForComparison.length >= 2 && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50">

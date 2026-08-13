@@ -10,15 +10,14 @@ import {
   House,
   LogOut,
   Map,
+  MessageCircle,
   MessageSquare,
   Moon,
   Phone,
   Plus,
   Search,
-  Sparkles,
   Sun,
   UserCircle,
-  UserRoundPlus,
   Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -35,17 +34,30 @@ function notifyBrowser(title, body) {
   }
 }
 
+// Mirrors MarketplacePage's own LEFT_NAV_ITEMS exactly (same labels, icons,
+// and order) so the bottom nav is identical everywhere in the app, not just
+// on the Marketplace page itself. Items with a `section` key open the same
+// embedded hub tab Marketplace's own nav uses; Map View has no hub
+// equivalent (Marketplace's own nav also sends it to the standalone route).
 const navItems = [
-  { to: "/marketplace", label: "Home", icon: Home },
-  { to: "/activity", label: "Activity", icon: Bell },
+  { to: "/marketplace", label: "Marketplace", icon: Home, section: "marketplace" },
+  { to: "/marketplace?section=activity", label: "Activity", icon: Bell, section: "activity" },
   { to: "/map-view", label: "Map View", icon: Map },
-  { to: "/community", label: "Communities", icon: Users },
-  { to: "/property-tools", label: "Property Tools", icon: Sparkles },
-  { to: "/connections", label: "Connections", icon: UserRoundPlus },
-  { to: "/chat", label: "Chat", icon: MessageSquare },
-  { to: "/call", label: "Call", icon: Phone },
-  { to: "/profile", label: "Edit Profile", icon: UserCircle },
+  { to: "/marketplace?section=communities", label: "Communities", icon: Users, section: "communities" },
+  { to: "/marketplace?section=chat", label: "Messages", icon: MessageCircle, section: "chat" },
+  { to: "/marketplace?section=connections", label: "Connections", icon: Users, section: "connections" },
+  { to: "/marketplace?section=call", label: "Calls", icon: Phone, section: "call" },
+  { to: "/marketplace?section=profile", label: "Edit Profile", icon: UserCircle, section: "profile" },
 ];
+
+function isNavItemActive(item, location) {
+  if (item.section) {
+    if (location.pathname !== "/marketplace") return false;
+    const activeSection = new URLSearchParams(location.search).get("section") || "marketplace";
+    return activeSection === item.section;
+  }
+  return location.pathname === item.to;
+}
 
 function LogoSection({ isMarketplaceShell, showText = true }) {
   return (
@@ -632,7 +644,7 @@ export default function AppShell({
               <nav className="hidden max-w-full flex-nowrap items-center gap-1 overflow-x-auto rounded-2xl border border-base-300/80 bg-base-100/75 p-1.5 md:flex">
                 {navItems.map((item) => {
                   const Icon = item.icon;
-                  const active = location.pathname === item.to;
+                  const active = isNavItemActive(item, location);
 
                   return (
                     <Link key={item.to} to={item.to} className={`btn btn-sm relative rounded-xl ${active ? "btn-primary" : "btn-ghost"}`}>
@@ -739,7 +751,7 @@ export default function AppShell({
         >
           {navItems.map((item) => {
             const Icon = item.icon;
-            const active = location.pathname === item.to;
+            const active = isNavItemActive(item, location);
             let badgeCount = 0;
             let badgeColor = "bg-red-500";
             if (item.to === "/activity") badgeCount = totalNotificationCount;
