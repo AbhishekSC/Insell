@@ -347,21 +347,16 @@ export default function UserProfilePage() {
         <div className="flex flex-col gap-6">
           {/* Verification Banner - only show for own profile if not verified */}
           {isOwnProfile && !profileUser?.isVerified && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-amber-100 p-2">
-                    <Sparkles className="size-5 text-amber-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-amber-800">Verify your email to get the verified badge</p>
-                    <p className="text-xs text-amber-600">Increase your credibility and get better recommendations</p>
-                  </div>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+              <div className="flex items-center gap-2.5">
+                <div className="shrink-0 rounded-full bg-amber-100 p-1.5">
+                  <Sparkles className="size-4 text-amber-600" />
                 </div>
+                <p className="min-w-0 flex-1 text-xs sm:text-sm font-semibold text-amber-800">Get verified</p>
                 <button
                   type="button"
                   onClick={() => setShowVerification(!showVerification)}
-                  className="btn btn-sm bg-amber-600 text-white hover:bg-amber-700"
+                  className="btn btn-xs sm:btn-sm bg-amber-600 text-white hover:bg-amber-700 shrink-0"
                 >
                   {showVerification ? "Hide" : "Verify Now"}
                 </button>
