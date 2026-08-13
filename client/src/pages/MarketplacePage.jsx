@@ -387,6 +387,15 @@ export default function MarketplacePage() {
     const sectionParam = searchParams.get("section");
     return sectionParam || "marketplace";
   });
+
+  // Keep activeSection in sync with the URL. The shared bottom nav (and any
+  // other page) navigates here via <Link to="/marketplace?section=X">, which
+  // updates searchParams without remounting this component — without this
+  // effect, the one-time useState initializer above would never see it.
+  useEffect(() => {
+    const sectionParam = searchParams.get("section") || "marketplace";
+    setActiveSection((prev) => (prev === sectionParam ? prev : sectionParam));
+  }, [searchParams]);
   const [selectedCommunity, setSelectedCommunity] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [postToShare, setPostToShare] = useState(null);

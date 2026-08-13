@@ -745,7 +745,7 @@ export default function AppShell({
 
       {!hideBottomNav && (
         <nav
-          className={`fixed inset-x-0 bottom-0 z-30 flex items-stretch gap-1 overflow-x-auto border-t px-1 backdrop-blur md:hidden ${
+          className={`fixed inset-x-0 bottom-0 z-40 flex items-stretch gap-1 overflow-x-auto border-t px-1 backdrop-blur xl:hidden ${
             isMarketplaceShell ? "border-slate-200 bg-white/95" : "border-base-300/80 bg-base-100/95"
           }`}
         >
