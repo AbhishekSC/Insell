@@ -43,38 +43,40 @@ const navItems = [
   { to: "/profile", label: "Edit Profile", icon: UserCircle },
 ];
 
-function LogoSection({ isMarketplaceShell }) {
+function LogoSection({ isMarketplaceShell, showText = true }) {
   return (
-    <Link to="/marketplace" className="min-w-0 flex items-center gap-3" aria-label="INSELL home">
+    <Link to="/marketplace" className="min-w-0 flex shrink-0 items-center gap-3" aria-label="INSELL home">
       <div
         className={
           isMarketplaceShell
-            ? "grid size-10 place-items-center rounded-lg bg-indigo-600 text-white"
-            : "grid size-10 place-items-center rounded-2xl bg-gradient-to-br from-primary/25 via-secondary/20 to-accent/25 text-primary shadow-inner ring-1 ring-primary/20"
+            ? "grid size-10 shrink-0 place-items-center rounded-lg bg-indigo-600 text-white"
+            : "grid size-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary/25 via-secondary/20 to-accent/25 text-primary shadow-inner ring-1 ring-primary/20"
         }
       >
         {isMarketplaceShell ? <House className="size-5" /> : <MessageSquare className="size-5" />}
       </div>
-      <div className="min-w-0">
-        <p
-          className={
-            isMarketplaceShell
-              ? "truncate text-3xl font-black leading-none tracking-tight text-slate-800"
-              : "truncate text-lg font-extrabold tracking-tight"
-          }
-        >
-          INSELL
-        </p>
-        <p
-          className={
-            isMarketplaceShell
-              ? "hidden truncate text-xs text-slate-500 sm:block"
-              : "hidden truncate text-xs text-base-content/60 sm:block"
-          }
-        >
-          Social Real Estate Marketplace
-        </p>
-      </div>
+      {showText ? (
+        <div className="min-w-0">
+          <p
+            className={
+              isMarketplaceShell
+                ? "truncate text-xl font-black leading-none tracking-tight text-slate-800 sm:text-3xl"
+                : "truncate text-lg font-extrabold tracking-tight"
+            }
+          >
+            INSELL
+          </p>
+          <p
+            className={
+              isMarketplaceShell
+                ? "hidden truncate text-xs text-slate-500 sm:block"
+                : "hidden truncate text-xs text-base-content/60 sm:block"
+            }
+          >
+            Social Real Estate Marketplace
+          </p>
+        </div>
+      ) : null}
     </Link>
   );
 }
@@ -558,7 +560,7 @@ export default function AppShell({
               </div>
 
               <div className="flex items-center justify-between gap-3 lg:hidden">
-                <LogoSection isMarketplaceShell />
+                <LogoSection isMarketplaceShell showText={false} />
                 <div className="flex shrink-0 items-center gap-2">
                   <button
                     type="button"
@@ -580,14 +582,11 @@ export default function AppShell({
                   <div className="relative">
                     <button
                       type="button"
-                      className="btn btn-ghost h-9 min-w-[140px] max-w-[200px] rounded-xl border border-slate-200 bg-white px-2.5 hover:bg-slate-50"
+                      className="btn btn-ghost btn-circle btn-sm border border-slate-200 bg-white hover:bg-slate-50"
                       onClick={() => setMobileUserMenuOpen((prev) => !prev)}
+                      aria-label="Account menu"
                     >
                       <span className="grid size-6 shrink-0 place-items-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">{userInitials}</span>
-                      <span className="min-w-0 text-left">
-                        <span className="block truncate text-xs font-semibold text-slate-700">{authUser?.fullName || "INSELL User"}</span>
-                      </span>
-                      <ChevronDown className={`ml-1 size-3 shrink-0 text-slate-500 transition ${mobileUserMenuOpen ? "rotate-180" : ""}`} />
                     </button>
 
                     {mobileUserMenuOpen && (
