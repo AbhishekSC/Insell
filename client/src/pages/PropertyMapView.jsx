@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet";
-import { ArrowLeft, MapPin, IndianRupee, Bed, Bath, Square, Building2, Home, Filter, X, SlidersHorizontal, GraduationCap, Hospital, Train, ShoppingBag } from "lucide-react";
+import { ArrowLeft, MapPin, IndianRupee, Bed, Bath, Square, Building2, Home, Filter, X, SlidersHorizontal, GraduationCap, Hospital, Train, ShoppingBag, ChevronDown } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useQuery } from "@tanstack/react-query";
@@ -89,6 +89,10 @@ export default function PropertyMapView() {
   const [locationFilters, setLocationFilters] = useState({ state: '', city: '', area: '' });
   const [showSuggestions, setShowSuggestions] = useState({ state: false, city: false, area: false });
   const [selectedProperty, setSelectedProperty] = useState(null);
+  // Separate from selectedProperty on purpose: closing the selected-property
+  // card shouldn't also wipe the amenity markers/radius off the map.
+  const [amenitiesAnchor, setAmenitiesAnchor] = useState(null);
+  const [showPropertyList, setShowPropertyList] = useState(false);
   const [amenityFilters, setAmenityFilters] = useState({
     schools: true,
     hospitals: true,
@@ -140,19 +144,19 @@ export default function PropertyMapView() {
   // Fetch nearby amenities when a property is selected — real Geoapify/OpenStreetMap data only.
   // The backend widens the search up to 5km on its own if nothing is found within 2km.
   const { data: amenitiesResult, isLoading: amenitiesLoading, isError: amenitiesError } = useQuery({
-    queryKey: ["nearbyAmenities", selectedProperty?.latitude, selectedProperty?.longitude, amenityFilters],
+    queryKey: ["nearbyAmenities", amenitiesAnchor?.latitude, amenitiesAnchor?.longitude, amenityFilters],
     queryFn: async () => {
-      if (!selectedProperty?.latitude || !selectedProperty?.longitude) return { items: [], radius: 2000 };
+      if (!amenitiesAnchor?.latitude || !amenitiesAnchor?.longitude) return { items: [], radius: 2000 };
 
       const enabledTypes = Object.keys(amenityFilters).filter(type => amenityFilters[type]);
       if (enabledTypes.length === 0) return { items: [], radius: 2000 };
 
       const response = await axiosInstance.get(
-        `/amenities/nearby?lat=${selectedProperty.latitude}&lng=${selectedProperty.longitude}&radius=2000&types=${enabledTypes.join(',')}`
+        `/amenities/nearby?lat=${amenitiesAnchor.latitude}&lng=${amenitiesAnchor.longitude}&radius=2000&types=${enabledTypes.join(',')}`
       );
       return { items: response.data?.data || [], radius: response.data?.radius || 2000 };
     },
-    enabled: !!selectedProperty?.latitude && !!selectedProperty?.longitude,
+    enabled: !!amenitiesAnchor?.latitude && !!amenitiesAnchor?.longitude,
     retry: 1,
   });
   const amenitiesData = amenitiesResult?.items;
@@ -306,6 +310,7 @@ export default function PropertyMapView() {
   const handleMarkerClick = (property) => {
     setMapCenter([property.latitude, property.longitude]);
     setSelectedProperty(property);
+    setAmenitiesAnchor(property);
   };
 
   const clearFilters = () => {
@@ -457,8 +462,9 @@ export default function PropertyMapView() {
               </Marker>
             ))}
 
-            {/* Amenity Markers */}
-            {selectedProperty && amenitiesData?.map((amenity) => (
+            {/* Amenity Markers — tied to amenitiesAnchor, not selectedProperty, so
+                these stay on the map even after the property card is closed */}
+            {amenitiesAnchor && amenitiesData?.map((amenity) => (
               <Marker
                 key={`amenity-${amenity.id}`}
                 position={[amenity.lat, amenity.lng]}
@@ -491,10 +497,11 @@ export default function PropertyMapView() {
               </Marker>
             ))}
 
-            {/* Amenities search radius around the selected property */}
-            {selectedProperty?.latitude && selectedProperty?.longitude && (
+            {/* Amenities search radius — tied to amenitiesAnchor so it persists
+                after the selected-property card is closed */}
+            {amenitiesAnchor?.latitude && amenitiesAnchor?.longitude && (
               <Circle
-                center={[selectedProperty.latitude, selectedProperty.longitude]}
+                center={[amenitiesAnchor.latitude, amenitiesAnchor.longitude]}
                 radius={amenitiesResult?.radius || 2000}
                 pathOptions={{
                   color: '#4f46e5',
@@ -534,16 +541,48 @@ export default function PropertyMapView() {
           </MapContainer>
         )}
 
-        {/* Property Count Badge */}
+        {/* Property Count Badge / expandable property list */}
         {!isLoading && properties.length > 0 && (
-          <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-5 py-3 z-[1000] border border-slate-200">
-            <div className="flex items-center gap-2">
-              <MapPin className="size-5 text-indigo-600" />
-              <div>
+          <div className="absolute top-4 left-4 z-[1000] w-64 max-w-[calc(100vw-2rem)]">
+            <button
+              type="button"
+              onClick={() => setShowPropertyList((prev) => !prev)}
+              className="w-full bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-5 py-3 border border-slate-200 flex items-center gap-2 text-left"
+            >
+              <MapPin className="size-5 text-indigo-600 shrink-0" />
+              <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-slate-900">{properties.length}</p>
                 <p className="text-xs text-slate-500">Properties</p>
               </div>
-            </div>
+              <ChevronDown className={`size-4 text-slate-400 shrink-0 transition-transform ${showPropertyList ? "rotate-180" : ""}`} />
+            </button>
+
+            {showPropertyList && (
+              <div className="mt-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 max-h-72 overflow-y-auto divide-y divide-slate-100">
+                {properties.map((property) => (
+                  <button
+                    key={property._id}
+                    type="button"
+                    onClick={() => handleMarkerClick(property)}
+                    className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-indigo-50 transition-colors ${selectedProperty?._id === property._id ? "bg-indigo-50" : ""}`}
+                  >
+                    {property.mediaUrls?.[0] ? (
+                      <img
+                        src={property.mediaUrls[0]}
+                        alt={property.title}
+                        className="w-10 h-10 object-cover rounded-lg shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-slate-100 shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-slate-900 truncate">{property.title || "Property"}</p>
+                      <p className="text-xs text-indigo-600 font-medium">{formatPrice(property.price)}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -827,37 +866,39 @@ export default function PropertyMapView() {
               </div>
             </div>
 
-            {/* Amenity Filters */}
-            {selectedProperty && (
-              <div className="mb-4 pt-4 border-t border-slate-100">
-                <label className="block text-sm font-medium text-slate-700 mb-3">Nearby Amenities</label>
-                <div className="space-y-2">
-                  {Object.entries(AMENITY_CONFIG).map(([type, config]) => (
-                    <label key={type} className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={amenityFilters[type]}
-                        onChange={(e) => setAmenityFilters({ ...amenityFilters, [type]: e.target.checked })}
-                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <span className="text-sm text-slate-700 flex items-center gap-2">
-                        <span>{config.label === "Schools" ? "🏫" : config.label === "Hospitals" ? "🏥" : config.label === "Metro" ? "🚇" : "🏬"}</span>
-                        {config.label}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-                {amenitiesLoading && (
-                  <p className="text-xs text-slate-500 mt-2">Loading amenities...</p>
-                )}
-                {!amenitiesLoading && amenitiesError && (
-                  <p className="text-xs text-red-500 mt-2">Couldn't load nearby amenities.</p>
-                )}
-                {!amenitiesLoading && !amenitiesError && amenitiesData?.length > 0 && (
-                  <p className="text-xs text-slate-500 mt-2">{amenitiesData.length} amenities found</p>
-                )}
+            {/* Amenity Filters — always visible/toggleable; amenities only load
+                once a property has been selected as the search anchor */}
+            <div className="mb-4 pt-4 border-t border-slate-100">
+              <label className="block text-sm font-medium text-slate-700 mb-3">Nearby Amenities</label>
+              <div className="space-y-2">
+                {Object.entries(AMENITY_CONFIG).map(([type, config]) => (
+                  <label key={type} className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={amenityFilters[type]}
+                      onChange={(e) => setAmenityFilters({ ...amenityFilters, [type]: e.target.checked })}
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm text-slate-700 flex items-center gap-2">
+                      <span>{config.label === "Schools" ? "🏫" : config.label === "Hospitals" ? "🏥" : config.label === "Metro" ? "🚇" : "🏬"}</span>
+                      {config.label}
+                    </span>
+                  </label>
+                ))}
               </div>
-            )}
+              {!amenitiesAnchor && (
+                <p className="text-xs text-slate-400 mt-2">Select a property to load nearby amenities.</p>
+              )}
+              {amenitiesLoading && (
+                <p className="text-xs text-slate-500 mt-2">Loading amenities...</p>
+              )}
+              {!amenitiesLoading && amenitiesError && (
+                <p className="text-xs text-red-500 mt-2">Couldn't load nearby amenities.</p>
+              )}
+              {!amenitiesLoading && !amenitiesError && amenitiesData?.length > 0 && (
+                <p className="text-xs text-slate-500 mt-2">{amenitiesData.length} amenities found</p>
+              )}
+            </div>
 
             {/* Results Count */}
             <div className="pt-3 border-t border-slate-100">
