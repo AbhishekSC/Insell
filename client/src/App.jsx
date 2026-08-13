@@ -102,17 +102,15 @@ function App() {
       <Routes>
         <Route
           path="/"
-          element={
-            authUser ? (isOnboarded ? <Navigate to="/marketplace" replace /> : <Navigate to="/onboarding" />) : <Navigate to="/login" />
-          }
+          element={authUser ? <Navigate to="/marketplace" replace /> : <Navigate to="/login" />}
         />
         <Route
           path="/signup"
-          element={!authUser || isSwitchAccountFlow ? <SignupPage /> : <Navigate to={isOnboarded ? "/marketplace" : "/onboarding"} />}
+          element={!authUser || isSwitchAccountFlow ? <SignupPage /> : <Navigate to="/marketplace" />}
         />
         <Route
           path="/login"
-          element={!authUser || isSwitchAccountFlow ? <LoginPage /> : <Navigate to={isOnboarded ? "/marketplace" : "/onboarding"} />}
+          element={!authUser || isSwitchAccountFlow ? <LoginPage /> : <Navigate to="/marketplace" />}
         />
         <Route
           path="/forgot-password"
@@ -134,77 +132,80 @@ function App() {
           path="/map-view"
           element={authUser ? <PropertyMapView /> : <Navigate to="/login" />}
         />
+        {/* Onboarding is opt-in now, reachable from the profile page — not a
+            forced gate on every other route. Still redirects away once
+            already completed, so it doesn't get revisited by accident. */}
         <Route
           path="/onboarding"
           element={authUser ? (isOnboarded ? <Navigate to="/marketplace" /> : <OnboardingPage />) : <Navigate to="/login" />}
         />
         <Route
           path="/notification"
-          element={authUser && isOnboarded ? <ConnectionsPage /> : <Navigate to="/login" />}
+          element={authUser ? <ConnectionsPage /> : <Navigate to="/login" />}
         />
         <Route
           path="/connections"
-          element={authUser && isOnboarded ? <ConnectionsPage /> : <Navigate to="/login" />}
+          element={authUser ? <ConnectionsPage /> : <Navigate to="/login" />}
         />
         <Route
           path="/chat"
-          element={authUser && isOnboarded ? <ChatPage /> : <Navigate to="/login" />}
+          element={authUser ? <ChatPage /> : <Navigate to="/login" />}
         />
         <Route
           path="/call"
-          element={authUser && isOnboarded ? <CallPage /> : <Navigate to="/login" />}
+          element={authUser ? <CallPage /> : <Navigate to="/login" />}
         />
         <Route
           path="/call/live"
-          element={authUser && isOnboarded ? <LiveCallPage /> : <Navigate to="/login" />}
+          element={authUser ? <LiveCallPage /> : <Navigate to="/login" />}
         />
         <Route
           path="/friends/:friendId"
-          element={authUser && isOnboarded ? <FriendDetailPage /> : <Navigate to="/login" />}
+          element={authUser ? <FriendDetailPage /> : <Navigate to="/login" />}
         />
         <Route
           path="/toolkit"
-          element={authUser && isOnboarded ? <PropertyToolsPage /> : <Navigate to="/login" />}
+          element={authUser ? <PropertyToolsPage /> : <Navigate to="/login" />}
         />
         <Route
           path="/property-tools"
-          element={authUser && isOnboarded ? <PropertyToolsPage /> : <Navigate to="/login" />}
+          element={authUser ? <PropertyToolsPage /> : <Navigate to="/login" />}
         />
         <Route
           path="/community"
-          element={authUser && isOnboarded ? <MarketplacePage /> : <Navigate to="/login" />}
+          element={authUser ? <MarketplacePage /> : <Navigate to="/login" />}
         />
         <Route
           path="/marketplace"
-          element={authUser && isOnboarded ? <MarketplacePage /> : <Navigate to="/login" />}
+          element={authUser ? <MarketplacePage /> : <Navigate to="/login" />}
         />
         <Route
           path="/community/:communityId"
-          element={authUser && isOnboarded ? <MarketplaceDetailPage /> : <Navigate to="/login" />}
+          element={authUser ? <MarketplaceDetailPage /> : <Navigate to="/login" />}
         />
         <Route
           path="/marketplace/:communityId"
-          element={authUser && isOnboarded ? <MarketplaceDetailPage /> : <Navigate to="/login" />}
+          element={authUser ? <MarketplaceDetailPage /> : <Navigate to="/login" />}
         />
         <Route
           path="/property/:id"
-          element={authUser && isOnboarded ? <PropertyDetailPage /> : <Navigate to="/login" />}
+          element={authUser ? <PropertyDetailPage /> : <Navigate to="/login" />}
         />
         <Route
           path="/profile"
-          element={authUser && isOnboarded ? <ProfilePage /> : <Navigate to="/login" />}
+          element={authUser ? <ProfilePage /> : <Navigate to="/login" />}
         />
         <Route
           path="/users/:userId"
-          element={authUser && isOnboarded ? <UserProfilePage /> : <Navigate to="/login" />}
+          element={authUser ? <UserProfilePage /> : <Navigate to="/login" />}
         />
         <Route
           path="/news"
-          element={authUser && isOnboarded ? <NewsPage /> : <Navigate to="/login" />}
+          element={authUser ? <NewsPage /> : <Navigate to="/login" />}
         />
         <Route
           path="/activity"
-          element={authUser && isOnboarded ? <ActivityPage /> : <Navigate to="/login" />}
+          element={authUser ? <ActivityPage /> : <Navigate to="/login" />}
         />
       </Routes>
 

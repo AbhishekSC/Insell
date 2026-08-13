@@ -54,6 +54,7 @@ import ConnectionsContent from "../components/ConnectionsContent";
 import CallContent from "../components/CallContent";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
 import ProfileContent from "../components/ProfileContent";
 import ActivityContent from "../components/ActivityContent";
 import CommunitiesContent from "../components/CommunitiesContent";

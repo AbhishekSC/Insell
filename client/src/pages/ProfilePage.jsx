@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Camera, Link2, MapPin, Sparkles, UploadCloud, UserCircle } from "lucide-react";
+import { Camera, ClipboardCheck, Link2, MapPin, Sparkles, UploadCloud, UserCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import axiosInstance from "../lib/axios";
@@ -97,6 +98,28 @@ export default function ProfilePage() {
     >
       <div className="grid gap-5 lg:grid-cols-3">
         <section className="space-y-5 lg:col-span-2">
+          {!authUser?.isOnboarded ? (
+            <div className="rounded-3xl border border-primary/30 bg-primary/5 p-5 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary/15 text-primary">
+                    <ClipboardCheck className="size-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-base-content/70">Finish setting up</p>
+                    <h2 className="text-lg font-extrabold">Complete onboarding for better matches</h2>
+                    <p className="mt-1 text-sm text-base-content/65">
+                      Add your budget, property preferences, and role details to get personalized recommendations.
+                    </p>
+                  </div>
+                </div>
+                <Link to="/onboarding" className="btn btn-primary btn-sm shrink-0">
+                  Complete onboarding
+                </Link>
+              </div>
+            </div>
+          ) : null}
+
           <div className="rounded-3xl border border-base-300 bg-base-100 p-5 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="grid size-11 place-items-center rounded-2xl bg-gradient-to-br from-primary/25 via-secondary/20 to-accent/20 ring-1 ring-primary/20">

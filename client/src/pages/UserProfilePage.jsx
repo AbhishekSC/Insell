@@ -343,7 +343,7 @@ export default function UserProfilePage() {
 
   return (
     <AppShell hideHero title="Profile" subtitle={profileUser.fullName || "User profile"}>
-      <div className="mx-auto max-w-[1440px] px-8 py-0">
+      <div className="mx-auto max-w-[1440px] px-4 py-0 sm:px-8">
         <div className="flex flex-col gap-6">
           {/* Verification Banner - only show for own profile if not verified */}
           {isOwnProfile && !profileUser?.isVerified && (
@@ -375,9 +375,9 @@ export default function UserProfilePage() {
           )}
 
           {/* Profile Header */}
-          <section className="flex items-center justify-between gap-6 rounded-2xl border border-slate-100 bg-white p-8 shadow-sm">
+          <section className="flex flex-col items-center gap-6 rounded-2xl border border-slate-100 bg-white p-5 text-center shadow-sm sm:p-8 lg:flex-row lg:items-center lg:justify-between lg:text-left">
             {/* Left: Avatar and Info */}
-            <div className="flex items-center gap-6">
+            <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-6 lg:items-center">
               <div className="relative shrink-0">
                 <UserAvatar
                   src={profileUser.profilePic}
@@ -387,14 +387,14 @@ export default function UserProfilePage() {
                 />
                 <div className="absolute bottom-1 right-1 size-4 rounded-full bg-emerald-500 ring-2 ring-white"></div>
               </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
+              <div className="min-w-0 text-center sm:text-left">
+                <div className="flex items-center justify-center gap-2 sm:justify-start">
                   <h1 className="text-2xl font-bold text-slate-900">
                     {profileUser.fullName || "Unknown User"}
                   </h1>
                   {verified ? <BadgeCheck className="size-5 text-emerald-600" /> : null}
                 </div>
-                <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
+                <p className="mt-1 flex items-center justify-center gap-1 text-sm text-slate-500 sm:justify-start">
                   <MapPin className="size-4" />
                   {cityLabel}
                 </p>
@@ -405,7 +405,7 @@ export default function UserProfilePage() {
             </div>
 
             {/* Center: Quick Stats */}
-            <div className="flex gap-8">
+            <div className="flex flex-wrap justify-center gap-4 sm:gap-8">
               <div className="text-center">
                 <p className="text-xl font-bold text-slate-900">{stats.postsCount || 0}</p>
                 <p className="text-xs text-slate-500">Posts</p>
