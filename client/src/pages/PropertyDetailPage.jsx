@@ -299,7 +299,7 @@ export default function PropertyDetailPage() {
 
   return (
     <AppShell hideHero hideBottomNav>
-      <div className="min-h-screen bg-slate-50 pb-24">
+      <div className="min-h-screen bg-slate-50">
         {/* Fullscreen Image Modal */}
         {isFullscreen && (
           <div
@@ -738,7 +738,7 @@ export default function PropertyDetailPage() {
                       </>
                     )}
                     <Link
-                      to="/chat"
+                      to={`/marketplace?section=chat&userId=${postData.author?._id}`}
                       className="w-full py-3 px-4 bg-white border-2 border-indigo-600 text-indigo-600 font-semibold rounded-xl hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2"
                     >
                       <MessageCircle className="size-5" />
@@ -788,45 +788,6 @@ export default function PropertyDetailPage() {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Sticky Action Bar */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 z-50 shadow-lg">
-          <div className="max-w-[1400px] mx-auto flex items-center gap-4">
-            <Link
-              to="/chat"
-              className="flex-1 py-3 px-6 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
-            >
-              <MessageCircle className="size-5" />
-              Chat
-            </Link>
-            <button
-              className={`flex-1 py-3 px-6 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 ${
-                postData.isSavedByMe ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' : 'bg-white text-slate-700 border border-slate-200'
-              }`}
-              onClick={() => toggleSave(postData._id)}
-            >
-              {postData.isSavedByMe ? <BookmarkCheck className="size-5" /> : <Bookmark className="size-5" />}
-              {postData.isSavedByMe ? 'Saved' : 'Save'}
-            </button>
-            {postData.author?.mobileNumber ? (
-              <a
-                href={`tel:${postData.author.mobileNumber}`}
-                className="flex-1 py-3 px-6 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <Phone className="size-5" />
-                Call Owner
-              </a>
-            ) : (
-              <Link
-                to={`/users/${postData.author?._id}`}
-                className="flex-1 py-3 px-6 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <Users className="size-5" />
-                View Profile
-              </Link>
-            )}
           </div>
         </div>
       </div>

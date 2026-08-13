@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Channel,
@@ -23,11 +23,13 @@ import { useStreamContext } from "../context/StreamProvider";
 
 const EMPTY_FRIENDS = [];
 
-export default function ChatContent() {
+export default function ChatContent({ deepLinkUserId } = {}) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFriendId, setSelectedFriendId] = useState("");
   const [isConversationOpenMobile, setIsConversationOpenMobile] = useState(false);
   const [activeChannel, setActiveChannel] = useState(null);
+  const [directChatUser, setDirectChatUser] = useState(null);
+  const processedDirectChatIds = useRef(new Set());
   const { streamClient: chatClient, streamReady, streamConnecting, currentUserId, unreadCount } = useStreamContext();
 
   const { data: authData } = useQuery({
@@ -98,6 +100,36 @@ export default function ChatContent() {
     }
   };
 
+  // Deep link support: opening this section with a userId (e.g. from the
+  // "Chat" button on a property page) starts a direct conversation with that
+  // user immediately, even if they aren't in the friends list yet.
+  useEffect(() => {
+    if (!deepLinkUserId || !chatClient || !currentUserId) return;
+    if (processedDirectChatIds.current.has(deepLinkUserId)) return;
+    processedDirectChatIds.current.add(deepLinkUserId);
+
+    const existingFriend = friends.find((friend) => friend._id === deepLinkUserId);
+    if (existingFriend) {
+      openFriendChat(existingFriend);
+      return;
+    }
+
+    axiosInstance
+      .get(`/users/${deepLinkUserId}/profile`)
+      .then((response) => {
+        const user = response.data?.data?.user;
+        if (!user) {
+          toast.error("User not found");
+          return;
+        }
+        const profile = { ...user, _id: deepLinkUserId };
+        setDirectChatUser(profile);
+        openFriendChat(profile);
+      })
+      .catch(() => toast.error("Could not start chat with this user"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkUserId, chatClient, currentUserId, friends]);
+
   const friendCountLabel = useMemo(() => {
     if (friends.length === 0) {
       return "No friends yet";
@@ -110,7 +142,9 @@ export default function ChatContent() {
     return `${friends.length} active friends`;
   }, [friends.length]);
 
-  const selectedFriend = friends.find((friend) => friend._id === selectedFriendId) || null;
+  const selectedFriend =
+    friends.find((friend) => friend._id === selectedFriendId) ||
+    (directChatUser?._id === selectedFriendId ? directChatUser : null);
   const serviceReady = Boolean(chatClient && streamReady && !streamConnecting);
   const showSidebar = !isConversationOpenMobile;
   const showConversation = isConversationOpenMobile;

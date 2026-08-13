@@ -65,6 +65,8 @@ import StoriesBar from "../components/StoriesBar";
 import RoleBasedDashboard from "../components/RoleBasedDashboard";
 import axiosInstance from "../lib/axios";
 
+const DEFAULT_MAP_CENTER = [20.5937, 78.9629]; // geographic center of India, used until a location is picked
+
 const LEFT_NAV_ITEMS = [
   { label: "Marketplace", icon: Home, section: "marketplace" },
   { label: "Activity", icon: Bell, section: "activity" },
@@ -605,7 +607,6 @@ export default function MarketplacePage() {
     launchDate: "",
     brochureUrl: "",
     investmentThesis: "",
-    showMap: false,
   });
 
   const [citySuggestions, setCitySuggestions] = useState([]);
@@ -1787,7 +1788,7 @@ export default function MarketplacePage() {
                 />
               )
             ) : activeSection === "chat" ? (
-              <ChatContent />
+              <ChatContent deepLinkUserId={searchParams.get("userId")} />
             ) : activeSection === "connections" ? (
               <ConnectionsContent onOpenMessages={() => setActiveSection("chat")} />
             ) : activeSection === "call" ? (
@@ -2161,21 +2162,22 @@ export default function MarketplacePage() {
                     </label>
                   </div>
 
-                  <label className="form-control mt-4">
-                    <span className="label-text mb-1 text-xs text-slate-500">Or paste media URLs (comma separated)</span>
-                    <textarea className="textarea textarea-bordered min-h-24 border-slate-200" value={draft.mediaUrls} onChange={(event) => updateDraft("mediaUrls", event.target.value)} />
-                  </label>
-
                   <div className="mt-3">
                     <p className="text-xs text-slate-500 mb-2">Uploaded media ({composerMedia.length}/5):</p>
-                    <div className="flex flex-wrap gap-2">
-                      {composerMedia.length
-                        ? composerMedia.map((url, idx) => (
-                            <div key={idx} className="relative group">
-                              <span className="badge badge-outline max-w-[200px] truncate block">{url}</span>
+                    {composerMedia.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        {composerMedia.map((url, idx) => {
+                          const isVideo = /\.(mp4|webm|mov)(\?.*)?$/i.test(url);
+                          return (
+                            <div key={idx} className="relative">
+                              {isVideo ? (
+                                <video src={url} className="size-16 rounded-lg object-cover border border-slate-200" muted />
+                              ) : (
+                                <img src={url} alt={`Upload ${idx + 1}`} className="size-16 rounded-lg object-cover border border-slate-200" />
+                              )}
                               <button
                                 type="button"
-                                className="ml-1 text-red-500 hover:text-red-700"
+                                className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-red-500 text-white text-xs leading-none shadow"
                                 onClick={() => {
                                   const urls = composerMedia.filter((_, i) => i !== idx);
                                   setDraft((prev) => ({ ...prev, mediaUrls: urls.join(",") }));
@@ -2184,9 +2186,12 @@ export default function MarketplacePage() {
                                 ×
                               </button>
                             </div>
-                          ))
-                        : <span className="text-sm text-slate-500">No media selected yet.</span>}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-slate-500">No media selected yet.</span>
+                    )}
                   </div>
                 </div>
               ) : null}
@@ -2223,12 +2228,11 @@ export default function MarketplacePage() {
                                         locality: locality || prev.locality,
                                         latitude,
                                         longitude,
-                                        showMap: true
                                       }));
                                       toast.success("Location captured successfully");
                                     })
                                     .catch(() => {
-                                      setDraft(prev => ({ ...prev, latitude, longitude, showMap: true }));
+                                      setDraft(prev => ({ ...prev, latitude, longitude }));
                                       toast.success("Coordinates captured (city/locality not found)");
                                     });
                                 },
@@ -2249,10 +2253,9 @@ export default function MarketplacePage() {
                     <div className="form-control">
                       <label className="label-text mb-1 text-xs text-slate-500">City / Location</label>
                       <div className="relative">
-                        <div className="flex gap-2">
                           <input
                             type="text"
-                            className="input input-bordered border-slate-200 flex-1"
+                            className="input input-bordered border-slate-200 w-full"
                             value={draft.city}
                             onChange={(event) => {
                               const query = event.target.value;
@@ -2319,15 +2322,6 @@ export default function MarketplacePage() {
                             }}
                             placeholder="Type city or location..."
                           />
-                          <button
-                            type="button"
-                            className="btn btn-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                            onClick={() => setDraft(prev => ({ ...prev, showMap: !prev.showMap }))}
-                          >
-                            <MapPin className="size-4" />
-                            {draft.showMap ? 'Hide Map' : 'Show Map'}
-                          </button>
-                        </div>
                         {citySuggestions.length > 0 && (
                           <div className="absolute z-[9999] w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
                             {citySuggestions.map((suggestion, idx) => (
@@ -2341,7 +2335,6 @@ export default function MarketplacePage() {
                                     setDraft(prev => ({
                                       ...prev,
                                       city: suggestion.city,
-                                      showMap: true
                                     }));
                                     toast.info("Please use the map to set your exact location");
                                   } else {
@@ -2350,7 +2343,6 @@ export default function MarketplacePage() {
                                       city: suggestion.city,
                                       latitude: suggestion.lat,
                                       longitude: suggestion.lon,
-                                      showMap: true
                                     }));
                                   }
                                   setCitySuggestions([]);
@@ -2368,42 +2360,44 @@ export default function MarketplacePage() {
                       <span className="label-text mb-1 text-xs text-slate-500">Locality</span>
                       <input className="input input-bordered border-slate-200" value={draft.locality} onChange={(event) => updateDraft("locality", event.target.value)} />
                     </label>
-                    {draft.showMap && (draft.latitude && draft.longitude) && (
-                      <div className="sm:col-span-2">
-                        <div className="relative h-64 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
-                          <MapContainer
-                            key={`${draft.latitude}-${draft.longitude}`}
-                            center={[draft.latitude, draft.longitude]}
-                            zoom={13}
-                            style={{ height: '100%', width: '100%' }}
-                            ref={mapRef}
-                          >
-                            <TileLayer
-                              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                            />
-                            <DraggableMarker
-                              position={[draft.latitude, draft.longitude]}
-                              onPositionChange={handleMapPositionChange}
-                            />
-                          </MapContainer>
-                          <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-md text-xs text-slate-600">
-                            Click or drag pin to set location
-                          </div>
+                    <div className="sm:col-span-2">
+                      <div className="relative h-64 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
+                        <MapContainer
+                          key={draft.latitude && draft.longitude ? `${draft.latitude}-${draft.longitude}` : "default"}
+                          center={draft.latitude && draft.longitude ? [draft.latitude, draft.longitude] : DEFAULT_MAP_CENTER}
+                          zoom={draft.latitude && draft.longitude ? 13 : 5}
+                          style={{ height: '100%', width: '100%' }}
+                          ref={mapRef}
+                        >
+                          <TileLayer
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                          />
+                          <DraggableMarker
+                            position={draft.latitude && draft.longitude ? [draft.latitude, draft.longitude] : DEFAULT_MAP_CENTER}
+                            onPositionChange={handleMapPositionChange}
+                          />
+                        </MapContainer>
+                        <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-md text-xs text-slate-600">
+                          Click or drag pin to set location
                         </div>
+                      </div>
+                      {draft.latitude && draft.longitude ? (
                         <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
                           <MapPin className="size-3" />
                           <span>Coordinates: {draft.latitude.toFixed(6)}, {draft.longitude.toFixed(6)}</span>
                           <button
                             type="button"
                             className="text-red-500 hover:text-red-700"
-                            onClick={() => setDraft(prev => ({ ...prev, latitude: null, longitude: null, showMap: false }))}
+                            onClick={() => setDraft(prev => ({ ...prev, latitude: null, longitude: null }))}
                           >
                             Clear
                           </button>
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <p className="mt-2 text-xs text-slate-500">Click or drag the pin on the map to set the exact location.</p>
+                      )}
+                    </div>
                     <label className="form-control sm:col-span-2">
                       <span className="label-text mb-1 text-xs text-slate-500">Description</span>
                       <textarea className="textarea textarea-bordered min-h-20 border-slate-200" value={draft.caption} onChange={(event) => updateDraft("caption", event.target.value)} />

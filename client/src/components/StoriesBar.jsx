@@ -30,7 +30,8 @@ export default function StoriesBar({ onCategorySelect }) {
       const response = await axiosInstance.get("/stories");
       return response.data?.data?.stories || [];
     },
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 8000, // Poll frequently so new stories from other users show up without a manual reload
+    refetchOnWindowFocus: true,
   });
 
   // Create story mutation
@@ -360,6 +361,17 @@ function CreateStoryModal({ onClose, onCreate, isPending }) {
   const [file, setFile] = useState(null);
   const [caption, setCaption] = useState("");
   const [visibility, setVisibility] = useState("public");
+  const [previewUrl, setPreviewUrl] = useState("");
+
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl("");
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -372,9 +384,9 @@ function CreateStoryModal({ onClose, onCreate, isPending }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl overflow-hidden">
+      <div className="flex w-full max-w-md max-h-[calc(100dvh-2rem)] flex-col rounded-2xl bg-white shadow-xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h2 className="text-lg font-semibold text-slate-800">Create Story</h2>
           <button
             type="button"
@@ -385,7 +397,8 @@ function CreateStoryModal({ onClose, onCreate, isPending }) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+        <div className="min-h-0 flex-1 overflow-y-auto p-6 space-y-5">
           {/* File Upload */}
           <div className="relative">
             <input
@@ -397,18 +410,18 @@ function CreateStoryModal({ onClose, onCreate, isPending }) {
             />
             <label
               htmlFor="story-file"
-              className="flex aspect-[9/16] max-h-80 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50 transition-all"
+              className="flex aspect-[9/16] max-h-64 sm:max-h-80 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50 transition-all"
             >
               {file ? (
                 <div className="relative h-full w-full">
                   {file.type.startsWith("video") ? (
                     <video
-                      src={URL.createObjectURL(file)}
+                      src={previewUrl}
                       className="h-full w-full object-cover rounded-xl"
                     />
                   ) : (
                     <img
-                      src={URL.createObjectURL(file)}
+                      src={previewUrl}
                       alt="Preview"
                       className="h-full w-full object-cover rounded-xl"
                     />
@@ -489,9 +502,10 @@ function CreateStoryModal({ onClose, onCreate, isPending }) {
               </button>
             </div>
           </div>
+        </div>
 
           {/* Actions */}
-          <div className="flex gap-3 pt-2">
+          <div className="shrink-0 flex gap-3 p-6 pt-4 border-t border-slate-100">
             <button
               type="button"
               className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition"

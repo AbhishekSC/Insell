@@ -9,6 +9,7 @@ import {
   Home,
   House,
   LogOut,
+  Map,
   MessageSquare,
   Moon,
   Phone,
@@ -18,6 +19,7 @@ import {
   Sun,
   UserCircle,
   UserRoundPlus,
+  Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
@@ -36,6 +38,8 @@ function notifyBrowser(title, body) {
 const navItems = [
   { to: "/marketplace", label: "Home", icon: Home },
   { to: "/activity", label: "Activity", icon: Bell },
+  { to: "/map-view", label: "Map View", icon: Map },
+  { to: "/community", label: "Communities", icon: Users },
   { to: "/property-tools", label: "Property Tools", icon: Sparkles },
   { to: "/connections", label: "Connections", icon: UserRoundPlus },
   { to: "/chat", label: "Chat", icon: MessageSquare },
@@ -625,7 +629,7 @@ export default function AppShell({
             <div className="flex items-center gap-3">
               <LogoSection isMarketplaceShell={false} />
 
-              <nav className="hidden items-center gap-1 rounded-2xl border border-base-300/80 bg-base-100/75 p-1.5 md:flex">
+              <nav className="hidden max-w-full flex-nowrap items-center gap-1 overflow-x-auto rounded-2xl border border-base-300/80 bg-base-100/75 p-1.5 md:flex">
                 {navItems.map((item) => {
                   const Icon = item.icon;
                   const active = location.pathname === item.to;
@@ -728,50 +732,62 @@ export default function AppShell({
       </main>
 
       {!hideBottomNav && (
-        <nav className={isMarketplaceShell ? "fixed bottom-4 left-1/2 z-30 flex w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 items-center justify-around rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-xl md:hidden" : "fixed bottom-4 left-1/2 z-30 flex w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 items-center justify-around rounded-2xl border border-base-300/80 bg-base-100/95 p-2 shadow-xl md:hidden"}>
+        <nav
+          className={`fixed inset-x-0 bottom-0 z-30 flex items-stretch gap-1 overflow-x-auto border-t px-1 backdrop-blur md:hidden ${
+            isMarketplaceShell ? "border-slate-200 bg-white/95" : "border-base-300/80 bg-base-100/95"
+          }`}
+        >
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = location.pathname === item.to;
+            let badgeCount = 0;
+            let badgeColor = "bg-red-500";
+            if (item.to === "/activity") badgeCount = totalNotificationCount;
+            else if (item.to === "/connections") badgeCount = incomingRequests.length;
+            else if (item.to === "/chat") badgeCount = unreadCount;
+            else if (item.to === "/marketplace") {
+              badgeCount = marketplaceUnreadCount;
+              badgeColor = "bg-amber-500";
+            }
 
             return (
               <Link
                 key={item.to}
                 to={item.to}
-                className={`btn btn-sm relative ${
-                  isMarketplaceShell
-                    ? active
-                      ? "border-none bg-indigo-600 text-white"
-                      : "border-none bg-transparent text-slate-600"
-                    : active
-                      ? "btn-primary"
-                      : "btn-ghost"
+                className={`flex shrink-0 flex-col items-center gap-0.5 px-3 py-2 text-[10px] font-medium ${
+                  active
+                    ? isMarketplaceShell
+                      ? "text-indigo-600"
+                      : "text-primary"
+                    : isMarketplaceShell
+                      ? "text-slate-500"
+                      : "text-base-content/60"
                 }`}
               >
-                <Icon className="size-4" />
-                {item.to === "/activity" && totalNotificationCount > 0 ? (
-                  <span className="badge badge-error badge-xs absolute -right-1 -top-1">{totalNotificationCount > 9 ? "9+" : totalNotificationCount}</span>
-                ) : null}
-                {item.to === "/connections" && incomingRequests.length > 0 ? (
-                  <span className="badge badge-error badge-xs absolute -right-1 -top-1">{incomingRequests.length > 9 ? "9+" : incomingRequests.length}</span>
-                ) : null}
-                {item.to === "/chat" && unreadCount > 0 ? (
-                  <span className="badge badge-secondary badge-xs absolute -right-1 -top-1">{unreadCount > 9 ? "9+" : unreadCount}</span>
-                ) : null}
-                {item.to === "/marketplace" && marketplaceUnreadCount > 0 ? (
-                  <span className="badge badge-warning badge-xs absolute -right-1 -top-1">{marketplaceUnreadCount > 9 ? "9+" : marketplaceUnreadCount}</span>
-                ) : null}
+                <div className="relative">
+                  <Icon className="size-5" />
+                  {badgeCount > 0 ? (
+                    <span className={`absolute -right-2 -top-1 flex size-4 items-center justify-center rounded-full text-[9px] font-bold text-white ${badgeColor}`}>
+                      {badgeCount > 9 ? "9+" : badgeCount}
+                    </span>
+                  ) : null}
+                </div>
+                {item.label}
               </Link>
             );
           })}
 
           <button
             type="button"
-            className="btn btn-sm btn-ghost"
+            className={`flex shrink-0 flex-col items-center gap-0.5 px-3 py-2 text-[10px] font-medium ${
+              isMarketplaceShell ? "text-slate-500" : "text-base-content/60"
+            }`}
             onClick={toggleTheme}
             aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
             title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
           >
-            {theme === "light" ? <Moon className="size-4" /> : <Sun className="size-4" />}
+            {theme === "light" ? <Moon className="size-5" /> : <Sun className="size-5" />}
+            {theme === "light" ? "Dark" : "Light"}
           </button>
         </nav>
       )}

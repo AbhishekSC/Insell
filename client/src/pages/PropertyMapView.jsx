@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet";
-import { ArrowLeft, MapPin, IndianRupee, Bed, Bath, Square, Building2, Home, Filter, X, SlidersHorizontal, GraduationCap, Hospital, Train, ShoppingBag, ChevronDown } from "lucide-react";
+import { MapPin, IndianRupee, Bed, Bath, Square, Building2, Home, Filter, X, SlidersHorizontal, GraduationCap, Hospital, Train, ShoppingBag, ChevronDown } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useQuery } from "@tanstack/react-query";
@@ -326,26 +326,14 @@ export default function PropertyMapView() {
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <button
-              onClick={() => navigate("/marketplace")}
-              className="group flex items-center gap-2 px-4 py-2 rounded-full hover:bg-slate-100 transition-all duration-200"
-            >
-              <ArrowLeft className="size-5 text-slate-600 group-hover:text-slate-900" />
-              <span className="font-medium text-slate-700 group-hover:text-slate-900">Back</span>
-            </button>
-            <div className="text-center">
-              <h1 className="text-xl font-bold text-slate-900">Property Map View</h1>
-              <p className="text-sm text-slate-500">Explore properties on the map</p>
-            </div>
-            <div className="w-32" />
-          </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 text-center">
+          <h1 className="text-base sm:text-xl font-bold text-slate-900 leading-tight">Property Map View</h1>
+          <p className="text-xs sm:text-sm text-slate-500 leading-tight">Explore properties on the map</p>
         </div>
       </div>
 
       {/* Map Container */}
-      <div className="relative h-[calc(100dvh-64px)]">
+      <div className="relative h-[calc(100dvh-56px)]">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -402,46 +390,46 @@ export default function PropertyMapView() {
                 }}
               >
                 <Popup
-                  maxWidth={350}
+                  maxWidth={200}
                   className="custom-popup"
                 >
-                  <div className="p-0 min-w-[280px]">
+                  <div className="p-0 w-[172px]">
                     {property.mediaUrls?.[0] && (
                       <img
                         src={property.mediaUrls[0]}
                         alt={property.title}
-                        className="w-full h-40 object-cover rounded-t-lg"
+                        className="w-full h-20 object-cover rounded-t-lg"
                       />
                     )}
-                    <div className="p-4">
-                      <h3 className="font-bold text-slate-900 mb-2 line-clamp-2">
+                    <div className="p-2">
+                      <h3 className="text-xs font-bold text-slate-900 mb-1 line-clamp-2">
                         {property.title || "Property"}
                       </h3>
-                      <p className="text-xl font-bold text-indigo-600 mb-3">
-                        <IndianRupee className="size-4 inline" />
+                      <p className="text-sm font-bold text-indigo-600 mb-1.5">
+                        <IndianRupee className="size-3 inline" />
                         {formatPrice(property.price)}
                       </p>
-                      <div className="flex items-center gap-2 text-sm text-slate-600 mb-3">
-                        <MapPin className="size-4 text-slate-400" />
+                      <div className="flex items-center gap-1 text-[11px] text-slate-600 mb-1.5">
+                        <MapPin className="size-3 text-slate-400 shrink-0" />
                         <span className="truncate">{property.city || "City"}</span>
-                        {property.locality && <span>· {property.locality}</span>}
+                        {property.locality && <span className="truncate">· {property.locality}</span>}
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-slate-600 mb-4">
+                      <div className="flex items-center gap-2 text-[11px] text-slate-600 mb-2 flex-wrap">
                         {property.bedrooms > 0 && (
-                          <span className="flex items-center gap-1.5">
-                            <Bed className="size-4 text-slate-400" />
+                          <span className="flex items-center gap-1">
+                            <Bed className="size-3 text-slate-400" />
                             {property.bedrooms} BHK
                           </span>
                         )}
                         {property.bathrooms > 0 && (
-                          <span className="flex items-center gap-1.5">
-                            <Bath className="size-4 text-slate-400" />
+                          <span className="flex items-center gap-1">
+                            <Bath className="size-3 text-slate-400" />
                             {property.bathrooms}
                           </span>
                         )}
                         {property.areaSqft > 0 && (
-                          <span className="flex items-center gap-1.5">
-                            <Square className="size-4 text-slate-400" />
+                          <span className="flex items-center gap-1">
+                            <Square className="size-3 text-slate-400" />
                             {property.areaSqft.toLocaleString()} sqft
                           </span>
                         )}
@@ -451,9 +439,9 @@ export default function PropertyMapView() {
                           e.preventDefault();
                           navigate(`/property/${property._id}`);
                         }}
-                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-full font-semibold shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-xl transition-all duration-200"
+                        className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs bg-indigo-600 text-white rounded-full font-semibold shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-xl transition-all duration-200"
                       >
-                        <Home className="size-4" />
+                        <Home className="size-3" />
                         View Details
                       </button>
                     </div>
@@ -541,137 +529,142 @@ export default function PropertyMapView() {
           </MapContainer>
         )}
 
-        {/* Property Count Badge / expandable property list */}
-        {!isLoading && properties.length > 0 && (
-          <div className="absolute top-4 left-4 z-[1000] w-64 max-w-[calc(100vw-2rem)]">
+        {/* Map overlay controls: property list (left) + filter toggle (right),
+            stacked in normal flow so nothing overlaps regardless of what's open */}
+        <div className="absolute inset-x-4 top-4 z-[1000] flex flex-col gap-2">
+          <div className="flex items-start justify-between gap-2">
+            {/* Property Count Badge / expandable property list */}
+            {!isLoading && properties.length > 0 && (
+              <div className="w-48 sm:w-64 max-w-[60vw] sm:max-w-xs shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowPropertyList((prev) => !prev)}
+                  className="w-full bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2 sm:px-5 sm:py-3 border border-slate-200 flex items-center gap-1.5 sm:gap-2 text-left"
+                >
+                  <MapPin className="size-4 sm:size-5 text-indigo-600 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs sm:text-sm font-semibold text-slate-900">{properties.length}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-500">Properties</p>
+                  </div>
+                  <ChevronDown className={`size-3.5 sm:size-4 text-slate-400 shrink-0 transition-transform ${showPropertyList ? "rotate-180" : ""}`} />
+                </button>
+
+                {showPropertyList && (
+                  <div className="mt-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 max-h-60 sm:max-h-72 overflow-y-auto divide-y divide-slate-100">
+                    {properties.map((property) => (
+                      <button
+                        key={property._id}
+                        type="button"
+                        onClick={() => handleMarkerClick(property)}
+                        className={`w-full flex items-center gap-2 sm:gap-3 px-2 py-1.5 sm:px-3 sm:py-2 text-left hover:bg-indigo-50 transition-colors ${selectedProperty?._id === property._id ? "bg-indigo-50" : ""}`}
+                      >
+                        {property.mediaUrls?.[0] ? (
+                          <img
+                            src={property.mediaUrls[0]}
+                            alt={property.title}
+                            className="w-7 h-7 sm:w-10 sm:h-10 object-cover rounded-lg shrink-0"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-lg bg-slate-100 shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] sm:text-xs font-semibold text-slate-900 truncate">{property.title || "Property"}</p>
+                          <p className="text-[11px] sm:text-xs text-indigo-600 font-medium">{formatPrice(property.price)}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Filter Toggle Button */}
             <button
-              type="button"
-              onClick={() => setShowPropertyList((prev) => !prev)}
-              className="w-full bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-5 py-3 border border-slate-200 flex items-center gap-2 text-left"
+              onClick={() => setShowFilters(!showFilters)}
+              className="shrink-0 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2 sm:px-4 sm:py-3 border border-slate-200 hover:bg-white transition-colors"
             >
-              <MapPin className="size-5 text-indigo-600 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-900">{properties.length}</p>
-                <p className="text-xs text-slate-500">Properties</p>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <SlidersHorizontal className="size-4 sm:size-5 text-indigo-600" />
+                <span className="hidden sm:inline text-sm font-semibold text-slate-900">Filters</span>
+                {hasActiveFilters && (
+                  <div className="bg-indigo-600 text-white text-[10px] sm:text-xs rounded-full px-1.5 py-0.5 sm:px-2">Active</div>
+                )}
               </div>
-              <ChevronDown className={`size-4 text-slate-400 shrink-0 transition-transform ${showPropertyList ? "rotate-180" : ""}`} />
             </button>
-
-            {showPropertyList && (
-              <div className="mt-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 max-h-72 overflow-y-auto divide-y divide-slate-100">
-                {properties.map((property) => (
-                  <button
-                    key={property._id}
-                    type="button"
-                    onClick={() => handleMarkerClick(property)}
-                    className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-indigo-50 transition-colors ${selectedProperty?._id === property._id ? "bg-indigo-50" : ""}`}
-                  >
-                    {property.mediaUrls?.[0] ? (
-                      <img
-                        src={property.mediaUrls[0]}
-                        alt={property.title}
-                        className="w-10 h-10 object-cover rounded-lg shrink-0"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-lg bg-slate-100 shrink-0" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-slate-900 truncate">{property.title || "Property"}</p>
-                      <p className="text-xs text-indigo-600 font-medium">{formatPrice(property.price)}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
-        )}
 
-        {/* Selected Property Badge */}
-        {selectedProperty && (
-          <div className="absolute top-20 left-4 right-4 sm:right-auto bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-4 py-3 z-[1000] border border-slate-200 sm:max-w-xs">
-            <div className="flex items-start gap-3">
-              {selectedProperty.mediaUrls?.[0] && (
-                <img
-                  src={selectedProperty.mediaUrls[0]}
-                  alt={selectedProperty.title}
-                  className="w-12 h-12 object-cover rounded-lg"
-                />
+          {/* Selected Property Badge */}
+          {selectedProperty && (
+            <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2 sm:px-4 sm:py-3 border border-slate-200 w-full sm:max-w-xs">
+              <div className="flex items-start gap-2 sm:gap-3">
+                {selectedProperty.mediaUrls?.[0] && (
+                  <img
+                    src={selectedProperty.mediaUrls[0]}
+                    alt={selectedProperty.title}
+                    className="w-9 h-9 sm:w-12 sm:h-12 object-cover rounded-lg"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] sm:text-xs text-slate-500 mb-0.5 sm:mb-1">Selected Property</p>
+                  <h4 className="text-xs sm:text-sm font-semibold text-slate-900 truncate">{selectedProperty.title || "Property"}</h4>
+                  <p className="text-[11px] sm:text-xs text-indigo-600 font-medium">{formatPrice(selectedProperty.price)}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedProperty(null)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+              {amenitiesLoading && (
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-indigo-600 rounded-full animate-pulse" />
+                    <p className="text-xs text-slate-500">Loading nearby amenities...</p>
+                  </div>
+                </div>
               )}
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-500 mb-1">Selected Property</p>
-                <h4 className="text-sm font-semibold text-slate-900 truncate">{selectedProperty.title || "Property"}</h4>
-                <p className="text-xs text-indigo-600 font-medium">{formatPrice(selectedProperty.price)}</p>
-              </div>
-              <button
-                onClick={() => setSelectedProperty(null)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X className="size-4" />
-              </button>
+              {!amenitiesLoading && amenitiesError && (
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <p className="text-xs text-red-500">Couldn't load nearby amenities. Try again in a moment.</p>
+                </div>
+              )}
+              {!amenitiesLoading && !amenitiesError && amenitiesData?.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <p className="text-xs text-slate-500 mb-2">{amenitiesData.length} amenities within {amenitiesRadiusKm}km</p>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {amenitiesData.slice(0, 5).map((amenity) => (
+                      <div key={amenity.id} className="flex items-center gap-2 text-xs">
+                        <span>
+                          {amenity.type === 'schools' ? '🏫' : amenity.type === 'hospitals' ? '🏥' : amenity.type === 'metro' ? '🚇' : '🏬'}
+                        </span>
+                        <span className="truncate text-slate-700">{amenity.name}</span>
+                        <span className="text-slate-400 ml-auto">{amenity.distance}m</span>
+                      </div>
+                    ))}
+                    {amenitiesData.length > 5 && (
+                      <p className="text-xs text-slate-400">+{amenitiesData.length - 5} more</p>
+                    )}
+                  </div>
+                </div>
+              )}
+              {!amenitiesLoading && !amenitiesError && amenitiesData?.length === 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <p className="text-xs text-slate-400">No amenities found within {amenitiesRadiusKm}km.</p>
+                </div>
+              )}
             </div>
-            {amenitiesLoading && (
-              <div className="mt-3 pt-3 border-t border-slate-100">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-indigo-600 rounded-full animate-pulse" />
-                  <p className="text-xs text-slate-500">Loading nearby amenities...</p>
-                </div>
-              </div>
-            )}
-            {!amenitiesLoading && amenitiesError && (
-              <div className="mt-3 pt-3 border-t border-slate-100">
-                <p className="text-xs text-red-500">Couldn't load nearby amenities. Try again in a moment.</p>
-              </div>
-            )}
-            {!amenitiesLoading && !amenitiesError && amenitiesData?.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-slate-100">
-                <p className="text-xs text-slate-500 mb-2">{amenitiesData.length} amenities within {amenitiesRadiusKm}km</p>
-                <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {amenitiesData.slice(0, 5).map((amenity) => (
-                    <div key={amenity.id} className="flex items-center gap-2 text-xs">
-                      <span>
-                        {amenity.type === 'schools' ? '🏫' : amenity.type === 'hospitals' ? '🏥' : amenity.type === 'metro' ? '🚇' : '🏬'}
-                      </span>
-                      <span className="truncate text-slate-700">{amenity.name}</span>
-                      <span className="text-slate-400 ml-auto">{amenity.distance}m</span>
-                    </div>
-                  ))}
-                  {amenitiesData.length > 5 && (
-                    <p className="text-xs text-slate-400">+{amenitiesData.length - 5} more</p>
-                  )}
-                </div>
-              </div>
-            )}
-            {!amenitiesLoading && !amenitiesError && amenitiesData?.length === 0 && (
-              <div className="mt-3 pt-3 border-t border-slate-100">
-                <p className="text-xs text-slate-400">No amenities found within {amenitiesRadiusKm}km.</p>
-              </div>
-            )}
-          </div>
-        )}
+          )}
 
-        {/* Filter Toggle Button */}
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-4 py-3 z-[1000] border border-slate-200 hover:bg-white transition-colors"
-        >
-          <div className="flex items-center gap-2">
-            <SlidersHorizontal className="size-5 text-indigo-600" />
-            <span className="text-sm font-semibold text-slate-900">Filters</span>
-            {hasActiveFilters && (
-              <div className="bg-indigo-600 text-white text-xs rounded-full px-2 py-0.5">Active</div>
-            )}
-          </div>
-        </button>
-
-        {/* Filter Panel */}
-        {showFilters && (
-          <div className={`absolute ${selectedProperty ? "top-56 sm:top-20" : "top-20"} left-4 right-4 sm:left-auto bg-white/95 backdrop-blur-sm rounded-xl shadow-xl p-5 z-[1000] border border-slate-200 sm:w-80 max-h-[calc(100dvh-120px)] overflow-y-auto`}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-slate-900">Filters</h3>
+          {/* Filter Panel */}
+          {showFilters && (
+          <div className="w-full sm:w-80 max-w-xs sm:max-w-none sm:ml-auto bg-white/95 backdrop-blur-sm rounded-xl shadow-xl p-3 sm:p-5 border border-slate-200 max-h-[calc(100dvh-140px)] overflow-y-auto text-xs sm:text-sm">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h3 className="text-sm sm:text-base font-bold text-slate-900">Filters</h3>
               {hasActiveFilters && (
                 <button
                   onClick={clearFilters}
-                  className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                  className="text-[11px] sm:text-xs text-indigo-600 hover:text-indigo-700 font-medium"
                 >
                   Clear All
                 </button>
@@ -680,8 +673,8 @@ export default function PropertyMapView() {
 
             <div className="max-h-[calc(100vh-200px)] overflow-y-auto">
               {/* Location Filters */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-700 mb-2">Location</label>
+              <div className="mb-3 sm:mb-4">
+                <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5 sm:mb-2">Location</label>
                 <div className="space-y-2">
                 {/* State Input with Autocomplete */}
                 <div className="relative">
@@ -692,7 +685,7 @@ export default function PropertyMapView() {
                     onChange={(e) => setLocationFilters({ ...locationFilters, state: e.target.value })}
                     onFocus={() => setShowSuggestions({ ...showSuggestions, state: true })}
                     onBlur={() => setTimeout(() => setShowSuggestions({ ...showSuggestions, state: false }), 200)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   {showSuggestions.state && locationFilters.state && (
                     <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
@@ -725,7 +718,7 @@ export default function PropertyMapView() {
                     onChange={(e) => setLocationFilters({ ...locationFilters, city: e.target.value })}
                     onFocus={() => setShowSuggestions({ ...showSuggestions, city: true })}
                     onBlur={() => setTimeout(() => setShowSuggestions({ ...showSuggestions, city: false }), 200)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   {showSuggestions.city && locationFilters.city && (
                     <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
@@ -777,7 +770,7 @@ export default function PropertyMapView() {
                     onChange={(e) => setLocationFilters({ ...locationFilters, area: e.target.value })}
                     onFocus={() => setShowSuggestions({ ...showSuggestions, area: true })}
                     onBlur={() => setTimeout(() => setShowSuggestions({ ...showSuggestions, area: false }), 200)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   {showSuggestions.area && locationFilters.area && (
                     <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
@@ -823,15 +816,15 @@ export default function PropertyMapView() {
             </div>
 
             {/* Price Filter */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-2">Price Range (₹)</label>
+            <div className="mb-3 sm:mb-4">
+              <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5 sm:mb-2">Price Range (₹)</label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
                   placeholder="Min"
                   value={priceRange.min}
                   onChange={(e) => setPriceRange({ ...priceRange, min: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
                 <span className="text-slate-400">-</span>
                 <input
@@ -839,21 +832,21 @@ export default function PropertyMapView() {
                   placeholder="Max"
                   value={priceRange.max}
                   onChange={(e) => setPriceRange({ ...priceRange, max: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
             </div>
 
             {/* Area Filter */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-2">Area Range (sq ft)</label>
+            <div className="mb-3 sm:mb-4">
+              <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5 sm:mb-2">Area Range (sq ft)</label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
                   placeholder="Min"
                   value={areaRange.min}
                   onChange={(e) => setAreaRange({ ...areaRange, min: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
                 <span className="text-slate-400">-</span>
                 <input
@@ -861,25 +854,25 @@ export default function PropertyMapView() {
                   placeholder="Max"
                   value={areaRange.max}
                   onChange={(e) => setAreaRange({ ...areaRange, max: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
             </div>
 
             {/* Amenity Filters — always visible/toggleable; amenities only load
                 once a property has been selected as the search anchor */}
-            <div className="mb-4 pt-4 border-t border-slate-100">
-              <label className="block text-sm font-medium text-slate-700 mb-3">Nearby Amenities</label>
-              <div className="space-y-2">
+            <div className="mb-3 sm:mb-4 pt-3 sm:pt-4 border-t border-slate-100">
+              <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-2 sm:mb-3">Nearby Amenities</label>
+              <div className="space-y-1.5 sm:space-y-2">
                 {Object.entries(AMENITY_CONFIG).map(([type, config]) => (
-                  <label key={type} className="flex items-center gap-3 cursor-pointer">
+                  <label key={type} className="flex items-center gap-2 sm:gap-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={amenityFilters[type]}
                       onChange={(e) => setAmenityFilters({ ...amenityFilters, [type]: e.target.checked })}
-                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                     />
-                    <span className="text-sm text-slate-700 flex items-center gap-2">
+                    <span className="text-xs sm:text-sm text-slate-700 flex items-center gap-1.5 sm:gap-2">
                       <span>{config.label === "Schools" ? "🏫" : config.label === "Hospitals" ? "🏥" : config.label === "Metro" ? "🚇" : "🏬"}</span>
                       {config.label}
                     </span>
@@ -908,7 +901,8 @@ export default function PropertyMapView() {
             </div>
             </div>
           </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

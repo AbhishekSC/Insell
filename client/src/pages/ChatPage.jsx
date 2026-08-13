@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   Channel,
@@ -32,6 +33,9 @@ export default function ChatPage() {
   const [selectedFriendId, setSelectedFriendId] = useState("");
   const [isConversationOpenMobile, setIsConversationOpenMobile] = useState(false);
   const [activeChannel, setActiveChannel] = useState(null);
+  const [directChatUser, setDirectChatUser] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const processedDirectChatIds = useRef(new Set());
   const { streamClient: chatClient, streamReady, streamConnecting, currentUserId, unreadCount } = useStreamContext();
 
   const { data: authData } = useQuery({
@@ -102,6 +106,47 @@ export default function ChatPage() {
     }
   };
 
+  // Deep link support: /chat?userId=<id> opens a direct conversation with that
+  // user immediately, even if they aren't in the friends list yet (e.g. coming
+  // from the "Chat" button on a property page).
+  useEffect(() => {
+    const targetUserId = searchParams.get("userId");
+    if (!targetUserId || !chatClient || !currentUserId) return;
+    if (processedDirectChatIds.current.has(targetUserId)) return;
+    processedDirectChatIds.current.add(targetUserId);
+
+    const clearUserIdParam = () => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("userId");
+        return next;
+      }, { replace: true });
+    };
+
+    const existingFriend = friends.find((friend) => friend._id === targetUserId);
+    if (existingFriend) {
+      openFriendChat(existingFriend);
+      clearUserIdParam();
+      return;
+    }
+
+    axiosInstance
+      .get(`/users/${targetUserId}/profile`)
+      .then((response) => {
+        const user = response.data?.data?.user;
+        if (!user) {
+          toast.error("User not found");
+          return;
+        }
+        const profile = { ...user, _id: targetUserId };
+        setDirectChatUser(profile);
+        openFriendChat(profile);
+      })
+      .catch(() => toast.error("Could not start chat with this user"))
+      .finally(clearUserIdParam);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, chatClient, currentUserId, friends]);
+
   const friendCountLabel = useMemo(() => {
     if (friends.length === 0) {
       return "No friends yet";
@@ -114,7 +159,9 @@ export default function ChatPage() {
     return `${friends.length} active friends`;
   }, [friends.length]);
 
-  const selectedFriend = friends.find((friend) => friend._id === selectedFriendId) || null;
+  const selectedFriend =
+    friends.find((friend) => friend._id === selectedFriendId) ||
+    (directChatUser?._id === selectedFriendId ? directChatUser : null);
   const serviceReady = Boolean(chatClient && streamReady && !streamConnecting);
   const showSidebar = !isConversationOpenMobile;
   const showConversation = isConversationOpenMobile;
