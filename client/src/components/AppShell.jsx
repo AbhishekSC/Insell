@@ -9,6 +9,7 @@ import {
   Home,
   House,
   LogOut,
+  Map,
   MessageSquare,
   Moon,
   Phone,
@@ -18,6 +19,7 @@ import {
   Sun,
   UserCircle,
   UserRoundPlus,
+  Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
@@ -36,6 +38,8 @@ function notifyBrowser(title, body) {
 const navItems = [
   { to: "/marketplace", label: "Home", icon: Home },
   { to: "/activity", label: "Activity", icon: Bell },
+  { to: "/map-view", label: "Map View", icon: Map },
+  { to: "/marketplace?section=communities", label: "Communities", icon: Users },
   { to: "/property-tools", label: "Property Tools", icon: Sparkles },
   { to: "/connections", label: "Connections", icon: UserRoundPlus },
   { to: "/chat", label: "Chat", icon: MessageSquare },
