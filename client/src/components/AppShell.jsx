@@ -410,36 +410,41 @@ export default function AppShell({
   }, [isMarketplaceShell]);
 
   const { data: incomingRequests = [] } = useQuery({
-    queryKey: ["incomingRequestsCount"],
+    // Shared key with MarketplacePage.jsx's identical query — same endpoint,
+    // same data, so they coalesce into one fetch instead of two independent ones.
+    queryKey: ["incomingRequests"],
     queryFn: async () => {
       const response = await axiosInstance.get("/users/friend-requests");
       return response.data?.data?.incomingRequests || [];
     },
     enabled: Boolean(authUser?._id),
+    staleTime: 10000,
     refetchInterval: 15000,
     refetchIntervalInBackground: true,
   });
 
   const { data: activityNotifications = 0 } = useQuery({
+    // Shared key with MarketplacePage.jsx's identical query.
     queryKey: ["activityNotifications"],
     queryFn: async () => {
       const response = await axiosInstance.get("/notifications?unreadOnly=true");
-      console.log("Activity notifications response:", response.data);
       return response.data?.data?.unreadCount || 0;
     },
     enabled: Boolean(authUser?._id),
+    staleTime: 10000,
     refetchInterval: 15000,
     refetchIntervalInBackground: true,
   });
 
   const { data: messageRequests = 0 } = useQuery({
+    // Shared key with MarketplacePage.jsx's identical query.
     queryKey: ["messageRequests"],
     queryFn: async () => {
       const response = await axiosInstance.get("/notifications?type=message_request&unreadOnly=true");
-      console.log("Message requests response:", response.data);
       return response.data?.data?.unreadCount || 0;
     },
     enabled: Boolean(authUser?._id),
+    staleTime: 10000,
     refetchInterval: 15000,
     refetchIntervalInBackground: true,
   });
@@ -490,8 +495,9 @@ export default function AppShell({
     },
     onSuccess: () => {
       toast.success("Logged out successfully");
+      // setQueryData already clears the cache; invalidating on top of that would
+      // just trigger a pointless extra /auth/verify call that returns 401.
       queryClient.setQueryData(["authUser"], null);
-      queryClient.invalidateQueries({ queryKey: ["authUser"] });
     },
     onError: (err) => {
       toast.error(err?.response?.data?.message || "Logout failed");

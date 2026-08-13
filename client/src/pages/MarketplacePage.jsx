@@ -400,20 +400,20 @@ export default function MarketplacePage() {
     enabled: !!authUser,
   });
 
-  // Fetch unread notification count (all types)
+  // Fetch unread notification count (all types) — shared key with AppShell.jsx's identical query
   const { data: activityNotifications = 0 } = useQuery({
     queryKey: ["activityNotifications"],
     queryFn: async () => {
       if (!authUser) return 0;
       const res = await axiosInstance.get("/notifications?unreadOnly=true");
-      console.log("All notifications response:", res.data);
       return res.data?.data?.unreadCount || 0;
     },
     enabled: !!authUser,
+    staleTime: 10000,
     refetchInterval: 15000,
   });
 
-  // Fetch message requests count
+  // Fetch message requests count — shared key with AppShell.jsx's identical query
   const { data: messageRequests = 0 } = useQuery({
     queryKey: ["messageRequests"],
     queryFn: async () => {
@@ -422,10 +422,11 @@ export default function MarketplacePage() {
       return res.data?.data?.unreadCount || 0;
     },
     enabled: !!authUser,
+    staleTime: 10000,
     refetchInterval: 15000,
   });
 
-  // Fetch incoming connection requests
+  // Fetch incoming connection requests — shared key with AppShell.jsx's identical query
   const { data: incomingRequests = [] } = useQuery({
     queryKey: ["incomingRequests"],
     queryFn: async () => {
@@ -434,6 +435,7 @@ export default function MarketplacePage() {
       return res.data?.data?.incomingRequests || [];
     },
     enabled: !!authUser,
+    staleTime: 10000,
     refetchInterval: 15000,
   });
 

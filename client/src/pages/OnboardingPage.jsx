@@ -489,8 +489,9 @@ export default function OnboardingPage() {
       }
     },
     onSuccess: () => {
+      // setQueryData already clears the cache; invalidating on top of that would
+      // just trigger a pointless extra /auth/verify call that returns 401.
       queryClient.setQueryData(["authUser"], null);
-      queryClient.invalidateQueries({ queryKey: ["authUser"] });
       navigate("/login?switchAccount=1", { replace: true });
     },
     onError: (error) => {

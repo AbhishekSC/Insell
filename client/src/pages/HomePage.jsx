@@ -151,8 +151,9 @@ export default function HomePage() {
     },
     onSuccess: () => {
       toast.success("Logged out successfully");
+      // setQueryData already clears the cache; invalidating on top of that would
+      // just trigger a pointless extra /auth/verify call that returns 401.
       queryClient.setQueryData(["authUser"], null);
-      queryClient.invalidateQueries({ queryKey: ["authUser"] });
     },
     onError: (err) => {
       toast.error(err?.response?.data?.message || "Logout failed");
