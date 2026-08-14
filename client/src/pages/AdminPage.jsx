@@ -15,6 +15,52 @@ function formatDate(dateString) {
   return date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
+function ConfirmBlockModal({ user, isPending, onCancel, onConfirm }) {
+  if (!user) return null;
+  const isBlocking = !user.isBlocked;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
+      <div
+        className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={`mx-auto grid size-12 place-items-center rounded-full ${isBlocking ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"}`}>
+          {isBlocking ? <ShieldOff className="size-6" /> : <ShieldCheck className="size-6" />}
+        </div>
+        <h3 className="mt-4 text-center text-lg font-semibold text-slate-800">
+          {isBlocking ? "Block this user?" : "Unblock this user?"}
+        </h3>
+        <p className="mt-1.5 text-center text-sm text-slate-500">
+          {isBlocking
+            ? `${user.fullName || "This user"} will no longer be able to log in or use the platform.`
+            : `${user.fullName || "This user"} will regain access to the platform.`}
+        </p>
+
+        <div className="mt-6 flex gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isPending}
+            className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors disabled:opacity-60 ${
+              isBlocking ? "bg-red-600 hover:bg-red-500" : "bg-emerald-600 hover:bg-emerald-500"
+            }`}
+          >
+            {isPending ? <Loader2 className="mx-auto size-4 animate-spin" /> : isBlocking ? "Block" : "Unblock"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const queryClient = useQueryClient();
   const [searchInput, setSearchInput] = useState("");
@@ -23,6 +69,7 @@ export default function AdminPage() {
   const [role, setRole] = useState("");
   const [page, setPage] = useState(1);
   const [pendingBlockId, setPendingBlockId] = useState(null);
+  const [confirmTarget, setConfirmTarget] = useState(null);
 
   // Debounce the search box so we don't fire a request on every keystroke.
   useEffect(() => {
@@ -60,6 +107,7 @@ export default function AdminPage() {
     onSuccess: (result) => {
       toast.success(result?.isBlocked ? "User blocked" : "User unblocked");
       queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
+      setConfirmTarget(null);
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || "Failed to update user");
@@ -67,12 +115,9 @@ export default function AdminPage() {
     onSettled: () => setPendingBlockId(null),
   });
 
-  const handleToggleBlock = (user) => {
-    const verb = user.isBlocked ? "unblock" : "block";
-    if (!window.confirm(`Are you sure you want to ${verb} ${user.fullName || "this user"}?`)) {
-      return;
-    }
-    toggleBlock(user._id);
+  const handleConfirmToggleBlock = () => {
+    if (!confirmTarget) return;
+    toggleBlock(confirmTarget._id);
   };
 
   return (
@@ -182,7 +227,7 @@ export default function AdminPage() {
                     <td className="px-4 py-3 text-right sm:pr-5">
                       <button
                         type="button"
-                        onClick={() => handleToggleBlock(user)}
+                        onClick={() => setConfirmTarget(user)}
                         disabled={pendingBlockId === user._id}
                         className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60 ${
                           user.isBlocked
@@ -232,6 +277,13 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+
+      <ConfirmBlockModal
+        user={confirmTarget}
+        isPending={Boolean(confirmTarget) && pendingBlockId === confirmTarget?._id}
+        onCancel={() => setConfirmTarget(null)}
+        onConfirm={handleConfirmToggleBlock}
+      />
     </AppShell>
   );
 }
