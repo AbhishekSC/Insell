@@ -58,57 +58,68 @@ async function fetchAmenitiesForRadius(latitude, longitude, radius, amenityTypes
     return { amenities: cached.data, cached: true };
   }
 
-  const categories = amenityTypesToSearch.flatMap((type) => AMENITY_TYPES[type].categories).join(",");
-
-  let response;
-  try {
-    response = await axios.get(GEOAPIFY_PLACES_URL, {
-      params: {
-        categories,
-        filter: `circle:${longitude},${latitude},${radius}`,
-        bias: `proximity:${longitude},${latitude}`,
-        limit: 100,
-        apiKey,
-      },
-      timeout: 10000,
+  // Geoapify rejects more than one category per request on this plan (a
+  // request with two comma-separated categories 400s even when each one
+  // works fine alone), so each category gets its own request; run them in
+  // parallel and merge the results.
+  const categoryToType = new Map();
+  amenityTypesToSearch.forEach((type) => {
+    AMENITY_TYPES[type].categories.forEach((category) => {
+      categoryToType.set(category, type);
     });
+  });
+
+  let results;
+  try {
+    results = await Promise.all(
+      Array.from(categoryToType.entries()).map(async ([category, amenityType]) => {
+        const response = await axios.get(GEOAPIFY_PLACES_URL, {
+          params: {
+            categories: category,
+            filter: `circle:${longitude},${latitude},${radius}`,
+            bias: `proximity:${longitude},${latitude}`,
+            limit: 20,
+            apiKey,
+          },
+          timeout: 10000,
+        });
+        return { amenityType, features: response.data?.features || [] };
+      })
+    );
   } catch (apiError) {
     logger.error("Geoapify Places request failed", {
       message: apiError.message,
       status: apiError.response?.status,
+      data: apiError.response?.data,
     });
     throw new AmenitiesFetchError(apiError.message);
   }
 
-  const features = response.data?.features || [];
   const amenities = [];
+  const seenIds = new Set();
 
-  features.forEach((feature) => {
-    const props = feature.properties || {};
-    const [lon, featureLat] = feature.geometry?.coordinates || [];
-    if (featureLat == null || lon == null) return;
+  results.forEach(({ amenityType, features }) => {
+    features.forEach((feature) => {
+      const props = feature.properties || {};
+      const [lon, featureLat] = feature.geometry?.coordinates || [];
+      if (featureLat == null || lon == null) return;
 
-    const featureCategories = props.categories || [];
-    let amenityType = null;
-    for (const type of amenityTypesToSearch) {
-      if (AMENITY_TYPES[type].categories.some((category) => featureCategories.includes(category))) {
-        amenityType = type;
-        break;
-      }
-    }
-    if (!amenityType) return;
+      const id = props.place_id || `${amenityType}-${featureLat}-${lon}`;
+      if (seenIds.has(id)) return;
+      seenIds.add(id);
 
-    const distance =
-      typeof props.distance === "number" ? props.distance : calculateDistance(latitude, longitude, featureLat, lon);
+      const distance =
+        typeof props.distance === "number" ? props.distance : calculateDistance(latitude, longitude, featureLat, lon);
 
-    amenities.push({
-      id: props.place_id || `${amenityType}-${featureLat}-${lon}`,
-      name: props.name || props.address_line1 || `${AMENITY_TYPES[amenityType].label} nearby`,
-      type: amenityType,
-      lat: featureLat,
-      lng: lon,
-      distance: Math.round(distance),
-      tags: props,
+      amenities.push({
+        id,
+        name: props.name || props.address_line1 || `${AMENITY_TYPES[amenityType].label} nearby`,
+        type: amenityType,
+        lat: featureLat,
+        lng: lon,
+        distance: Math.round(distance),
+        tags: props,
+      });
     });
   });
 

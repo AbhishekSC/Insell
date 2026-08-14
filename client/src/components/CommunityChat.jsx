@@ -1,7 +1,7 @@
 import { Component, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Channel, Chat, MessageComposer, MessageList, Thread, Window } from "stream-chat-react";
-import { ArrowLeft, Check, Crown, LogOut, Shield, Trash2, UserPlus, Users, X } from "lucide-react";
+import { ArrowLeft, Check, Crown, LogOut, Menu, Shield, Trash2, UserPlus, Users, X } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import { useStreamContext } from "../context/StreamProvider";
@@ -35,6 +35,7 @@ export default function CommunityChat({ community, onBack }) {
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showDestroyModal, setShowDestroyModal] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [selectedFriendIds, setSelectedFriendIds] = useState([]);
   const [communityChannel, setCommunityChannel] = useState(null);
   const { streamClient, streamReady } = useStreamContext();
@@ -263,41 +264,67 @@ export default function CommunityChat({ community, onBack }) {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {isMember && (
-            <button
-              onClick={() => setShowAddMemberModal(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-indigo-200 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 transition-colors"
-              title={isCreator ? "Add member from your friends" : "Request to add a friend"}
-            >
-              <UserPlus size={16} />
-              <span className="hidden sm:inline">{isCreator ? "Add member" : "Add friend"}</span>
-            </button>
-          )}
+        <div className="relative">
           <button
-            onClick={() => setShowMembers(!showMembers)}
+            onClick={() => setShowActionsMenu((prev) => !prev)}
             className="rounded-lg p-2 hover:bg-slate-100 transition-colors"
-            title="Members"
+            title="Community options"
           >
-            <Users size={20} />
+            <Menu size={20} />
           </button>
-          {!isCreator && (
-            <button
-              onClick={() => setShowLeaveModal(true)}
-              className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
-              title="Leave community"
-            >
-              <LogOut size={20} />
-            </button>
-          )}
-          {isCreator && (
-            <button
-              onClick={() => setShowDestroyModal(true)}
-              className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
-              title="Destroy community"
-            >
-              <Trash2 size={20} />
-            </button>
+
+          {showActionsMenu && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowActionsMenu(false)} />
+              <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-slate-200 bg-white py-1.5 shadow-lg">
+                {isMember && (
+                  <button
+                    onClick={() => {
+                      setShowAddMemberModal(true);
+                      setShowActionsMenu(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    <UserPlus size={16} className="text-indigo-600" />
+                    {isCreator ? "Add member" : "Request to add a friend"}
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setShowMembers(!showMembers);
+                    setShowActionsMenu(false);
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <Users size={16} className="text-slate-500" />
+                  {showMembers ? "Hide members" : "View members"}
+                </button>
+                {!isCreator && (
+                  <button
+                    onClick={() => {
+                      setShowLeaveModal(true);
+                      setShowActionsMenu(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
+                  >
+                    <LogOut size={16} />
+                    Leave community
+                  </button>
+                )}
+                {isCreator && (
+                  <button
+                    onClick={() => {
+                      setShowDestroyModal(true);
+                      setShowActionsMenu(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
+                  >
+                    <Trash2 size={16} />
+                    Delete community
+                  </button>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>

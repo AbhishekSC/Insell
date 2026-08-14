@@ -164,10 +164,11 @@ export default function ProfilePage() {
                 <label className="form-control">
                   <span className="label-text mb-1">City</span>
                   <div className="relative">
-                    <MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-base-content/50" />
+                    <MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-base-content/50 z-10" />
                     <input
                       type="text"
-                      className="input input-bordered w-full pl-9"
+                      className="input input-bordered w-full"
+                      style={{ paddingLeft: "2.5rem" }}
                       value={form.city}
                       onChange={(e) => setForm((prev) => ({ ...prev, city: e.target.value }))}
                     />
@@ -187,11 +188,12 @@ export default function ProfilePage() {
                 <label className="form-control sm:col-span-2">
                   <span className="label-text mb-1">Mobile number</span>
                   <div className="relative">
-                    <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-base-content/50" />
+                    <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-base-content/50 z-10" />
                     <input
                       type="tel"
                       placeholder="e.g. +91 98765 43210"
-                      className="input input-bordered w-full pl-9"
+                      className="input input-bordered w-full"
+                      style={{ paddingLeft: "2.5rem" }}
                       value={form.mobileNumber}
                       onChange={(e) => setForm((prev) => ({ ...prev, mobileNumber: e.target.value }))}
                     />

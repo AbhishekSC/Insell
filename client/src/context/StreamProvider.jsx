@@ -530,6 +530,14 @@ export function StreamProvider({ children }) {
 
     setVideoBusy(true);
     try {
+      // Explicitly release the camera/mic before leaving — on some browsers
+      // (notably mobile) call.leave() alone can leave the recording indicator
+      // on if a device was still mid-publish when leave() ran.
+      await Promise.allSettled([
+        activeVideoCall.camera.disable(),
+        activeVideoCall.microphone.disable(),
+        activeVideoCall.screenShare.disable(),
+      ]);
       await activeVideoCall.leave();
       setActiveVideoCall(null);
     } finally {

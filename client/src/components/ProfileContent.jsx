@@ -201,10 +201,11 @@ export default function ProfileContent() {
               <label className="form-control">
                 <span className="label-text mb-1 text-xs sm:text-sm text-slate-700">City</span>
                 <div className="relative">
-                  <MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  <MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400 z-10" />
                   <input
                     type="text"
-                    className="input input-sm sm:input-md input-bordered w-full border-slate-200 bg-slate-50 pl-9 focus:border-indigo-300"
+                    className="input input-sm sm:input-md input-bordered w-full border-slate-200 bg-slate-50 focus:border-indigo-300"
+                    style={{ paddingLeft: "2.5rem" }}
                     value={form.city}
                     onChange={(e) => setForm((prev) => ({ ...prev, city: e.target.value }))}
                   />
@@ -226,11 +227,12 @@ export default function ProfileContent() {
               <label className="form-control sm:col-span-2">
                 <span className="label-text mb-1 text-xs sm:text-sm text-slate-700">Mobile number</span>
                 <div className="relative">
-                  <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400 z-10" />
                   <input
                     type="tel"
                     placeholder="e.g. +91 98765 43210"
-                    className="input input-sm sm:input-md input-bordered w-full border-slate-200 bg-slate-50 pl-9 focus:border-indigo-300"
+                    className="input input-sm sm:input-md input-bordered w-full border-slate-200 bg-slate-50 focus:border-indigo-300"
+                    style={{ paddingLeft: "2.5rem" }}
                     value={form.mobileNumber}
                     onChange={(e) => setForm((prev) => ({ ...prev, mobileNumber: e.target.value }))}
                   />
