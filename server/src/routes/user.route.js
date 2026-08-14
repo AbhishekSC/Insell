@@ -11,6 +11,7 @@ import {
   rejectFriendRequest,
   updateMyProfile,
   getUserPublicProfile,
+  getUserFriendsList,
   updateUserLocation,
   getUserActivity,
 } from "../controllers/user.controller.js";
@@ -27,6 +28,7 @@ router.get("/discover", getDiscoverUsers);
 router.get("/friends", getMyFriends);
 router.get("/connections", getMyFriends);
 router.get("/:id/profile", getUserPublicProfile);
+router.get("/:id/friends", getUserFriendsList);
 router.patch("/profile", uploadProfileImage.single("profileImage"), updateMyProfile);
 router.patch("/account", uploadProfileImage.single("profileImage"), updateMyProfile);
 router.patch("/location", updateUserLocation);

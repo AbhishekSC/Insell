@@ -5,7 +5,7 @@ import {
   useCall,
   useCallStateHooks,
 } from "@stream-io/video-react-sdk";
-import { ArrowLeft, Mic, MicOff, PhoneOff, ScreenShare, ScreenShareOff, Video, VideoOff } from "lucide-react";
+import { ArrowLeft, Mic, MicOff, PhoneOff, RefreshCcw, ScreenShare, ScreenShareOff, Video, VideoOff } from "lucide-react";
 import toast from "react-hot-toast";
 import { Navigate, useNavigate } from "react-router";
 import AppShell from "../components/AppShell";
@@ -27,6 +27,14 @@ function ActiveCallUi({ onEndCall, videoBusy }) {
       toast.error("Failed to end call");
     }
     navigate("/call", { replace: true });
+  };
+
+  const flipCamera = async () => {
+    try {
+      await call?.camera.flip();
+    } catch {
+      toast.error("Unable to switch camera");
+    }
   };
 
   return (
@@ -83,6 +91,15 @@ function ActiveCallUi({ onEndCall, videoBusy }) {
         </button>
         <button
           type="button"
+          onClick={flipCamera}
+          disabled={!cameraEnabled}
+          aria-label="Switch camera"
+          className="live-call-btn disabled:opacity-60"
+        >
+          <RefreshCcw className="size-5" />
+        </button>
+        <button
+          type="button"
           onClick={leaveCall}
           disabled={videoBusy}
           aria-label="Leave call"
@@ -104,7 +121,7 @@ export default function LiveCallPage() {
 
   return (
     <AppShell hideHero lockPageScroll>
-      <div className="call-live-shell shell-panel h-full min-h-[560px] p-1.5 sm:p-2 xl:h-[calc(100dvh-6.5rem)]">
+      <div className="call-live-shell shell-panel h-[calc(100dvh-10.5rem)] min-h-[420px] p-1.5 sm:p-2 md:h-[calc(100dvh-6.5rem)]">
         {!videoClient ? (
           <div className="grid h-full min-h-[360px] place-items-center rounded-2xl border border-base-300/70 bg-base-100/70 p-6 text-sm text-base-content/70">
             Preparing video client...

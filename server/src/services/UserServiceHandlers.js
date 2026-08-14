@@ -551,6 +551,40 @@ export async function updateUserLocation(req, res) {
   }
 }
 
+export async function getUserFriendsList(req, res) {
+  try {
+    const { id: userId } = req.params;
+    const currentUserId = req.user._id;
+
+    const userWithFriends = await User.findById(userId)
+      .select("friends")
+      .populate(
+        "friends",
+        "fullName profilePic city primaryRole preferredLocalities propertyTypePreferences budgetMin budgetMax listingIntent homeBase travelStyle travelInterests favoriteDestinations location"
+      );
+
+    if (!userWithFriends) {
+      return sendErrorResponse(res, 404, "User not found");
+    }
+
+    const isSelf = String(currentUserId) === String(userId);
+    const isFriend = userWithFriends.friends.some(
+      (friend) => String(friend._id) === String(currentUserId)
+    );
+
+    if (!isSelf && !isFriend) {
+      return sendErrorResponse(res, 403, "Only friends can view this list");
+    }
+
+    return sendSuccessResponse(res, 200, "Friends fetched successfully", {
+      friends: userWithFriends.friends,
+    });
+  } catch (error) {
+    logger.error("Error fetching user friends list:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
 export async function getUserPublicProfile(req, res) {
   try {
     const { id: targetUserId } = req.params;
@@ -577,9 +611,9 @@ export async function getUserPublicProfile(req, res) {
 
     const targetUser = await User.findById(targetUserId).select("friends").lean();
     const followersCount = targetUser?.friends?.length || 0;
+    const followingCount = targetUser?.friends?.length || 0;
 
     const currentUser = await User.findById(currentUserId).select("friends").lean();
-    const followingCount = currentUser?.friends?.length || 0;
 
     // Get saved posts count (bookmarked by the user)
     const savedPosts = await PropertyPost.find({

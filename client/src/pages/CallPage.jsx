@@ -25,7 +25,7 @@ const EMPTY_FRIENDS = [];
 export default function CallPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [selectedFriendId, setSelectedFriendId] = useState("");
+  const [selectedFriendIds, setSelectedFriendIds] = useState([]);
   const [autoStartAttempted, setAutoStartAttempted] = useState(false);
   const {
     streamReady,
@@ -35,6 +35,7 @@ export default function CallPage() {
     activeVideoCall,
     incomingVideoCall,
     startVideoCallWithUser,
+    startGroupVideoCall,
     joinVideoCallByCid,
     acceptIncomingVideoCall,
     endActiveVideoCall,
@@ -97,24 +98,28 @@ export default function CallPage() {
     },
   });
 
-  const selectedFriend = friends.find((friend) => friend._id === selectedFriendId);
+  const selectedFriends = useMemo(
+    () => friends.filter((friend) => selectedFriendIds.includes(friend._id)),
+    [friends, selectedFriendIds]
+  );
   const serviceReady = Boolean(streamReady && videoClient && !streamConnecting);
   const scheduledFriendId = searchParams.get("friendId") || "";
   const shouldAutoStart = searchParams.get("start") === "1";
 
-  const callId = useMemo(() => {
-    if (!selectedFriend?._id || !currentUserId) {
-      return null;
-    }
-    return [currentUserId, selectedFriend._id].sort().join("-");
-  }, [selectedFriend?._id, currentUserId]);
+  const toggleFriendSelection = (friendId) => {
+    setSelectedFriendIds((current) =>
+      current.includes(friendId) ? current.filter((id) => id !== friendId) : [...current, friendId]
+    );
+  };
 
   useEffect(() => {
     if (!scheduledFriendId) {
       return;
     }
 
-    setSelectedFriendId((current) => (current === scheduledFriendId ? current : scheduledFriendId));
+    setSelectedFriendIds((current) =>
+      current.length === 1 && current[0] === scheduledFriendId ? current : [scheduledFriendId]
+    );
   }, [scheduledFriendId]);
 
   useEffect(() => {
@@ -122,11 +127,13 @@ export default function CallPage() {
       return;
     }
 
-    if (!scheduledFriendId || !selectedFriend || selectedFriend._id !== scheduledFriendId) {
+    const isSoleSelection = selectedFriendIds.length === 1 && selectedFriendIds[0] === scheduledFriendId;
+    if (!scheduledFriendId || !isSoleSelection) {
       return;
     }
 
-    if (!serviceReady || videoBusy || !callId) {
+    const scheduledFriend = friends.find((friend) => friend._id === scheduledFriendId);
+    if (!scheduledFriend || !serviceReady || videoBusy) {
       return;
     }
 
@@ -134,8 +141,8 @@ export default function CallPage() {
 
     const run = async () => {
       try {
-        await startVideoCallWithUser(selectedFriend._id);
-        toast.success(`Connected with ${selectedFriend.fullName}`);
+        await startVideoCallWithUser(scheduledFriend._id);
+        toast.success(`Connected with ${scheduledFriend.fullName}`);
         navigate("/call/live");
       } catch {
         toast.error("Unable to auto-join scheduled call. Please press Start video call.");
@@ -145,10 +152,10 @@ export default function CallPage() {
     run();
   }, [
     autoStartAttempted,
-    callId,
+    friends,
     navigate,
     scheduledFriendId,
-    selectedFriend,
+    selectedFriendIds,
     serviceReady,
     shouldAutoStart,
     startVideoCallWithUser,
@@ -156,19 +163,29 @@ export default function CallPage() {
   ]);
 
   const startCall = async () => {
-    if (!selectedFriend) {
-      toast.error("Select a friend to start a call");
+    if (selectedFriends.length === 0) {
+      toast.error("Select at least one friend to start a call");
       return;
     }
 
-    if (!streamReady || streamConnecting || !videoClient || !callId) {
+    if (!streamReady || streamConnecting || !videoClient) {
       toast.error("Call service is not ready yet. Please wait a moment.");
       return;
     }
 
     try {
-      await startVideoCallWithUser(selectedFriend._id);
-      toast.success(`Connected with ${selectedFriend.fullName}`);
+      if (selectedFriends.length === 1) {
+        await startVideoCallWithUser(selectedFriends[0]._id);
+        toast.success(`Connected with ${selectedFriends[0].fullName}`);
+      } else {
+        const roomId = `group-${currentUserId}-${Date.now()}`;
+        await startGroupVideoCall({
+          roomId,
+          memberIds: selectedFriends.map((friend) => friend._id),
+          label: `Call with ${selectedFriends.map((friend) => friend.fullName).join(", ")}`,
+        });
+        toast.success(`Group call started with ${selectedFriends.length} people`);
+      }
       navigate("/call/live");
     } catch (error) {
       console.error("Failed to start call:", error);
@@ -264,9 +281,11 @@ export default function CallPage() {
               <p>
                 {activeVideoCall
                   ? "Your private room is open. Jump in to manage your camera, microphone, and screen share."
-                  : selectedFriend
-                    ? `Start a private video call with ${selectedFriend.fullName}.`
-                    : "Choose someone from your friends to begin a private video call."}
+                  : selectedFriends.length === 1
+                    ? `Start a private video call with ${selectedFriends[0].fullName}.`
+                    : selectedFriends.length > 1
+                      ? `Start a group video call with ${selectedFriends.length} people.`
+                      : "Choose one friend for a private call, or select several for a group call."}
               </p>
             </div>
             <div className="call-stage__orb" aria-hidden="true"><VideoIcon /></div>
@@ -289,10 +308,27 @@ export default function CallPage() {
               </div>
             ) : (
               <div className="call-preview-card flex flex-1 flex-col justify-center p-6 sm:p-10">
-                {selectedFriend ? (
-                  <div className="mx-auto w-full max-w-sm text-center"><UserAvatar src={selectedFriend.profilePic} name={selectedFriend.fullName} sizeClass="size-20" className="mx-auto ring-4 ring-primary/10" /><p className="mt-4 text-lg font-bold">Call {selectedFriend.fullName}</p><p className="mt-1 text-sm text-base-content/60">{selectedFriend.travelStyle || selectedFriend.learningLanguage || "Travel partner"} · {selectedFriend.homeBase || selectedFriend.location || "Planning together"}</p><button type="button" className="btn btn-primary mt-6 w-full rounded-xl" onClick={startCall} disabled={videoBusy || !serviceReady}>{videoBusy ? <Loader2 className="size-5 animate-spin" /> : <Video className="size-5" />} Start video call</button><p className="mt-3 text-xs text-base-content/50">A private room will be created for both of you.</p></div>
+                {selectedFriends.length === 1 ? (
+                  <div className="mx-auto w-full max-w-sm text-center"><UserAvatar src={selectedFriends[0].profilePic} name={selectedFriends[0].fullName} sizeClass="size-20" className="mx-auto ring-4 ring-primary/10" /><p className="mt-4 text-lg font-bold">Call {selectedFriends[0].fullName}</p><p className="mt-1 text-sm text-base-content/60">{selectedFriends[0].travelStyle || selectedFriends[0].learningLanguage || "Travel partner"} · {selectedFriends[0].homeBase || selectedFriends[0].location || "Planning together"}</p><button type="button" className="btn btn-primary mt-6 w-full rounded-xl" onClick={startCall} disabled={videoBusy || !serviceReady}>{videoBusy ? <Loader2 className="size-5 animate-spin" /> : <Video className="size-5" />} Start video call</button><p className="mt-3 text-xs text-base-content/50">A private room will be created for both of you.</p></div>
+                ) : selectedFriends.length > 1 ? (
+                  <div className="mx-auto w-full max-w-sm text-center">
+                    <div className="flex justify-center -space-x-3">
+                      {selectedFriends.slice(0, 4).map((friend) => (
+                        <UserAvatar key={friend._id} src={friend.profilePic} name={friend.fullName} sizeClass="size-16" className="ring-4 ring-base-100" />
+                      ))}
+                      {selectedFriends.length > 4 ? (
+                        <div className="grid size-16 place-items-center rounded-full bg-base-200 text-sm font-bold ring-4 ring-base-100">
+                          +{selectedFriends.length - 4}
+                        </div>
+                      ) : null}
+                    </div>
+                    <p className="mt-4 text-lg font-bold">Group call with {selectedFriends.length} people</p>
+                    <p className="mt-1 truncate text-sm text-base-content/60">{selectedFriends.map((friend) => friend.fullName).join(", ")}</p>
+                    <button type="button" className="btn btn-primary mt-6 w-full rounded-xl" onClick={startCall} disabled={videoBusy || !serviceReady}>{videoBusy ? <Loader2 className="size-5 animate-spin" /> : <Video className="size-5" />} Start group call</button>
+                    <p className="mt-3 text-xs text-base-content/50">A private room will be created for all {selectedFriends.length + 1} of you.</p>
+                  </div>
                 ) : (
-                  <div className="mx-auto max-w-sm text-center"><div className="mx-auto grid size-16 place-items-center rounded-3xl bg-primary/10 text-primary"><Video className="size-7" /></div><h3 className="mt-5 text-lg font-bold">Pick someone to call</h3><p className="mt-1 text-sm text-base-content/65">Your call will open in a private, secure room.</p></div>
+                  <div className="mx-auto max-w-sm text-center"><div className="mx-auto grid size-16 place-items-center rounded-3xl bg-primary/10 text-primary"><Video className="size-7" /></div><h3 className="mt-5 text-lg font-bold">Pick someone to call</h3><p className="mt-1 text-sm text-base-content/65">Select one friend for a private call, or several for a group call.</p></div>
                 )}
               </div>
             )}
@@ -301,8 +337,8 @@ export default function CallPage() {
 
         <aside className="call-sidebar shell-panel xl:min-h-0 xl:overflow-y-auto">
           <div className="p-4 sm:p-5">
-            <div className="call-sidebar__title"><div className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary"><Users className="size-4" /></div><div><h3>Start a call</h3><p>Choose a travel partner</p></div></div>
-            {isLoading ? <div className="mt-4 h-28 animate-pulse rounded-2xl bg-base-200" /> : friends.length === 0 ? <div className="empty-box mt-4 text-sm">No friends available yet. Build your network from Requests.</div> : <div className="call-friend-list">{friends.map((friend) => { const isSelected = selectedFriendId === friend._id; return <button key={friend._id} type="button" className={`call-friend-row ${isSelected ? "call-friend-row--selected" : ""}`} onClick={() => setSelectedFriendId(friend._id)}><UserAvatar src={friend.profilePic} name={friend.fullName} sizeClass="size-10" /><span className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-semibold">{friend.fullName}</span><span className="block truncate text-xs text-base-content/55">{friend.travelStyle || friend.learningLanguage || "Travel partner"}</span></span>{isSelected ? <Check className="size-4 text-primary" /> : <ChevronRight className="size-4 text-base-content/35" />}</button>; })}</div>}
+            <div className="call-sidebar__title"><div className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary"><Users className="size-4" /></div><div><h3>Start a call</h3><p>Pick one for a 1:1 call, or several for a group call</p></div></div>
+            {isLoading ? <div className="mt-4 h-28 animate-pulse rounded-2xl bg-base-200" /> : friends.length === 0 ? <div className="empty-box mt-4 text-sm">No friends available yet. Build your network from Requests.</div> : <div className="call-friend-list">{friends.map((friend) => { const isSelected = selectedFriendIds.includes(friend._id); return <button key={friend._id} type="button" className={`call-friend-row ${isSelected ? "call-friend-row--selected" : ""}`} onClick={() => toggleFriendSelection(friend._id)}><UserAvatar src={friend.profilePic} name={friend.fullName} sizeClass="size-10" /><span className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-semibold">{friend.fullName}</span><span className="block truncate text-xs text-base-content/55">{friend.travelStyle || friend.learningLanguage || "Travel partner"}</span></span>{isSelected ? <Check className="size-4 text-primary" /> : <ChevronRight className="size-4 text-base-content/35" />}</button>; })}</div>}
 
             <div className="call-privacy-note"><ShieldCheck className="size-4" /><span>Private rooms are only visible to invited members.</span></div>
 

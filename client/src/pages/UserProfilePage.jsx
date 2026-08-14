@@ -31,6 +31,7 @@ import {
   X,
 } from "lucide-react";
 import ShareModal from "../components/ShareModal";
+import UserListModal from "../components/UserListModal";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import UserAvatar from "../components/UserAvatar";
@@ -111,6 +112,7 @@ export default function UserProfilePage() {
   const [postCarouselIndex, setPostCarouselIndex] = useState({});
   const [showShareModal, setShowShareModal] = useState(false);
   const [postToShare, setPostToShare] = useState(null);
+  const [connectionsModalTitle, setConnectionsModalTitle] = useState(null);
 
   // Reset tab to posts when userId changes (viewing different user)
   useEffect(() => {
@@ -141,6 +143,18 @@ export default function UserProfilePage() {
       return response.data?.data || null;
     },
   });
+
+  const { data: connectionsData, isLoading: isConnectionsLoading, isError: isConnectionsError, error: connectionsError } = useQuery({
+    queryKey: ["userFriends", userId],
+    enabled: Boolean(userId) && Boolean(connectionsModalTitle),
+    retry: false,
+    queryFn: async () => {
+      const response = await axiosInstance.get(`/users/${userId}/friends`);
+      return response.data?.data?.friends || [];
+    },
+  });
+
+  const connectionsForbidden = isConnectionsError && connectionsError?.response?.status === 403;
 
   const profileUser = profileData?.user || null;
   const stats = profileData?.stats || { postsCount: 0 };
@@ -405,14 +419,22 @@ export default function UserProfilePage() {
                 <p className="text-xl font-bold text-slate-900">{stats.postsCount || 0}</p>
                 <p className="text-xs text-slate-500">Posts</p>
               </div>
-              <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setConnectionsModalTitle("Followers")}
+                className="text-center transition-opacity hover:opacity-70"
+              >
                 <p className="text-xl font-bold text-slate-900">{stats.followersCount || 0}</p>
                 <p className="text-xs text-slate-500">Followers</p>
-              </div>
-              <div className="text-center">
+              </button>
+              <button
+                type="button"
+                onClick={() => setConnectionsModalTitle("Following")}
+                className="text-center transition-opacity hover:opacity-70"
+              >
                 <p className="text-xl font-bold text-slate-900">{stats.followingCount || 0}</p>
                 <p className="text-xs text-slate-500">Following</p>
-              </div>
+              </button>
               <div className="text-center">
                 <p className="text-xl font-bold text-slate-900">{stats.savedCount || 0}</p>
                 <p className="text-xs text-slate-500">Saved</p>
@@ -1534,6 +1556,16 @@ export default function UserProfilePage() {
         }}
         postUrl={postToShare ? `${window.location.origin}/property/${postToShare._id}` : ""}
         postTitle={postToShare?.title || "Property"}
+      />
+
+      {/* Followers / Following Modal */}
+      <UserListModal
+        isOpen={Boolean(connectionsModalTitle)}
+        onClose={() => setConnectionsModalTitle(null)}
+        title={connectionsModalTitle}
+        users={connectionsData}
+        isLoading={isConnectionsLoading}
+        emptyMessage={connectionsForbidden ? "Only friends can view this list." : "Nobody here yet."}
       />
     </AppShell>
   );

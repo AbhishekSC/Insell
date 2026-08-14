@@ -9,6 +9,7 @@ export {
   sendFriendRequest,
   updateMyProfile,
   getUserPublicProfile,
+  getUserFriendsList,
   updateUserLocation,
   getUserActivity,
 } from "../services/UserServiceHandlers.js";
