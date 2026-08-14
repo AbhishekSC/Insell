@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StreamChat } from "stream-chat";
 import { StreamVideoClient } from "@stream-io/video-react-sdk";
 import toast from "react-hot-toast";
@@ -47,6 +47,7 @@ export function StreamProvider({ children }) {
   const [videoBusy, setVideoBusy] = useState(false);
   const connectedUserIdRef = useRef(null);
   const activeVideoCallRef = useRef(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     activeVideoCallRef.current = activeVideoCall;
@@ -119,15 +120,23 @@ export function StreamProvider({ children }) {
             setUnreadCount(event.total_unread_count);
           }
 
-          if (
-            event.type === "message.new" &&
-            event.user?.id !== authUser._id &&
-            event.message?.custom_type !== "community_destroyed"
-          ) {
-            const senderName = event.user?.name || "New message";
-            const messageText = event.message?.text || "You received a new message.";
-            toast.success(`${senderName}: ${messageText}`);
-            notifyBrowser(senderName, messageText);
+          // "message.new" only fires for channels currently being watched
+          // (i.e. an open conversation). For every other channel — which is
+          // the common case when browsing the rest of the app — Stream sends
+          // "notification.message_new" instead, with the sender nested under
+          // event.message.user rather than event.user. Handling only the
+          // former is why notifications previously worked solely inside the
+          // Messages tab.
+          const isNewMessageEvent = event.type === "message.new" || event.type === "notification.message_new";
+          if (isNewMessageEvent) {
+            const sender = event.user || event.message?.user;
+            if (sender?.id !== authUser._id && event.message?.custom_type !== "community_destroyed") {
+              const senderName = sender?.name || "New message";
+              const messageText = event.message?.text || "You received a new message.";
+              toast.success(`${senderName}: ${messageText}`);
+              notifyBrowser(senderName, messageText);
+            }
+            queryClient.invalidateQueries({ queryKey: ["streamChannelsLastMessage"] });
           }
         };
 
@@ -163,7 +172,7 @@ export function StreamProvider({ children }) {
         }
       });
     };
-  }, [authUser?._id, authUser?.fullName, authUser?.profilePic, streamToken]);
+  }, [authUser?._id, authUser?.fullName, authUser?.profilePic, streamToken, queryClient]);
 
   useEffect(() => {
     if (authUser) {

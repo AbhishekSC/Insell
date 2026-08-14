@@ -59,30 +59,59 @@ export default function ChatPage() {
 
   const friends = friendsData ?? EMPTY_FRIENDS;
 
+  // Drives the "most recently messaged first" ordering below — a map of
+  // friendId -> last message timestamp, built from Stream's own channel
+  // list rather than anything our backend tracks. Invalidated by
+  // StreamProvider whenever a message.new/notification.message_new event
+  // arrives, so the list reorders live as conversations happen.
+  const { data: lastMessageByFriendId } = useQuery({
+    queryKey: ["streamChannelsLastMessage", currentUserId],
+    queryFn: async () => {
+      const channels = await chatClient.queryChannels(
+        { type: "messaging", members: { $in: [currentUserId] } },
+        { last_message_at: -1 },
+        { limit: 50, state: true }
+      );
+      const map = {};
+      channels.forEach((channel) => {
+        const lastMessageAt = channel.state.last_message_at ? new Date(channel.state.last_message_at).getTime() : 0;
+        if (!lastMessageAt) return;
+        const otherId = Object.keys(channel.state.members || {}).find((id) => id !== currentUserId);
+        if (otherId) {
+          map[otherId] = Math.max(map[otherId] || 0, lastMessageAt);
+        }
+      });
+      return map;
+    },
+    enabled: Boolean(chatClient && currentUserId),
+    staleTime: 5000,
+  });
+
   const filteredFriends = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
-    if (!query) {
-      return friends;
-    }
+    const matched = !query
+      ? friends
+      : friends.filter((friend) => {
+          const interests = Array.isArray(friend?.travelInterests) ? friend.travelInterests.join(" ") : "";
+          const haystack = [
+            friend?.fullName,
+            friend?.travelStyle,
+            interests,
+            Array.isArray(friend?.favoriteDestinations) ? friend.favoriteDestinations.join(" ") : "",
+            friend?.homeBase,
+            friend?.location,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
 
-    return friends.filter((friend) => {
-      const interests = Array.isArray(friend?.travelInterests) ? friend.travelInterests.join(" ") : "";
-      const haystack = [
-        friend?.fullName,
-        friend?.travelStyle,
-        interests,
-        Array.isArray(friend?.favoriteDestinations) ? friend.favoriteDestinations.join(" ") : "",
-        friend?.homeBase,
-        friend?.location,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+          return haystack.includes(query);
+        });
 
-      return haystack.includes(query);
-    });
-  }, [friends, searchQuery]);
+    const lastMap = lastMessageByFriendId || {};
+    return [...matched].sort((a, b) => (lastMap[b._id] || 0) - (lastMap[a._id] || 0));
+  }, [friends, searchQuery, lastMessageByFriendId]);
 
   const openFriendChat = async (friend) => {
     const currentId = currentUserId || authUser?._id;
