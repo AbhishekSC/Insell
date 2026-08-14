@@ -327,20 +327,34 @@ export function StreamProvider({ children }) {
 
       // Room IDs are deterministic, so older rooms can exist with stale settings.
       // Keep screensharing enabled for this call to make the button actionable.
-      await call.update({
-        settings_override: {
-          screensharing: {
-            enabled: true,
-            access_request_enabled: true,
+      // Best-effort only: call.update requires the caller to be the call's
+      // original creator/host under Stream's default roles — if this room was
+      // first created by the other person, a plain "user" doesn't have
+      // UpdateCall permission and this throws a 403. That shouldn't block the
+      // call from connecting, so failures here are only logged.
+      try {
+        await call.update({
+          settings_override: {
+            screensharing: {
+              enabled: true,
+              access_request_enabled: true,
+            },
           },
-        },
-      });
+        });
+      } catch (error) {
+        console.warn("Could not update call settings (non-fatal):", error);
+      }
 
       // If the room already existed from a previous session, ensure both users are members
       // before attempting to ring. Otherwise Stream can return "no users to ring".
-      await call.updateCallMembers({
-        update_members: [{ user_id: authUser._id }, { user_id: peerUserId }],
-      });
+      // Same permission caveat as above — non-fatal if it fails.
+      try {
+        await call.updateCallMembers({
+          update_members: [{ user_id: authUser._id }, { user_id: peerUserId }],
+        });
+      } catch (error) {
+        console.warn("Could not update call members (non-fatal):", error);
+      }
 
       try {
         await call.ring({
@@ -401,16 +415,27 @@ export function StreamProvider({ children }) {
         },
       });
 
-      await call.update({
-        settings_override: {
-          screensharing: {
-            enabled: true,
-            access_request_enabled: true,
+      // Best-effort only — see the comment in startVideoCallWithUser for why
+      // these can 403 for a non-owner on a pre-existing room and must not
+      // block the call from connecting.
+      try {
+        await call.update({
+          settings_override: {
+            screensharing: {
+              enabled: true,
+              access_request_enabled: true,
+            },
           },
-        },
-      });
+        });
+      } catch (error) {
+        console.warn("Could not update call settings (non-fatal):", error);
+      }
 
-      await call.updateCallMembers({ update_members: members });
+      try {
+        await call.updateCallMembers({ update_members: members });
+      } catch (error) {
+        console.warn("Could not update call members (non-fatal):", error);
+      }
 
       const others = uniqueMemberIds.filter((userId) => String(userId) !== String(authUser._id));
       if (others.length > 0) {
