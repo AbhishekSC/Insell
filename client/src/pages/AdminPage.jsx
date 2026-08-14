@@ -12,7 +12,9 @@ function formatDate(dateString) {
   if (!dateString) return "—";
   const date = new Date(dateString);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  const datePart = date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  const timePart = date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true });
+  return `${datePart}, ${timePart}`;
 }
 
 function ConfirmBlockModal({ user, isPending, onCancel, onConfirm }) {
