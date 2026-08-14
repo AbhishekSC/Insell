@@ -11,6 +11,9 @@ import { Navigate, useNavigate } from "react-router";
 import AppShell from "../components/AppShell";
 import { useStreamContext } from "../context/StreamProvider";
 
+const screenShareSupported =
+  typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
+
 function ActiveCallUi({ onEndCall, videoBusy }) {
   const call = useCall();
   const navigate = useNavigate();
@@ -18,6 +21,19 @@ function ActiveCallUi({ onEndCall, videoBusy }) {
   const { isEnabled: micEnabled } = useMicrophoneState();
   const { isEnabled: cameraEnabled } = useCameraState();
   const { isEnabled: screenShareEnabled } = useScreenShareState();
+
+  const toggleScreenShare = async () => {
+    if (!screenShareSupported) {
+      toast.error("Screen sharing isn't supported on this browser. Try it from a desktop browser instead.");
+      return;
+    }
+
+    try {
+      await call?.screenShare.toggle();
+    } catch {
+      toast.error("Unable to share screen. Check your browser's screen-recording permission and try again.");
+    }
+  };
 
   const leaveCall = async () => {
     try {
@@ -83,9 +99,17 @@ function ActiveCallUi({ onEndCall, videoBusy }) {
         </button>
         <button
           type="button"
-          onClick={() => call?.screenShare.toggle()}
-          aria-label={screenShareEnabled ? "Stop sharing screen" : "Share screen"}
-          className={`live-call-btn ${screenShareEnabled ? "live-call-btn--active" : ""}`}
+          onClick={toggleScreenShare}
+          disabled={!screenShareSupported}
+          aria-label={
+            screenShareSupported
+              ? screenShareEnabled
+                ? "Stop sharing screen"
+                : "Share screen"
+              : "Screen sharing isn't supported on this browser"
+          }
+          title={screenShareSupported ? undefined : "Screen sharing isn't supported on this browser"}
+          className={`live-call-btn disabled:opacity-40 ${screenShareEnabled ? "live-call-btn--active" : ""}`}
         >
           {screenShareEnabled ? <ScreenShareOff className="size-5" /> : <ScreenShare className="size-5" />}
         </button>
