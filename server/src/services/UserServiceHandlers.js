@@ -27,10 +27,12 @@ export async function updateMyProfile(req, res) {
     const homeBase = body.homeBase !== undefined ? String(body.homeBase || "").trim() : undefined;
     const travelStyle = body.travelStyle !== undefined ? String(body.travelStyle || "").trim() : undefined;
     const profilePicUrl = body.profilePic !== undefined ? String(body.profilePic || "").trim() : undefined;
+    const mobileNumber = body.mobileNumber !== undefined ? String(body.mobileNumber || "").trim() : undefined;
 
     const updatePayload = {};
     if (fullName !== undefined) updatePayload.fullName = fullName;
     if (bio !== undefined) updatePayload.bio = bio;
+    if (mobileNumber !== undefined) updatePayload.mobileNumber = mobileNumber;
     if (city !== undefined) {
       updatePayload.city = city;
       updatePayload.homeBase = city;

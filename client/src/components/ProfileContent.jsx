@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { BadgeCheck, Camera, Link2, MapPin, Sparkles, UploadCloud, UserCircle } from "lucide-react";
+import { BadgeCheck, Camera, Link2, MapPin, Phone, Sparkles, UploadCloud, UserCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import LocationPicker from "./LocationPicker";
@@ -21,6 +21,7 @@ export default function ProfileContent() {
     primaryRole: authUser?.primaryRole || authUser?.travelStyle || "",
     activeRole: authUser?.activeRole || authUser?.primaryRole || authUser?.travelStyle || "",
     profilePic: authUser?.profilePic || "",
+    mobileNumber: authUser?.mobileNumber || "",
   });
   const [profileImageFile, setProfileImageFile] = useState(null);
   const [imageMode, setImageMode] = useState("upload");
@@ -59,6 +60,7 @@ export default function ProfileContent() {
       payload.append("primaryRole", form.primaryRole);
       payload.append("activeRole", form.activeRole || form.primaryRole);
       payload.append("profilePic", form.profilePic);
+      payload.append("mobileNumber", form.mobileNumber);
       if (profileImageFile && imageMode === "upload") {
         payload.append("profileImage", profileImageFile);
       }
@@ -219,6 +221,20 @@ export default function ProfileContent() {
                   <MapPin className="size-4" />
                   {locationDetails?.city ? locationDetails.city : "Set precise location"}
                 </button>
+              </label>
+
+              <label className="form-control sm:col-span-2">
+                <span className="label-text mb-1 text-xs sm:text-sm text-slate-700">Mobile number</span>
+                <div className="relative">
+                  <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="tel"
+                    placeholder="e.g. +91 98765 43210"
+                    className="input input-sm sm:input-md input-bordered w-full border-slate-200 bg-slate-50 pl-9 focus:border-indigo-300"
+                    value={form.mobileNumber}
+                    onChange={(e) => setForm((prev) => ({ ...prev, mobileNumber: e.target.value }))}
+                  />
+                </div>
               </label>
             </div>
 

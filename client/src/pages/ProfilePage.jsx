@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Camera, ClipboardCheck, Link2, MapPin, Sparkles, UploadCloud, UserCircle } from "lucide-react";
+import { Camera, ClipboardCheck, Link2, MapPin, Phone, Sparkles, UploadCloud, UserCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import axiosInstance from "../lib/axios";
@@ -21,6 +21,7 @@ export default function ProfilePage() {
     primaryRole: authUser?.primaryRole || authUser?.travelStyle || "",
     activeRole: authUser?.activeRole || authUser?.primaryRole || authUser?.travelStyle || "",
     profilePic: authUser?.profilePic || "",
+    mobileNumber: authUser?.mobileNumber || "",
   });
   const [profileImageFile, setProfileImageFile] = useState(null);
   const [imageMode, setImageMode] = useState("upload");
@@ -56,6 +57,7 @@ export default function ProfilePage() {
       payload.append("primaryRole", form.primaryRole);
       payload.append("activeRole", form.activeRole || form.primaryRole);
       payload.append("profilePic", form.profilePic);
+      payload.append("mobileNumber", form.mobileNumber);
       if (profileImageFile && imageMode === "upload") {
         payload.append("profileImage", profileImageFile);
       }
@@ -180,6 +182,20 @@ export default function ProfilePage() {
                     value={form.primaryRole}
                     onChange={(e) => setForm((prev) => ({ ...prev, primaryRole: e.target.value }))}
                   />
+                </label>
+
+                <label className="form-control sm:col-span-2">
+                  <span className="label-text mb-1">Mobile number</span>
+                  <div className="relative">
+                    <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-base-content/50" />
+                    <input
+                      type="tel"
+                      placeholder="e.g. +91 98765 43210"
+                      className="input input-bordered w-full pl-9"
+                      value={form.mobileNumber}
+                      onChange={(e) => setForm((prev) => ({ ...prev, mobileNumber: e.target.value }))}
+                    />
+                  </div>
                 </label>
 
                 <label className="form-control sm:col-span-2">

@@ -35,6 +35,42 @@ function notifyBrowser(title, body) {
   }
 }
 
+const MEDIA_ACCESS_ERROR_NAMES = new Set([
+  "NotAllowedError",
+  "NotFoundError",
+  "NotReadableError",
+  "OverconstrainedError",
+  "SecurityError",
+]);
+
+// Camera access on mobile browsers is a common failure point (permission
+// denied, camera already in use by another app/tab, no camera present).
+// Previously call.join({ video: true }) would reject outright in that case
+// and the whole call-start attempt failed with a generic "Unable to start
+// call" toast — even though the mic usually still works fine. This retries
+// audio-only so the call still connects, and surfaces a specific reason
+// instead of swallowing the real error.
+async function joinCallWithMediaFallback(call) {
+  try {
+    await call.join({ video: true });
+    await Promise.allSettled([call.camera.enable(), call.microphone.enable()]);
+    return { videoOnly: false };
+  } catch (error) {
+    if (!MEDIA_ACCESS_ERROR_NAMES.has(error?.name)) {
+      throw error;
+    }
+
+    await call.join({ video: false });
+    const micResult = await call.microphone.enable().catch((micError) => micError);
+    if (micResult instanceof Error) {
+      throw micResult;
+    }
+
+    toast.error("Camera unavailable — joined with audio only. Check your browser's camera permission to enable video.");
+    return { videoOnly: true };
+  }
+}
+
 export function StreamProvider({ children }) {
   const [streamClient, setStreamClient] = useState(null);
   const [streamReady, setStreamReady] = useState(false);
@@ -321,9 +357,7 @@ export function StreamProvider({ children }) {
         }
       }
 
-      await call.join({ video: true });
-
-      await Promise.allSettled([call.camera.enable(), call.microphone.enable()]);
+      await joinCallWithMediaFallback(call);
       setIncomingVideoCall(null);
       setIncomingCallerName("");
       setActiveVideoCall(call);
@@ -387,8 +421,7 @@ export function StreamProvider({ children }) {
         }
       }
 
-      await call.join({ video: true });
-      await Promise.allSettled([call.camera.enable(), call.microphone.enable()]);
+      await joinCallWithMediaFallback(call);
       setIncomingVideoCall(null);
       setIncomingCallerName("");
       setActiveVideoCall(call);
@@ -409,11 +442,7 @@ export function StreamProvider({ children }) {
         await activeVideoCall.leave();
       }
 
-      await incomingVideoCall.join({ video: true });
-      await Promise.allSettled([
-        incomingVideoCall.camera.enable(),
-        incomingVideoCall.microphone.enable(),
-      ]);
+      await joinCallWithMediaFallback(incomingVideoCall);
       setActiveVideoCall(incomingVideoCall);
       setIncomingVideoCall(null);
       setIncomingCallerName("");
@@ -443,8 +472,7 @@ export function StreamProvider({ children }) {
 
       const call = videoClient.call(callType, callId);
       await call.get();
-      await call.join({ video: true });
-      await Promise.allSettled([call.camera.enable(), call.microphone.enable()]);
+      await joinCallWithMediaFallback(call);
 
       setIncomingVideoCall(null);
       setIncomingCallerName("");

@@ -365,8 +365,9 @@ export default function CommunityDetailPage() {
       });
       toast.success("Community call started");
       navigate("/call/live");
-    } catch {
-      toast.error("Unable to start community call right now");
+    } catch (error) {
+      console.error("Failed to start community call:", error);
+      toast.error(error?.message || "Unable to start community call right now");
     }
   }
 

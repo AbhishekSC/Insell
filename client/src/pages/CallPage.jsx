@@ -170,8 +170,9 @@ export default function CallPage() {
       await startVideoCallWithUser(selectedFriend._id);
       toast.success(`Connected with ${selectedFriend.fullName}`);
       navigate("/call/live");
-    } catch {
-      toast.error("Unable to start call right now");
+    } catch (error) {
+      console.error("Failed to start call:", error);
+      toast.error(error?.message || "Unable to start call right now");
     }
   };
 
