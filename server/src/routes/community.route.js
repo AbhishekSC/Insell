@@ -1,5 +1,5 @@
 import express from "express";
-import { verifyUser } from "../middlewares/auth.middleware.js";
+import { verifyUser, requireVerified } from "../middlewares/auth.middleware.js";
 import { uploadCommunityResource } from "../middlewares/upload.middleware.js";
 import {
   createCheckIn,
@@ -27,6 +27,7 @@ import {
 const router = new express.Router();
 
 router.use(verifyUser);
+router.use(requireVerified);
 
 router.get("/", getCommunityData);
 router.get("/circles/:id", getCommunityCircleDetail);

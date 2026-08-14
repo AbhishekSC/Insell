@@ -1,5 +1,5 @@
 import express from "express";
-import { verifyUser } from "../middlewares/auth.middleware.js";
+import { verifyUser, requireVerified } from "../middlewares/auth.middleware.js";
 import {
   getMyFriends,
   getRecommendedUsers,
@@ -20,6 +20,7 @@ const router = new express.Router();
 
 // **Middlewares (apply this middleware to all routes in this file)- Global middleware**
 router.use(verifyUser);
+router.use(requireVerified);
 
 router.get("/", getRecommendedUsers);
 router.get("/discover", getDiscoverUsers);

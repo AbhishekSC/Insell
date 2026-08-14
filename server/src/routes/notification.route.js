@@ -7,11 +7,12 @@ import {
   handleMessageRequest,
   deleteNotification,
 } from "../controllers/notification.controller.js";
-import { verifyUser } from "../middlewares/auth.middleware.js";
+import { verifyUser, requireVerified } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
 router.use(verifyUser);
+router.use(requireVerified);
 
 // Create notification
 router.post("/", createNotification);

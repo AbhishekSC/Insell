@@ -4,7 +4,7 @@ import { Mail, CheckCircle, Clock, RefreshCw, X } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 
-export default function EmailVerification({ onClose }) {
+export default function EmailVerification({ onClose, dismissible = true }) {
   const [code, setCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(() => {
@@ -189,17 +189,21 @@ export default function EmailVerification({ onClose }) {
             </div>
             <h3 className="text-lg font-bold text-slate-800">Verify Your Email</h3>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="btn btn-sm btn-circle btn-ghost"
-          >
-            <X className="size-4" />
-          </button>
+          {dismissible && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn btn-sm btn-circle btn-ghost"
+            >
+              <X className="size-4" />
+            </button>
+          )}
         </div>
 
         <p className="text-sm text-slate-600 mb-6">
-          Get the verified badge by confirming your email address
+          {dismissible
+            ? "Get the verified badge by confirming your email address"
+            : "Confirm your email address to start using Insell — we've sent a 6-digit code to your inbox."}
         </p>
 
         <form onSubmit={handleVerify} className="space-y-4">

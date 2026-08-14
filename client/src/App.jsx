@@ -4,6 +4,7 @@ import "./App.css";
 import SignupPage from "./pages/SignupPage";
 import LoginPage from "./pages/LoginPage";
 import OnboardingPage from "./pages/OnboardingPage";
+import VerifyEmailPage from "./pages/VerifyEmailPage";
 import ConnectionsPage from "./pages/ConnectionsPage";
 import ChatPage from "./pages/ChatPage";
 import CallPage from "./pages/CallPage";
@@ -84,6 +85,14 @@ function App() {
   }
 
   const isOnboarded = Boolean(authUser?.isOnboarded);
+  // Every account must confirm its email before it can use the app at all —
+  // unverified users get bounced to /verify-email from any protected route.
+  const isVerified = Boolean(authUser?.isVerified);
+  const guard = (page) => {
+    if (!authUser) return <Navigate to="/login" />;
+    if (!isVerified) return <Navigate to="/verify-email" />;
+    return page;
+  };
 
   return (
     <div className="min-h-screen app-ambient">
@@ -124,88 +133,94 @@ function App() {
           path="/new-password"
           element={<NewPasswordPage />}
         />
+        {/* Mandatory email verification gate: every other authenticated route
+            below bounces here via `guard()` until the account is verified. */}
+        <Route
+          path="/verify-email"
+          element={!authUser ? <Navigate to="/login" /> : isVerified ? <Navigate to="/marketplace" /> : <VerifyEmailPage />}
+        />
         <Route
           path="/compare-properties"
-          element={authUser ? <PropertyComparisonPage /> : <Navigate to="/login" />}
+          element={guard(<PropertyComparisonPage />)}
         />
         <Route
           path="/map-view"
-          element={authUser ? <PropertyMapView /> : <Navigate to="/login" />}
+          element={guard(<PropertyMapView />)}
         />
-        {/* Onboarding is opt-in now, reachable from the profile page — not a
+        {/* Onboarding is opt-in, reachable from the profile page — not a
             forced gate on every other route. Still redirects away once
             already completed, so it doesn't get revisited by accident. */}
         <Route
           path="/onboarding"
-          element={authUser ? (isOnboarded ? <Navigate to="/marketplace" /> : <OnboardingPage />) : <Navigate to="/login" />}
+          element={guard(isOnboarded ? <Navigate to="/marketplace" /> : <OnboardingPage />)}
         />
         <Route
           path="/notification"
-          element={authUser ? <ConnectionsPage /> : <Navigate to="/login" />}
+          element={guard(<ConnectionsPage />)}
         />
         <Route
           path="/connections"
-          element={authUser ? <ConnectionsPage /> : <Navigate to="/login" />}
+          element={guard(<ConnectionsPage />)}
         />
         <Route
           path="/chat"
-          element={authUser ? <ChatPage /> : <Navigate to="/login" />}
+          element={guard(<ChatPage />)}
         />
         <Route
           path="/call"
-          element={authUser ? <CallPage /> : <Navigate to="/login" />}
+          element={guard(<CallPage />)}
         />
         <Route
           path="/call/live"
-          element={authUser ? <LiveCallPage /> : <Navigate to="/login" />}
+          element={guard(<LiveCallPage />)}
         />
         <Route
           path="/friends/:friendId"
-          element={authUser ? <FriendDetailPage /> : <Navigate to="/login" />}
+          element={guard(<FriendDetailPage />)}
         />
         <Route
           path="/toolkit"
-          element={authUser ? <PropertyToolsPage /> : <Navigate to="/login" />}
+          element={guard(<PropertyToolsPage />)}
         />
         <Route
           path="/property-tools"
-          element={authUser ? <PropertyToolsPage /> : <Navigate to="/login" />}
+          element={guard(<PropertyToolsPage />)}
         />
         <Route
           path="/community"
-          element={authUser ? <MarketplacePage /> : <Navigate to="/login" />}
+          element={guard(<MarketplacePage />)}
         />
         <Route
           path="/marketplace"
-          element={authUser ? <MarketplacePage /> : <Navigate to="/login" />}
+          element={guard(<MarketplacePage />)}
         />
         <Route
           path="/community/:communityId"
-          element={authUser ? <MarketplaceDetailPage /> : <Navigate to="/login" />}
+          element={guard(<MarketplaceDetailPage />)}
         />
         <Route
           path="/marketplace/:communityId"
-          element={authUser ? <MarketplaceDetailPage /> : <Navigate to="/login" />}
+          element={guard(<MarketplaceDetailPage />)}
         />
         <Route
           path="/property/:id"
-          element={authUser ? <PropertyDetailPage /> : <Navigate to="/login" />}
+          element={guard(<PropertyDetailPage />)}
         />
         <Route
           path="/profile"
-          element={authUser ? <ProfilePage /> : <Navigate to="/login" />}
+          element={guard(<ProfilePage />)}
         />
         <Route
           path="/users/:userId"
-          element={authUser ? <UserProfilePage /> : <Navigate to="/login" />}
+          element={guard(<UserProfilePage />)}
         />
         <Route
           path="/news"
-          element={authUser ? <NewsPage /> : <Navigate to="/login" />}
+          element={guard(<NewsPage />)}
         />
         <Route
           path="/activity"
-          element={authUser ? <ActivityPage /> : <Navigate to="/login" />}
+          element={guard(<ActivityPage />)}
         />
       </Routes>
 

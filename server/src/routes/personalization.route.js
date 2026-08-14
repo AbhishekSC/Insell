@@ -1,7 +1,7 @@
 import express from "express";
 import PersonalizationService from "../services/PersonalizationService.js";
 import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler.js";
-import { verifyUser } from "../middlewares/auth.middleware.js";
+import { verifyUser, requireVerified } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
@@ -9,7 +9,7 @@ const router = express.Router();
  * GET /personalization/recommendations
  * Get personalized property recommendations for the current user
  */
-router.get("/recommendations", verifyUser, async (req, res) => {
+router.get("/recommendations", verifyUser, requireVerified, async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
       return sendErrorResponse(res, 401, "User not authenticated");
@@ -33,7 +33,7 @@ router.get("/recommendations", verifyUser, async (req, res) => {
  * GET /personalization/similar-connections
  * Get suggested connections for the current user
  */
-router.get("/suggested-connections", verifyUser, async (req, res) => {
+router.get("/suggested-connections", verifyUser, requireVerified, async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
       return sendErrorResponse(res, 401, "User not authenticated");
@@ -56,7 +56,7 @@ router.get("/suggested-connections", verifyUser, async (req, res) => {
  * GET /personalization/similar-properties/:propertyId
  * Get similar properties based on a reference property
  */
-router.get("/similar-properties/:propertyId", verifyUser, async (req, res) => {
+router.get("/similar-properties/:propertyId", verifyUser, requireVerified, async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
       return sendErrorResponse(res, 401, "User not authenticated");
@@ -80,7 +80,7 @@ router.get("/similar-properties/:propertyId", verifyUser, async (req, res) => {
  * GET /personalization/trending-locations
  * Get trending locations based on user location and activity
  */
-router.get("/trending-locations", verifyUser, async (req, res) => {
+router.get("/trending-locations", verifyUser, requireVerified, async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
       return sendErrorResponse(res, 401, "User not authenticated");
@@ -104,7 +104,7 @@ router.get("/trending-locations", verifyUser, async (req, res) => {
  * GET /personalization/trending-localities
  * Get trending localities (granular neighborhoods/areas) based on user preferences
  */
-router.get("/trending-localities", verifyUser, async (req, res) => {
+router.get("/trending-localities", verifyUser, requireVerified, async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
       return sendErrorResponse(res, 401, "User not authenticated");

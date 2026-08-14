@@ -1,5 +1,5 @@
 import express from "express";
-import { verifyUser } from "../middlewares/auth.middleware.js";
+import { verifyUser, requireVerified } from "../middlewares/auth.middleware.js";
 import {
   compareProperties,
   createPropertyPost,
@@ -17,16 +17,16 @@ import { uploadPropertyMedia } from "../middlewares/upload.middleware.js";
 
 const router = new express.Router();
 
-router.get("/", verifyUser, getPropertyFeed);
-router.get("/:id", verifyUser, getPropertyPostById);
-router.get("/:id/analytics", verifyUser, getPropertyAnalytics);
-router.post("/", verifyUser, createPropertyPost);
-router.post("/compare", verifyUser, compareProperties);
-router.put("/:id", verifyUser, updatePropertyPost);
-router.delete("/:id", verifyUser, deletePropertyPost);
-router.post("/upload-media", verifyUser, uploadPropertyMedia.array("media", 5), uploadPropertyMediaController);
-router.post("/:id/like", verifyUser, togglePropertyPostLike);
-router.post("/:id/save", verifyUser, togglePropertyPostSave);
-router.post("/:id/view", verifyUser, incrementViewCount);
+router.get("/", verifyUser, requireVerified, getPropertyFeed);
+router.get("/:id", verifyUser, requireVerified, getPropertyPostById);
+router.get("/:id/analytics", verifyUser, requireVerified, getPropertyAnalytics);
+router.post("/", verifyUser, requireVerified, createPropertyPost);
+router.post("/compare", verifyUser, requireVerified, compareProperties);
+router.put("/:id", verifyUser, requireVerified, updatePropertyPost);
+router.delete("/:id", verifyUser, requireVerified, deletePropertyPost);
+router.post("/upload-media", verifyUser, requireVerified, uploadPropertyMedia.array("media", 5), uploadPropertyMediaController);
+router.post("/:id/like", verifyUser, requireVerified, togglePropertyPostLike);
+router.post("/:id/save", verifyUser, requireVerified, togglePropertyPostSave);
+router.post("/:id/view", verifyUser, requireVerified, incrementViewCount);
 
 export default router;

@@ -1,5 +1,5 @@
 import express from "express";
-import { verifyUser } from "../middlewares/auth.middleware.js";
+import { verifyUser, requireVerified } from "../middlewares/auth.middleware.js";
 import { uploadExpenseReceipt } from "../middlewares/upload.middleware.js";
 import {
   archiveExpenseWorkspace,
@@ -24,6 +24,7 @@ import {
 const router = new express.Router();
 
 router.use(verifyUser);
+router.use(requireVerified);
 
 router.get("/workspaces", getExpenseWorkspaces);
 router.post("/workspaces", createExpenseWorkspace);

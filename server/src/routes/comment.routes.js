@@ -7,12 +7,13 @@ import {
   getCommentReplies,
   trackReplyView,
 } from "../controllers/comment.controller.js";
-import { verifyUser } from "../middlewares/auth.middleware.js";
+import { verifyUser, requireVerified } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
 // All comment routes require authentication
 router.use(verifyUser);
+router.use(requireVerified);
 
 // Create a comment on a post
 router.post("/posts/:postId/comments", createComment);

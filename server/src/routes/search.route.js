@@ -5,7 +5,7 @@ import {
   getSearchHistory,
   clearSearchHistory
 } from "../controllers/search.controller.js";
-import { verifyUser } from "../middlewares/auth.middleware.js";
+import { verifyUser, requireVerified } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
@@ -19,18 +19,18 @@ router.get("/suggestions", getSearchSuggestions);
  * POST /search/history
  * Save search query to user's history
  */
-router.post("/history", verifyUser, saveSearchHistory);
+router.post("/history", verifyUser, requireVerified, saveSearchHistory);
 
 /**
  * GET /search/history
  * Get user's search history
  */
-router.get("/history", verifyUser, getSearchHistory);
+router.get("/history", verifyUser, requireVerified, getSearchHistory);
 
 /**
  * DELETE /search/history
  * Clear user's search history
  */
-router.delete("/history", verifyUser, clearSearchHistory);
+router.delete("/history", verifyUser, requireVerified, clearSearchHistory);
 
 export default router;

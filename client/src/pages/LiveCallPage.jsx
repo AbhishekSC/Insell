@@ -1,107 +1,110 @@
 import {
-  CancelCallButton,
-  ParticipantView,
-  ScreenShareButton,
   SpeakerLayout,
   StreamCall,
   StreamVideo,
-  ToggleAudioPublishingButton,
-  ToggleVideoPublishingButton,
+  useCall,
   useCallStateHooks,
 } from "@stream-io/video-react-sdk";
-import { PhoneOff, Radio, Video } from "lucide-react";
+import { ArrowLeft, Mic, MicOff, PhoneOff, ScreenShare, ScreenShareOff, Video, VideoOff } from "lucide-react";
 import toast from "react-hot-toast";
-import { Link, Navigate } from "react-router";
+import { Navigate, useNavigate } from "react-router";
 import AppShell from "../components/AppShell";
 import { useStreamContext } from "../context/StreamProvider";
 
-function ActiveCallUi() {
-  const { useLocalParticipant } = useCallStateHooks();
-  const localParticipant = useLocalParticipant();
+function ActiveCallUi({ onEndCall, videoBusy }) {
+  const call = useCall();
+  const navigate = useNavigate();
+  const { useMicrophoneState, useCameraState, useScreenShareState } = useCallStateHooks();
+  const { isEnabled: micEnabled } = useMicrophoneState();
+  const { isEnabled: cameraEnabled } = useCameraState();
+  const { isEnabled: screenShareEnabled } = useScreenShareState();
+
+  const leaveCall = async () => {
+    try {
+      await onEndCall();
+      toast.success("Call ended");
+    } catch {
+      toast.error("Failed to end call");
+    }
+    navigate("/call", { replace: true });
+  };
 
   return (
-    <div className="zoom-call-shell">
-      <div className="zoom-call-topbar">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-success"></span>
-          Secure video call
-        </span>
-        <span className="zoom-live-badge">Live</span>
+    <div className="live-call-shell">
+      <div className="live-call-topbar">
+        <button
+          type="button"
+          onClick={() => navigate("/call")}
+          className="inline-flex items-center gap-1.5 text-white/85 hover:text-white"
+        >
+          <ArrowLeft className="size-4" />
+          <span className="hidden sm:inline">Back to Studio</span>
+        </button>
+        <span className="live-call-badge">Live</span>
+        <button
+          type="button"
+          onClick={leaveCall}
+          disabled={videoBusy}
+          className="live-call-end-badge disabled:opacity-60"
+        >
+          <PhoneOff className="size-3.5" />
+          End call
+        </button>
       </div>
 
-      <div className="zoom-call-stage">
+      <div className="live-call-stage">
         <SpeakerLayout participantsBarPosition="bottom" />
-
-        {localParticipant ? (
-          <div className="zoom-local-preview">
-            <ParticipantView participant={localParticipant} mirror trackType="videoTrack" />
-          </div>
-        ) : null}
       </div>
 
-      <div className="zoom-call-controls">
-        <div className="zoom-call-controls-custom">
-          <ToggleAudioPublishingButton caption="Mic" />
-          <ToggleVideoPublishingButton caption="Camera" />
-          <div className="zoom-screen-share-control">
-            <ScreenShareButton caption="Share screen" />
-          </div>
-          <CancelCallButton caption="Leave" />
-        </div>
+      <div className="live-call-controls">
+        <button
+          type="button"
+          onClick={() => call?.microphone.toggle()}
+          aria-label={micEnabled ? "Mute microphone" : "Unmute microphone"}
+          className={`live-call-btn ${micEnabled ? "" : "live-call-btn--off"}`}
+        >
+          {micEnabled ? <Mic className="size-5" /> : <MicOff className="size-5" />}
+        </button>
+        <button
+          type="button"
+          onClick={() => call?.camera.toggle()}
+          aria-label={cameraEnabled ? "Turn camera off" : "Turn camera on"}
+          className={`live-call-btn ${cameraEnabled ? "" : "live-call-btn--off"}`}
+        >
+          {cameraEnabled ? <Video className="size-5" /> : <VideoOff className="size-5" />}
+        </button>
+        <button
+          type="button"
+          onClick={() => call?.screenShare.toggle()}
+          aria-label={screenShareEnabled ? "Stop sharing screen" : "Share screen"}
+          className={`live-call-btn ${screenShareEnabled ? "live-call-btn--active" : ""}`}
+        >
+          {screenShareEnabled ? <ScreenShareOff className="size-5" /> : <ScreenShare className="size-5" />}
+        </button>
+        <button
+          type="button"
+          onClick={leaveCall}
+          disabled={videoBusy}
+          aria-label="Leave call"
+          className="live-call-btn live-call-btn--danger disabled:opacity-60"
+        >
+          <PhoneOff className="size-5" />
+        </button>
       </div>
     </div>
   );
 }
 
 export default function LiveCallPage() {
-  const { videoClient, activeVideoCall, incomingVideoCall, endActiveVideoCall, videoBusy } = useStreamContext();
-
-  const endCall = async () => {
-    if (!activeVideoCall) {
-      return;
-    }
-
-    try {
-      await endActiveVideoCall();
-      toast.success("Call ended");
-    } catch {
-      toast.error("Failed to end call");
-    }
-  };
+  const { videoClient, activeVideoCall, endActiveVideoCall, videoBusy } = useStreamContext();
 
   if (!activeVideoCall) {
     return <Navigate to="/call" replace />;
   }
 
   return (
-    <AppShell
-      title="Live call"
-      subtitle="Your private room is active. Manage controls below without losing focus."
-      lockPageScroll
-      actions={
-        <>
-          <span className={`badge gap-1 ${incomingVideoCall ? "badge-accent" : "badge-ghost"}`}>
-            <Radio className="size-3.5" />
-            {incomingVideoCall ? "Incoming call waiting" : "Call in progress"}
-          </span>
-
-          <button
-            className="btn btn-error btn-outline btn-sm disabled:opacity-70 disabled:text-base-content/70"
-            onClick={endCall}
-            disabled={!activeVideoCall || videoBusy}
-          >
-            <PhoneOff className="size-4" />
-            End call
-          </button>
-
-          <Link to="/call" className="btn btn-primary btn-sm">
-            <Video className="size-4" />
-            Back to Studio
-          </Link>
-        </>
-      }
-    >
-      <div className="call-live-shell shell-panel h-full min-h-[520px] p-3 sm:p-4 xl:h-[calc(100dvh-13.2rem)]">
+    <AppShell hideHero lockPageScroll>
+      <div className="call-live-shell shell-panel h-full min-h-[560px] p-1.5 sm:p-2 xl:h-[calc(100dvh-6.5rem)]">
         {!videoClient ? (
           <div className="grid h-full min-h-[360px] place-items-center rounded-2xl border border-base-300/70 bg-base-100/70 p-6 text-sm text-base-content/70">
             Preparing video client...
@@ -110,7 +113,7 @@ export default function LiveCallPage() {
           <StreamVideo client={videoClient}>
             <StreamCall call={activeVideoCall}>
               <div className="live-call-room-layout">
-                <ActiveCallUi />
+                <ActiveCallUi onEndCall={endActiveVideoCall} videoBusy={videoBusy} />
               </div>
             </StreamCall>
           </StreamVideo>

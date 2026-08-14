@@ -1,6 +1,6 @@
 import express from "express";
 import { getRoleStats } from "../controllers/roleStats.controller.js";
-import { verifyUser } from "../middlewares/auth.middleware.js";
+import { verifyUser, requireVerified } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
@@ -8,6 +8,6 @@ const router = express.Router();
  * GET /role-stats
  * Get role-based statistics for the current user
  */
-router.get("/", verifyUser, getRoleStats);
+router.get("/", verifyUser, requireVerified, getRoleStats);
 
 export default router;

@@ -50,3 +50,14 @@ export const verifyUser = async (req, res, next) => {
     return sendErrorResponse(res, 401, "Unauthorized: Invalid token");
   }
 };
+
+// Must run after verifyUser (needs req.user). Blocks unverified accounts from
+// every route except auth (login/signup/onboarding/verify) and
+// /verification itself, which must stay reachable to actually get verified.
+export const requireVerified = (req, res, next) => {
+  if (!req.user?.isVerified) {
+    logger.warn("Blocked request from unverified user", { requestId: req.id, userId: req.user?._id });
+    return sendErrorResponse(res, 403, "Please verify your email to continue.");
+  }
+  next();
+};

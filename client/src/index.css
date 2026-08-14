@@ -518,7 +518,7 @@
 		}
 	}
 
-	.zoom-call-shell {
+	.live-call-shell {
 		@apply relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-base-300/40 bg-[#0f172a] shadow-2xl;
 	}
 
@@ -526,176 +526,58 @@
 		@apply flex h-full min-h-0 flex-col;
 	}
 
-	.zoom-call-topbar {
-		@apply flex items-center justify-between border-b border-white/10 bg-black/35 px-4 py-3 text-xs font-medium text-white/85 backdrop-blur-xl;
+	.live-call-topbar {
+		@apply flex items-center justify-between gap-2 border-b border-white/10 bg-black/35 px-3 py-2 text-xs font-medium text-white/85 backdrop-blur-xl;
 	}
 
-	.zoom-live-badge {
+	.live-call-badge {
 		@apply rounded-full border border-success/35 bg-success/15 px-2.5 py-1 text-[11px] font-bold text-success;
 	}
 
-	.zoom-call-stage {
+	.live-call-end-badge {
+		@apply inline-flex items-center gap-1.5 rounded-full border border-red-300/40 bg-red-500/90 px-3 py-1 text-[11px] font-bold text-white transition-colors hover:bg-red-500;
+	}
+
+	.live-call-stage {
 		@apply relative flex-1 min-h-0 overflow-hidden bg-[#0b1220];
 		background-image: radial-gradient(circle at 50% 20%, rgba(30, 64, 175, 0.22), transparent 42%);
 	}
 
-	.zoom-call-stage .str-video,
-	.zoom-call-stage .str-video__call,
-	.zoom-call-stage .str-video__speaker-layout,
-	.zoom-call-stage .str-video__participant-view {
+	.live-call-stage .str-video,
+	.live-call-stage .str-video__call,
+	.live-call-stage .str-video__speaker-layout,
+	.live-call-stage .str-video__participant-view {
 		height: 100%;
 	}
 
-	.zoom-call-stage .str-video__speaker-layout__participants-bar {
+	.live-call-stage .str-video__speaker-layout__participants-bar {
 		@apply bg-black/35 backdrop-blur;
 	}
 
-	.zoom-call-stage .str-video__participant-view {
+	.live-call-stage .str-video__participant-view {
 		border-radius: 14px;
 		overflow: hidden;
 	}
 
-	.zoom-local-preview {
-		@apply absolute bottom-24 right-4 z-[5] h-28 w-20 overflow-hidden rounded-xl border border-white/30 bg-black/70 shadow-xl sm:h-36 sm:w-24;
+	/* Custom control bar — plain buttons with our own lucide icons, since the
+	   SDK's default composite buttons rendered as blank icon-less squares. */
+	.live-call-controls {
+		@apply absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/15 bg-black/70 px-4 py-2.5 shadow-2xl backdrop-blur-xl;
 	}
 
-	.zoom-local-preview .str-video__participant-view,
-	.zoom-local-preview .str-video__video {
-		height: 100%;
-		width: 100%;
+	.live-call-btn {
+		@apply flex size-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition-colors duration-150 hover:bg-white/20;
 	}
 
-	.zoom-local-preview .str-video__participant-details {
-		@apply text-[10px];
+	.live-call-btn--off {
+		@apply border-white/25 bg-white text-slate-900 hover:bg-white/90;
 	}
 
-	.zoom-call-controls {
-		@apply absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-2xl border border-white/20 bg-black/75 px-3 py-2 shadow-2xl backdrop-blur-xl;
-		max-width: calc(100% - 1.5rem);
-		overflow-x: auto;
-		overflow-y: hidden;
-		white-space: nowrap;
+	.live-call-btn--active {
+		@apply border-emerald-300/70 bg-emerald-500/80 text-white hover:bg-emerald-500;
 	}
 
-	.zoom-call-controls .str-video__call-controls {
-		background: transparent;
-		border: 0;
-		padding: 0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.45rem;
-		flex-wrap: nowrap;
-		min-width: max-content;
-	}
-
-	.zoom-call-controls-custom {
-		display: flex;
-		align-items: center;
-		gap: 0.45rem;
-		flex-wrap: nowrap;
-		min-width: max-content;
-	}
-
-	.zoom-call-controls .str-video__call-controls__button,
-	.zoom-call-controls .str-video__composite-button__button-group {
-		background-color: rgba(255, 255, 255, 0.12);
-		border: 1px solid rgba(255, 255, 255, 0.2);
-		color: #ffffff;
-		border-radius: 9999px;
-		min-width: 2.1rem;
-		width: 2.1rem;
-		height: 2.1rem;
-		flex: 0 0 auto;
-		transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
-	}
-
-	.zoom-call-controls .str-video__call-controls__button:hover,
-	.zoom-call-controls .str-video__composite-button__button-group:hover {
-		background-color: rgba(255, 255, 255, 0.2);
-		transform: translateY(-1px);
-	}
-
-	.zoom-call-controls .str-video__call-controls__button--variant-danger,
-	.zoom-call-controls .str-video__composite-button__button-group.str-video__composite-button__button-group--active {
-		background-color: rgba(239, 68, 68, 0.88);
-		border-color: rgba(248, 113, 113, 0.95);
-		color: #ffffff;
-	}
-
-	.zoom-call-controls .str-video__icon {
-		background-color: currentColor;
-		opacity: 1;
-		width: 1rem;
-		height: 1rem;
-	}
-
-	.zoom-call-controls .str-video__composite-button {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.35rem;
-		padding: 0 0.55rem;
-		width: auto;
-		min-width: 2.1rem;
-	}
-
-	.zoom-call-controls .str-video__composite-button__caption {
-		display: inline;
-		font-size: 0.68rem;
-		line-height: 1;
-		font-weight: 600;
-		letter-spacing: 0.01em;
-		color: rgba(255, 255, 255, 0.92);
-		white-space: nowrap;
-	}
-
-	.zoom-call-controls .str-video__composite-button--caption {
-		display: inline;
-		font-size: 0.68rem;
-		line-height: 1;
-		font-weight: 600;
-		letter-spacing: 0.01em;
-		color: rgba(255, 255, 255, 0.92);
-		white-space: nowrap;
-	}
-
-	.zoom-screen-share-control,
-	.zoom-screen-share-control .str-video__composite-button {
-		display: inline-flex;
-		align-items: center;
-	}
-
-	.zoom-screen-share-control .str-video__composite-button__button-group {
-		width: auto;
-		min-width: 0;
-		background-color: rgba(16, 185, 129, 0.5);
-		border: 1px solid rgba(110, 231, 183, 0.9);
-		color: #ffffff;
-		border-radius: 9999px;
-		height: 2.35rem;
-		padding: 0 0.75rem;
-	}
-
-	.zoom-screen-share-control .str-video__composite-button__button-group:hover {
-		background-color: rgba(16, 185, 129, 0.6);
-		border-color: rgba(134, 239, 172, 0.95);
-	}
-
-	.zoom-screen-share-control .str-video__composite-button--caption,
-	.zoom-screen-share-control .str-video__composite-button__caption {
-		display: inline;
-		font-size: 0.72rem;
-		font-weight: 700;
-		color: #ffffff;
-		white-space: nowrap;
-	}
-
-	.zoom-call-controls::-webkit-scrollbar {
-		height: 4px;
-	}
-
-	.zoom-call-controls::-webkit-scrollbar-thumb {
-		background: rgba(255, 255, 255, 0.25);
-		border-radius: 9999px;
+	.live-call-btn--danger {
+		@apply border-red-300/70 bg-red-500 text-white hover:bg-red-600;
 	}
 }
