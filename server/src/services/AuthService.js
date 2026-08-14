@@ -57,7 +57,9 @@ export default class AuthService extends BaseService {
     }
 
     if (user.isBlocked) {
-      throw new AppError("Your account has been blocked. Contact support for help.", 403);
+      throw new AppError("Your account has been blocked. Contact support for help.", 403, {
+        code: "ACCOUNT_BLOCKED",
+      });
     }
 
     tokenIssuer(user, res);
@@ -76,10 +78,15 @@ export default class AuthService extends BaseService {
 
     await tokenBlacklistService(res, token);
 
+    // Must match the attributes issueAccessToken() used to set this cookie
+    // (utils/jwt.js) exactly — a mismatched `secure`/`sameSite` can make the
+    // browser silently refuse to overwrite/clear it, leaving the old
+    // (still-valid, non-blacklisted-until-above) cookie in place.
+    const isProduction = (process.env.NODE_ENV || "development") === "production";
     res.cookie("syncspace_token", "", {
       httpOnly: true,
-      sameSite: "strict",
-      secure: process.env.NODE_ENV !== "development",
+      sameSite: isProduction ? "none" : "lax",
+      secure: isProduction,
       maxAge: 0,
     });
   }

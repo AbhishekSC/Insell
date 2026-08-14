@@ -4,6 +4,7 @@ import { sendErrorResponse } from "../utils/responseHandler.js";
 import jwt from "jsonwebtoken";
 import "dotenv/config.js";
 import { sanitizeUserData } from "../utils/sanitizeUser.js";
+import { isTokenBlacklisted } from "../services/tokenBlacklist.service.js";
 
 export const verifyUser = async (req, res, next) => {
   const token =
@@ -30,6 +31,14 @@ export const verifyUser = async (req, res, next) => {
       return sendErrorResponse(res, 401, "Unauthorized: Invalid token");
     }
 
+    // A logged-out token is blacklisted in Redis (see AuthService.logout) but
+    // remains a structurally valid, unexpired JWT — without this check it
+    // would keep authenticating right up until its natural expiry.
+    const blacklistResponse = await isTokenBlacklisted(res, token);
+    if (blacklistResponse) {
+      return blacklistResponse;
+    }
+
     const user = await User.findById(decoded.id);
     logger.debug("User lookup completed", { requestId: req.id, userId: decoded.id, userFound: !!user });
 
@@ -43,7 +52,9 @@ export const verifyUser = async (req, res, next) => {
 
     if (user.isBlocked) {
       logger.warn("Blocked request from suspended user", { requestId: req.id, userId: user._id });
-      return sendErrorResponse(res, 403, "Your account has been blocked. Contact support for help.");
+      return sendErrorResponse(res, 403, "Your account has been blocked. Contact support for help.", {
+        code: "ACCOUNT_BLOCKED",
+      });
     }
 
     const sanitizedUser = sanitizeUserData(user);

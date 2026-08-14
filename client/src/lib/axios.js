@@ -25,8 +25,13 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   (error) => {
-    const message = error.response?.data?.message || error.message || "Something went wrong";
-    toast.error(message);
+    // Blocked-account errors get a dedicated modal (see AccountBlockedModal /
+    // App.jsx and LoginPage.jsx) — skip the generic toast so it doesn't fire
+    // alongside that more informative UI.
+    if (error.response?.data?.missingFields?.code !== "ACCOUNT_BLOCKED") {
+      const message = error.response?.data?.message || error.message || "Something went wrong";
+      toast.error(message);
+    }
     return Promise.reject(error);
   }
 );

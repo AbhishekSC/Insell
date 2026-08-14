@@ -24,14 +24,18 @@ import NewPasswordPage from "./pages/NewPasswordPage";
 import PropertyComparisonPage from "./pages/PropertyComparisonPage";
 import PropertyMapView from "./pages/PropertyMapView";
 import AdminPage from "./pages/AdminPage";
+import AccountBlockedModal from "./components/AccountBlockedModal";
 import { Toaster } from "react-hot-toast";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import axiosInstance from "./lib/axios";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "./context/ThemeProvider";
 
 function App() {
   const { theme, toggleTheme } = useTheme();
+  const queryClient = useQueryClient();
+  const [showBlockedModal, setShowBlockedModal] = useState(false);
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const isSwitchAccountFlow = searchParams.get("switchAccount") === "1";
@@ -59,6 +63,16 @@ function App() {
         const res = await axiosInstance.get("/auth/verify");
         return res.data;
       } catch (err) {
+        if (err?.response?.data?.missingFields?.code === "ACCOUNT_BLOCKED") {
+          // The session is still technically valid server-side (token not
+          // expired) but the account got blocked after the fact — force a
+          // real logout so the cookie/blacklist actually clear, instead of
+          // just hiding the app while a still-authenticating cookie lingers.
+          axiosInstance.post("/auth/logout").catch(() => {});
+          setShowBlockedModal(true);
+          return null;
+        }
+
         if (err?.response?.status === 401) {
           return null;
         }
@@ -235,6 +249,15 @@ function App() {
           element={guardAdmin(<AdminPage />)}
         />
       </Routes>
+
+      {showBlockedModal ? (
+        <AccountBlockedModal
+          onClose={() => {
+            setShowBlockedModal(false);
+            queryClient.setQueryData(["authUser"], null);
+          }}
+        />
+      ) : null}
 
       <Toaster />
     </div>
