@@ -555,6 +555,32 @@
 		@apply bg-black/35 backdrop-blur;
 	}
 
+	/* Override the SDK's flex-wrap grid, which sizes tiles off fixed width
+	   percentages + a 4/3 aspect-ratio and leaves height unused. A real CSS
+	   grid sized off the actual participant count fills the whole stage and
+	   grows/shrinks tiles to match, instead of leaving dead space. */
+	.live-call-stage .str-video__paginated-grid-layout__group {
+		display: grid !important;
+		grid-template-columns: repeat(var(--tile-columns, 2), minmax(0, 1fr)) !important;
+		grid-auto-rows: 1fr !important;
+		height: 100% !important;
+		width: 100% !important;
+		max-width: 100% !important;
+		align-content: stretch !important;
+		padding-inline: 0.5rem !important;
+	}
+
+	/* Higher-specificity SDK rules (.str-video__paginated-grid-layout--one/
+	   --two-four/--five-nine) set a fixed flex-basis per tile — !important is
+	   needed since those selectors out-specify this one. */
+	.live-call-stage .str-video__paginated-grid-layout__group .str-video__participant-view {
+		flex: unset !important;
+		width: 100% !important;
+		height: 100% !important;
+		max-width: none !important;
+		aspect-ratio: unset !important;
+	}
+
 	.live-call-stage .str-video__participant-view {
 		border-radius: 14px;
 		overflow: hidden;

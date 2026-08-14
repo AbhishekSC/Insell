@@ -24,6 +24,7 @@ function ActiveCallUi({ onEndCall, videoBusy }) {
   const { isEnabled: screenShareEnabled } = useScreenShareState();
   const participantCount = useParticipantCount();
   const isGroupCall = participantCount > 2;
+  const gridColumns = Math.max(1, Math.ceil(Math.sqrt(participantCount || 1)));
 
   const toggleScreenShare = async () => {
     if (!screenShareSupported) {
@@ -79,7 +80,7 @@ function ActiveCallUi({ onEndCall, videoBusy }) {
         </button>
       </div>
 
-      <div className="live-call-stage">
+      <div className="live-call-stage" style={isGroupCall ? { "--tile-columns": gridColumns } : undefined}>
         {isGroupCall ? <PaginatedGridLayout /> : <SpeakerLayout participantsBarPosition="bottom" />}
       </div>
 
