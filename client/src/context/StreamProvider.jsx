@@ -530,13 +530,14 @@ export function StreamProvider({ children }) {
 
     setVideoBusy(true);
     try {
-      // Explicitly release the camera/mic before leaving — on some browsers
-      // (notably mobile) call.leave() alone can leave the recording indicator
-      // on if a device was still mid-publish when leave() ran.
+      // Explicitly release the camera/mic before leaving. disable() without
+      // forceStop only pauses/mutes the track by default and can leave the
+      // underlying MediaStream (and the browser's recording indicator) alive
+      // for a fast re-enable — forceStop actually stops the hardware device.
       await Promise.allSettled([
-        activeVideoCall.camera.disable(),
-        activeVideoCall.microphone.disable(),
-        activeVideoCall.screenShare.disable(),
+        activeVideoCall.camera.disable(true),
+        activeVideoCall.microphone.disable(true),
+        activeVideoCall.screenShare.disable(true),
       ]);
       await activeVideoCall.leave();
       setActiveVideoCall(null);
