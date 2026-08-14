@@ -562,23 +562,30 @@
 	.live-call-stage .str-video__paginated-grid-layout__group {
 		display: grid !important;
 		grid-template-columns: repeat(var(--tile-columns, 2), minmax(0, 1fr)) !important;
-		grid-auto-rows: 1fr !important;
+		grid-auto-rows: minmax(0, 1fr) !important;
 		height: 100% !important;
 		width: 100% !important;
 		max-width: 100% !important;
-		align-content: stretch !important;
+		align-content: center !important;
+		justify-items: center !important;
+		align-items: center !important;
 		padding-inline: 0.5rem !important;
 	}
 
 	/* Higher-specificity SDK rules (.str-video__paginated-grid-layout--one/
 	   --two-four/--five-nine) set a fixed flex-basis per tile — !important is
-	   needed since those selectors out-specify this one. */
+	   needed since those selectors out-specify this one.
+	   A bounded 16/9 tile (capped to its grid cell) keeps faces at a normal
+	   size instead of stretching full-bleed to fill the cell — with few
+	   tiles in a wide stage that stretch made each one tall/narrow and
+	   object-fit: cover cropped in tight, looking "zoomed in". */
 	.live-call-stage .str-video__paginated-grid-layout__group .str-video__participant-view {
 		flex: unset !important;
 		width: 100% !important;
-		height: 100% !important;
-		max-width: none !important;
-		aspect-ratio: unset !important;
+		height: auto !important;
+		max-width: 100% !important;
+		max-height: 100% !important;
+		aspect-ratio: 16 / 9 !important;
 	}
 
 	.live-call-stage .str-video__participant-view {

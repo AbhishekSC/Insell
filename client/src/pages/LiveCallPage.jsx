@@ -18,11 +18,17 @@ const screenShareSupported =
 function ActiveCallUi({ onEndCall, videoBusy }) {
   const call = useCall();
   const navigate = useNavigate();
-  const { useMicrophoneState, useCameraState, useScreenShareState, useParticipantCount } = useCallStateHooks();
+  const { useMicrophoneState, useCameraState, useScreenShareState, useParticipants } = useCallStateHooks();
   const { isEnabled: micEnabled } = useMicrophoneState();
   const { isEnabled: cameraEnabled } = useCameraState();
   const { isEnabled: screenShareEnabled } = useScreenShareState();
-  const participantCount = useParticipantCount();
+  // Must match the participant list PaginatedGridLayout itself renders from
+  // (not useParticipantCount, which is a server-computed stat that can lag
+  // or disagree with the actual number of tiles in the DOM — using it here
+  // previously caused the CSS grid's column count to mismatch the real tile
+  // count, e.g. reserving 2 columns while 3 tiles were actually rendered).
+  const participants = useParticipants();
+  const participantCount = participants.length;
   const isGroupCall = participantCount > 2;
   const gridColumns = Math.max(1, Math.ceil(Math.sqrt(participantCount || 1)));
 
