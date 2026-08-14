@@ -179,6 +179,85 @@ export const getMyStories = async (req, res) => {
   }
 };
 
+// Toggle like on a story
+export const toggleStoryLike = async (req, res) => {
+  try {
+    const { storyId } = req.params;
+    const userId = req.user._id;
+
+    const story = await Story.findById(storyId);
+
+    if (!story) {
+      return res.status(404).json({
+        success: false,
+        message: "Story not found",
+      });
+    }
+
+    const hasLiked = story.likedBy.some((id) => String(id) === String(userId));
+
+    if (hasLiked) {
+      story.likedBy = story.likedBy.filter((id) => String(id) !== String(userId));
+    } else {
+      story.likedBy.push(userId);
+    }
+
+    await story.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Story like status updated",
+      data: {
+        liked: !hasLiked,
+        likesCount: story.likedBy.length,
+      },
+    });
+  } catch (error) {
+    logger.error("Error toggling story like:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update story like",
+      error: error.message,
+    });
+  }
+};
+
+// Get the users who liked a story — restricted to the story's own author
+export const getStoryLikes = async (req, res) => {
+  try {
+    const { storyId } = req.params;
+    const userId = req.user._id;
+
+    const story = await Story.findById(storyId).populate("likedBy", "fullName profilePic city");
+
+    if (!story) {
+      return res.status(404).json({
+        success: false,
+        message: "Story not found",
+      });
+    }
+
+    if (String(story.author) !== String(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the story owner can view its likes",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { likes: story.likedBy },
+    });
+  } catch (error) {
+    logger.error("Error fetching story likes:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch story likes",
+      error: error.message,
+    });
+  }
+};
+
 // Delete a story
 export const deleteStory = async (req, res) => {
   try {

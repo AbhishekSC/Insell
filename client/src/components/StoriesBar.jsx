@@ -3,6 +3,7 @@ import { Plus, X, ChevronLeft, ChevronRight, Eye, Heart, MessageCircle, Share2, 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
 import toast from "react-hot-toast";
+import UserListModal from "./UserListModal";
 
 const STORY_CATEGORIES = [
   { label: "Premium Projects", category: "premium", color: "from-amber-400 to-orange-500" },
@@ -187,6 +188,7 @@ export default function StoriesBar({ onCategorySelect }) {
           story={activeStory.stories[currentStoryIndex]}
           currentIndex={currentStoryIndex}
           totalStories={activeStory.stories.length}
+          authUser={authUser}
           onNext={handleNextStory}
           onPrevious={handlePreviousStory}
           onClose={() => setActiveStory(null)}
@@ -205,12 +207,49 @@ export default function StoriesBar({ onCategorySelect }) {
   );
 }
 
-function StoryViewer({ story, currentIndex, totalStories, onNext, onPrevious, onClose }) {
+function StoryViewer({ story, currentIndex, totalStories, authUser, onNext, onPrevious, onClose }) {
   const [progress, setProgress] = useState(0);
+  const [showLikes, setShowLikes] = useState(false);
+  const queryClient = useQueryClient();
 
-  // Auto-advance after 5 seconds
+  const isOwnStory = authUser?._id && story.author?._id && String(authUser._id) === String(story.author._id);
+  const isLiked = Boolean(
+    authUser?._id && story.likedBy?.some((id) => String(id?._id || id) === String(authUser._id))
+  );
+
+  const { mutate: toggleLike, isPending: isLiking } = useMutation({
+    mutationFn: async () => {
+      const response = await axiosInstance.post(`/stories/${story._id}/like`);
+      return response.data?.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["stories"] });
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to update like");
+    },
+  });
+
+  const { data: likesData, isLoading: isLoadingLikes } = useQuery({
+    queryKey: ["storyLikes", story._id],
+    enabled: showLikes,
+    retry: false,
+    queryFn: async () => {
+      const response = await axiosInstance.get(`/stories/${story._id}/likes`);
+      return response.data?.data?.likes || [];
+    },
+  });
+
+  // Auto-advance after 5 seconds — paused while the likes list is open
   useEffect(() => {
     setProgress(0);
+  }, [story]);
+
+  useEffect(() => {
+    if (showLikes) {
+      return undefined;
+    }
+
     const interval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
@@ -222,7 +261,7 @@ function StoryViewer({ story, currentIndex, totalStories, onNext, onPrevious, on
     }, 100);
 
     return () => clearInterval(interval);
-  }, [story, onNext]);
+  }, [story, onNext, showLikes]);
 
   const isVideo = story.mediaType === "video";
 
@@ -346,13 +385,43 @@ function StoryViewer({ story, currentIndex, totalStories, onNext, onPrevious, on
               <Eye className="size-4" />
               <span className="text-xs">{story.viewCount}</span>
             </div>
-            <div className="flex items-center gap-1">
-              <Heart className="size-4" />
-              <span className="text-xs">{story.likedBy?.length || 0}</span>
-            </div>
+            {isOwnStory ? (
+              <button
+                type="button"
+                onClick={() => setShowLikes(true)}
+                className="flex items-center gap-1 transition-opacity hover:opacity-75"
+              >
+                <Heart className="size-4" />
+                <span className="text-xs underline underline-offset-2">
+                  {story.likedBy?.length || 0} {story.likedBy?.length === 1 ? "like" : "likes"}
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => toggleLike()}
+                disabled={isLiking}
+                aria-label={isLiked ? "Unlike story" : "Like story"}
+                className="flex items-center gap-1 transition-transform active:scale-90 disabled:opacity-60"
+              >
+                <Heart className={`size-4 ${isLiked ? "fill-red-500 text-red-500" : ""}`} />
+                <span className="text-xs">{story.likedBy?.length || 0}</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {isOwnStory ? (
+        <UserListModal
+          isOpen={showLikes}
+          onClose={() => setShowLikes(false)}
+          title="Likes"
+          users={likesData}
+          isLoading={isLoadingLikes}
+          emptyMessage="No likes yet."
+        />
+      ) : null}
     </div>
   );
 }
