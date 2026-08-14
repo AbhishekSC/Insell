@@ -1,4 +1,5 @@
 import {
+  PaginatedGridLayout,
   SpeakerLayout,
   StreamCall,
   StreamVideo,
@@ -17,10 +18,12 @@ const screenShareSupported =
 function ActiveCallUi({ onEndCall, videoBusy }) {
   const call = useCall();
   const navigate = useNavigate();
-  const { useMicrophoneState, useCameraState, useScreenShareState } = useCallStateHooks();
+  const { useMicrophoneState, useCameraState, useScreenShareState, useParticipantCount } = useCallStateHooks();
   const { isEnabled: micEnabled } = useMicrophoneState();
   const { isEnabled: cameraEnabled } = useCameraState();
   const { isEnabled: screenShareEnabled } = useScreenShareState();
+  const participantCount = useParticipantCount();
+  const isGroupCall = participantCount > 2;
 
   const toggleScreenShare = async () => {
     if (!screenShareSupported) {
@@ -77,7 +80,7 @@ function ActiveCallUi({ onEndCall, videoBusy }) {
       </div>
 
       <div className="live-call-stage">
-        <SpeakerLayout participantsBarPosition="bottom" />
+        {isGroupCall ? <PaginatedGridLayout /> : <SpeakerLayout participantsBarPosition="bottom" />}
       </div>
 
       <div className="live-call-controls">

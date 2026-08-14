@@ -546,6 +546,7 @@
 	.live-call-stage .str-video,
 	.live-call-stage .str-video__call,
 	.live-call-stage .str-video__speaker-layout,
+	.live-call-stage .str-video__paginated-grid-layout,
 	.live-call-stage .str-video__participant-view {
 		height: 100%;
 	}
