@@ -203,6 +203,19 @@ const userSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    isAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    isBlocked: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    blockedAt: {
+      type: Date,
+      default: null,
+    },
     profileCompletion: {
       type: Number,
       default: 0,

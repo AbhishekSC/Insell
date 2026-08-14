@@ -56,6 +56,10 @@ export default class AuthService extends BaseService {
       throw new AppError("Invalid credentials.", 401);
     }
 
+    if (user.isBlocked) {
+      throw new AppError("Your account has been blocked. Contact support for help.", 403);
+    }
+
     tokenIssuer(user, res);
 
     try {

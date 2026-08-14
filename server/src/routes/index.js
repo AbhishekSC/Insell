@@ -17,6 +17,7 @@ import searchRoutes from "./search.route.js";
 import roleStatsRoutes from "./roleStats.route.js";
 import amenitiesRoutes from "./amenities.route.js";
 import locationRoutes from "./location.route.js";
+import adminRoutes from "./admin.route.js";
 
 const router = new express.Router();
 
@@ -39,5 +40,6 @@ router.use("/search", searchRoutes);
 router.use("/role-stats", roleStatsRoutes);
 router.use("/amenities", amenitiesRoutes);
 router.use("/location", locationRoutes);
+router.use("/admin", adminRoutes);
 
 export default router;

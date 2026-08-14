@@ -23,6 +23,7 @@ import VerifyOTPPage from "./pages/VerifyOTPPage";
 import NewPasswordPage from "./pages/NewPasswordPage";
 import PropertyComparisonPage from "./pages/PropertyComparisonPage";
 import PropertyMapView from "./pages/PropertyMapView";
+import AdminPage from "./pages/AdminPage";
 import { Toaster } from "react-hot-toast";
 import { useQuery } from "@tanstack/react-query";
 import axiosInstance from "./lib/axios";
@@ -34,7 +35,7 @@ function App() {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const isSwitchAccountFlow = searchParams.get("switchAccount") === "1";
-  const shellRoutes = ["/notification", "/connections", "/chat", "/toolkit", "/property-tools", "/community", "/marketplace", "/profile", "/news", "/activity"];
+  const shellRoutes = ["/notification", "/connections", "/chat", "/toolkit", "/property-tools", "/community", "/marketplace", "/profile", "/news", "/activity", "/admin"];
   const isCallRoute = location.pathname.startsWith("/call");
   const isFriendDetailRoute = location.pathname.startsWith("/friends/");
   const isUserProfileRoute = location.pathname.startsWith("/users/");
@@ -88,9 +89,16 @@ function App() {
   // Every account must confirm its email before it can use the app at all —
   // unverified users get bounced to /verify-email from any protected route.
   const isVerified = Boolean(authUser?.isVerified);
+  const isAdmin = Boolean(authUser?.isAdmin);
   const guard = (page) => {
     if (!authUser) return <Navigate to="/login" />;
     if (!isVerified) return <Navigate to="/verify-email" />;
+    return page;
+  };
+  const guardAdmin = (page) => {
+    if (!authUser) return <Navigate to="/login" />;
+    if (!isVerified) return <Navigate to="/verify-email" />;
+    if (!isAdmin) return <Navigate to="/marketplace" />;
     return page;
   };
 
@@ -221,6 +229,10 @@ function App() {
         <Route
           path="/activity"
           element={guard(<ActivityPage />)}
+        />
+        <Route
+          path="/admin"
+          element={guardAdmin(<AdminPage />)}
         />
       </Routes>
 

@@ -33,6 +33,7 @@ import {
   Send,
   Settings2,
   Share2,
+  ShieldCheck,
   Sparkles,
   Star,
   TrendingUp,
@@ -77,6 +78,8 @@ const LEFT_NAV_ITEMS = [
   { label: "Calls", icon: Phone, section: "call" },
   { label: "Edit Profile", icon: UserCircle, section: "profile" },
 ];
+
+const ADMIN_NAV_ITEM = { label: "Admin", icon: ShieldCheck, section: "admin" };
 
 const POST_NAV_ITEMS = [
   { label: "My Properties", icon: Building2 },
@@ -1203,7 +1206,7 @@ export default function MarketplacePage() {
 
             <p className={`text-[11px] font-semibold uppercase tracking-wide text-slate-500 ${navExpanded ? "" : "hidden"}`}>Navigation</p>
             <div className="mt-2 space-y-1">
-              {LEFT_NAV_ITEMS.map(({ label, icon: Icon, section }) => {
+              {(authUser?.isAdmin ? [...LEFT_NAV_ITEMS, ADMIN_NAV_ITEM] : LEFT_NAV_ITEMS).map(({ label, icon: Icon, section }) => {
                 // Calculate notification counts for badges
                 let badgeCount = 0;
                 if (section === "activity") {
@@ -1226,6 +1229,8 @@ export default function MarketplacePage() {
                     onClick={() => {
                       if (section === "map") {
                         navigate("/map-view");
+                      } else if (section === "admin") {
+                        navigate("/admin");
                       } else {
                         setActiveSection(section);
                       }

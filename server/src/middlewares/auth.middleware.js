@@ -41,6 +41,11 @@ export const verifyUser = async (req, res, next) => {
       return sendErrorResponse(res, 404, "Unauthorized: User not found");
     }
 
+    if (user.isBlocked) {
+      logger.warn("Blocked request from suspended user", { requestId: req.id, userId: user._id });
+      return sendErrorResponse(res, 403, "Your account has been blocked. Contact support for help.");
+    }
+
     const sanitizedUser = sanitizeUserData(user);
 
     req.user = sanitizedUser;
@@ -58,6 +63,15 @@ export const requireVerified = (req, res, next) => {
   if (!req.user?.isVerified) {
     logger.warn("Blocked request from unverified user", { requestId: req.id, userId: req.user?._id });
     return sendErrorResponse(res, 403, "Please verify your email to continue.");
+  }
+  next();
+};
+
+// Must run after verifyUser (needs req.user).
+export const requireAdmin = (req, res, next) => {
+  if (!req.user?.isAdmin) {
+    logger.warn("Blocked non-admin request", { requestId: req.id, userId: req.user?._id });
+    return sendErrorResponse(res, 403, "Admin access required.");
   }
   next();
 };

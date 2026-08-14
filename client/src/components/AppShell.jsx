@@ -16,6 +16,7 @@ import {
   Phone,
   Plus,
   Search,
+  ShieldCheck,
   Sun,
   UserCircle,
   Users,
@@ -49,6 +50,8 @@ const navItems = [
   { to: "/marketplace?section=call", label: "Calls", icon: Phone, section: "call" },
   { to: "/marketplace?section=profile", label: "Edit Profile", icon: UserCircle, section: "profile" },
 ];
+
+const ADMIN_NAV_ITEM = { to: "/admin", label: "Admin", icon: ShieldCheck };
 
 function isNavItemActive(item, location) {
   if (item.section) {
@@ -345,7 +348,8 @@ export default function AppShell({
     location.pathname.startsWith("/profile") ||
     location.pathname.startsWith("/toolkit") ||
     location.pathname.startsWith("/property-tools") ||
-    location.pathname.startsWith("/friends/");
+    location.pathname.startsWith("/friends/") ||
+    location.pathname.startsWith("/admin");
 
   const queryClient = useQueryClient();
   const previousRequestCountRef = useRef(0);
@@ -365,6 +369,7 @@ export default function AppShell({
 
   const authData = queryClient.getQueryData(["authUser"]);
   const authUser = authData?.data?.user || authData?.data || null;
+  const visibleNavItems = authUser?.isAdmin ? [...navItems, ADMIN_NAV_ITEM] : navItems;
 
   const userRoleLabel = authUser?.activeRole || authUser?.primaryRole || "Buyer";
   const userInitials = useMemo(() => {
@@ -642,7 +647,7 @@ export default function AppShell({
               <LogoSection isMarketplaceShell={false} />
 
               <nav className="hidden max-w-full flex-nowrap items-center gap-1 overflow-x-auto rounded-2xl border border-base-300/80 bg-base-100/75 p-1.5 md:flex">
-                {navItems.map((item) => {
+                {visibleNavItems.map((item) => {
                   const Icon = item.icon;
                   const active = isNavItemActive(item, location);
 
@@ -749,7 +754,7 @@ export default function AppShell({
             isMarketplaceShell ? "border-slate-200 bg-white/95" : "border-base-300/80 bg-base-100/95"
           }`}
         >
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const active = isNavItemActive(item, location);
             let badgeCount = 0;
