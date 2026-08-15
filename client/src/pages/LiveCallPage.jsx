@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   PaginatedGridLayout,
   ParticipantView,
@@ -6,10 +7,11 @@ import {
   useCall,
   useCallStateHooks,
 } from "@stream-io/video-react-sdk";
-import { ArrowLeft, Mic, MicOff, PhoneOff, RefreshCcw, ScreenShare, ScreenShareOff, Video, VideoOff } from "lucide-react";
+import { ArrowLeft, Mic, MicOff, PhoneOff, RefreshCcw, ScreenShare, ScreenShareOff, UserPlus, Users, Video, VideoOff } from "lucide-react";
 import toast from "react-hot-toast";
 import { Navigate, useNavigate } from "react-router";
 import AppShell from "../components/AppShell";
+import AddPeopleModal from "../components/AddPeopleModal";
 import { useStreamContext } from "../context/StreamProvider";
 
 const screenShareSupported =
@@ -18,6 +20,7 @@ const screenShareSupported =
 function ActiveCallUi({ onEndCall, videoBusy }) {
   const call = useCall();
   const navigate = useNavigate();
+  const [showAddPeople, setShowAddPeople] = useState(false);
   const {
     useMicrophoneState,
     useCameraState,
@@ -98,17 +101,37 @@ function ActiveCallUi({ onEndCall, videoBusy }) {
           <ArrowLeft className="size-4" />
           <span className="hidden sm:inline">Back to Studio</span>
         </button>
-        <span className="live-call-badge">Live</span>
-        <button
-          type="button"
-          onClick={leaveCall}
-          disabled={videoBusy}
-          className="live-call-end-badge disabled:opacity-60"
-        >
-          <PhoneOff className="size-3.5" />
-          End call
-        </button>
+
+        <div className="flex items-center gap-2">
+          <span className="live-call-badge">Live</span>
+          <span className="live-call-count">
+            <Users className="size-3" />
+            {participantCount}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowAddPeople(true)}
+            className="live-call-end-badge live-call-add-badge"
+          >
+            <UserPlus className="size-3.5" />
+            <span className="hidden sm:inline">Add people</span>
+          </button>
+          <button
+            type="button"
+            onClick={leaveCall}
+            disabled={videoBusy}
+            className="live-call-end-badge disabled:opacity-60"
+          >
+            <PhoneOff className="size-3.5" />
+            End call
+          </button>
+        </div>
       </div>
+
+      <AddPeopleModal isOpen={showAddPeople} onClose={() => setShowAddPeople(false)} />
 
       <div className="live-call-stage" style={isGroupCall ? { "--tile-columns": gridColumns } : undefined}>
         {isGroupCall ? (

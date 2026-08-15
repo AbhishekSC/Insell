@@ -538,6 +538,14 @@
 		@apply inline-flex items-center gap-1.5 rounded-full border border-red-300/40 bg-red-500/90 px-3 py-1 text-[11px] font-bold text-white transition-colors hover:bg-red-500;
 	}
 
+	.live-call-add-badge {
+		@apply border-indigo-300/40 bg-indigo-500/90 hover:bg-indigo-500;
+	}
+
+	.live-call-count {
+		@apply inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2 py-1 text-[11px] font-bold text-white/85;
+	}
+
 	.live-call-stage {
 		@apply relative flex-1 min-h-0 overflow-hidden bg-[#0b1220];
 		background-image: radial-gradient(circle at 50% 20%, rgba(30, 64, 175, 0.22), transparent 42%);

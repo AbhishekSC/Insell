@@ -19,6 +19,7 @@ const StreamContext = createContext({
   incomingVideoCall: null,
   startVideoCallWithUser: async () => null,
   startGroupVideoCall: async () => null,
+  inviteToActiveCall: async () => [],
   joinVideoCallByCid: async () => null,
   acceptIncomingVideoCall: async () => null,
   rejectIncomingVideoCall: async () => null,
@@ -456,6 +457,40 @@ export function StreamProvider({ children }) {
     }
   };
 
+  // Adds people to the call that's already live, without touching anyone
+  // currently joined — updateCallMembers/ring are plain REST calls against
+  // the call's member list and don't renegotiate any existing participant's
+  // WebRTC session.
+  const inviteToActiveCall = async (userIds = []) => {
+    if (!activeVideoCall || !authUser?._id) {
+      throw new Error("No active call to invite people to");
+    }
+
+    const existingMemberIds = new Set(
+      (activeVideoCall.state.members || []).map((member) => String(member.user_id ?? member.user?.id))
+    );
+    const newUserIds = [...new Set(userIds.filter(Boolean).map(String))].filter(
+      (userId) => userId !== String(authUser._id) && !existingMemberIds.has(userId)
+    );
+
+    if (newUserIds.length === 0) {
+      return [];
+    }
+
+    await activeVideoCall.updateCallMembers({
+      update_members: newUserIds.map((userId) => ({ user_id: userId })),
+    });
+
+    try {
+      await activeVideoCall.ring({ members_ids: newUserIds, video: true });
+    } catch (error) {
+      console.warn("Could not ring invited members, falling back to notify (non-fatal):", error);
+      await activeVideoCall.notify();
+    }
+
+    return newUserIds;
+  };
+
   const acceptIncomingVideoCall = async () => {
     if (!incomingVideoCall) {
       return null;
@@ -561,6 +596,7 @@ export function StreamProvider({ children }) {
       videoBusy,
       startVideoCallWithUser,
       startGroupVideoCall,
+      inviteToActiveCall,
       joinVideoCallByCid,
       acceptIncomingVideoCall,
       rejectIncomingVideoCall,
@@ -578,6 +614,7 @@ export function StreamProvider({ children }) {
       incomingVideoCall,
       videoBusy,
       startGroupVideoCall,
+      inviteToActiveCall,
     ]
   );
 
