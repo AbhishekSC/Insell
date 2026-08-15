@@ -545,14 +545,41 @@
 
 	.live-call-stage .str-video,
 	.live-call-stage .str-video__call,
-	.live-call-stage .str-video__speaker-layout,
 	.live-call-stage .str-video__paginated-grid-layout,
 	.live-call-stage .str-video__participant-view {
 		height: 100%;
 	}
 
-	.live-call-stage .str-video__speaker-layout__participants-bar {
-		@apply bg-black/35 backdrop-blur;
+	/* 1:1 call layout — the other person fills the stage, your own camera
+	   floats as a small corner PIP, matching WhatsApp/FaceTime's look. */
+	.live-call-pip-layout {
+		@apply relative h-full w-full;
+	}
+
+	.live-call-pip-main {
+		@apply h-full w-full;
+		/* The SDK's own .str-video__participant-view base rule (max-width:
+		   1280px, aspect-ratio: 4/3) is imported after this stylesheet, so it
+		   wins equal-specificity ties by source order — !important needed to
+		   actually fill the stage instead of being boxed to a small 4:3 tile. */
+		max-width: 100% !important;
+		aspect-ratio: unset !important;
+		border-radius: 0 !important;
+	}
+
+	.live-call-pip-waiting {
+		@apply grid h-full w-full place-items-center bg-slate-900/60 px-6 text-center text-sm text-white/70;
+	}
+
+	.live-call-pip-self {
+		@apply absolute bottom-4 right-4 z-10 overflow-hidden rounded-2xl border-2 border-white/20 shadow-2xl;
+		width: clamp(96px, 18vw, 180px) !important;
+		max-width: clamp(96px, 18vw, 180px) !important;
+		aspect-ratio: 3 / 4 !important;
+	}
+
+	.live-call-pip-self .str-video__participant-details {
+		display: none;
 	}
 
 	/* Override the SDK's flex-wrap grid, which sizes tiles off fixed width

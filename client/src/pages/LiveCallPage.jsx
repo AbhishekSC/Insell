@@ -1,6 +1,6 @@
 import {
   PaginatedGridLayout,
-  SpeakerLayout,
+  ParticipantView,
   StreamCall,
   StreamVideo,
   useCall,
@@ -18,7 +18,14 @@ const screenShareSupported =
 function ActiveCallUi({ onEndCall, videoBusy }) {
   const call = useCall();
   const navigate = useNavigate();
-  const { useMicrophoneState, useCameraState, useScreenShareState, useParticipants } = useCallStateHooks();
+  const {
+    useMicrophoneState,
+    useCameraState,
+    useScreenShareState,
+    useParticipants,
+    useLocalParticipant,
+    useRemoteParticipants,
+  } = useCallStateHooks();
   const { isEnabled: micEnabled } = useMicrophoneState();
   const { isEnabled: cameraEnabled } = useCameraState();
   const { isEnabled: screenShareEnabled } = useScreenShareState();
@@ -31,6 +38,9 @@ function ActiveCallUi({ onEndCall, videoBusy }) {
   const participantCount = participants.length;
   const isGroupCall = participantCount > 2;
   const gridColumns = Math.max(1, Math.ceil(Math.sqrt(participantCount || 1)));
+  const localParticipant = useLocalParticipant();
+  const remoteParticipants = useRemoteParticipants();
+  const mainRemoteParticipant = remoteParticipants[0];
 
   const toggleScreenShare = async () => {
     if (!screenShareSupported) {
@@ -87,7 +97,20 @@ function ActiveCallUi({ onEndCall, videoBusy }) {
       </div>
 
       <div className="live-call-stage" style={isGroupCall ? { "--tile-columns": gridColumns } : undefined}>
-        {isGroupCall ? <PaginatedGridLayout /> : <SpeakerLayout participantsBarPosition="bottom" />}
+        {isGroupCall ? (
+          <PaginatedGridLayout />
+        ) : (
+          <div className="live-call-pip-layout">
+            {mainRemoteParticipant ? (
+              <ParticipantView participant={mainRemoteParticipant} className="live-call-pip-main" />
+            ) : (
+              <div className="live-call-pip-waiting">Waiting for the other person to join...</div>
+            )}
+            {localParticipant ? (
+              <ParticipantView participant={localParticipant} className="live-call-pip-self" />
+            ) : null}
+          </div>
+        )}
       </div>
 
       <div className="live-call-controls">
