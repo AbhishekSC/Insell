@@ -359,6 +359,14 @@ userSchema.pre("save", async function (next) {
     if (!this.isModified("password")) {
       return next();
     }
+    // Guards against double-hashing when a password arrives already
+    // bcrypt-hashed (e.g. promoting a PendingSignup, whose password was
+    // hashed once at creation, into a real User document) — bcrypt hashes
+    // always start with $2a$/$2b$/$2y$, which a real plaintext password
+    // essentially never will.
+    if (/^\$2[aby]\$/.test(this.password)) {
+      return next();
+    }
     const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
     this.password = await bcrypt.hash(this.password, salt);
 

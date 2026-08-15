@@ -4,6 +4,8 @@ import {
   logout,
   onboarding,
   signup,
+  verifySignup,
+  resendSignupCode,
   googleAuth,
   googleAuthCallback,
   requestPasswordReset,
@@ -15,11 +17,14 @@ import {
   signupValidation,
 } from "../middlewares/authValidation.middleware.js";
 import { verifyUser } from "../middlewares/auth.middleware.js";
+import { signupCodeRateLimiter } from "../middleware/rateLimiter.js";
 import { sendSuccessResponse } from "../utils/responseHandler.js";
 
 const router = express.Router();
 
 router.post("/signup", signupValidation, signup);
+router.post("/verify-signup", verifySignup);
+router.post("/resend-signup-code", signupCodeRateLimiter, resendSignupCode);
 router.post("/login", loginValidation, login);
 router.post("/logout", logout);
 

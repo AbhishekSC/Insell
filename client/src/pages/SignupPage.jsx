@@ -51,16 +51,13 @@ const SignupPage = () => {
       const response = await axiosInstance.post("/auth/signup", signupData);
       return response.data;
     },
-    onSuccess: (response) => {
-      toast.success("Signed-up to SyncSpace");
-      queryClient.setQueryData(["authUser"], {
-        status: "success",
-        message: "User verified successfully",
-        data: {
-          user: response?.data || null,
-        },
-      });
-      queryClient.invalidateQueries({ queryKey: ["authUser"] });
+    onSuccess: () => {
+      toast.success("Check your email for a 6-digit verification code");
+      // No account exists yet — it's only created once the code is
+      // verified. Persist the pending email to sessionStorage as a
+      // fallback for router state (lost on a hard refresh of /verify-email).
+      sessionStorage.setItem("pendingSignupEmail", signupData.email);
+      navigate("/verify-email", { state: { email: signupData.email } });
     },
     onError: (err) => {
       toast.error(err?.response?.data?.message || "Something went wrong");

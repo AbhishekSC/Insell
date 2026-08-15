@@ -39,12 +39,47 @@ export async function signup(req, res) {
   const { fullName, email, password } = req.body;
 
   try {
-    const user = await authService.signup({ fullName, email, password, res });
-    logger.info(`User created successfully: ${email}`);
-    return sendSuccessResponse(res, 201, "User created successfully", user);
+    const result = await authService.signup({ fullName, email, password });
+    logger.info(`Signup pending verification: ${email}`);
+    return sendSuccessResponse(res, 200, "Verification code sent to your email", result);
   } catch (error) {
     logger.error("Error during signup:", error);
     return sendErrorResponse(res, error?.statusCode || 500, error?.message || "Internal server error. Please try again later.", error?.details || {});
+  }
+}
+
+// **Verify signup code — creates the account and logs the user in**
+export async function verifySignup(req, res) {
+  const { email, code } = req.body;
+
+  if (!email || !code) {
+    return sendErrorResponse(res, 400, "Email and verification code are required");
+  }
+
+  try {
+    const user = await authService.verifySignup({ email, code, res });
+    logger.info(`Account created after verification: ${email}`);
+    return sendSuccessResponse(res, 201, "Account created successfully", user);
+  } catch (error) {
+    logger.error("Error during signup verification:", error);
+    return sendErrorResponse(res, error?.statusCode || 500, error?.message || "Internal server error.", error?.details || {});
+  }
+}
+
+// **Resend the signup OTP for a still-pending signup**
+export async function resendSignupCode(req, res) {
+  const { email } = req.body;
+
+  if (!email) {
+    return sendErrorResponse(res, 400, "Email is required");
+  }
+
+  try {
+    const result = await authService.resendSignupCode({ email });
+    return sendSuccessResponse(res, 200, "Verification code sent to your email", result);
+  } catch (error) {
+    logger.error("Error resending signup code:", error);
+    return sendErrorResponse(res, error?.statusCode || 500, error?.message || "Internal server error.", error?.details || {});
   }
 }
 

@@ -156,10 +156,14 @@ function App() {
           element={<NewPasswordPage />}
         />
         {/* Mandatory email verification gate: every other authenticated route
-            below bounces here via `guard()` until the account is verified. */}
+            below bounces here via `guard()` until the account is verified.
+            Also reachable with no session at all — a fresh signup has no
+            User row (and therefore no login session) until its OTP is
+            verified, so this route must work both signed-in-but-unverified
+            (legacy accounts) and signed-out-with-a-pending-signup. */}
         <Route
           path="/verify-email"
-          element={!authUser ? <Navigate to="/login" /> : isVerified ? <Navigate to="/marketplace" /> : <VerifyEmailPage />}
+          element={isVerified ? <Navigate to="/marketplace" /> : <VerifyEmailPage />}
         />
         <Route
           path="/compare-properties"

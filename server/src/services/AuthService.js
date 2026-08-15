@@ -1,26 +1,94 @@
+import bcrypt from "bcryptjs";
 import BaseService from "./BaseService.js";
 import AppError from "../exceptions/AppError.js";
 import { sanitizeUserData } from "../utils/sanitizeUser.js";
+import { SCHEMA_CONSTANTS } from "../utils/constants.js";
+import PendingSignup from "../models/PendingSignup.model.js";
+import { generateVerificationCode, VERIFICATION_CODE_EXPIRY_MINUTES } from "./VerificationService.js";
+import { sendVerificationEmail, sendWelcomeEmail } from "./EmailService.js";
+import { logger } from "../utils/logger.js";
+
+const { BCRYPT_SALT_ROUNDS } = SCHEMA_CONSTANTS;
 
 export default class AuthService extends BaseService {
   constructor({ userRepository, tokenIssuer, streamUpdater, queuePublisher, tokenBlacklistService }) {
     super({ userRepository, tokenIssuer, streamUpdater, queuePublisher, tokenBlacklistService });
   }
 
-  async signup({ fullName, email, password, res }) {
-    const { userRepository, tokenIssuer, streamUpdater, queuePublisher } = this.dependencies;
+  // Signup no longer creates a User row — it stages the attempt in
+  // PendingSignup and emails an OTP. The real account is only created once
+  // that code is verified (see verifySignup below), so an abandoned signup
+  // never leaves a permanently-unverified, unusable User behind — it just
+  // expires via PendingSignup's TTL index instead.
+  async signup({ fullName, email, password }) {
+    const { userRepository } = this.dependencies;
 
     const existingUser = await userRepository.findByEmail(email);
     if (existingUser) {
       throw new AppError("Email already exists. Please use a different email.", 400);
     }
 
+    const hashedPassword = await bcrypt.hash(password, await bcrypt.genSalt(BCRYPT_SALT_ROUNDS));
+    const verificationCode = generateVerificationCode();
+    const verificationCodeExpires = new Date(Date.now() + VERIFICATION_CODE_EXPIRY_MINUTES * 60 * 1000);
+
+    // Re-attempting a signup with the same (still-unverified) email just
+    // refreshes the pending record and issues a new code, rather than
+    // erroring — this is also how a stuck/expired signup gets resumed.
+    const pendingSignup = await PendingSignup.findOneAndUpdate(
+      { email },
+      { fullName, email, password: hashedPassword, verificationCode, verificationCodeExpires },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+
+    try {
+      await sendVerificationEmail(pendingSignup.email, verificationCode, pendingSignup.fullName);
+    } catch (error) {
+      logger.error("Failed to send signup verification email:", error);
+      logger.info(`Verification code for ${email}: ${verificationCode}`);
+    }
+
+    return { email: pendingSignup.email, expiresAt: verificationCodeExpires };
+  }
+
+  // Promotes a verified PendingSignup into a real User — this is the only
+  // point at which a signup actually creates a DB row and a login session.
+  async verifySignup({ email, code, res }) {
+    const { userRepository, tokenIssuer, streamUpdater, queuePublisher } = this.dependencies;
+
+    const pendingSignup = await PendingSignup.findOne({ email });
+    if (!pendingSignup) {
+      throw new AppError("No pending signup found for this email. Please sign up again.", 404);
+    }
+
+    if (pendingSignup.verificationCodeExpires < new Date()) {
+      throw new AppError("Verification code has expired. Please request a new one.", 400);
+    }
+
+    if (pendingSignup.verificationCode !== code) {
+      throw new AppError("Invalid verification code", 400);
+    }
+
+    const existingUser = await userRepository.findByEmail(email);
+    if (existingUser) {
+      // Someone else finished signing up with this email in the meantime
+      // (e.g. two tabs). Clean up the now-redundant pending record instead
+      // of failing with a confusing duplicate-key error.
+      await PendingSignup.deleteOne({ _id: pendingSignup._id });
+      throw new AppError("Email already exists. Please use a different email.", 400);
+    }
+
+    // pendingSignup.password is already bcrypt-hashed (see signup above) —
+    // the User model's pre-save hook recognizes that and skips re-hashing.
     const newUser = await userRepository.create({
-      fullName,
-      email,
-      password,
+      fullName: pendingSignup.fullName,
+      email: pendingSignup.email,
+      password: pendingSignup.password,
       profilePic: "",
+      isVerified: true,
     });
+
+    await PendingSignup.deleteOne({ _id: pendingSignup._id });
 
     tokenIssuer(newUser, res);
 
@@ -35,12 +103,42 @@ export default class AuthService extends BaseService {
     }
 
     try {
-      queuePublisher({ event: "user_logged_in", email, name: fullName });
+      queuePublisher({ event: "user_logged_in", email: newUser.email, name: newUser.fullName });
     } catch {
       // Queue failures should not block auth flow.
     }
 
+    try {
+      await sendWelcomeEmail(newUser.email, newUser.fullName);
+    } catch (error) {
+      logger.error("Failed to send welcome email:", error);
+    }
+
     return sanitizeUserData(newUser);
+  }
+
+  // Resends a fresh OTP for a still-pending (not yet verified) signup.
+  async resendSignupCode({ email }) {
+    const pendingSignup = await PendingSignup.findOne({ email });
+    if (!pendingSignup) {
+      throw new AppError("No pending signup found for this email. Please sign up again.", 404);
+    }
+
+    const verificationCode = generateVerificationCode();
+    const verificationCodeExpires = new Date(Date.now() + VERIFICATION_CODE_EXPIRY_MINUTES * 60 * 1000);
+
+    pendingSignup.verificationCode = verificationCode;
+    pendingSignup.verificationCodeExpires = verificationCodeExpires;
+    await pendingSignup.save();
+
+    try {
+      await sendVerificationEmail(pendingSignup.email, verificationCode, pendingSignup.fullName);
+    } catch (error) {
+      logger.error("Failed to send signup verification email:", error);
+      logger.info(`Verification code for ${email}: ${verificationCode}`);
+    }
+
+    return { email: pendingSignup.email, expiresAt: verificationCodeExpires };
   }
 
   async login({ email, password, res }) {

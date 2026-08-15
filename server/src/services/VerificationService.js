@@ -5,12 +5,12 @@ import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler
 import { sendVerificationEmail, sendWelcomeEmail } from "./EmailService.js";
 
 const VERIFICATION_CODE_LENGTH = 6;
-const VERIFICATION_CODE_EXPIRY_MINUTES = 10;
+export const VERIFICATION_CODE_EXPIRY_MINUTES = 10;
 
 /**
  * Generate a random verification code
  */
-function generateVerificationCode() {
+export function generateVerificationCode() {
   const code = crypto.randomInt(0, 10 ** VERIFICATION_CODE_LENGTH);
   return code.toString().padStart(VERIFICATION_CODE_LENGTH, '0');
 }

@@ -1,12 +1,30 @@
 import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useLocation } from "react-router";
 import { Mail, CheckCircle, Clock, RefreshCw, X } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 
+const PENDING_SIGNUP_EMAIL_KEY = "pendingSignupEmail";
+
 export default function EmailVerification({ onClose, dismissible = true }) {
+  const location = useLocation();
+  const queryClient = useQueryClient();
+
+  // Two distinct callers land here: (1) an already-logged-in account that's
+  // somehow still unverified (legacy accounts from before signup required
+  // verification up front), which uses the original session-based
+  // /verification/* endpoints; (2) a brand new signup, which has no User
+  // row — and therefore no session — until its code is verified, so it
+  // must use the newer email-keyed /auth/verify-signup endpoints instead.
+  const authData = queryClient.getQueryData(["authUser"]);
+  const authUser = authData?.data?.user || authData?.data || null;
+  const isAuthenticatedMode = Boolean(authUser);
+  const pendingEmail = isAuthenticatedMode
+    ? ""
+    : location.state?.email || sessionStorage.getItem(PENDING_SIGNUP_EMAIL_KEY) || "";
+
   const [code, setCode] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(() => {
     // Restore cooldown from localStorage on mount
     const savedCooldown = localStorage.getItem("verificationCooldown");
@@ -28,13 +46,12 @@ export default function EmailVerification({ onClose, dismissible = true }) {
   });
   const [hasAutoSent, setHasAutoSent] = useState(false);
   const isSendingRef = useRef(false);
-  const hasMountedRef = useRef(false);
-  const mutationCallCountRef = useRef(0);
-  const queryClient = useQueryClient();
 
-  // Check verification status
+  // Check verification status — only meaningful (and only reachable) for
+  // an already-authenticated session.
   const { data: verificationStatus, refetch: refetchStatus } = useQuery({
     queryKey: ["verificationStatus"],
+    enabled: isAuthenticatedMode,
     queryFn: async () => {
       try {
         const res = await axiosInstance.get("/verification/status");
@@ -49,12 +66,13 @@ export default function EmailVerification({ onClose, dismissible = true }) {
   // Send verification code
   const sendCodeMutation = useMutation({
     mutationFn: async () => {
-      const res = await axiosInstance.post("/verification/send-code");
+      const res = isAuthenticatedMode
+        ? await axiosInstance.post("/verification/send-code")
+        : await axiosInstance.post("/auth/resend-signup-code", { email: pendingEmail });
       return res.data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast.success("Verification code sent to your email");
-      console.log("📧 Check your email for the verification code");
       setCooldownRemaining(60); // Start 60 second cooldown
       localStorage.setItem("verificationCooldown", String(Date.now() + 60 * 1000));
       setRemainingAttempts(prev => Math.max(0, prev - 1));
@@ -73,7 +91,7 @@ export default function EmailVerification({ onClose, dismissible = true }) {
         localStorage.setItem("verificationAttempts", String(attempts || 0));
         toast.error(error.response.data.message || "Too many requests. Please wait.");
       } else {
-        toast.error("Failed to send verification code");
+        toast.error(error.response?.data?.message || "Failed to send verification code");
       }
       console.error("Error sending code:", error);
     },
@@ -82,13 +100,25 @@ export default function EmailVerification({ onClose, dismissible = true }) {
   // Verify code
   const verifyMutation = useMutation({
     mutationFn: async (verificationCode) => {
-      const res = await axiosInstance.post("/verification/verify", { code: verificationCode });
+      const res = isAuthenticatedMode
+        ? await axiosInstance.post("/verification/verify", { code: verificationCode })
+        : await axiosInstance.post("/auth/verify-signup", { email: pendingEmail, code: verificationCode });
       return res.data;
     },
     onSuccess: (data) => {
-      toast.success("Email verified successfully!");
-      refetchStatus();
-      // Invalidate authUser query to trigger hot reload across the app
+      if (isAuthenticatedMode) {
+        toast.success("Email verified successfully!");
+        refetchStatus();
+      } else {
+        toast.success("Account created! Welcome to Insell.");
+        sessionStorage.removeItem(PENDING_SIGNUP_EMAIL_KEY);
+        // verify-signup just created the account and logged it in — seed
+        // the auth cache directly instead of waiting on a refetch.
+        queryClient.setQueryData(["authUser"], {
+          status: "success",
+          data: { user: data?.data || null },
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
       if (onClose) onClose();
     },
@@ -127,20 +157,29 @@ export default function EmailVerification({ onClose, dismissible = true }) {
     }
   }, [cooldownRemaining]);
 
-  // Auto-send verification code when modal opens (only once per session)
+  // Auto-send verification code when modal opens — authenticated mode only.
+  // A pending signup already gets its first code from /auth/signup itself,
+  // so auto-sending here too would fire a redundant second email and burn
+  // one of the 3 daily resend attempts for nothing.
   useEffect(() => {
     let isMounted = true;
-    
+
     const autoSendCode = async () => {
-      // Only auto-send if conditions are met
-      if (isMounted && !verificationStatus?.isVerified && !hasAutoSent && cooldownRemaining === 0 && !isSendingRef.current) {
+      if (
+        isMounted &&
+        isAuthenticatedMode &&
+        !verificationStatus?.isVerified &&
+        !hasAutoSent &&
+        cooldownRemaining === 0 &&
+        !isSendingRef.current
+      ) {
         isSendingRef.current = true;
         try {
           await sendCodeMutation.mutateAsync();
           if (isMounted) {
             setHasAutoSent(true);
           }
-        } catch (error) {
+        } catch {
           // Error is handled by mutation onError
           if (isMounted) {
             isSendingRef.current = false;
@@ -159,7 +198,7 @@ export default function EmailVerification({ onClose, dismissible = true }) {
       clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isAuthenticatedMode]);
 
   const handleVerify = (e) => {
     e.preventDefault();
@@ -170,11 +209,33 @@ export default function EmailVerification({ onClose, dismissible = true }) {
     verifyMutation.mutate(code);
   };
 
-  if (verificationStatus?.isVerified) {
+  if (isAuthenticatedMode && verificationStatus?.isVerified) {
     return (
       <div className="flex items-center gap-2 text-emerald-600">
         <CheckCircle className="size-5" />
         <span className="text-sm font-medium">Email Verified</span>
+      </div>
+    );
+  }
+
+  // No session and no pending signup to verify — e.g. a hard refresh that
+  // lost router state and had no sessionStorage fallback either, or direct
+  // navigation to this page out of context.
+  if (!isAuthenticatedMode && !pendingEmail) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl p-6 shadow-2xl border border-slate-200 max-w-md w-full text-center">
+          <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Mail className="size-5 text-amber-600" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-800 mb-2">No pending signup found</h3>
+          <p className="text-sm text-slate-600 mb-6">
+            We couldn't find a signup to verify. Please sign up again.
+          </p>
+          <Link to="/signup" className="btn btn-primary rounded-xl w-full">
+            Go to Signup
+          </Link>
+        </div>
       </div>
     );
   }
@@ -187,7 +248,9 @@ export default function EmailVerification({ onClose, dismissible = true }) {
             <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
               <Mail className="size-5 text-indigo-600" />
             </div>
-            <h3 className="text-lg font-bold text-slate-800">Verify Your Email</h3>
+            <h3 className="text-lg font-bold text-slate-800">
+              {isAuthenticatedMode ? "Verify Your Email" : "Verify Your Account"}
+            </h3>
           </div>
           {dismissible && (
             <button
@@ -201,9 +264,11 @@ export default function EmailVerification({ onClose, dismissible = true }) {
         </div>
 
         <p className="text-sm text-slate-600 mb-6">
-          {dismissible
-            ? "Get the verified badge by confirming your email address"
-            : "Confirm your email address to start using Insell — we've sent a 6-digit code to your inbox."}
+          {isAuthenticatedMode
+            ? dismissible
+              ? "Get the verified badge by confirming your email address"
+              : "Confirm your email address to start using Insell — we've sent a 6-digit code to your inbox."
+            : `Enter the 6-digit code we sent to ${pendingEmail} to finish creating your account.`}
         </p>
 
         <form onSubmit={handleVerify} className="space-y-4">
@@ -219,6 +284,7 @@ export default function EmailVerification({ onClose, dismissible = true }) {
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center text-2xl tracking-widest"
               maxLength={6}
               disabled={verifyMutation.isPending}
+              autoFocus
             />
           </div>
 
@@ -227,7 +293,9 @@ export default function EmailVerification({ onClose, dismissible = true }) {
             disabled={verifyMutation.isPending || code.length !== 6}
             className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {verifyMutation.isPending ? "Verifying..." : "Verify Email"}
+            {verifyMutation.isPending
+              ? isAuthenticatedMode ? "Verifying..." : "Creating account..."
+              : isAuthenticatedMode ? "Verify Email" : "Create Account"}
           </button>
         </form>
 
