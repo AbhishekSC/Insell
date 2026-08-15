@@ -81,7 +81,7 @@ const SignupPage = () => {
           <div className="mb-4 flex items-center gap-2">
             <Compass className="size-9 text-primary" />
             <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
-              SyncSpace
+              InSell
             </span>
           </div>
 
@@ -97,7 +97,7 @@ const SignupPage = () => {
             <div>
               <h2 className="text-xl font-semibold">Create an Account</h2>
               <p className="text-sm opacity-70">
-                Step into SyncSpace and turn travel planning into an epic journey.
+                Join Insell and connect with buyers, sellers, and brokers near you.
               </p>
             </div>
 
@@ -238,17 +238,17 @@ const SignupPage = () => {
             <div className="relative aspect-square max-w-sm mx-auto">
               <img
                 src="/video-call-signup.png"
-                alt="Travel connection illustration"
+                alt="Social real estate marketplace illustration"
                 className="w-full h-full"
               />
             </div>
 
             <div className="text-center space-y-3 mt-6">
               <h2 className="text-xl font-semibold">
-                Sync up with travel lovers across the globe.
+                Where real estate meets real conversations.
               </h2>
               <p className="opacity-70">
-                Make friends, share routes, and build better trips together.
+                Discover properties, build your network, and close deals faster.
               </p>
             </div>
           </div>

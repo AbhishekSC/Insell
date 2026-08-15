@@ -187,15 +187,15 @@ export default function LoginPage() {
             <div className="relative aspect-square max-w-sm mx-auto">
               <img
                 src="/video-call-signup.png"
-                alt="Travel connection illustration"
+                alt="Social real estate marketplace illustration"
                 className="w-full h-full"
               />
             </div>
             <h2 className="text-xl font-semibold">
-              Plan journeys with confidence, one real conversation at a time.
+              Where real estate meets real conversations.
             </h2>
             <p className="opacity-70">
-              Rejoin your friends and keep coordinating trips daily.
+              Rejoin your network of buyers, sellers, and brokers on Insell.
             </p>
           </div>
         </div>
