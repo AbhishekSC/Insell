@@ -12,6 +12,7 @@ import toast from "react-hot-toast";
 import { Navigate, useNavigate } from "react-router";
 import AppShell from "../components/AppShell";
 import AddPeopleModal from "../components/AddPeopleModal";
+import CallParticipantsModal from "../components/CallParticipantsModal";
 import { useStreamContext } from "../context/StreamProvider";
 
 const screenShareSupported =
@@ -21,6 +22,7 @@ function ActiveCallUi({ onEndCall, videoBusy }) {
   const call = useCall();
   const navigate = useNavigate();
   const [showAddPeople, setShowAddPeople] = useState(false);
+  const [showParticipants, setShowParticipants] = useState(false);
   const {
     useMicrophoneState,
     useCameraState,
@@ -104,10 +106,15 @@ function ActiveCallUi({ onEndCall, videoBusy }) {
 
         <div className="flex items-center gap-2">
           <span className="live-call-badge">Live</span>
-          <span className="live-call-count">
+          <button
+            type="button"
+            onClick={() => setShowParticipants(true)}
+            className="live-call-count"
+            aria-label="View participants"
+          >
             <Users className="size-3" />
             {participantCount}
-          </span>
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -132,6 +139,7 @@ function ActiveCallUi({ onEndCall, videoBusy }) {
       </div>
 
       <AddPeopleModal isOpen={showAddPeople} onClose={() => setShowAddPeople(false)} />
+      <CallParticipantsModal isOpen={showParticipants} onClose={() => setShowParticipants(false)} />
 
       <div className="live-call-stage" style={isGroupCall ? { "--tile-columns": gridColumns } : undefined}>
         {isGroupCall ? (
