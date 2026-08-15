@@ -585,7 +585,10 @@
 	/* Override the SDK's flex-wrap grid, which sizes tiles off fixed width
 	   percentages + a 4/3 aspect-ratio and leaves height unused. A real CSS
 	   grid sized off the actual participant count fills the whole stage and
-	   grows/shrinks tiles to match, instead of leaving dead space. */
+	   grows/shrinks tiles to match, instead of leaving dead space. Rows
+	   stretch (align-content: stretch) so a partial last row — e.g. the lone
+	   3rd tile in a 2-column layout — is exactly the same size as the tiles
+	   above it, not centered in leftover space. */
 	.live-call-stage .str-video__paginated-grid-layout__group {
 		display: grid !important;
 		grid-template-columns: repeat(var(--tile-columns, 2), minmax(0, 1fr)) !important;
@@ -593,31 +596,78 @@
 		height: 100% !important;
 		width: 100% !important;
 		max-width: 100% !important;
-		align-content: center !important;
-		justify-items: center !important;
-		align-items: center !important;
-		padding-inline: 0.5rem !important;
+		align-content: stretch !important;
+		justify-items: stretch !important;
+		align-items: stretch !important;
+		gap: 0.5rem !important;
+		padding: 0.5rem !important;
 	}
 
 	/* Higher-specificity SDK rules (.str-video__paginated-grid-layout--one/
 	   --two-four/--five-nine) set a fixed flex-basis per tile — !important is
 	   needed since those selectors out-specify this one.
-	   A bounded 16/9 tile (capped to its grid cell) keeps faces at a normal
-	   size instead of stretching full-bleed to fill the cell — with few
-	   tiles in a wide stage that stretch made each one tall/narrow and
-	   object-fit: cover cropped in tight, looking "zoomed in". */
+
+	   Mobile-first: tiles fill their grid cell completely (no aspect-ratio
+	   cap) — on a narrow portrait phone, capping to 16/9 left a lot of the
+	   cell as dead black space below/around each tile. From a wide-enough
+	   viewport up (roughly tablet-landscape/laptop), an uncapped fill made
+	   tiles unnaturally tall and narrow when there were only 1-2 rows in a
+	   wide stage, so cap to 16/9 there instead — mirrors how mobile/desktop
+	   video-call apps actually differ: mobile fills the screen, desktop
+	   keeps a video-shaped box. */
 	.live-call-stage .str-video__paginated-grid-layout__group .str-video__participant-view {
 		flex: unset !important;
 		width: 100% !important;
-		height: auto !important;
+		height: 100% !important;
 		max-width: 100% !important;
 		max-height: 100% !important;
-		aspect-ratio: 16 / 9 !important;
+		aspect-ratio: unset !important;
+	}
+
+	@media (min-width: 768px) {
+		.live-call-stage .str-video__paginated-grid-layout__group .str-video__participant-view {
+			height: auto !important;
+			aspect-ratio: 16 / 9 !important;
+		}
+	}
+
+	/* Exactly 3 tiles in the (2-column, for n=3) grid: center the lone 3rd
+	   tile at the same size as the two above it, instead of it sitting
+	   left-aligned in column 1 with empty dead space next to it in column 2. */
+	.live-call-stage .str-video__paginated-grid-layout__group .str-video__participant-view:nth-child(3):last-child {
+		max-width: calc(50% - 0.25rem) !important;
+		justify-self: center !important;
 	}
 
 	.live-call-stage .str-video__participant-view {
 		border-radius: 14px;
 		overflow: hidden;
+	}
+
+	/* Participant name/mic-status overlay — bump it up from the SDK's
+	   default tiny label so it's actually legible on small grid tiles, and
+	   make sure it sits in a corner rather than crossing the face. */
+	.live-call-stage .str-video__paginated-grid-layout__group .str-video__participant-details {
+		@apply flex items-center gap-1.5 rounded-lg bg-black/55 px-2.5 py-1 backdrop-blur-sm;
+		left: 0.5rem !important;
+		bottom: 0.5rem !important;
+		right: auto !important;
+		top: auto !important;
+		max-width: calc(100% - 1rem);
+	}
+
+	.live-call-stage .str-video__paginated-grid-layout__group .str-video__participant-details__name {
+		@apply truncate font-semibold text-white;
+		/* Equal-specificity tie against the SDK's own name-label rule, which
+		   loads after this stylesheet and would otherwise win the font-size
+		   on source order alone — !important settles it explicitly. */
+		font-size: 0.8rem !important;
+	}
+
+	@media (min-width: 640px) {
+		.live-call-stage .str-video__paginated-grid-layout__group .str-video__participant-details__name {
+			font-size: 0.9rem !important;
+		}
 	}
 
 	/* Custom control bar — plain buttons with our own lucide icons, since the

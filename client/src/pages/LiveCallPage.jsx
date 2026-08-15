@@ -68,8 +68,22 @@ function ActiveCallUi({ onEndCall, videoBusy }) {
   const flipCamera = async () => {
     try {
       await call?.camera.flip();
-    } catch {
-      toast.error("Unable to switch camera");
+    } catch (error) {
+      // Swallowing this with zero diagnostics made it impossible to tell why
+      // a flip failed on any given device — log the actual browser error so
+      // future reports carry real info, and give a specific reason where we
+      // can identify one instead of a generic message every time.
+      console.error("Camera flip failed:", error);
+
+      if (error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError") {
+        toast.error("Camera permission is required to switch cameras.");
+      } else if (error?.name === "OverconstrainedError" || error?.name === "NotFoundError") {
+        toast.error("No other camera was found on this device.");
+      } else if (error?.name === "NotReadableError") {
+        toast.error("The camera is busy in another app. Close it and try again.");
+      } else {
+        toast.error("Unable to switch camera");
+      }
     }
   };
 
