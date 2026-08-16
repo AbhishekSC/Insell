@@ -294,11 +294,18 @@ function CallUi({ onEndCall, videoBusy }) {
               <div className="live-call-pip-waiting">Waiting for the other person to join...</div>
             )}
             {localParticipant ? (
-              // key={cameraDirection} forces a clean remount of the video
-              // element when the camera is flipped — without it, the video
-              // sometimes stayed blank after switching front/back camera
-              // instead of picking up the new track.
-              <ParticipantView key={cameraDirection} participant={localParticipant} className="live-call-pip-self" />
+              // A plain wrapper div (no SDK classes) owns all sizing/position
+              // here — the SDK's own .str-video__participant-view stylesheet
+              // rule kept out-specifying className-based overrides directly
+              // on that element, so this sidesteps the fight entirely: the
+              // wrapper is small and positioned, the ParticipantView inside
+              // just fills 100% of whatever box the wrapper gives it.
+              // key={cameraDirection} forces a clean remount on camera flip —
+              // without it, the video sometimes stayed blank after switching
+              // front/back camera instead of picking up the new track.
+              <div className="live-call-pip-self">
+                <ParticipantView key={cameraDirection} participant={localParticipant} className="live-call-pip-self__video" />
+              </div>
             ) : null}
           </div>
         )}

@@ -587,23 +587,27 @@
 		@apply grid h-full w-full place-items-center bg-slate-900/60 px-6 text-center text-sm text-white/70;
 	}
 
+	/* Plain wrapper (no SDK classes) — owns 100% of the sizing/position, so
+	   none of it has to fight the SDK's own .str-video__participant-view
+	   stylesheet rules for specificity. Sits above the main video (z-20,
+	   higher than .live-call-pip-main/.live-call-pip-waiting) so it always
+	   overlays it, matching WhatsApp/FaceTime's small corner self-view. */
 	.live-call-pip-self {
-		@apply absolute bottom-4 right-4 z-10 overflow-hidden rounded-2xl border-2 border-white/20 shadow-2xl;
-		width: clamp(96px, 18vw, 180px) !important;
-		max-width: clamp(96px, 18vw, 180px) !important;
-		/* The generic ".live-call-stage .str-video__participant-view { height:
-		   100% }" rule (2 classes) out-specifies this single-class selector and
-		   would otherwise force this bubble's height to the full stage height —
-		   with width already fixed, that also makes aspect-ratio a no-op (CSS
-		   ignores it once both width and height are definite), producing a
-		   tall sliver instead of a small corner bubble. height: auto lets
-		   aspect-ratio derive the height from the (correct) clamped width. */
-		height: auto !important;
-		max-height: none !important;
-		aspect-ratio: 3 / 4 !important;
+		@apply absolute bottom-4 right-4 z-20 overflow-hidden rounded-2xl border-2 border-white/25 bg-black shadow-2xl;
+		width: clamp(110px, 30vw, 170px);
+		aspect-ratio: 3 / 4;
 	}
 
-	.live-call-pip-self .str-video__participant-details {
+	.live-call-pip-self__video {
+		width: 100% !important;
+		height: 100% !important;
+		max-width: 100% !important;
+		max-height: 100% !important;
+		aspect-ratio: unset !important;
+		border-radius: 0 !important;
+	}
+
+	.live-call-pip-self__video .str-video__participant-details {
 		display: none;
 	}
 
