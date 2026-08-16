@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Users,
@@ -14,6 +14,7 @@ import {
   MoreVertical,
   MessageSquare,
   Calendar,
+  Camera,
   Filter,
   ChevronDown,
   ChevronRight,
@@ -704,13 +705,20 @@ export default function CommunitiesContent({ onOpenChat }) {
   );
 }
 
-function CommunityAvatar({ name, className }) {
+function CommunityAvatar({ name, photo, uploading }) {
   const initial = (name || "?").trim().charAt(0).toUpperCase() || "?";
   return (
-    <div
-      className={`grid place-items-center rounded-2xl border-4 border-white bg-gradient-to-br from-indigo-500 to-purple-600 font-bold text-white shadow-md ${className}`}
-    >
-      {initial}
+    <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-4 border-white bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg">
+      {photo ? (
+        <img src={photo} alt={name} className="h-full w-full object-cover" />
+      ) : (
+        <div className="grid h-full w-full place-items-center text-2xl font-bold text-white">{initial}</div>
+      )}
+      {uploading ? (
+        <div className="absolute inset-0 grid place-items-center bg-black/50">
+          <div className="size-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -719,10 +727,36 @@ function MyCommunityCard({ community, onChat, onLeave }) {
   const queryClient = useQueryClient();
   const authUser = queryClient.getQueryData(["authUser"])?.data?.user;
   const [showMenu, setShowMenu] = useState(false);
+  const fileInputRef = useRef(null);
 
   const isCreator = String(community.creator?._id || community.creator) === String(authUser?._id);
   const isModerator = (community.moderators || []).some((m) => String(m?._id || m) === String(authUser?._id));
+  const canManagePhoto = isCreator || isModerator;
   const memberCount = community.members?.length || 0;
+
+  const updatePhotoMutation = useMutation({
+    mutationFn: async (file) => {
+      const formData = new FormData();
+      formData.append("photo", file);
+      const res = await axiosInstance.patch(`/community/circles/${community._id}/photo`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      toast.success("Community photo updated");
+      queryClient.invalidateQueries({ queryKey: ["communities"] });
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to update community photo");
+    },
+  });
+
+  const handlePhotoChange = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) updatePhotoMutation.mutate(file);
+  };
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md">
@@ -737,7 +771,7 @@ function MyCommunityCard({ community, onChat, onLeave }) {
             <MoreVertical size={18} />
           </button>
           {showMenu ? (
-            <div className="absolute right-0 top-full z-20 mt-1 w-40 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+            <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
               <button
                 type="button"
                 onClick={() => {
@@ -749,6 +783,19 @@ function MyCommunityCard({ community, onChat, onLeave }) {
                 <MessageCircle size={14} />
                 Open chat
               </button>
+              {canManagePhoto && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMenu(false);
+                    fileInputRef.current?.click();
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <Camera size={14} />
+                  {community.photo ? "Change" : "Add"} community photo
+                </button>
+              )}
               {!isCreator && (
                 <button
                   type="button"
@@ -764,12 +811,19 @@ function MyCommunityCard({ community, onChat, onLeave }) {
               )}
             </div>
           ) : null}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={handlePhotoChange}
+          />
         </div>
       </div>
 
       <div className="px-4 pb-4">
-        <div className="-mt-8 mb-2 flex items-end gap-3">
-          <CommunityAvatar name={community.name} className="size-16 text-xl" />
+        <div className="-mt-10 mb-2 flex items-end gap-3">
+          <CommunityAvatar name={community.name} photo={community.photo} uploading={updatePhotoMutation.isPending} />
           {isCreator ? (
             <Crown className="mb-1 text-amber-500" size={18} aria-label="Creator" />
           ) : isModerator ? (
@@ -814,9 +868,13 @@ function DiscoverCommunityCard({ community, onJoin }) {
 
   return (
     <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md">
-      <div className={`mb-3 grid size-12 place-items-center rounded-xl ${style.bg} ${style.text}`}>
-        <Icon size={22} />
-      </div>
+      {community.photo ? (
+        <img src={community.photo} alt={community.name} className="mb-3 h-12 w-12 rounded-xl object-cover" />
+      ) : (
+        <div className={`mb-3 grid size-12 place-items-center rounded-xl ${style.bg} ${style.text}`}>
+          <Icon size={22} />
+        </div>
+      )}
       <h3 className="font-semibold text-slate-900">{community.name}</h3>
       <p className="mt-0.5 line-clamp-2 text-sm text-slate-500">{community.topic}</p>
 

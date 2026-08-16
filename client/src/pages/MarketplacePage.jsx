@@ -1095,6 +1095,34 @@ export default function MarketplacePage() {
   }, [roleStatsData, authUser?.activeRole, authUser?.primaryRole]);
 
   const trendingLocalities = ["Indore - Super Corridor", "Bengaluru - Whitefield", "Pune - Hinjewadi", "Noida - Sector 150"];
+
+  // Shares the ["communities"] cache key with CommunitiesContent's own query
+  // (same endpoint) — React Query dedupes them into a single fetch, so this
+  // just reads the same data to power the desktop sidebar next to that tab.
+  const { data: communitiesSidebarData } = useQuery({
+    queryKey: ["communities"],
+    queryFn: async () => {
+      const res = await axiosInstance.get("/community");
+      return res.data?.data || { studyCircles: [], suggestedCircles: [] };
+    },
+    enabled: activeSection === "communities",
+  });
+
+  const recommendedCommunities = useMemo(() => {
+    const suggested = communitiesSidebarData?.suggestedCircles || [];
+    return [...suggested].sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0)).slice(0, 3);
+  }, [communitiesSidebarData]);
+
+  const popularCommunityCategories = useMemo(() => {
+    const mine = communitiesSidebarData?.studyCircles || [];
+    const suggested = communitiesSidebarData?.suggestedCircles || [];
+    const tally = {};
+    [...mine, ...suggested].forEach((circle) => {
+      const category = circle.category || "General";
+      tally[category] = (tally[category] || 0) + 1;
+    });
+    return Object.entries(tally).sort((a, b) => b[1] - a[1]);
+  }, [communitiesSidebarData]);
   const savedSearches = ["2 BHK in Vijay Nagar", "Luxury Villa in Goa", "Commercial office in Noida"];
 
   // Fetch trending news from backend
@@ -1975,6 +2003,57 @@ export default function MarketplacePage() {
               </div>
             </div>
           </aside>
+          ) : null}
+
+          {activeSection === "communities" ? (
+            <aside className="hidden w-[320px] rounded-2xl border border-slate-100 bg-slate-50/90 p-4 pb-6 shadow-sm xl:sticky xl:top-1 xl:flex xl:h-[calc(100dvh-7.1rem)] xl:flex-col xl:overflow-y-auto">
+              <div className="rounded-xl border border-slate-200 bg-white p-3">
+                <div className="mb-2">
+                  <p className="text-sm font-bold text-slate-800">Recommended for You</p>
+                </div>
+                <div className="space-y-2">
+                  {recommendedCommunities.length > 0 ? (
+                    recommendedCommunities.map((community) => (
+                      <button
+                        key={community._id}
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded-lg border border-slate-200 p-2 text-left hover:bg-slate-50"
+                        onClick={() => navigate(`/community/${community._id}`)}
+                      >
+                        <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-xs font-bold text-white">
+                          {(community.name || "?").trim().charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-semibold text-slate-800">{community.name}</p>
+                          <p className="truncate text-[11px] text-slate-500">{community.memberCount || 0} members</p>
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-500 text-center py-2">No recommendations yet</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-bold text-slate-800">Popular Categories</p>
+                  <TrendingUp className="size-4 text-slate-400" />
+                </div>
+                <div className="space-y-2">
+                  {popularCommunityCategories.length > 0 ? (
+                    popularCommunityCategories.map(([category, count]) => (
+                      <div key={category} className="flex items-center justify-between rounded-lg border border-slate-200 p-2 text-xs font-medium text-slate-700">
+                        <span>{category}</span>
+                        <span className="text-slate-500">{count} {count === 1 ? "community" : "communities"}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-500 text-center py-2">No categories yet</p>
+                  )}
+                </div>
+              </div>
+            </aside>
           ) : null}
         </div>
       </div>

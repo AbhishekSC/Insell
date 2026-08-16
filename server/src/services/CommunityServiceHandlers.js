@@ -510,6 +510,36 @@ export async function createCommunityMessage(req, res) {
   }
 }
 
+export async function updateCommunityPhoto(req, res) {
+  try {
+    const currentUserId = req.user?._id;
+    const { id } = req.params;
+
+    if (!req.file) {
+      return sendErrorResponse(res, 400, "A photo file is required");
+    }
+
+    const circle = await StudyCircle.findById(id);
+    if (!circle) {
+      return sendErrorResponse(res, 404, "Community not found");
+    }
+
+    const isCreator = String(circle.creator) === String(currentUserId);
+    const isModerator = (circle.moderators || []).some((m) => String(m) === String(currentUserId));
+    if (!isCreator && !isModerator) {
+      return sendErrorResponse(res, 403, "Only the community admin or a moderator can update the photo");
+    }
+
+    circle.photo = req.file.path;
+    await circle.save();
+
+    return sendSuccessResponse(res, 200, "Community photo updated successfully", { photo: circle.photo });
+  } catch (error) {
+    logger.error("Error updating community photo:", { message: error.message, stack: error.stack });
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
 export async function leaveCommunity(req, res) {
   try {
     const currentUserId = req.user?._id;

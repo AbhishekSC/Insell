@@ -82,6 +82,30 @@ export const uploadProfileImage = multer({
   },
 });
 
+const communityPhotoStorage = createCloudinaryStorage("community-photos", ["jpg", "jpeg", "png", "webp"], {
+  maxWidth: 800,
+  maxHeight: 800,
+  quality: 'auto:best',
+  resourceType: 'image'
+});
+
+function communityPhotoFileFilter(_req, file, cb) {
+  const allowedMimeTypes = ["image/png", "image/jpeg", "image/webp"];
+  if (!allowedMimeTypes.includes(file.mimetype)) {
+    cb(new Error("Unsupported community photo file type"));
+    return;
+  }
+  cb(null, true);
+}
+
+export const uploadCommunityPhoto = multer({
+  storage: communityPhotoStorage,
+  fileFilter: communityPhotoFileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+});
+
 const propertyMediaStorage = createCloudinaryStorage("property-media", ["jpg", "jpeg", "png", "webp", "gif", "mp4", "webm", "mov"], {
   maxWidth: 1920,
   maxHeight: 1080,

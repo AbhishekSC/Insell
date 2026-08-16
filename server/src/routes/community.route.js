@@ -1,6 +1,6 @@
 import express from "express";
 import { verifyUser, requireVerified } from "../middlewares/auth.middleware.js";
-import { uploadCommunityResource } from "../middlewares/upload.middleware.js";
+import { uploadCommunityPhoto, uploadCommunityResource } from "../middlewares/upload.middleware.js";
 import {
   createCheckIn,
   createCommunityMessage,
@@ -21,6 +21,7 @@ import {
   respondJoinCommunityRequest,
   transferCommunityOwnership,
   toggleReaction,
+  updateCommunityPhoto,
   upsertPresence,
 } from "../controllers/community.controller.js";
 
@@ -36,6 +37,7 @@ router.post("/check-ins", createCheckIn);
 router.post("/circles", createStudyCircle);
 router.post("/circles/:id/leave", leaveCommunity);
 router.post("/circles/:id/messages", createCommunityMessage);
+router.patch("/circles/:id/photo", uploadCommunityPhoto.single("photo"), updateCommunityPhoto);
 router.post("/circles/:id/resources", uploadCommunityResource.single("file"), createCommunityResource);
 router.post("/circles/:id/invite", inviteMembersToCommunity);
 router.post("/circles/:id/member-add-request", requestAddMemberToCommunity);

@@ -20,6 +20,11 @@ const studyCircleSchema = new mongoose.Schema(
       enum: ["Real Estate", "Construction", "Investment", "Lifestyle", "General"],
       default: "General",
     },
+    photo: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     creator: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
