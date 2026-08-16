@@ -17,6 +17,7 @@ import MarketplacePage from "./pages/MarketplacePage";
 import MarketplaceDetailPage from "./pages/MarketplaceDetailPage";
 import PropertyDetailPage from "./pages/PropertyDetailPage";
 import NewsPage from "./pages/NewsPage";
+import TrendingLocalitiesPage from "./pages/TrendingLocalitiesPage";
 import ActivityPage from "./pages/ActivityPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import VerifyOTPPage from "./pages/VerifyOTPPage";
@@ -39,7 +40,7 @@ function App() {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const isSwitchAccountFlow = searchParams.get("switchAccount") === "1";
-  const shellRoutes = ["/notification", "/connections", "/chat", "/toolkit", "/property-tools", "/community", "/marketplace", "/profile", "/news", "/activity", "/admin"];
+  const shellRoutes = ["/notification", "/connections", "/chat", "/toolkit", "/property-tools", "/community", "/marketplace", "/profile", "/news", "/trending-localities", "/activity", "/admin"];
   const isCallRoute = location.pathname.startsWith("/call");
   const isFriendDetailRoute = location.pathname.startsWith("/friends/");
   const isUserProfileRoute = location.pathname.startsWith("/users/");
@@ -243,6 +244,10 @@ function App() {
         <Route
           path="/news"
           element={guard(<NewsPage />)}
+        />
+        <Route
+          path="/trending-localities"
+          element={guard(<TrendingLocalitiesPage />)}
         />
         <Route
           path="/activity"

@@ -15,11 +15,13 @@ import {
   MessageCircle,
   MessageSquare,
   Moon,
+  Newspaper,
   Phone,
   Plus,
   Search,
   ShieldCheck,
   Sun,
+  TrendingUp,
   UserCircle,
   Users,
   X,
@@ -30,7 +32,6 @@ import { useStreamContext } from "../context/StreamProvider";
 import { useTheme } from "../context/ThemeProvider";
 import UserAvatar from "./UserAvatar";
 import SearchFiltersModal from "./SearchFiltersModal";
-import TrendingWidgets from "./TrendingWidgets";
 
 function notifyBrowser(title, body) {
   if (typeof window === "undefined" || !("Notification" in window)) return;
@@ -878,9 +879,24 @@ export default function AppShell({
                       ) : null}
                     </Link>
                     {item.section === "communities" ? (
-                      <div className="mb-2 mt-1 border-t border-slate-100 px-1 pt-3">
-                        <TrendingWidgets onNavigate={() => setShowMobileMenu(false)} />
-                      </div>
+                      <>
+                        <Link
+                          to="/trending-localities"
+                          onClick={() => setShowMobileMenu(false)}
+                          className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                        >
+                          <TrendingUp className="size-5" />
+                          Trending Localities
+                        </Link>
+                        <Link
+                          to="/news"
+                          onClick={() => setShowMobileMenu(false)}
+                          className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                        >
+                          <Newspaper className="size-5" />
+                          Trending News
+                        </Link>
+                      </>
                     ) : null}
                   </Fragment>
                 );

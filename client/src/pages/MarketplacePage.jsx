@@ -371,7 +371,7 @@ export default function MarketplacePage() {
   const recommendedPostTypes = ROLE_RECOMMENDED_OPTIONS[activeRole] || ["PROPERTY_SALE"];
   const availablePostTypes = ALL_CREATE_POST_TYPES;
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
   const [searchType, setSearchType] = useState(null);
   const [searchAuthorId, setSearchAuthorId] = useState(null);
   const [activeCategory, setActiveCategory] = useState("For You");
