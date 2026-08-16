@@ -1449,14 +1449,14 @@ export default function MarketplacePage() {
                                   <button
                                     type="button"
                                     onClick={handlePrevImage}
-                                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white opacity-0 transition-opacity hover:bg-black/70 group-hover:opacity-100"
+                                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white transition-opacity hover:bg-black/70"
                                   >
                                     <ChevronLeft className="size-4" />
                                   </button>
                                   <button
                                     type="button"
                                     onClick={handleNextImage}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white opacity-0 transition-opacity hover:bg-black/70 group-hover:opacity-100"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white transition-opacity hover:bg-black/70"
                                   >
                                     <ChevronRight className="size-4" />
                                   </button>
