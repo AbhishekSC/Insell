@@ -346,6 +346,9 @@ export async function destroyCommunity(req, res) {
       .filter((memberId) => memberId !== String(currentUserId));
 
     if (memberIdsToNotify.length > 0) {
+      const admin = await User.findById(currentUserId).select("fullName").lean();
+      const adminName = admin?.fullName || "The admin";
+
       // No `circle` ref here on purpose: the circle is about to be deleted, and
       // deleteCommunityById() below wipes any notification tied to it.
       await Notification.insertMany(
@@ -353,7 +356,7 @@ export async function destroyCommunity(req, res) {
           recipient: memberId,
           actor: currentUserId,
           type: "circle_deleted",
-          message: `${circle.name} was deleted by the admin`,
+          message: `${adminName} deleted the community "${circle.name}"`,
         }))
       );
     }

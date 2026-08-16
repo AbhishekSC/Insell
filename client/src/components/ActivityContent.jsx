@@ -11,6 +11,8 @@ import {
   MapPin,
   Building2,
   IndianRupee,
+  Trash2,
+  Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
@@ -31,6 +33,13 @@ function ActivityItem({ activity, onNavigateToPost, isOwnActivity = false }) {
         return <UserPlus className="size-4 text-green-500" />;
       case "connection_accepted":
         return <UserPlus className="size-4 text-emerald-500" />;
+      case "circle_invite":
+        return <Users className="size-4 text-indigo-500" />;
+      case "circle_deleted":
+        return <Trash2 className="size-4 text-red-500" />;
+      case "circle_join_request_result":
+      case "circle_member_add_request_result":
+        return <Users className="size-4 text-emerald-500" />;
       default:
         return <Clock className="size-4 text-slate-400" />;
     }
