@@ -704,66 +704,69 @@ function MyCommunityCard({ community, onChat, onLeave }) {
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md">
-      <div className="relative h-12 overflow-hidden rounded-t-xl bg-gradient-to-r from-indigo-500 to-purple-600 sm:h-20">
-        <div className="absolute right-2 top-2 sm:right-3 sm:top-3">
-          <button
-            type="button"
-            onClick={() => setShowMenu((prev) => !prev)}
-            className="rounded-full p-1 text-white/90 hover:bg-white/20"
-            aria-label="Community options"
-          >
-            <MoreVertical size={16} />
-          </button>
-          {showMenu ? (
-            <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+    <div className="relative rounded-xl border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md">
+      <div className="h-12 overflow-hidden rounded-t-xl bg-gradient-to-r from-indigo-500 to-purple-600 sm:h-20" />
+
+      {/* Sibling of the (overflow-hidden) banner, not a descendant of it —
+          otherwise the dropdown below gets clipped to the banner's own
+          height and only its first item or so is visible. */}
+      <div className="absolute right-2 top-2 z-10 sm:right-3 sm:top-3">
+        <button
+          type="button"
+          onClick={() => setShowMenu((prev) => !prev)}
+          className="rounded-full p-1 text-white/90 hover:bg-white/20"
+          aria-label="Community options"
+        >
+          <MoreVertical size={16} />
+        </button>
+        {showMenu ? (
+          <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+            <button
+              type="button"
+              onClick={() => {
+                setShowMenu(false);
+                onChat();
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+            >
+              <MessageCircle size={14} />
+              Open chat
+            </button>
+            {canManagePhoto && (
               <button
                 type="button"
                 onClick={() => {
                   setShowMenu(false);
-                  onChat();
+                  fileInputRef.current?.click();
                 }}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
               >
-                <MessageCircle size={14} />
-                Open chat
+                <Camera size={14} />
+                {community.photo ? "Change" : "Add"} community photo
               </button>
-              {canManagePhoto && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowMenu(false);
-                    fileInputRef.current?.click();
-                  }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                >
-                  <Camera size={14} />
-                  {community.photo ? "Change" : "Add"} community photo
-                </button>
-              )}
-              {!isCreator && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowMenu(false);
-                    onLeave();
-                  }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-                >
-                  <LogOut size={14} />
-                  Leave community
-                </button>
-              )}
-            </div>
-          ) : null}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            className="hidden"
-            onChange={handlePhotoChange}
-          />
-        </div>
+            )}
+            {!isCreator && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMenu(false);
+                  onLeave();
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+              >
+                <LogOut size={14} />
+                Leave community
+              </button>
+            )}
+          </div>
+        ) : null}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          onChange={handlePhotoChange}
+        />
       </div>
 
       <div className="px-2.5 pb-2.5 sm:px-4 sm:pb-4">

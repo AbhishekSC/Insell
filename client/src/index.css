@@ -587,6 +587,24 @@
 		@apply grid h-full w-full place-items-center bg-slate-900/60 px-6 text-center text-sm text-white/70;
 	}
 
+	/* The other participant's name badge in the 1:1 layout — previously the
+	   SDK's unstyled default (bottom-left, no real background, easy to lose
+	   against a busy video). Matches the self-view PIP's badge: same
+	   bg-black/50 pill, moved to the top so it doesn't collide with the call
+	   controls docked along the bottom edge. */
+	.live-call-pip-main .str-video__participant-details {
+		@apply flex items-center gap-1 rounded-md bg-black/50 px-2 py-1 backdrop-blur-sm;
+		left: 0.75rem !important;
+		top: 0.75rem !important;
+		right: auto !important;
+		bottom: auto !important;
+		max-width: calc(100% - 1.5rem);
+	}
+
+	.live-call-pip-main .str-video__participant-details__name {
+		@apply truncate font-medium text-white;
+	}
+
 	/* Plain wrapper (no SDK classes) — owns 100% of the sizing/position, so
 	   none of it has to fight the SDK's own .str-video__participant-view
 	   stylesheet rules for specificity. Sits above the main video (z-20,
