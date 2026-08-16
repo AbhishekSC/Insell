@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import {
   PaginatedGridLayout,
+  ParticipantsAudio,
   ParticipantView,
   StreamCall,
   StreamVideo,
@@ -55,7 +56,7 @@ function CallUi({ onEndCall, videoBusy }) {
     useRemoteParticipants,
   } = useCallStateHooks();
   const { isEnabled: micEnabled } = useMicrophoneState();
-  const { isEnabled: cameraEnabled } = useCameraState();
+  const { isEnabled: cameraEnabled, direction: cameraDirection } = useCameraState();
   const { isEnabled: screenShareEnabled } = useScreenShareState();
   // Must match the participant list PaginatedGridLayout itself renders from
   // (not useParticipantCount, which is a server-computed stat that can lag
@@ -176,49 +177,58 @@ function CallUi({ onEndCall, videoBusy }) {
   // across mini <-> full toggles for the rest of the call.
   if (!isFullView) {
     return (
-      <div
-        ref={widgetRef}
-        className="call-mini-widget"
-        style={widgetPosition ? { left: widgetPosition.left, top: widgetPosition.top, right: "auto", bottom: "auto" } : undefined}
-      >
+      <>
+        {/* Neither the mini widget nor the full view render at the same time
+            (this is a straight `if`, not conditional CSS), so unlike the
+            full view — where ParticipantView/PaginatedGridLayout already
+            play remote audio internally — nothing here would otherwise play
+            it while minimized. Without this, the other person's audio
+            silently stopped the moment you navigated away from /call/live. */}
+        {remoteParticipants.length > 0 ? <ParticipantsAudio participants={remoteParticipants} /> : null}
         <div
-          role="button"
-          tabIndex={0}
-          onPointerDown={handleDragPointerDown}
-          onPointerMove={handleDragPointerMove}
-          onPointerUp={handleDragPointerUp}
-          onPointerCancel={handleDragPointerUp}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") navigate(LIVE_CALL_ROUTE);
-          }}
-          className="call-mini-widget__video"
-          aria-label="Return to call (drag to move)"
+          ref={widgetRef}
+          className="call-mini-widget"
+          style={widgetPosition ? { left: widgetPosition.left, top: widgetPosition.top, right: "auto", bottom: "auto" } : undefined}
         >
-          {localParticipant ? (
-            <ParticipantView participant={localParticipant} className="call-mini-widget__participant" />
-          ) : (
-            <div className="call-mini-widget__placeholder">
-              <Video className="size-5" />
-            </div>
-          )}
-          <span className="call-mini-widget__badge">
-            <Users className="size-3" />
-            {participantCount}
-          </span>
-          <span className="call-mini-widget__expand">
-            <Maximize2 className="size-3.5" />
-          </span>
+          <div
+            role="button"
+            tabIndex={0}
+            onPointerDown={handleDragPointerDown}
+            onPointerMove={handleDragPointerMove}
+            onPointerUp={handleDragPointerUp}
+            onPointerCancel={handleDragPointerUp}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") navigate(LIVE_CALL_ROUTE);
+            }}
+            className="call-mini-widget__video"
+            aria-label="Return to call (drag to move)"
+          >
+            {mainRemoteParticipant ? (
+              <ParticipantView participant={mainRemoteParticipant} muteAudio className="call-mini-widget__participant" />
+            ) : (
+              <div className="call-mini-widget__placeholder">
+                <Video className="size-5" />
+              </div>
+            )}
+            <span className="call-mini-widget__badge">
+              <Users className="size-3" />
+              {participantCount}
+            </span>
+            <span className="call-mini-widget__expand">
+              <Maximize2 className="size-3.5" />
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={leaveCall}
+            disabled={videoBusy}
+            aria-label="Leave call"
+            className="call-mini-widget__end disabled:opacity-60"
+          >
+            <PhoneOff className="size-4" />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={leaveCall}
-          disabled={videoBusy}
-          aria-label="Leave call"
-          className="call-mini-widget__end disabled:opacity-60"
-        >
-          <PhoneOff className="size-4" />
-        </button>
-      </div>
+      </>
     );
   }
 
@@ -273,7 +283,9 @@ function CallUi({ onEndCall, videoBusy }) {
 
       <div className="live-call-stage" style={isGroupCall ? { "--tile-columns": gridColumns } : undefined}>
         {isGroupCall ? (
-          <PaginatedGridLayout />
+          // Same remount-on-flip defense as the 1:1 self-view below, applied
+          // to the whole grid since individual tiles aren't ours to key.
+          <PaginatedGridLayout key={cameraDirection} />
         ) : (
           <div className="live-call-pip-layout">
             {mainRemoteParticipant ? (
@@ -282,7 +294,11 @@ function CallUi({ onEndCall, videoBusy }) {
               <div className="live-call-pip-waiting">Waiting for the other person to join...</div>
             )}
             {localParticipant ? (
-              <ParticipantView participant={localParticipant} className="live-call-pip-self" />
+              // key={cameraDirection} forces a clean remount of the video
+              // element when the camera is flipped — without it, the video
+              // sometimes stayed blank after switching front/back camera
+              // instead of picking up the new track.
+              <ParticipantView key={cameraDirection} participant={localParticipant} className="live-call-pip-self" />
             ) : null}
           </div>
         )}
