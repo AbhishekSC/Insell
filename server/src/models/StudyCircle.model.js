@@ -14,6 +14,12 @@ const studyCircleSchema = new mongoose.Schema(
       required: true,
       maxlength: 160,
     },
+    category: {
+      type: String,
+      trim: true,
+      enum: ["Real Estate", "Construction", "Investment", "Lifestyle", "General"],
+      default: "General",
+    },
     creator: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

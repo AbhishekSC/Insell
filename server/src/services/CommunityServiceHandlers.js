@@ -112,6 +112,16 @@ export async function getCommunityData(req, res) {
       memberCount: Array.isArray(circle.members) ? circle.members.length : 0,
     }));
 
+    const messageCounts = await CommunityMessage.aggregate([
+      { $match: { circle: { $in: studyCircles.map((circle) => circle._id) } } },
+      { $group: { _id: "$circle", count: { $sum: 1 } } },
+    ]);
+    const messageCountByCircleId = new Map(messageCounts.map((row) => [String(row._id), row.count]));
+    const studyCirclesWithMessageCount = studyCircles.map((circle) => ({
+      ...circle,
+      messageCount: messageCountByCircleId.get(String(circle._id)) || 0,
+    }));
+
     const checkInIds = checkIns.map((item) => item._id);
     const recapIds = recaps.map((item) => item._id);
 
@@ -139,7 +149,7 @@ export async function getCommunityData(req, res) {
       myPresence,
       friendsPresence,
       checkIns,
-      studyCircles,
+      studyCircles: studyCirclesWithMessageCount,
       recaps,
       notifications,
       suggestedCircles,
@@ -205,11 +215,14 @@ export async function createCheckIn(req, res) {
 export async function createStudyCircle(req, res) {
   try {
     const currentUserId = req.user?._id;
-    const { name, topic, memberIds = [] } = req.body || {};
+    const { name, topic, memberIds = [], category } = req.body || {};
 
     if (!name || !String(name).trim() || !topic || !String(topic).trim()) {
       return sendErrorResponse(res, 400, "Circle name and topic are required");
     }
+
+    const allowedCategories = ["Real Estate", "Construction", "Investment", "Lifestyle", "General"];
+    const normalizedCategory = allowedCategories.includes(category) ? category : "General";
 
     const currentUser = await User.findById(currentUserId).select("friends").lean();
     if (!currentUser) {
@@ -223,6 +236,7 @@ export async function createStudyCircle(req, res) {
     const circle = await StudyCircle.create({
       name: String(name).trim(),
       topic: String(topic).trim(),
+      category: normalizedCategory,
       creator: currentUserId,
       members,
       moderators: [],
