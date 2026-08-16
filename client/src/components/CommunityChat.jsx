@@ -1,7 +1,7 @@
-import { Component, useEffect, useMemo, useState } from "react";
+import { Component, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Channel, Chat, MessageComposer, MessageList, Thread, Window } from "stream-chat-react";
-import { ArrowLeft, Check, Crown, LogOut, Menu, Shield, Trash2, UserPlus, Users, X } from "lucide-react";
+import { ArrowLeft, Camera, Check, Crown, LogOut, Menu, Shield, Trash2, UserPlus, Users, X } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import { useStreamContext } from "../context/StreamProvider";
@@ -40,6 +40,7 @@ export default function CommunityChat({ community, onBack }) {
   const [communityChannel, setCommunityChannel] = useState(null);
   const { streamClient, streamReady } = useStreamContext();
   const authUser = queryClient.getQueryData(["authUser"])?.data?.user;
+  const photoInputRef = useRef(null);
 
   // Fetch community detail for an up-to-date member list
   const { data: communityDetail } = useQuery({
@@ -168,6 +169,31 @@ export default function CommunityChat({ community, onBack }) {
     },
   });
 
+  const updatePhotoMutation = useMutation({
+    mutationFn: async (file) => {
+      const formData = new FormData();
+      formData.append("photo", file);
+      const res = await axiosInstance.patch(`/community/circles/${circle._id}/photo`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      toast.success("Community photo updated");
+      queryClient.invalidateQueries({ queryKey: ["communityDetail", community?._id] });
+      queryClient.invalidateQueries({ queryKey: ["communities"] });
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to update community photo");
+    },
+  });
+
+  function handlePhotoChange(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) updatePhotoMutation.mutate(file);
+  }
+
   function toggleFriendSelection(id) {
     setSelectedFriendIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
   }
@@ -254,8 +280,17 @@ export default function CommunityChat({ community, onBack }) {
           >
             <ArrowLeft size={20} />
           </button>
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold">
-            {community.name?.charAt(0) || "C"}
+          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold">
+            {circle?.photo ? (
+              <img src={circle.photo} alt={community.name} className="h-full w-full object-cover" />
+            ) : (
+              <div className="grid h-full w-full place-items-center">{community.name?.charAt(0) || "C"}</div>
+            )}
+            {updatePhotoMutation.isPending ? (
+              <div className="absolute inset-0 grid place-items-center bg-black/50">
+                <div className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              </div>
+            ) : null}
           </div>
           <div>
             <h2 className="font-semibold text-slate-900">{community.name}</h2>
@@ -299,6 +334,18 @@ export default function CommunityChat({ community, onBack }) {
                   <Users size={16} className="text-slate-500" />
                   {showMembers ? "Hide members" : "View members"}
                 </button>
+                {canReview && (
+                  <button
+                    onClick={() => {
+                      setShowActionsMenu(false);
+                      photoInputRef.current?.click();
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    <Camera size={16} className="text-slate-500" />
+                    Update profile
+                  </button>
+                )}
                 {!isCreator && (
                   <button
                     onClick={() => {
@@ -326,6 +373,13 @@ export default function CommunityChat({ community, onBack }) {
               </div>
             </>
           )}
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={handlePhotoChange}
+          />
         </div>
       </div>
 
