@@ -112,16 +112,6 @@ export async function getCommunityData(req, res) {
       memberCount: Array.isArray(circle.members) ? circle.members.length : 0,
     }));
 
-    const messageCounts = await CommunityMessage.aggregate([
-      { $match: { circle: { $in: studyCircles.map((circle) => circle._id) } } },
-      { $group: { _id: "$circle", count: { $sum: 1 } } },
-    ]);
-    const messageCountByCircleId = new Map(messageCounts.map((row) => [String(row._id), row.count]));
-    const studyCirclesWithMessageCount = studyCircles.map((circle) => ({
-      ...circle,
-      messageCount: messageCountByCircleId.get(String(circle._id)) || 0,
-    }));
-
     const checkInIds = checkIns.map((item) => item._id);
     const recapIds = recaps.map((item) => item._id);
 
@@ -149,7 +139,7 @@ export async function getCommunityData(req, res) {
       myPresence,
       friendsPresence,
       checkIns,
-      studyCircles: studyCirclesWithMessageCount,
+      studyCircles,
       recaps,
       notifications,
       suggestedCircles,

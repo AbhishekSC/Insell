@@ -613,11 +613,11 @@
 	}
 
 	/* Was fully hidden before — restyled into a small legible badge (matching
-	   the grid layout's name label below) instead, so the self-view still
-	   shows whose camera this is without the plain unstyled text blending
-	   into the video. */
+	   the grid layout's name label below, and the same bg-black/50 used on
+	   the property-card image nav arrows) instead of plain unstyled text
+	   blending into the video. */
 	.live-call-pip-self__video .str-video__participant-details {
-		@apply flex items-center gap-1 rounded-md bg-black/60 px-2 py-0.5 backdrop-blur-sm;
+		@apply flex items-center gap-1 rounded-md bg-black/50 px-2 py-0.5 backdrop-blur-sm;
 		left: 0.375rem !important;
 		bottom: 0.375rem !important;
 		right: auto !important;

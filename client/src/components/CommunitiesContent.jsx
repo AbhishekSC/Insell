@@ -12,11 +12,8 @@ import {
   X,
   LogOut,
   MoreVertical,
-  MessageSquare,
   Calendar,
   Camera,
-  Filter,
-  ChevronDown,
   ChevronRight,
   Building2,
   HardHat,
@@ -58,8 +55,6 @@ export default function CommunitiesContent({ onOpenChat }) {
   const [leaveTarget, setLeaveTarget] = useState(null);
   const [showAllMine, setShowAllMine] = useState(false);
   const [showAllDiscover, setShowAllDiscover] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState("All");
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
 
   // Fetch communities data
   const { data: communitiesData, isLoading } = useQuery({
@@ -258,13 +253,10 @@ export default function CommunitiesContent({ onOpenChat }) {
     community.topic?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredSuggested = suggestedCommunities.filter((community) => {
-    const matchesSearch =
-      community.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      community.topic?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = categoryFilter === "All" || community.category === categoryFilter;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredSuggested = suggestedCommunities.filter((community) =>
+    community.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    community.topic?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const myCommunities = filteredCommunities.filter((c) =>
     c.members?.some(m => String(m._id || m) === String(authUser?._id))
@@ -276,23 +268,14 @@ export default function CommunitiesContent({ onOpenChat }) {
   return (
     <div className="h-full">
       {/* Header */}
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Communities</h1>
-          <p className="text-sm text-slate-500">Join groups and connect with people who share your interests.</p>
-        </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
-        >
-          <Plus size={18} />
-          <span>Create Community</span>
-        </button>
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-slate-900">Communities</h1>
+        <p className="text-sm text-slate-500">Join groups and connect with people who share your interests.</p>
       </div>
 
-      {/* Search + Filter */}
-      <div className="mb-6 flex flex-col gap-2 sm:flex-row">
-        <div className="relative flex-1">
+      {/* Search + Create, always on one row (mobile included) */}
+      <div className="mb-6 flex items-center gap-2">
+        <div className="relative min-w-0 flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input
             type="text"
@@ -302,36 +285,14 @@ export default function CommunitiesContent({ onOpenChat }) {
             className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2.5 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
           />
         </div>
-        <div className="relative shrink-0">
-          <button
-            type="button"
-            onClick={() => setShowFilterMenu((prev) => !prev)}
-            className="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-          >
-            <Filter size={16} />
-            {categoryFilter === "All" ? "Filter" : categoryFilter}
-            <ChevronDown size={14} className={showFilterMenu ? "rotate-180 transition-transform" : "transition-transform"} />
-          </button>
-          {showFilterMenu ? (
-            <div className="absolute right-0 top-full z-20 mt-2 w-44 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
-              {["All", ...CATEGORY_OPTIONS].map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => {
-                    setCategoryFilter(option);
-                    setShowFilterMenu(false);
-                  }}
-                  className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-slate-50 ${
-                    categoryFilter === option ? "font-semibold text-indigo-600" : "text-slate-700"
-                  }`}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex shrink-0 items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
+        >
+          <Plus size={18} />
+          <span className="hidden sm:inline">Create Community</span>
+          <span className="sm:hidden">Create</span>
+        </button>
       </div>
 
       {/* Invites: communities I've been added to and need to accept/decline */}
@@ -838,10 +799,6 @@ function MyCommunityCard({ community, onChat, onLeave }) {
           <div className="flex items-center gap-1">
             <Users size={14} />
             <span>{memberCount} Members</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <MessageSquare size={14} />
-            <span>{community.messageCount || 0} Messages</span>
           </div>
           <div className="flex items-center gap-1">
             <Calendar size={14} />
