@@ -9,6 +9,7 @@ import {
   Window,
 } from "stream-chat-react";
 import {
+  ArrowLeft,
   CheckCheck,
   Loader2,
   MessageCircleHeart,
@@ -285,18 +286,19 @@ export default function ChatContent({ deepLinkUserId } = {}) {
             <p className="text-sm text-slate-500">Select a conversation to start chatting</p>
           </div>
         ) : (
-          <div className="flex flex-1 min-h-0 h-full flex-col">
-            <div className="mb-2 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 sm:hidden">
+          <div className="flex flex-1 min-h-0 h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2 sm:hidden">
               <button
                 type="button"
-                className="btn btn-ghost btn-xs"
+                className="btn btn-ghost btn-xs gap-1"
                 onClick={() => setIsConversationOpenMobile(false)}
               >
+                <ArrowLeft className="size-4" />
                 Back
               </button>
               <p className="truncate text-sm font-semibold">{selectedFriend?.fullName || "Conversation"}</p>
             </div>
-            <div className="flex-1 min-h-0 h-full overflow-hidden rounded-xl border border-slate-200 bg-white pb-6">
+            <div className="flex-1 min-h-0 overflow-hidden pb-6">
               <Chat client={chatClient}>
                 <Channel channel={activeChannel}>
                   <Window>
