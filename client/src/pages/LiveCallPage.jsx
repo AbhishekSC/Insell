@@ -11,7 +11,7 @@ export default function LiveCallPage() {
   const { activeVideoCall } = useStreamContext();
 
   if (!activeVideoCall) {
-    return <Navigate to="/call" replace />;
+    return <Navigate to="/marketplace?section=call" replace />;
   }
 
   return null;

@@ -597,7 +597,7 @@ export default function SessionsPage() {
                 })}
               </div>
 
-              <Link to="/call" className="btn btn-outline btn-sm mt-3">
+              <Link to="/marketplace?section=call" className="btn btn-outline btn-sm mt-3">
                 Open calls page
               </Link>
             </div>

@@ -221,7 +221,7 @@ export default function CommunityPage() {
             <MessageSquare className="size-4" />
             Open chats
           </Link>
-          <Link to="/call" className="btn btn-primary btn-sm">
+          <Link to="/marketplace?section=call" className="btn btn-primary btn-sm">
             <Video className="size-4" />
             Start travel call
           </Link>

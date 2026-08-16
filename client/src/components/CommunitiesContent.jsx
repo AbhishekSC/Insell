@@ -26,8 +26,6 @@ import {
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 
-const CATEGORY_OPTIONS = ["Real Estate", "Construction", "Investment", "Lifestyle", "General"];
-
 const CATEGORY_STYLES = {
   "Real Estate": { icon: Building2, bg: "bg-indigo-50", text: "text-indigo-600", pill: "bg-indigo-100 text-indigo-700" },
   Construction: { icon: HardHat, bg: "bg-orange-50", text: "text-orange-600", pill: "bg-orange-100 text-orange-700" },
@@ -466,7 +464,7 @@ export default function CommunitiesContent({ onOpenChat }) {
               </button>
             ) : null}
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             {visibleMyCommunities.map((community) => (
               <MyCommunityCard
                 key={community._id}
@@ -591,20 +589,6 @@ export default function CommunitiesContent({ onOpenChat }) {
                   required
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Category</label>
-                <select
-                  value={newCommunity.category}
-                  onChange={(e) => setNewCommunity({ ...newCommunity, category: e.target.value })}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                >
-                  {CATEGORY_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
               <div className="flex gap-3">
                 <button
                   type="button"
@@ -669,15 +653,15 @@ export default function CommunitiesContent({ onOpenChat }) {
 function CommunityAvatar({ name, photo, uploading }) {
   const initial = (name || "?").trim().charAt(0).toUpperCase() || "?";
   return (
-    <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-4 border-white bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg">
+    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-white bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg sm:h-20 sm:w-20 sm:border-4">
       {photo ? (
         <img src={photo} alt={name} className="h-full w-full object-cover" />
       ) : (
-        <div className="grid h-full w-full place-items-center text-2xl font-bold text-white">{initial}</div>
+        <div className="grid h-full w-full place-items-center text-base font-bold text-white sm:text-2xl">{initial}</div>
       )}
       {uploading ? (
         <div className="absolute inset-0 grid place-items-center bg-black/50">
-          <div className="size-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+          <div className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent sm:size-5" />
         </div>
       ) : null}
     </div>
@@ -720,16 +704,16 @@ function MyCommunityCard({ community, onChat, onLeave }) {
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md">
-      <div className="relative h-20 bg-gradient-to-r from-indigo-500 to-purple-600">
-        <div className="absolute right-3 top-3">
+    <div className="rounded-xl border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md">
+      <div className="relative h-12 overflow-hidden rounded-t-xl bg-gradient-to-r from-indigo-500 to-purple-600 sm:h-20">
+        <div className="absolute right-2 top-2 sm:right-3 sm:top-3">
           <button
             type="button"
             onClick={() => setShowMenu((prev) => !prev)}
             className="rounded-full p-1 text-white/90 hover:bg-white/20"
             aria-label="Community options"
           >
-            <MoreVertical size={18} />
+            <MoreVertical size={16} />
           </button>
           {showMenu ? (
             <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
@@ -782,35 +766,35 @@ function MyCommunityCard({ community, onChat, onLeave }) {
         </div>
       </div>
 
-      <div className="px-4 pb-4">
-        <div className="-mt-10 mb-2 flex items-end gap-3">
+      <div className="px-2.5 pb-2.5 sm:px-4 sm:pb-4">
+        <div className="-mt-6 mb-1.5 flex items-end gap-2 sm:-mt-10 sm:mb-2 sm:gap-3">
           <CommunityAvatar name={community.name} photo={community.photo} uploading={updatePhotoMutation.isPending} />
           {isCreator ? (
-            <Crown className="mb-1 text-amber-500" size={18} aria-label="Creator" />
+            <Crown className="mb-0.5 size-3.5 text-amber-500 sm:mb-1 sm:size-[18px]" aria-label="Creator" />
           ) : isModerator ? (
-            <Shield className="mb-1 text-blue-500" size={18} aria-label="Moderator" />
+            <Shield className="mb-0.5 size-3.5 text-blue-500 sm:mb-1 sm:size-[18px]" aria-label="Moderator" />
           ) : null}
         </div>
 
-        <h3 className="truncate font-semibold text-slate-900">{community.name}</h3>
-        <p className="mt-0.5 line-clamp-1 text-sm text-slate-500">{community.topic}</p>
+        <h3 className="truncate text-sm font-semibold text-slate-900 sm:text-base">{community.name}</h3>
+        <p className="mt-0.5 line-clamp-1 text-xs text-slate-500 sm:text-sm">{community.topic}</p>
 
-        <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
+        <div className="mt-1.5 flex flex-col gap-0.5 text-[10px] text-slate-500 sm:mt-3 sm:flex-row sm:items-center sm:gap-4 sm:text-xs">
           <div className="flex items-center gap-1">
-            <Users size={14} />
-            <span>{memberCount} Members</span>
+            <Users size={12} className="shrink-0" />
+            <span className="truncate">{memberCount} Members</span>
           </div>
           <div className="flex items-center gap-1">
-            <Calendar size={14} />
-            <span>Created {formatMonthYear(community.createdAt)}</span>
+            <Calendar size={12} className="shrink-0" />
+            <span className="truncate">Created {formatMonthYear(community.createdAt)}</span>
           </div>
         </div>
 
         <button
           onClick={onChat}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-indigo-600 px-3 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors"
+          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-indigo-600 px-2 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors sm:mt-4 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
         >
-          <MessageCircle size={16} />
+          <MessageCircle size={14} />
           Chat Now
         </button>
       </div>

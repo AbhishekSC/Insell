@@ -92,7 +92,10 @@ function CallUi({ onEndCall, videoBusy }) {
     } catch {
       toast.error("Failed to end call");
     }
-    navigate("/call", { replace: true });
+    // The old standalone /call page is legacy — everyday use goes through the
+    // Calls tab embedded in Marketplace, so land back there instead of
+    // dropping the user into a different, outdated call-list UI.
+    navigate("/marketplace?section=call", { replace: true });
   };
 
   const flipCamera = async () => {
@@ -181,7 +184,7 @@ function CallUi({ onEndCall, videoBusy }) {
       <div className="live-call-topbar">
         <button
           type="button"
-          onClick={() => navigate("/call")}
+          onClick={() => navigate(-1)}
           className="inline-flex items-center gap-1.5 text-white/85 hover:text-white"
         >
           <ArrowLeft className="size-4" />
