@@ -10,6 +10,7 @@ import {
   House,
   LogOut,
   Map,
+  Menu,
   MessageCircle,
   MessageSquare,
   Moon,
@@ -20,6 +21,7 @@ import {
   Sun,
   UserCircle,
   Users,
+  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
@@ -52,6 +54,18 @@ const navItems = [
 ];
 
 const ADMIN_NAV_ITEM = { to: "/admin", label: "Admin", icon: ShieldCheck };
+
+// The mobile bottom nav only has room for a handful of static (non-scrolling)
+// slots — these five are the ones used often enough to earn one. Everything
+// else in navItems shows up in the hamburger menu instead (see
+// mobileOverflowNavItems below).
+const MOBILE_PRIMARY_NAV_TOS = new Set([
+  "/marketplace",
+  "/map-view",
+  "/marketplace?section=chat",
+  "/marketplace?section=connections",
+  "/marketplace?section=call",
+]);
 
 function isNavItemActive(item, location) {
   if (item.section) {
@@ -359,6 +373,7 @@ export default function AppShell({
   const [marketSearch, setMarketSearch] = useState(marketplaceSearch);
   const [searchFocused, setSearchFocused] = useState(false);
   const [mobileUserMenuOpen, setMobileUserMenuOpen] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [searchHistory, setSearchHistory] = useState([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
@@ -370,6 +385,8 @@ export default function AppShell({
   const authData = queryClient.getQueryData(["authUser"]);
   const authUser = authData?.data?.user || authData?.data || null;
   const visibleNavItems = authUser?.isAdmin ? [...navItems, ADMIN_NAV_ITEM] : navItems;
+  const mobileBottomNavItems = visibleNavItems.filter((item) => MOBILE_PRIMARY_NAV_TOS.has(item.to));
+  const mobileOverflowNavItems = visibleNavItems.filter((item) => !MOBILE_PRIMARY_NAV_TOS.has(item.to));
 
   const userRoleLabel = authUser?.activeRole || authUser?.primaryRole || "Buyer";
   const userInitials = useMemo(() => {
@@ -582,7 +599,14 @@ export default function AppShell({
               </div>
 
               <div className="flex items-center justify-between gap-3 lg:hidden">
-                <LogoSection isMarketplaceShell showText={false} />
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-circle btn-sm border border-slate-200 text-slate-600 hover:bg-slate-100"
+                  onClick={() => setShowMobileMenu(true)}
+                  aria-label="Open menu"
+                >
+                  <Menu className="size-5" />
+                </button>
                 <div className="flex shrink-0 items-center gap-2">
                   <button
                     type="button"
@@ -750,17 +774,16 @@ export default function AppShell({
 
       {!hideBottomNav && (
         <nav
-          className={`fixed inset-x-0 bottom-0 z-40 flex items-stretch gap-1 overflow-x-auto border-t px-1 backdrop-blur xl:hidden ${
+          className={`fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t backdrop-blur xl:hidden ${
             isMarketplaceShell ? "border-slate-200 bg-white/95" : "border-base-300/80 bg-base-100/95"
           }`}
         >
-          {visibleNavItems.map((item) => {
+          {mobileBottomNavItems.map((item) => {
             const Icon = item.icon;
             const active = isNavItemActive(item, location);
             let badgeCount = 0;
             let badgeColor = "bg-red-500";
-            if (item.to === "/activity") badgeCount = totalNotificationCount;
-            else if (item.to === "/connections") badgeCount = incomingRequests.length;
+            if (item.to === "/connections") badgeCount = incomingRequests.length;
             else if (item.to === "/chat") badgeCount = unreadCount;
             else if (item.to === "/marketplace") {
               badgeCount = marketplaceUnreadCount;
@@ -771,7 +794,7 @@ export default function AppShell({
               <Link
                 key={item.to}
                 to={item.to}
-                className={`flex shrink-0 flex-col items-center gap-0.5 px-3 py-2 text-[10px] font-medium ${
+                className={`flex min-w-0 flex-col items-center gap-0.5 px-1 py-2 text-[10px] font-medium ${
                   active
                     ? isMarketplaceShell
                       ? "text-indigo-600"
@@ -789,25 +812,83 @@ export default function AppShell({
                     </span>
                   ) : null}
                 </div>
-                {item.label}
+                <span className="truncate">{item.label}</span>
               </Link>
             );
           })}
-
-          <button
-            type="button"
-            className={`flex shrink-0 flex-col items-center gap-0.5 px-3 py-2 text-[10px] font-medium ${
-              isMarketplaceShell ? "text-slate-500" : "text-base-content/60"
-            }`}
-            onClick={toggleTheme}
-            aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-            title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-          >
-            {theme === "light" ? <Moon className="size-5" /> : <Sun className="size-5" />}
-            {theme === "light" ? "Dark" : "Light"}
-          </button>
         </nav>
       )}
+
+      {/* Mobile hamburger menu — houses the nav items that don't fit as one
+          of the 5 static bottom-nav slots (Activity, Communities, Edit
+          Profile, Admin), plus the theme toggle that used to trail the
+          bottom nav (which made it scroll instead of staying static). */}
+      {showMobileMenu ? (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowMobileMenu(false)} />
+          <div className="absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col bg-white shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-slate-100 p-4">
+              <div className="grid size-11 shrink-0 place-items-center rounded-lg bg-indigo-600 text-white">
+                <House className="size-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-base font-bold text-slate-800">{authUser?.fullName || "INSELL User"}</p>
+                <p className="truncate text-xs text-slate-500">INSELL · Social Real Estate Marketplace</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMobileMenu(false)}
+                className="btn btn-ghost btn-circle btn-sm shrink-0"
+                aria-label="Close menu"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2">
+              {mobileOverflowNavItems.map((item) => {
+                const Icon = item.icon;
+                const active = isNavItemActive(item, location);
+                let badgeCount = 0;
+                if (item.to === "/activity") badgeCount = totalNotificationCount;
+
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setShowMobileMenu(false)}
+                    className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${
+                      active ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <Icon className="size-5" />
+                    {item.label}
+                    {badgeCount > 0 ? (
+                      <span className="ml-auto flex size-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                        {badgeCount > 9 ? "9+" : badgeCount}
+                      </span>
+                    ) : null}
+                  </Link>
+                );
+              })}
+            </div>
+
+            <div className="border-t border-slate-100 p-2">
+              <button
+                type="button"
+                onClick={() => {
+                  toggleTheme();
+                  setShowMobileMenu(false);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                {theme === "light" ? <Moon className="size-5" /> : <Sun className="size-5" />}
+                Switch to {theme === "light" ? "dark" : "light"} mode
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <SearchFiltersModal
         isOpen={isFiltersModalOpen}
