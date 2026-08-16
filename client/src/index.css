@@ -554,6 +554,11 @@
 		@apply inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2 py-1 text-[11px] font-bold text-white/85 transition-colors hover:bg-white/20;
 	}
 
+	/* WhatsApp-style running call-duration clock, next to the Live badge. */
+	.live-call-timer {
+		@apply inline-flex items-center rounded-full border border-white/15 bg-white/10 px-2 py-1 text-[11px] font-bold tabular-nums text-white/85;
+	}
+
 	.live-call-stage {
 		@apply relative flex-1 min-h-0 overflow-hidden bg-[#0b1220];
 		background-image: radial-gradient(circle at 50% 20%, rgba(30, 64, 175, 0.22), transparent 42%);
@@ -589,20 +594,20 @@
 
 	/* The other participant's name badge in the 1:1 layout — previously the
 	   SDK's unstyled default (bottom-left, no real background, easy to lose
-	   against a busy video). Matches the self-view PIP's badge: same
-	   bg-black/50 pill, moved to the top so it doesn't collide with the call
+	   against a busy video). Same rounded-full "story tag" pill as the
+	   self-view badge, moved to the top so it doesn't collide with the call
 	   controls docked along the bottom edge. */
 	.live-call-pip-main .str-video__participant-details {
-		@apply flex items-center gap-1 rounded-md bg-black/50 px-2 py-1 backdrop-blur-sm;
-		left: 0.75rem !important;
-		top: 0.75rem !important;
+		@apply flex items-center gap-1 rounded-full bg-black/60 px-3 py-1.5 backdrop-blur-sm;
+		left: 1rem !important;
+		top: 1rem !important;
 		right: auto !important;
 		bottom: auto !important;
-		max-width: calc(100% - 1.5rem);
+		max-width: calc(100% - 2rem);
 	}
 
 	.live-call-pip-main .str-video__participant-details__name {
-		@apply truncate font-medium text-white;
+		@apply truncate font-semibold text-white;
 	}
 
 	/* Plain wrapper (no SDK classes) — owns 100% of the sizing/position, so
@@ -630,21 +635,20 @@
 		border-radius: 0 !important;
 	}
 
-	/* Was fully hidden before — restyled into a small legible badge (matching
-	   the grid layout's name label below, and the same bg-black/50 used on
-	   the property-card image nav arrows) instead of plain unstyled text
-	   blending into the video. */
+	/* Was fully hidden before — restyled into a small legible pill (rounded-full,
+	   like a story/photo name tag) instead of plain unstyled text blending
+	   into the video. */
 	.live-call-pip-self__video .str-video__participant-details {
-		@apply flex items-center gap-1 rounded-md bg-black/50 px-2 py-0.5 backdrop-blur-sm;
-		left: 0.375rem !important;
-		top: 0.375rem !important;
+		@apply flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 backdrop-blur-sm;
+		left: 0.5rem !important;
+		top: 0.5rem !important;
 		right: auto !important;
 		bottom: auto !important;
-		max-width: calc(100% - 0.75rem);
+		max-width: calc(100% - 1rem);
 	}
 
 	.live-call-pip-self__video .str-video__participant-details__name {
-		@apply truncate font-medium text-white;
+		@apply truncate font-semibold text-white;
 		font-size: 0.65rem !important;
 	}
 

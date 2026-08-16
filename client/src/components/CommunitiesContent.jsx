@@ -51,7 +51,6 @@ export default function CommunitiesContent({ onOpenChat }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newCommunity, setNewCommunity] = useState({ name: "", topic: "", category: "General" });
   const [leaveTarget, setLeaveTarget] = useState(null);
-  const [showAllMine, setShowAllMine] = useState(false);
   const [showAllDiscover, setShowAllDiscover] = useState(false);
 
   // Fetch communities data
@@ -260,7 +259,6 @@ export default function CommunitiesContent({ onOpenChat }) {
     c.members?.some(m => String(m._id || m) === String(authUser?._id))
   );
 
-  const visibleMyCommunities = showAllMine ? myCommunities : myCommunities.slice(0, 4);
   const visibleDiscoverCommunities = showAllDiscover ? filteredSuggested : filteredSuggested.slice(0, 8);
 
   return (
@@ -443,35 +441,28 @@ export default function CommunitiesContent({ onOpenChat }) {
         </div>
       )}
 
-      {/* My Communities */}
+      {/* My Communities — a horizontally scrollable row (like the stories
+          strip at the top of the feed) rather than a wrapping grid, so all
+          of them are reachable with a swipe instead of a "view all" toggle. */}
       {myCommunities.length > 0 && (
         <div className="mb-10">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex items-center gap-2">
             <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
               My Communities
               <span className="inline-flex size-5 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
                 {myCommunities.length}
               </span>
             </h2>
-            {myCommunities.length > 4 ? (
-              <button
-                type="button"
-                onClick={() => setShowAllMine((prev) => !prev)}
-                className="flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-700"
-              >
-                {showAllMine ? "Show less" : "View all"}
-                <ChevronRight size={16} className={showAllMine ? "rotate-90 transition-transform" : "transition-transform"} />
-              </button>
-            ) : null}
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            {visibleMyCommunities.map((community) => (
-              <MyCommunityCard
-                key={community._id}
-                community={community}
-                onChat={() => handleOpenChat(community)}
-                onLeave={() => handleLeaveCommunity(community)}
-              />
+          <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 sm:gap-4">
+            {myCommunities.map((community) => (
+              <div key={community._id} className="w-[180px] shrink-0 snap-start sm:w-[220px]">
+                <MyCommunityCard
+                  community={community}
+                  onChat={() => handleOpenChat(community)}
+                  onLeave={() => handleLeaveCommunity(community)}
+                />
+              </div>
             ))}
           </div>
         </div>

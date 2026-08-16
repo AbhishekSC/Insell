@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   PaginatedGridLayout,
   ParticipantsAudio,
@@ -55,6 +55,7 @@ function CallUi({ onEndCall, videoBusy }) {
     useParticipants,
     useLocalParticipant,
     useRemoteParticipants,
+    useCallStartedAt,
   } = useCallStateHooks();
   const { isEnabled: micEnabled } = useMicrophoneState();
   const { isEnabled: cameraEnabled, direction: cameraDirection } = useCameraState();
@@ -71,6 +72,32 @@ function CallUi({ onEndCall, videoBusy }) {
   const localParticipant = useLocalParticipant();
   const remoteParticipants = useRemoteParticipants();
   const mainRemoteParticipant = remoteParticipants[0];
+
+  // WhatsApp-style running call timer, ticking off the call's real
+  // server-recorded start time (not our own mount time) so it stays correct
+  // even if this component remounts mid-call.
+  const callStartedAt = useCallStartedAt();
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  useEffect(() => {
+    if (!callStartedAt) {
+      setElapsedSeconds(0);
+      return;
+    }
+
+    const tick = () => setElapsedSeconds(Math.max(0, Math.floor((Date.now() - callStartedAt.getTime()) / 1000)));
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [callStartedAt]);
+
+  const callDurationLabel = useMemo(() => {
+    const hours = Math.floor(elapsedSeconds / 3600);
+    const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+    const seconds = elapsedSeconds % 60;
+    const pad = (value) => String(value).padStart(2, "0");
+    return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
+  }, [elapsedSeconds]);
 
   const toggleScreenShare = async () => {
     if (!screenShareSupported) {
@@ -193,6 +220,7 @@ function CallUi({ onEndCall, videoBusy }) {
 
         <div className="flex items-center gap-2">
           <span className="live-call-badge">Live</span>
+          {callStartedAt ? <span className="live-call-timer">{callDurationLabel}</span> : null}
           <button
             type="button"
             onClick={() => setShowParticipants(true)}
