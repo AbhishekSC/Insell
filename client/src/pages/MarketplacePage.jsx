@@ -1816,7 +1816,13 @@ export default function MarketplacePage() {
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-sm font-bold text-slate-800">Trending Localities</p>
-                <TrendingUp className="size-4 text-slate-400" />
+                <button
+                  type="button"
+                  className="btn btn-xs border border-slate-200 bg-white text-indigo-600 hover:bg-indigo-50"
+                  onClick={() => navigate("/trending-localities")}
+                >
+                  View all
+                </button>
               </div>
               <div className="space-y-2">
                 {trendingLocalities.map((item) => (
