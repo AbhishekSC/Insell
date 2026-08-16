@@ -456,7 +456,7 @@ export default function CommunitiesContent({ onOpenChat }) {
           </div>
           <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 sm:gap-4">
             {myCommunities.map((community) => (
-              <div key={community._id} className="w-[180px] shrink-0 snap-start sm:w-[220px]">
+              <div key={community._id} className="w-[180px] shrink-0 snap-start sm:w-[240px] lg:w-[300px]">
                 <MyCommunityCard
                   community={community}
                   onChat={() => handleOpenChat(community)}
