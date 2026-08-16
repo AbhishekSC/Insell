@@ -142,8 +142,16 @@ export const markAllAsRead = async (req, res) => {
   try {
     const userId = req.user._id;
 
+    // circle_invite is excluded: it's the only notification type that also
+    // doubles as the data source for the Communities tab's "You've been
+    // invited" Join/Decline banner (filtered on read: false there). Marking
+    // it read here — just from visiting Activity/Chat/Connections — would
+    // silently make a still-pending invite disappear from that banner with
+    // no way left to act on it, even though the user is still sitting in
+    // the community's pendingInvites. It gets marked read on its own once
+    // the user actually responds via respondToCommunityInvite.
     await Notification.updateMany(
-      { recipient: userId, read: false },
+      { recipient: userId, read: false, type: { $ne: "circle_invite" } },
       { read: true }
     );
 
