@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -30,6 +30,7 @@ import { useStreamContext } from "../context/StreamProvider";
 import { useTheme } from "../context/ThemeProvider";
 import UserAvatar from "./UserAvatar";
 import SearchFiltersModal from "./SearchFiltersModal";
+import TrendingWidgets from "./TrendingWidgets";
 
 function notifyBrowser(title, body) {
   if (typeof window === "undefined" || !("Notification" in window)) return;
@@ -860,22 +861,28 @@ export default function AppShell({
                 if (item.to === "/activity") badgeCount = totalNotificationCount;
 
                 return (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    onClick={() => setShowMobileMenu(false)}
-                    className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${
-                      active ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    <Icon className="size-5" />
-                    {item.label}
-                    {badgeCount > 0 ? (
-                      <span className="ml-auto flex size-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-                        {badgeCount > 9 ? "9+" : badgeCount}
-                      </span>
+                  <Fragment key={item.to}>
+                    <Link
+                      to={item.to}
+                      onClick={() => setShowMobileMenu(false)}
+                      className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${
+                        active ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <Icon className="size-5" />
+                      {item.label}
+                      {badgeCount > 0 ? (
+                        <span className="ml-auto flex size-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                          {badgeCount > 9 ? "9+" : badgeCount}
+                        </span>
+                      ) : null}
+                    </Link>
+                    {item.section === "communities" ? (
+                      <div className="mb-2 mt-1 border-t border-slate-100 px-1 pt-3">
+                        <TrendingWidgets onNavigate={() => setShowMobileMenu(false)} />
+                      </div>
                     ) : null}
-                  </Link>
+                  </Fragment>
                 );
               })}
             </div>

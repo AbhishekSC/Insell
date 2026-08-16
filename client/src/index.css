@@ -612,8 +612,22 @@
 		border-radius: 0 !important;
 	}
 
+	/* Was fully hidden before — restyled into a small legible badge (matching
+	   the grid layout's name label below) instead, so the self-view still
+	   shows whose camera this is without the plain unstyled text blending
+	   into the video. */
 	.live-call-pip-self__video .str-video__participant-details {
-		display: none;
+		@apply flex items-center gap-1 rounded-md bg-black/60 px-2 py-0.5 backdrop-blur-sm;
+		left: 0.375rem !important;
+		bottom: 0.375rem !important;
+		right: auto !important;
+		top: auto !important;
+		max-width: calc(100% - 0.75rem);
+	}
+
+	.live-call-pip-self__video .str-video__participant-details__name {
+		@apply truncate font-medium text-white;
+		font-size: 0.65rem !important;
 	}
 
 	/* Override the SDK's flex-wrap grid, which sizes tiles off fixed width
