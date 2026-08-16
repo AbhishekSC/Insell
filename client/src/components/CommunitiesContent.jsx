@@ -720,16 +720,16 @@ function MyCommunityCard({ community, onChat, onLeave }) {
           <MoreVertical size={16} />
         </button>
         {showMenu ? (
-          <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+          <div className="absolute right-0 top-full z-20 mt-1 w-36 rounded-lg border border-slate-200 bg-white py-1 shadow-lg sm:w-48">
             <button
               type="button"
               onClick={() => {
                 setShowMenu(false);
                 onChat();
               }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+              className="flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
             >
-              <MessageCircle size={14} />
+              <MessageCircle size={13} className="shrink-0" />
               Open chat
             </button>
             {canManagePhoto && (
@@ -739,10 +739,10 @@ function MyCommunityCard({ community, onChat, onLeave }) {
                   setShowMenu(false);
                   fileInputRef.current?.click();
                 }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                className="flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
               >
-                <Camera size={14} />
-                {community.photo ? "Change" : "Add"} community photo
+                <Camera size={13} className="shrink-0" />
+                Update profile
               </button>
             )}
             {!isCreator && (
@@ -752,9 +752,9 @@ function MyCommunityCard({ community, onChat, onLeave }) {
                   setShowMenu(false);
                   onLeave();
                 }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                className="flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
               >
-                <LogOut size={14} />
+                <LogOut size={13} className="shrink-0" />
                 Leave community
               </button>
             )}
