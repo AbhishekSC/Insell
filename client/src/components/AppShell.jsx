@@ -6,6 +6,7 @@ import {
   ChevronDown,
   Command,
   Filter,
+  HelpCircle,
   Home,
   House,
   LogOut,
@@ -886,9 +887,9 @@ export default function AppShell({
                 aria-disabled="true"
                 className="flex w-full cursor-not-allowed items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400"
               >
-                {theme === "light" ? <Moon className="size-5" /> : <Sun className="size-5" />}
-                Switch to {theme === "light" ? "dark" : "light"} mode
-                <span className="ml-auto text-[10px] font-semibold text-slate-400">(Under Development)</span>
+                <HelpCircle className="size-5" />
+                Help &amp; Support
+                <span className="ml-auto text-[10px] font-semibold text-slate-400">(Coming soon)</span>
               </button>
             </div>
           </div>
