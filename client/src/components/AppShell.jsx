@@ -386,7 +386,9 @@ export default function AppShell({
   const authUser = authData?.data?.user || authData?.data || null;
   const visibleNavItems = authUser?.isAdmin ? [...navItems, ADMIN_NAV_ITEM] : navItems;
   const mobileBottomNavItems = visibleNavItems.filter((item) => MOBILE_PRIMARY_NAV_TOS.has(item.to));
-  const mobileOverflowNavItems = visibleNavItems.filter((item) => !MOBILE_PRIMARY_NAV_TOS.has(item.to));
+  const mobileOverflowNavItems = visibleNavItems.filter(
+    (item) => !MOBILE_PRIMARY_NAV_TOS.has(item.to) && item.section !== "activity"
+  );
 
   const userRoleLabel = authUser?.activeRole || authUser?.primaryRole || "Buyer";
   const userInitials = useMemo(() => {
@@ -615,15 +617,19 @@ export default function AppShell({
                   >
                     <Search className="size-4" />
                   </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm btn-circle border border-slate-200 text-slate-600 hover:bg-slate-100"
-                    onClick={toggleTheme}
-                    aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-                    title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+                  <Link
+                    to="/marketplace?section=activity"
+                    className="btn btn-ghost btn-sm btn-circle relative border border-slate-200 text-slate-600 hover:bg-slate-100"
+                    aria-label="Activity"
+                    title="Activity"
                   >
-                    {theme === "light" ? <Moon className="size-4" /> : <Sun className="size-4" />}
-                  </button>
+                    <Bell className="size-4" />
+                    {totalNotificationCount > 0 ? (
+                      <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                        {totalNotificationCount > 9 ? "9+" : totalNotificationCount}
+                      </span>
+                    ) : null}
+                  </Link>
 
                   <div className="relative">
                     <button
@@ -820,9 +826,9 @@ export default function AppShell({
       )}
 
       {/* Mobile hamburger menu — houses the nav items that don't fit as one
-          of the 5 static bottom-nav slots (Activity, Communities, Edit
-          Profile, Admin), plus the theme toggle that used to trail the
-          bottom nav (which made it scroll instead of staying static). */}
+          of the 5 static bottom-nav slots (Communities, Edit Profile,
+          Admin — Activity moved to the top bar), plus the theme toggle
+          below Admin, currently disabled while dark mode is finished. */}
       {showMobileMenu ? (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowMobileMenu(false)} />
@@ -876,14 +882,13 @@ export default function AppShell({
             <div className="border-t border-slate-100 p-2">
               <button
                 type="button"
-                onClick={() => {
-                  toggleTheme();
-                  setShowMobileMenu(false);
-                }}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                disabled
+                aria-disabled="true"
+                className="flex w-full cursor-not-allowed items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400"
               >
                 {theme === "light" ? <Moon className="size-5" /> : <Sun className="size-5" />}
                 Switch to {theme === "light" ? "dark" : "light"} mode
+                <span className="ml-auto text-[10px] font-semibold text-slate-400">(Under Development)</span>
               </button>
             </div>
           </div>
