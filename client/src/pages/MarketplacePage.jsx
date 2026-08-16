@@ -9,33 +9,26 @@ import {
   Building2,
   CalendarDays,
   Check,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  CircleHelp,
   ClipboardList,
   Compass,
   Eye,
   Filter,
   Heart,
   Home,
-  Images,
   IndianRupee,
-  LayoutDashboard,
   Map,
   MapPin,
   Maximize,
   MessageCircle,
   Phone,
   Plus,
-  ReceiptText,
   RefreshCw,
   Send,
-  Settings2,
   Share2,
   ShieldCheck,
   Sparkles,
-  Star,
   TrendingUp,
   Upload,
   UserCircle,
@@ -80,20 +73,6 @@ const LEFT_NAV_ITEMS = [
 ];
 
 const ADMIN_NAV_ITEM = { label: "Admin", icon: ShieldCheck, section: "admin" };
-
-const POST_NAV_ITEMS = [
-  { label: "My Properties", icon: Building2 },
-  { label: "My Posts", icon: Images },
-  { label: "Create Post", icon: Plus },
-];
-
-const MORE_NAV_ITEMS = [
-  { label: "Dashboard", icon: LayoutDashboard },
-  { label: "Transactions", icon: ReceiptText },
-  { label: "Reviews", icon: Star },
-  { label: "Settings", icon: Settings2 },
-  { label: "Help & Support", icon: CircleHelp },
-];
 
 const STORY_COLLECTIONS = [
   { label: "Premium Projects", category: "For You", image: "https://placehold.co/480x320?text=Premium+Projects" },
@@ -384,7 +363,6 @@ export default function MarketplacePage() {
   const [selectedPostForComments, setSelectedPostForComments] = useState(null);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [selectedPostForContact, setSelectedPostForContact] = useState(null);
-  const [unreadCount, setUnreadCount] = useState(0);
   const contactMessageRef = useRef(null);
   const [activeSection, setActiveSection] = useState(() => {
     const sectionParam = searchParams.get("section");
@@ -566,7 +544,6 @@ export default function MarketplacePage() {
 
   const [isNavCollapsed, setIsNavCollapsed] = useState(false);
   const [isNavHovered, setIsNavHovered] = useState(false);
-  const [isMoreOpen, setIsMoreOpen] = useState(false);
   const navExpanded = !isNavCollapsed || isNavHovered;
 
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -1186,8 +1163,6 @@ export default function MarketplacePage() {
         setSearchAuthorId(authorId || null);
       }}
       onCreateProperty={() => setIsComposerOpen(true)}
-      onNotificationClick={() => setActiveSection("connections")}
-      notificationCount={unreadCount}
     >
       <div className="xl:h-full xl:min-h-0">
         <div className="flex gap-4 xl:h-full">
@@ -1248,65 +1223,6 @@ export default function MarketplacePage() {
                   </button>
                 );
               })}
-            </div>
-
-            <p className={`mt-4 text-[11px] font-semibold uppercase tracking-wide text-slate-500 ${navExpanded ? "" : "hidden"}`}>Posts</p>
-            <div className="mt-2 space-y-1">
-              {POST_NAV_ITEMS.map(({ label, icon: Icon }) => (
-                <button
-                  key={label}
-                  type="button"
-                  className={`btn btn-sm w-full rounded-lg border-none bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-800 ${navExpanded ? "justify-start" : "justify-center"}`}
-                  onClick={() => {
-                    if (label === "Create Post") setIsComposerOpen(true);
-                  }}
-                >
-                  <Icon className="size-4" />
-                  {navExpanded ? <span>{label}</span> : null}
-                </button>
-              ))}
-              
-              {/* Notification Bell Icon with Badge */}
-              <button
-                type="button"
-                className={`btn btn-sm w-full rounded-lg border-none bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-800 ${navExpanded ? "justify-start" : "justify-center"}`}
-                onClick={() => setActiveSection("activity")}
-              >
-                <div className="relative">
-                  <Bell className="size-4" />
-                  {totalUnreadCount > 0 && (
-                    <span className="absolute -right-2 -top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
-                      {totalUnreadCount > 9 ? "9+" : totalUnreadCount}
-                    </span>
-                  )}
-                </div>
-                {navExpanded ? <span>Notifications</span> : null}
-              </button>
-            </div>
-
-            <div className="mt-4">
-              <button
-                type="button"
-                className={`btn btn-sm w-full rounded-lg border-none bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-800 ${navExpanded ? "justify-start" : "justify-center"}`}
-                onClick={() => setIsMoreOpen((prev) => !prev)}
-              >
-                <ChevronDown className={`size-4 transition ${isMoreOpen ? "rotate-180" : ""}`} />
-                {navExpanded ? <span>More</span> : null}
-              </button>
-              {isMoreOpen ? (
-                <div className="mt-1 space-y-1">
-                  {MORE_NAV_ITEMS.map(({ label, icon: Icon }) => (
-                    <button
-                      key={label}
-                      type="button"
-                      className={`btn btn-sm w-full rounded-lg border-none bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-800 ${navExpanded ? "justify-start" : "justify-center"}`}
-                    >
-                      <Icon className="size-4" />
-                      {navExpanded ? <span>{label}</span> : null}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
             </div>
 
             <div className="mt-auto rounded-xl border border-slate-200 bg-indigo-50 p-3 text-xs text-slate-600">

@@ -247,7 +247,7 @@ function GlobalSearch({
   );
 }
 
-function HeaderActions({ onCreateProperty, toggleTheme, theme, onNotificationClick, notificationCount }) {
+function HeaderActions({ onCreateProperty, toggleTheme, theme }) {
   return (
     <div className="hidden shrink-0 items-center gap-3 lg:flex">
       <button
@@ -257,17 +257,6 @@ function HeaderActions({ onCreateProperty, toggleTheme, theme, onNotificationCli
       >
         <Plus className="size-4" />
         Create Post
-      </button>
-      <button type="button" className="btn btn-ghost btn-circle text-slate-600 hover:bg-slate-100 relative" onClick={onNotificationClick}>
-        <Bell className="size-4" />
-        {notificationCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-            {notificationCount > 9 ? "9+" : notificationCount}
-          </span>
-        )}
-      </button>
-      <button type="button" className="btn btn-ghost btn-circle text-slate-600 hover:bg-slate-100">
-        <MessageSquare className="size-4" />
       </button>
       <button
         type="button"
@@ -346,8 +335,6 @@ export default function AppShell({
   marketplaceSearch = "",
   onMarketplaceSearchChange,
   onCreateProperty,
-  onNotificationClick,
-  notificationCount = 0,
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -600,7 +587,7 @@ export default function AppShell({
                   onOpenFilters={() => setIsFiltersModalOpen(true)}
                   hasActiveFilters={!!activeFilters}
                 />
-                <HeaderActions onCreateProperty={onCreateProperty} toggleTheme={toggleTheme} theme={theme} onNotificationClick={onNotificationClick} notificationCount={notificationCount} />
+                <HeaderActions onCreateProperty={onCreateProperty} toggleTheme={toggleTheme} theme={theme} />
                 <UserMenu userInitials={userInitials} authUser={authUser} userRoleLabel={userRoleLabel} isPending={isPending} logout={logout} />
               </div>
 
