@@ -350,9 +350,23 @@ export function StreamProvider({ children }) {
       // If the room already existed from a previous session, ensure both users are members
       // before attempting to ring. Otherwise Stream can return "no users to ring".
       // Same permission caveat as above — non-fatal if it fails.
+      //
+      // Room IDs are deterministic per pair, so re-starting a 1:1 call reuses
+      // the exact same room a prior "Add people" call may have expanded —
+      // membership persists on Stream's backend even after everyone leaves.
+      // Without pruning it back down to just the two of us here, anyone
+      // added last time (e.g. via Add People) would still show as
+      // "Invited"/already a member in AddPeopleModal on this "new" call,
+      // even though from the user's perspective this is a fresh 1:1.
+      const intendedMemberIds = new Set([String(authUser._id), String(peerUserId)]);
+      const staleMemberIds = (call.state.members || [])
+        .map((member) => String(member.user_id))
+        .filter((id) => !intendedMemberIds.has(id));
+
       try {
         await call.updateCallMembers({
           update_members: [{ user_id: authUser._id }, { user_id: peerUserId }],
+          ...(staleMemberIds.length > 0 ? { remove_members: staleMemberIds } : {}),
         });
       } catch (error) {
         console.warn("Could not update call members (non-fatal):", error);
