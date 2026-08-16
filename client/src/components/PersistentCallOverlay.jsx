@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   PaginatedGridLayout,
   ParticipantsAudio,
@@ -26,6 +26,7 @@ import toast from "react-hot-toast";
 import { useLocation, useNavigate } from "react-router";
 import AddPeopleModal from "./AddPeopleModal";
 import CallParticipantsModal from "./CallParticipantsModal";
+import { useDraggableWidget } from "../hooks/useDraggableWidget";
 
 const screenShareSupported =
   typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
@@ -112,63 +113,13 @@ function CallUi({ onEndCall, videoBusy }) {
     }
   };
 
-  // Dragging support for the minimized widget. Position capture (not the
-  // default bottom-right CSS) kicks in only once the user actually drags —
-  // dragInfo tracks the gesture via Pointer Events (mouse + touch in one
-  // API), and setPointerCapture keeps move/up events firing on this element
-  // even if the pointer leaves its bounds mid-drag.
-  const widgetRef = useRef(null);
-  const dragInfo = useRef({ dragging: false, moved: false, pointerId: null, startX: 0, startY: 0, startLeft: 0, startTop: 0 });
-  const [widgetPosition, setWidgetPosition] = useState(null);
-
-  const handleDragPointerDown = (e) => {
-    const el = widgetRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    dragInfo.current = {
-      dragging: true,
-      moved: false,
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      startLeft: rect.left,
-      startTop: rect.top,
-    };
-    e.currentTarget.setPointerCapture?.(e.pointerId);
-  };
-
-  const handleDragPointerMove = (e) => {
-    const info = dragInfo.current;
-    if (!info.dragging) return;
-
-    const dx = e.clientX - info.startX;
-    const dy = e.clientY - info.startY;
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
-      info.moved = true;
-    }
-    if (!info.moved) return;
-
-    const el = widgetRef.current;
-    const width = el?.offsetWidth || 184;
-    const height = el?.offsetHeight || 104;
-    const maxLeft = Math.max(8, window.innerWidth - width - 8);
-    const maxTop = Math.max(8, window.innerHeight - height - 8);
-    setWidgetPosition({
-      left: Math.min(Math.max(8, info.startLeft + dx), maxLeft),
-      top: Math.min(Math.max(8, info.startTop + dy), maxTop),
-    });
-  };
-
-  const handleDragPointerUp = (e) => {
-    const info = dragInfo.current;
-    const wasDrag = info.moved;
-    dragInfo.current = { ...info, dragging: false, moved: false };
-    e.currentTarget.releasePointerCapture?.(e.pointerId);
-
-    if (!wasDrag) {
-      navigate(LIVE_CALL_ROUTE);
-    }
-  };
+  // Both floating widgets — the minimized call bar and the in-call self-view
+  // bubble — are freely draggable via the same Pointer Events logic (see
+  // useDraggableWidget). The mini widget also navigates to the full call
+  // view on a plain tap; the self-view bubble just repositions, no tap
+  // behavior needed.
+  const miniWidget = useDraggableWidget({ onTap: () => navigate(LIVE_CALL_ROUTE) });
+  const selfViewPip = useDraggableWidget();
 
   // Minimized widget — visible on every other page while the call keeps
   // running unattended. Dragging it moves it anywhere on screen (clamped to
@@ -185,18 +136,11 @@ function CallUi({ onEndCall, videoBusy }) {
             it while minimized. Without this, the other person's audio
             silently stopped the moment you navigated away from /call/live. */}
         {remoteParticipants.length > 0 ? <ParticipantsAudio participants={remoteParticipants} /> : null}
-        <div
-          ref={widgetRef}
-          className="call-mini-widget"
-          style={widgetPosition ? { left: widgetPosition.left, top: widgetPosition.top, right: "auto", bottom: "auto" } : undefined}
-        >
+        <div ref={miniWidget.elementRef} className="call-mini-widget" style={miniWidget.style}>
           <div
             role="button"
             tabIndex={0}
-            onPointerDown={handleDragPointerDown}
-            onPointerMove={handleDragPointerMove}
-            onPointerUp={handleDragPointerUp}
-            onPointerCancel={handleDragPointerUp}
+            {...miniWidget.dragHandlers}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") navigate(LIVE_CALL_ROUTE);
             }}
@@ -299,11 +243,18 @@ function CallUi({ onEndCall, videoBusy }) {
               // rule kept out-specifying className-based overrides directly
               // on that element, so this sidesteps the fight entirely: the
               // wrapper is small and positioned, the ParticipantView inside
-              // just fills 100% of whatever box the wrapper gives it.
+              // just fills 100% of whatever box the wrapper gives it. It's
+              // also draggable (useDraggableWidget), same as the minimized
+              // call bar.
               // key={cameraDirection} forces a clean remount on camera flip —
               // without it, the video sometimes stayed blank after switching
               // front/back camera instead of picking up the new track.
-              <div className="live-call-pip-self">
+              <div
+                ref={selfViewPip.elementRef}
+                className="live-call-pip-self"
+                style={selfViewPip.style}
+                {...selfViewPip.dragHandlers}
+              >
                 <ParticipantView key={cameraDirection} participant={localParticipant} className="live-call-pip-self__video" />
               </div>
             ) : null}

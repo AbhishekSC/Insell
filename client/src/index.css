@@ -591,11 +591,16 @@
 	   none of it has to fight the SDK's own .str-video__participant-view
 	   stylesheet rules for specificity. Sits above the main video (z-20,
 	   higher than .live-call-pip-main/.live-call-pip-waiting) so it always
-	   overlays it, matching WhatsApp/FaceTime's small corner self-view. */
+	   overlays it, matching WhatsApp/FaceTime's small corner self-view.
+	   position: fixed (not absolute) so its draggable position — set via
+	   inline left/top from useDraggableWidget, viewport-relative — lines up;
+	   the call view fills the whole viewport whenever this is visible, so
+	   visually it's unchanged from being absolute within it. */
 	.live-call-pip-self {
-		@apply absolute bottom-4 right-4 z-20 overflow-hidden rounded-2xl border-2 border-white/25 bg-black shadow-2xl;
+		@apply fixed bottom-4 right-4 z-20 cursor-grab select-none overflow-hidden rounded-2xl border-2 border-white/25 bg-black shadow-2xl transition-transform active:cursor-grabbing active:scale-95;
 		width: clamp(110px, 30vw, 170px);
 		aspect-ratio: 3 / 4;
+		touch-action: none;
 	}
 
 	.live-call-pip-self__video {
