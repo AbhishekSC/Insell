@@ -56,8 +56,8 @@ export default function CommunityChat({ community, onBack }) {
   const circle = communityDetail?.circle || community;
   const memberIds = (circle?.members || []).map((member) => String(member._id || member));
   const memberIdsKey = memberIds.join(",");
-  const isCreator = String(circle?.creator?._id || circle?.creator) === String(authUser?._id);
-  const isModerator = (circle?.moderators || []).some((m) => String(m?._id || m) === String(authUser?._id));
+  const isCreator = Boolean(authUser?._id) && String(circle?.creator?._id || circle?.creator) === String(authUser._id);
+  const isModerator = Boolean(authUser?._id) && (circle?.moderators || []).some((m) => String(m?._id || m) === String(authUser._id));
   const isMember = memberIds.includes(String(authUser?._id));
   const canReview = isCreator || isModerator;
   const memberAddRequests = useMemo(() => circle?.memberAddRequests || [], [circle?.memberAddRequests]);

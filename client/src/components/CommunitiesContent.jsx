@@ -71,8 +71,8 @@ export default function CommunitiesContent({ onOpenChat }) {
   const authUser = queryClient.getQueryData(["authUser"])?.data?.user;
 
   const manageableCommunities = communities.filter((c) => {
-    const isCreator = String(c.creator?._id || c.creator) === String(authUser?._id);
-    const isModerator = (c.moderators || []).some((m) => String(m?._id || m) === String(authUser?._id));
+    const isCreator = Boolean(authUser?._id) && String(c.creator?._id || c.creator) === String(authUser._id);
+    const isModerator = Boolean(authUser?._id) && (c.moderators || []).some((m) => String(m?._id || m) === String(authUser._id));
     return isCreator || isModerator;
   });
   const pendingJoinRequests = manageableCommunities.flatMap((c) =>
@@ -665,8 +665,8 @@ function MyCommunityCard({ community, onChat, onLeave }) {
   const [showMenu, setShowMenu] = useState(false);
   const fileInputRef = useRef(null);
 
-  const isCreator = String(community.creator?._id || community.creator) === String(authUser?._id);
-  const isModerator = (community.moderators || []).some((m) => String(m?._id || m) === String(authUser?._id));
+  const isCreator = Boolean(authUser?._id) && String(community.creator?._id || community.creator) === String(authUser._id);
+  const isModerator = Boolean(authUser?._id) && (community.moderators || []).some((m) => String(m?._id || m) === String(authUser._id));
   const canManagePhoto = isCreator || isModerator;
   const memberCount = community.members?.length || 0;
 

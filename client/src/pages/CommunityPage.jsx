@@ -163,15 +163,15 @@ export default function CommunityPage() {
   });
 
   const adminCommunities = studyCircles.filter(
-    (circle) => String(circle.creator?._id || circle.creator) === String(authUser?._id)
+    (circle) => Boolean(authUser?._id) && String(circle.creator?._id || circle.creator) === String(authUser._id)
   );
   const manageableCommunities = studyCircles.filter((circle) => {
-    const isCreator = String(circle.creator?._id || circle.creator) === String(authUser?._id);
-    const isModerator = (circle.moderators || []).some((user) => String(user?._id || user) === String(authUser?._id));
+    const isCreator = Boolean(authUser?._id) && String(circle.creator?._id || circle.creator) === String(authUser._id);
+    const isModerator = Boolean(authUser?._id) && (circle.moderators || []).some((user) => String(user?._id || user) === String(authUser._id));
     return isCreator || isModerator;
   });
   const joinedCommunities = studyCircles.filter(
-    (circle) => String(circle.creator?._id || circle.creator) !== String(authUser?._id)
+    (circle) => !authUser?._id || String(circle.creator?._id || circle.creator) !== String(authUser._id)
   );
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const matchesSearch = (circle) => {
@@ -187,7 +187,7 @@ export default function CommunityPage() {
     (circle.pendingJoinRequests || []).map((user) => ({
       circleId: circle._id,
       circleName: circle.name,
-      isCreator: String(circle.creator?._id || circle.creator) === String(authUser?._id),
+      isCreator: Boolean(authUser?._id) && String(circle.creator?._id || circle.creator) === String(authUser._id),
       user,
     }))
   );
@@ -298,7 +298,7 @@ export default function CommunityPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="badge badge-primary badge-sm">Admin</span>
-                        {(circle.moderators || []).some((user) => String(user?._id || user) === String(authUser?._id)) ? (
+                        {Boolean(authUser?._id) && (circle.moderators || []).some((user) => String(user?._id || user) === String(authUser._id)) ? (
                           <span className="badge badge-info badge-sm">Mod</span>
                         ) : null}
                         {(circle.pendingJoinRequests || []).length > 0 ? (
