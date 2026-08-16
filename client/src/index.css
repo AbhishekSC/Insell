@@ -716,7 +716,8 @@
 	}
 
 	.call-mini-widget__video {
-		@apply relative block h-[104px] w-[136px] overflow-hidden rounded-2xl border-2 border-white/15 bg-[#0f172a] shadow-2xl transition-transform active:scale-95;
+		@apply relative block h-[104px] w-[136px] cursor-grab select-none overflow-hidden rounded-2xl border-2 border-white/15 bg-[#0f172a] shadow-2xl transition-transform active:cursor-grabbing active:scale-95;
+		touch-action: none;
 	}
 
 	.call-mini-widget__participant {
