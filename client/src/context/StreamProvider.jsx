@@ -4,6 +4,7 @@ import { StreamChat } from "stream-chat";
 import { StreamVideoClient } from "@stream-io/video-react-sdk";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
+import PersistentCallOverlay from "../components/PersistentCallOverlay";
 
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
@@ -645,6 +646,13 @@ export function StreamProvider({ children }) {
           </div>
         </div>
       ) : null}
+
+      <PersistentCallOverlay
+        videoClient={videoClient}
+        activeVideoCall={activeVideoCall}
+        onEndCall={endActiveVideoCall}
+        videoBusy={videoBusy}
+      />
     </StreamContext.Provider>
   );
 }

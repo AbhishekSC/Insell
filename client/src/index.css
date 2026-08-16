@@ -518,8 +518,16 @@
 		}
 	}
 
+	/* Wraps PersistentCallOverlay, mounted once from StreamProvider outside
+	   <Routes> so the call session/video elements never remount while
+	   navigating — only this wrapper's positioning changes between the
+	   full-screen call route and every other page. */
+	.call-overlay-root--full {
+		@apply fixed inset-0 z-[1200] bg-[#0b1220];
+	}
+
 	.live-call-shell {
-		@apply relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-base-300/40 bg-[#0f172a] shadow-2xl;
+		@apply relative flex h-full min-h-0 flex-col overflow-hidden border border-base-300/40 bg-[#0f172a];
 	}
 
 	.live-call-room-layout {
@@ -698,5 +706,40 @@
 
 	.live-call-btn--danger {
 		@apply border-red-300/70 bg-red-500 text-white hover:bg-red-600;
+	}
+
+	/* Floating "still on a call" widget, shown on every route except the
+	   full call screen itself. Sits above the mobile bottom nav (z-40) and
+	   below modals (z-50+), so it stays visible without ever blocking one. */
+	.call-mini-widget {
+		@apply fixed bottom-20 right-4 z-[900] flex items-center gap-2 xl:bottom-6;
+	}
+
+	.call-mini-widget__video {
+		@apply relative block h-[104px] w-[136px] overflow-hidden rounded-2xl border-2 border-white/15 bg-[#0f172a] shadow-2xl transition-transform active:scale-95;
+	}
+
+	.call-mini-widget__participant {
+		height: 100% !important;
+		width: 100% !important;
+		max-width: 100% !important;
+		aspect-ratio: unset !important;
+		border-radius: 0 !important;
+	}
+
+	.call-mini-widget__placeholder {
+		@apply grid h-full w-full place-items-center text-white/40;
+	}
+
+	.call-mini-widget__badge {
+		@apply absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm;
+	}
+
+	.call-mini-widget__expand {
+		@apply absolute right-1.5 top-1.5 grid size-5 place-items-center rounded-full bg-black/60 text-white/85 backdrop-blur-sm;
+	}
+
+	.call-mini-widget__end {
+		@apply grid size-10 shrink-0 place-items-center rounded-full border border-red-300/40 bg-red-500/90 text-white shadow-lg transition-colors hover:bg-red-500;
 	}
 }
