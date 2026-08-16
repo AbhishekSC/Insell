@@ -273,6 +273,16 @@ export default function ActivityContent({ onNavigateToPost }) {
     isOwnActivity: false
   }));
 
+  const COMMUNITY_NOTIFICATION_TYPES = new Set([
+    "circle_invite",
+    "circle_deleted",
+    "circle_join_request_result",
+    "circle_member_add_request_result",
+  ]);
+  const incomingCommunityEvents = notifications
+    .filter(n => COMMUNITY_NOTIFICATION_TYPES.has(n.type))
+    .map(n => ({ ...n, isOwnActivity: false }));
+
   // Merge own activity with incoming notifications by type
   const allLikes = [
     ...likes.map(item => ({ ...item, type: "like", isOwnActivity: true })),
@@ -301,6 +311,7 @@ export default function ActivityContent({ onNavigateToPost }) {
     ...allComments,
     ...allSaved,
     ...allConnections,
+    ...incomingCommunityEvents,
   ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   const filteredActivities = activeFilter === "all" 
@@ -374,6 +385,7 @@ export default function ActivityContent({ onNavigateToPost }) {
           { id: "comment", label: "Comments", count: allComments.length },
           { id: "save", label: "Saved", count: allSaved.length },
           { id: "connection_request", label: "Connections", count: allConnections.length },
+          { id: "circle_invite", label: "Communities", count: incomingCommunityEvents.length },
         ].map((filter) => (
           <button
             key={filter.id}
@@ -468,6 +480,21 @@ export default function ActivityContent({ onNavigateToPost }) {
                   activity={connection} 
                   onNavigateToPost={onNavigateToPost}
                   isOwnActivity={connection.isOwnActivity}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeFilter === "circle_invite" && incomingCommunityEvents.length > 0 && (
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
+            <div className="divide-y divide-slate-100">
+              {incomingCommunityEvents.map((event) => (
+                <ActivityItem
+                  key={event._id}
+                  activity={event}
+                  onNavigateToPost={onNavigateToPost}
+                  isOwnActivity={event.isOwnActivity}
                 />
               ))}
             </div>
