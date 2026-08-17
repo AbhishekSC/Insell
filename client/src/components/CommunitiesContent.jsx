@@ -24,7 +24,9 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
+import CommunityAvatar from "./CommunityAvatar";
 import DiscoverCommunityCard from "./DiscoverCommunityCard";
+import RequestedCommunityCard from "./RequestedCommunityCard";
 
 function formatMonthYear(dateString) {
   if (!dateString) return "—";
@@ -472,29 +474,52 @@ export default function CommunitiesContent({ onOpenChat }) {
 
       {/* Requested — communities I've asked to join, awaiting admin
           approval. Distinct from Discover (which excludes these on purpose
-          once requested) and My Communities (not a member yet). */}
+          once requested) and My Communities (not a member yet). Same
+          mobile-button/desktop-inline-row split as Discover Communities
+          below, for the same reason (the row needs real vertical room). */}
       {requestedCommunities.length > 0 && (
-        <div className="mb-6 sm:mb-10">
-          <div className="mb-2 flex items-center gap-2 sm:mb-4">
-            <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900 sm:text-lg">
-              Requested
-              <span className="inline-flex size-5 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">
-                {requestedCommunities.length}
-              </span>
-            </h2>
-          </div>
-          <div className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 sm:gap-4">
-            {requestedCommunities.map((community) => (
-              <div key={community._id} className="w-[180px] shrink-0 snap-start sm:w-[240px] lg:w-[300px]">
-                <RequestedCommunityCard
-                  community={community}
-                  onCancel={() => cancelJoinRequestMutation.mutate(community._id)}
-                  isCancelling={cancelJoinRequestMutation.isPending}
-                />
+        <>
+          <div className="mb-6 sm:hidden">
+            <button
+              type="button"
+              onClick={() => navigate("/requested-communities")}
+              className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-amber-200 hover:shadow-md"
+            >
+              <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600">
+                <Clock size={22} />
               </div>
-            ))}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-slate-900">Requested</p>
+                <p className="truncate text-xs text-slate-500">
+                  {requestedCommunities.length} pending {requestedCommunities.length === 1 ? "request" : "requests"}
+                </p>
+              </div>
+              <ChevronRight className="shrink-0 text-slate-400" size={18} />
+            </button>
           </div>
-        </div>
+
+          <div className="hidden sm:mb-10 sm:block">
+            <div className="mb-4 flex items-center gap-2">
+              <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                Requested
+                <span className="inline-flex size-5 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">
+                  {requestedCommunities.length}
+                </span>
+              </h2>
+            </div>
+            <div className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 sm:gap-4">
+              {requestedCommunities.map((community) => (
+                <div key={community._id} className="w-[180px] shrink-0 snap-start sm:w-[240px] lg:w-[300px]">
+                  <RequestedCommunityCard
+                    community={community}
+                    onCancel={() => cancelJoinRequestMutation.mutate(community._id)}
+                    isCancelling={cancelJoinRequestMutation.isPending}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
       {/* Discover Communities — mobile gets a single button to a dedicated
@@ -673,56 +698,6 @@ export default function CommunitiesContent({ onOpenChat }) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function CommunityAvatar({ name, photo, uploading }) {
-  const initial = (name || "?").trim().charAt(0).toUpperCase() || "?";
-  return (
-    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-white bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg sm:h-20 sm:w-20 sm:border-4">
-      {photo ? (
-        <img src={photo} alt={name} className="h-full w-full object-cover" />
-      ) : (
-        <div className="grid h-full w-full place-items-center text-base font-bold text-white sm:text-2xl">{initial}</div>
-      )}
-      {uploading ? (
-        <div className="absolute inset-0 grid place-items-center bg-black/50">
-          <div className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent sm:size-5" />
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function RequestedCommunityCard({ community, onCancel, isCancelling }) {
-  const memberCount = community.members?.length || 0;
-
-  return (
-    <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md">
-      <div className="flex items-center gap-3">
-        <CommunityAvatar name={community.name} photo={community.photo} />
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-semibold text-slate-900">{community.name}</h3>
-          <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">{community.topic}</p>
-        </div>
-      </div>
-
-      <p className="mt-3 text-xs text-slate-500">{memberCount} members</p>
-      <span className="mt-2 inline-flex w-fit items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
-        <Clock size={11} />
-        Pending approval
-      </span>
-
-      <button
-        type="button"
-        onClick={onCancel}
-        disabled={isCancelling}
-        className="mt-4 flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
-      >
-        <X size={16} />
-        {isCancelling ? "Cancelling..." : "Cancel request"}
-      </button>
     </div>
   );
 }

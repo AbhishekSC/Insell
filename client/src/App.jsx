@@ -19,6 +19,7 @@ import PropertyDetailPage from "./pages/PropertyDetailPage";
 import NewsPage from "./pages/NewsPage";
 import TrendingLocalitiesPage from "./pages/TrendingLocalitiesPage";
 import DiscoverCommunitiesPage from "./pages/DiscoverCommunitiesPage";
+import RequestedCommunitiesPage from "./pages/RequestedCommunitiesPage";
 import ActivityPage from "./pages/ActivityPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import VerifyOTPPage from "./pages/VerifyOTPPage";
@@ -41,7 +42,7 @@ function App() {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const isSwitchAccountFlow = searchParams.get("switchAccount") === "1";
-  const shellRoutes = ["/notification", "/connections", "/chat", "/toolkit", "/property-tools", "/community", "/marketplace", "/profile", "/news", "/trending-localities", "/discover-communities", "/activity", "/admin"];
+  const shellRoutes = ["/notification", "/connections", "/chat", "/toolkit", "/property-tools", "/community", "/marketplace", "/profile", "/news", "/trending-localities", "/discover-communities", "/requested-communities", "/activity", "/admin"];
   const isCallRoute = location.pathname.startsWith("/call");
   const isFriendDetailRoute = location.pathname.startsWith("/friends/");
   const isUserProfileRoute = location.pathname.startsWith("/users/");
@@ -253,6 +254,10 @@ function App() {
         <Route
           path="/discover-communities"
           element={guard(<DiscoverCommunitiesPage />)}
+        />
+        <Route
+          path="/requested-communities"
+          element={guard(<RequestedCommunitiesPage />)}
         />
         <Route
           path="/activity"
