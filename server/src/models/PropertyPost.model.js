@@ -4,6 +4,15 @@ import { POST_TYPES } from "../utils/postPolicy.js";
 const postTypeValues = Object.values(POST_TYPES);
 const statusValues = ["DRAFT", "PUBLISHED", "ARCHIVED"];
 const visibilityValues = ["PUBLIC", "PRIVATE"];
+export const BLOCK_REASON_CODES = [
+  "SPAM",
+  "FRAUD",
+  "INAPPROPRIATE_CONTENT",
+  "DUPLICATE",
+  "INCORRECT_INFORMATION",
+  "POLICY_VIOLATION",
+  "OTHER",
+];
 
 const propertyPostSchema = new mongoose.Schema(
   {
@@ -188,6 +197,31 @@ const propertyPostSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
+    },
+    isBlocked: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    blockedAt: {
+      type: Date,
+      default: null,
+    },
+    blockedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    blockReasonCode: {
+      type: String,
+      enum: BLOCK_REASON_CODES,
+      default: null,
+    },
+    blockNote: {
+      type: String,
+      trim: true,
+      default: "",
+      maxlength: 1000,
     },
   },
   { timestamps: true }

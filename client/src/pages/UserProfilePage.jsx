@@ -23,6 +23,7 @@ import {
   Save,
   Send,
   Share2,
+  ShieldAlert,
   Sparkles,
   Star,
   Trash2,
@@ -65,6 +66,20 @@ function getListingBadge(post) {
   if (postType === "REQUIREMENT_BUY") return "Looking to Buy";
   if (postType === "REQUIREMENT_RENT") return "Looking for Rent";
   return post.listingType || "Listing";
+}
+
+const BLOCK_REASON_LABELS = {
+  SPAM: "Spam / misleading content",
+  FRAUD: "Fraud / scam",
+  INAPPROPRIATE_CONTENT: "Inappropriate content",
+  DUPLICATE: "Duplicate listing",
+  INCORRECT_INFORMATION: "Incorrect property information",
+  POLICY_VIOLATION: "Policy violation",
+  OTHER: "Other",
+};
+
+function getBlockReasonLabel(reasonCode) {
+  return BLOCK_REASON_LABELS[reasonCode] || "Policy violation";
 }
 
 function relativeDate(dateString) {
@@ -629,8 +644,14 @@ export default function UserProfilePage() {
                                     </>
                                   )}
                                   
-                                  <div className="absolute left-3 top-3">
+                                  <div className="absolute left-3 top-3 flex items-center gap-1.5">
                                     <span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-semibold text-slate-700 shadow-sm">{badge}</span>
+                                    {post.isBlocked && (
+                                      <span className="flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm">
+                                        <ShieldAlert className="size-3" />
+                                        Blocked
+                                      </span>
+                                    )}
                                   </div>
                                   <div className="absolute right-3 bottom-3">
                                     <button
@@ -703,6 +724,18 @@ export default function UserProfilePage() {
                                     <MapPin className="size-3.5" />
                                     <span className="truncate">{post.city || "Location"}</span>
                                   </div>
+                                  {post.isBlocked && (
+                                    <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5">
+                                      <p className="flex items-center gap-1.5 text-xs font-semibold text-red-700">
+                                        <ShieldAlert className="size-3.5" />
+                                        Blocked by Admin
+                                      </p>
+                                      <p className="mt-1 text-[11px] text-red-600">
+                                        Reason: {getBlockReasonLabel(post.blockReasonCode)}
+                                      </p>
+                                      {post.blockNote && <p className="mt-1 text-[11px] text-red-600">{post.blockNote}</p>}
+                                    </div>
+                                  )}
                                   <div className="mt-3 flex flex-wrap gap-2">
                                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
                                       {post.bedrooms || 0} Beds
@@ -858,7 +891,13 @@ export default function UserProfilePage() {
                                       meta={<p className="truncate text-[10px] text-white/90">{relativeDate(post.createdAt)}</p>}
                                     />
                                   </div>
-                                  <div className="absolute right-3 top-3">
+                                  <div className="absolute right-3 top-3 flex items-center gap-1.5">
+                                    {post.isBlocked && (
+                                      <span className="flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm">
+                                        <ShieldAlert className="size-3" />
+                                        Blocked
+                                      </span>
+                                    )}
                                     <span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-semibold text-slate-700 shadow-sm">{badge}</span>
                                   </div>
                                   <div className="absolute right-3 bottom-3">
@@ -882,6 +921,18 @@ export default function UserProfilePage() {
                                     <MapPin className="size-3.5" />
                                     <span className="truncate">{post.city || "Location"}</span>
                                   </div>
+                                  {post.isBlocked && (
+                                    <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5">
+                                      <p className="flex items-center gap-1.5 text-xs font-semibold text-red-700">
+                                        <ShieldAlert className="size-3.5" />
+                                        Blocked by Admin
+                                      </p>
+                                      <p className="mt-1 text-[11px] text-red-600">
+                                        Reason: {getBlockReasonLabel(post.blockReasonCode)}
+                                      </p>
+                                      {post.blockNote && <p className="mt-1 text-[11px] text-red-600">{post.blockNote}</p>}
+                                    </div>
+                                  )}
                                   <div className="mt-3 flex flex-wrap gap-2">
                                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
                                       {post.bedrooms || 0} Beds

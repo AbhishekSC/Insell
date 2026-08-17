@@ -91,7 +91,8 @@ export async function compareProperties(req, res) {
 
     const properties = await PropertyPost.find({
       _id: { $in: propertyIds },
-      isDeleted: { $ne: true }
+      isDeleted: { $ne: true },
+      isBlocked: { $ne: true }
     }).populate('author', 'fullName profilePic isVerified');
 
     if (properties.length === 0) {
@@ -135,6 +136,7 @@ export async function compareProperties(req, res) {
         const similarProperties = await PropertyPost.find({
           _id: { $nin: propertyIds },
           isDeleted: { $ne: true },
+          isBlocked: { $ne: true },
           status: 'PUBLISHED',
           visibility: 'PUBLIC',
           $or: [
@@ -413,6 +415,15 @@ export async function getPropertyFeed(req, res) {
     }
 
     const filter = { isDeleted: { $ne: true } };
+    // Blocked posts are hidden everywhere this feed is used to view OTHER
+    // people's posts (the public feed, someone else's profile, a "saved by"
+    // list) — except when authorId is the requester's own id ("my posts"),
+    // where the owner should still see their own blocked posts (badged on
+    // the frontend), same as how the single-post detail view works below.
+    const isViewingOwnPosts = Boolean(authorId) && currentUserId && String(authorId) === currentUserId;
+    if (!isViewingOwnPosts) {
+      filter.isBlocked = { $ne: true };
+    }
     if (authorId) {
       filter.author = authorId;
     }
@@ -855,7 +866,7 @@ export async function togglePropertyPostLike(req, res) {
     }
 
     const post = await PropertyPost.findById(postId).populate("author", "fullName");
-    if (!post || post.isDeleted) {
+    if (!post || post.isDeleted || post.isBlocked) {
       return sendErrorResponse(res, 404, "Post not found");
     }
 
@@ -921,7 +932,7 @@ export async function togglePropertyPostSave(req, res) {
     }
 
     const post = await PropertyPost.findById(postId).populate("author", "fullName");
-    if (!post || post.isDeleted) {
+    if (!post || post.isDeleted || post.isBlocked) {
       return sendErrorResponse(res, 404, "Post not found");
     }
 
@@ -992,6 +1003,11 @@ export async function getPropertyPostById(req, res) {
       return sendErrorResponse(res, 404, "Post not found");
     }
 
+    const isPostOwner = currentUserId && post.author && String(post.author._id) === currentUserId;
+    if (post.isBlocked && !isPostOwner) {
+      return sendErrorResponse(res, 404, "Post not found");
+    }
+
     // Only the owner and their friends can see the contact number — not every logged-in viewer.
     if (post.author) {
       const isOwner = currentUserId && String(post.author._id) === currentUserId;
@@ -1030,7 +1046,7 @@ export async function incrementViewCount(req, res) {
     }
 
     const post = await PropertyPost.findById(postId);
-    if (!post || post.isDeleted) {
+    if (!post || post.isDeleted || (post.isBlocked && String(post.author) !== String(userId))) {
       return sendErrorResponse(res, 404, "Post not found");
     }
 
