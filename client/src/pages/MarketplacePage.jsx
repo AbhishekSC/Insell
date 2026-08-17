@@ -238,6 +238,7 @@ function relativeDate(dateString) {
 }
 
 function getListingBadge(post) {
+  if (post.customBadge) return post.customBadge;
   const postType = String(post.postType || "").toUpperCase();
   if (postType === "PROPERTY_SALE") return "For Sale";
   if (postType === "PROPERTY_RENT") return "For Rent";

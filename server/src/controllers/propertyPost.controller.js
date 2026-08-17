@@ -808,6 +808,7 @@ export async function updatePropertyPost(req, res) {
     post.publishedAt = safeStatus === "PUBLISHED" && post.status !== "PUBLISHED" ? new Date() : post.publishedAt;
     post.listingType = String(req.body?.listingType || post.listingType).trim();
     post.propertyType = String(req.body?.propertyType || post.propertyType).trim();
+    post.customBadge = String(req.body?.customBadge ?? post.customBadge ?? "").trim().slice(0, 40);
     post.title = title;
     post.caption = String(req.body?.caption || post.caption).trim();
     post.city = String(req.body?.city || post.city).trim();

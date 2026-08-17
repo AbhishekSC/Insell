@@ -56,6 +56,14 @@ const propertyPostSchema = new mongoose.Schema(
       trim: true,
       default: "Buy",
     },
+    // Overrides the auto-derived badge (e.g. "For Sale", "Looking for Rent")
+    // shown on the property card — empty means fall back to that default.
+    customBadge: {
+      type: String,
+      trim: true,
+      default: "",
+      maxlength: 40,
+    },
     propertyType: {
       type: String,
       trim: true,

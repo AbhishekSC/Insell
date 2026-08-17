@@ -60,6 +60,7 @@ function normalizeMedia(post) {
 }
 
 function getListingBadge(post) {
+  if (post.customBadge) return post.customBadge;
   const postType = String(post.postType || "").toUpperCase();
   if (postType === "PROPERTY_SALE") return "For Sale";
   if (postType === "PROPERTY_RENT") return "For Rent";
@@ -1457,6 +1458,7 @@ export default function UserProfilePage() {
                 const postData = {
                   title: formData.get('title'),
                   caption: formData.get('caption'),
+                  customBadge: formData.get('customBadge'),
                   mediaUrls: Array.isArray(postToEdit.mediaUrls) ? postToEdit.mediaUrls : [],
                 };
                 updatePost({ postId: postToEdit._id, postData, files: newImageFiles, removedUrls: removedImageUrls });
@@ -1561,6 +1563,19 @@ export default function UserProfilePage() {
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
                   required
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Badge</label>
+                <input
+                  type="text"
+                  name="customBadge"
+                  defaultValue={postToEdit.customBadge || ""}
+                  maxLength={40}
+                  placeholder={`Leave blank to use the default (${getListingBadge(postToEdit)})`}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                />
+                <p className="mt-1 text-xs text-slate-500">Shown on the card in place of the default listing badge, e.g. "Looking for Rent".</p>
               </div>
 
               <div>

@@ -93,6 +93,7 @@ function titleCase(value) {
 }
 
 function getListingBadge(post) {
+  if (post?.customBadge) return post.customBadge;
   const listingType = post?.listingType?.toLowerCase();
   if (listingType === "rent") return "For Rent";
   if (listingType === "lease") return "For Lease";
