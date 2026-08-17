@@ -175,6 +175,28 @@ export const syncCommunityChannelMembers = async (circleId, name, memberIds = []
 };
 
 /**
+ * Push a real-time custom event straight to a user's own connection(s) —
+ * no channel involved. Used so notification-driven UI (e.g. the post
+ * moderation notice modal) updates instantly instead of needing a poll or
+ * a manual refresh. Best-effort: the notification itself already exists in
+ * Mongo, so a failed push just means the client picks it up on next load.
+ * @param {string} userId
+ * @param {string} eventType
+ */
+export const pushRealtimeNotification = async (userId, eventType) => {
+  if (!userId) return;
+  try {
+    await getStreamClient().sendUserCustomEvent(String(userId), { type: eventType });
+  } catch (error) {
+    logger.error("Failed to push realtime notification (non-fatal):", {
+      userId: String(userId),
+      eventType,
+      message: error.message,
+    });
+  }
+};
+
+/**
  * Push a real-time signal into a community's Stream channel so any member
  * currently watching it (e.g. actively chatting) is notified immediately,
  * rather than waiting for the next notifications poll.

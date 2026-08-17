@@ -176,6 +176,13 @@ export function StreamProvider({ children }) {
             }
             queryClient.invalidateQueries({ queryKey: ["streamChannelsLastMessage"] });
           }
+
+          // Pushed via stream.service.js's pushRealtimeNotification (e.g. a post
+          // was reported/blocked) — refetch the dismissible notice modal instead
+          // of polling for it.
+          if (event.type === "post_moderation_notice") {
+            queryClient.invalidateQueries({ queryKey: ["notifications", "postModeration", "unread"] });
+          }
         };
 
         client.on(handleEvent);

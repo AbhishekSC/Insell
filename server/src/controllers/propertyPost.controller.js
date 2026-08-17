@@ -16,6 +16,7 @@ import path from "path";
 import { invalidateDiscoverCache } from "../services/DiscoverRecommendationService.js";
 import { invalidateActivityCache } from "../services/UserServiceHandlers.js";
 import PersonalizationService from "../services/PersonalizationService.js";
+import { pushRealtimeNotification } from "../services/stream.service.js";
 
 function normalizeMediaUrls(raw) {
   if (Array.isArray(raw)) {
@@ -1200,6 +1201,7 @@ export async function reportPost(req, res) {
     } catch (error) {
       logger.error("Failed to notify owner of post report (non-fatal):", { message: error.message });
     }
+    pushRealtimeNotification(post.author, "post_moderation_notice");
 
     return sendSuccessResponse(res, 201, "Thanks for the report. Our team will review it.");
   } catch (error) {

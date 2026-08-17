@@ -35,11 +35,10 @@ export default function PostModerationNotice({ enabled }) {
       return res.data?.data;
     },
     enabled,
-    // Poll like the other notification badges in AppShell — there's no
-    // real-time push, so without this the modal only appears after a
-    // manual refresh or tab refocus.
-    refetchInterval: 15000,
-    refetchIntervalInBackground: true,
+    // No polling — StreamProvider's socket listener invalidates this query
+    // as soon as the server pushes a "post_moderation_notice" custom event
+    // (see stream.service.js's pushRealtimeNotification), so it refetches
+    // in real time instead.
   });
 
   const notices = data?.notifications || [];

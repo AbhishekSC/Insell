@@ -4,6 +4,7 @@ import PostReport from "../models/PostReport.model.js";
 import Notification from "../models/Notification.model.js";
 import { logger } from "../utils/logger.js";
 import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler.js";
+import { pushRealtimeNotification } from "../services/stream.service.js";
 
 const ADMIN_POST_FIELDS =
   "title price city listingType propertyType mediaUrls author status isDeleted isBlocked blockedAt blockedBy blockReasonCode blockNote createdAt";
@@ -217,6 +218,9 @@ export const blockPost = async (req, res) => {
     } catch (error) {
       logger.error("Failed to notify reporters of post block (non-fatal):", { message: error.message });
     }
+
+    pushRealtimeNotification(post.author, "post_moderation_notice");
+    pendingReports.forEach((report) => pushRealtimeNotification(report.reporter, "post_moderation_notice"));
 
     return sendSuccessResponse(res, 200, "Post blocked successfully", {
       postId: post._id,
