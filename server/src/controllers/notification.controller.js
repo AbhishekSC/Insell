@@ -55,14 +55,16 @@ export const getNotifications = async (req, res) => {
     console.log("Fetching notifications for user:", userId, { unreadOnly, type });
 
     const filter = { recipient: userId };
-    
+
     if (unreadOnly === "true") {
       filter.read = false;
     }
-    
-    if (type) {
-      filter.type = type;
-    }
+
+    // `type` accepts a single value or a comma-separated list, e.g.
+    // "post_reported,post_blocked" — used by dismissible notice modals that
+    // pool several related notification types into one query.
+    const typeCondition = type ? { type: { $in: String(type).split(",").map((t) => t.trim()).filter(Boolean) } } : {};
+    Object.assign(filter, typeCondition);
 
     const notifications = await Notification.find(filter)
       .populate("actor", "fullName profilePic isVerified activeRole primaryRole")
@@ -74,7 +76,7 @@ export const getNotifications = async (req, res) => {
     const unreadCount = await Notification.countDocuments({
       recipient: userId,
       read: false,
-      ...(type ? { type } : {}),
+      ...typeCondition,
     });
 
     console.log("Notifications found:", notifications.length, "Unread count:", unreadCount);

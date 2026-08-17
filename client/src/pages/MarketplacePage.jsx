@@ -43,7 +43,7 @@ import {
 } from "lucide-react";
 import ShareModal from "../components/ShareModal";
 import ReportPostModal from "../components/ReportPostModal";
-import PostReportedNotice from "../components/PostReportedNotice";
+import PostModerationNotice from "../components/PostModerationNotice";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import PostAuthorLink from "../components/PostAuthorLink";
@@ -2666,7 +2666,7 @@ export default function MarketplacePage() {
         postTitle={postToShare?.title || "Property"}
       />
 
-      <PostReportedNotice enabled={Boolean(authUser?._id)} />
+      <PostModerationNotice enabled={Boolean(authUser?._id)} />
 
       <ReportPostModal
         isOpen={Boolean(reportTargetPost)}

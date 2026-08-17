@@ -181,6 +181,8 @@ export const blockPost = async (req, res) => {
     post.blockNote = String(note || "").trim().slice(0, 1000);
     await post.save();
 
+    const pendingReports = await PostReport.find({ post: postId, status: "PENDING" }).select("reporter").lean();
+
     await PostReport.updateMany(
       { post: postId, status: "PENDING" },
       { $set: { status: "ACTION_TAKEN", reviewedAt: new Date(), reviewedBy: adminId } }
@@ -199,6 +201,21 @@ export const blockPost = async (req, res) => {
       });
     } catch (error) {
       logger.error("Failed to notify user of post block (non-fatal):", { message: error.message });
+    }
+
+    // Let everyone who reported this post know it was acted on — closes the
+    // loop without naming the other reporters or the owner to each other.
+    try {
+      await Notification.insertMany(
+        pendingReports.map((report) => ({
+          recipient: report.reporter,
+          type: "post_report_resolved",
+          message: `The post you reported ("${post.title}") was blocked by our moderation team. Thanks for the report.`,
+          propertyPost: post._id,
+        }))
+      );
+    } catch (error) {
+      logger.error("Failed to notify reporters of post block (non-fatal):", { message: error.message });
     }
 
     return sendSuccessResponse(res, 200, "Post blocked successfully", {
