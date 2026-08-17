@@ -344,6 +344,7 @@ export default function AppShell({
     location.pathname.startsWith("/users/") ||
     location.pathname.startsWith("/news") ||
     location.pathname.startsWith("/trending-localities") ||
+    location.pathname.startsWith("/discover-communities") ||
     location.pathname.startsWith("/property/") ||
     location.pathname.startsWith("/activity") ||
     location.pathname.startsWith("/chat") ||
