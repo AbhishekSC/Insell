@@ -449,7 +449,7 @@ export default function CommunitiesContent({ onOpenChat }) {
           strip at the top of the feed) rather than a wrapping grid, so all
           of them are reachable with a swipe instead of a "view all" toggle. */}
       {myCommunities.length > 0 && (
-        <div className="mb-6 sm:mb-10">
+        <div className="mb-4 sm:mb-10">
           <div className="mb-2 flex items-center gap-2 sm:mb-4">
             <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900 sm:text-lg">
               My Communities
@@ -479,14 +479,14 @@ export default function CommunitiesContent({ onOpenChat }) {
           below, for the same reason (the row needs real vertical room). */}
       {requestedCommunities.length > 0 && (
         <>
-          <div className="mb-6 sm:hidden">
+          <div className="mb-3 sm:hidden">
             <button
               type="button"
               onClick={() => navigate("/requested-communities")}
-              className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-amber-200 hover:shadow-md"
+              className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-amber-200 hover:shadow-md"
             >
-              <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600">
-                <Clock size={22} />
+              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600">
+                <Clock size={20} />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-slate-900">Requested</p>
@@ -531,10 +531,10 @@ export default function CommunitiesContent({ onOpenChat }) {
         <button
           type="button"
           onClick={() => navigate("/discover-communities")}
-          className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-indigo-200 hover:shadow-md"
+          className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-indigo-200 hover:shadow-md"
         >
-          <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-indigo-50 text-indigo-600">
-            <Compass size={22} />
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-indigo-50 text-indigo-600">
+            <Compass size={20} />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-slate-900">Discover Communities</p>
