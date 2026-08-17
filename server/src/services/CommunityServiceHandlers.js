@@ -131,6 +131,15 @@ export async function getCommunityData(req, res) {
       })
       .slice(0, 10);
 
+    // Communities the user has sent a join request for and is still
+    // awaiting admin approval on — a distinct state from both "suggested"
+    // (excludes these on purpose, see above) and "joined" (studyCircles).
+    const requestedCircles = await StudyCircle.find({ pendingJoinRequests: currentUserId })
+      .populate("creator", "fullName profilePic")
+      .populate("members", "_id")
+      .sort({ createdAt: -1 })
+      .lean();
+
     const checkInIds = checkIns.map((item) => item._id);
     const recapIds = recaps.map((item) => item._id);
 
@@ -162,6 +171,7 @@ export async function getCommunityData(req, res) {
       recaps,
       notifications,
       suggestedCircles,
+      requestedCircles,
       reactionSummary,
       myReactionKeys,
     });
@@ -991,6 +1001,25 @@ export async function requestJoinCommunity(req, res) {
     });
   } catch (error) {
     logger.error("Error requesting to join community:", error);
+    return sendErrorResponse(res, error?.statusCode || 500, error?.message || "Internal Server Error", error?.details || {});
+  }
+}
+
+export async function cancelJoinCommunityRequest(req, res) {
+  try {
+    const currentUserId = req.user?._id;
+    const { id } = req.params;
+
+    const data = await communityJoinRequestService.cancelJoinRequest({
+      circleId: id,
+      currentUserId,
+    });
+
+    return sendSuccessResponse(res, 200, "Join request cancelled", {
+      circleId: data.circleId,
+    });
+  } catch (error) {
+    logger.error("Error cancelling join request:", error);
     return sendErrorResponse(res, error?.statusCode || 500, error?.message || "Internal Server Error", error?.details || {});
   }
 }

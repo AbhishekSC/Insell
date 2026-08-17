@@ -2,6 +2,7 @@ import express from "express";
 import { verifyUser, requireVerified } from "../middlewares/auth.middleware.js";
 import { uploadCommunityPhoto, uploadCommunityResource } from "../middlewares/upload.middleware.js";
 import {
+  cancelJoinCommunityRequest,
   createCheckIn,
   createCommunityMessage,
   createCommunityResource,
@@ -43,6 +44,7 @@ router.post("/circles/:id/invite", inviteMembersToCommunity);
 router.post("/circles/:id/member-add-request", requestAddMemberToCommunity);
 router.post("/circles/:id/member-add-requests/:targetUserId/respond", respondMemberAddRequest);
 router.post("/circles/:id/join-request", requestJoinCommunity);
+router.delete("/circles/:id/join-request", cancelJoinCommunityRequest);
 router.post("/circles/:id/join-requests/:userId/respond", respondJoinCommunityRequest);
 router.post("/circles/:id/transfer-ownership", transferCommunityOwnership);
 router.delete("/circles/:id", destroyCommunity);

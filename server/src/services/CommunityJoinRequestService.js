@@ -46,6 +46,25 @@ export default class CommunityJoinRequestService {
     return { circleId: circle._id };
   }
 
+  async cancelJoinRequest({ circleId, currentUserId }) {
+    const circle = await StudyCircle.findById(circleId);
+    if (!circle) {
+      throw new AppError("Community not found", 404);
+    }
+
+    const pendingJoinSet = new Set((circle.pendingJoinRequests || []).map((entry) => String(entry)));
+    if (!pendingJoinSet.has(String(currentUserId))) {
+      throw new AppError("You don't have a pending join request for this community", 404);
+    }
+
+    circle.pendingJoinRequests = (circle.pendingJoinRequests || []).filter(
+      (entry) => String(entry) !== String(currentUserId)
+    );
+    await circle.save();
+
+    return { circleId: circle._id };
+  }
+
   async respondJoinCommunityRequest({ circleId, targetUserId, currentUserId, action }) {
     if (!["accept", "reject"].includes(String(action))) {
       throw new AppError("Valid action is required", 400);

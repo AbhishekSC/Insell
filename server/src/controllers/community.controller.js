@@ -1,4 +1,5 @@
 export {
+  cancelJoinCommunityRequest,
   createCheckIn,
   createCommunityMessage,
   createCommunityResource,
