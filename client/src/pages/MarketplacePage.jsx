@@ -15,6 +15,7 @@ import {
   Compass,
   Eye,
   Filter,
+  Flag,
   Heart,
   Home,
   IndianRupee,
@@ -22,6 +23,7 @@ import {
   MapPin,
   Maximize,
   MessageCircle,
+  MoreVertical,
   Phone,
   Plus,
   RefreshCw,
@@ -39,6 +41,7 @@ import {
   Square,
 } from "lucide-react";
 import ShareModal from "../components/ShareModal";
+import ReportPostModal from "../components/ReportPostModal";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import PostAuthorLink from "../components/PostAuthorLink";
@@ -381,6 +384,8 @@ export default function MarketplacePage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [postToShare, setPostToShare] = useState(null);
   const [selectedForComparison, setSelectedForComparison] = useState([]);
+  const [openPostMenuId, setOpenPostMenuId] = useState(null);
+  const [reportTargetPost, setReportTargetPost] = useState(null);
 
   // Fetch friends data
   const { data: friendsData } = useQuery({
@@ -1031,6 +1036,20 @@ export default function MarketplacePage() {
     },
   });
 
+  const { mutate: submitPostReport, isPending: isReportPending } = useMutation({
+    mutationFn: async ({ postId, reasonCode, description }) => {
+      const response = await axiosInstance.post(`/posts/${postId}/report`, { reasonCode, description });
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Thanks for the report. Our team will review it.");
+      setReportTargetPost(null);
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to submit report");
+    },
+  });
+
   // Fetch role-based statistics for the sidebar
   const { data: roleStatsData } = useQuery({
     queryKey: ["roleStats"],
@@ -1297,6 +1316,7 @@ export default function MarketplacePage() {
                   const isRequirement = postType.startsWith("REQUIREMENT_");
                   const requirementTitle = post.title || (postType === "REQUIREMENT_RENT" ? "Looking for Rental Property" : "Looking to Buy Property");
                   const hasMultipleImages = post.media.length > 1;
+                  const isOwnPost = Boolean(authUser?._id) && String(authUser._id) === String(post.author?._id);
 
                   // Role-based highlights
                   const roleHighlights = getRoleHighlights(post, activeRole);
@@ -1431,6 +1451,47 @@ export default function MarketplacePage() {
 
                         <div className="absolute right-3 top-3 flex items-center gap-1">
                           <span className="rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-slate-700">{badge}</span>
+                          {!isOwnPost && (
+                            <div className="relative">
+                              <button
+                                type="button"
+                                className="grid size-6 place-items-center rounded-full bg-white/90 text-slate-700 hover:bg-white"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setOpenPostMenuId((current) => (current === post._id ? null : post._id));
+                                }}
+                              >
+                                <MoreVertical className="size-3.5" />
+                              </button>
+                              {openPostMenuId === post._id && (
+                                <>
+                                  <div
+                                    className="fixed inset-0 z-40"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      setOpenPostMenuId(null);
+                                    }}
+                                  />
+                                  <div
+                                    className="absolute right-0 top-8 z-50 w-36 rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+                                    onClick={(event) => event.stopPropagation()}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setReportTargetPost(post);
+                                        setOpenPostMenuId(null);
+                                      }}
+                                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                                    >
+                                      <Flag className="size-3.5" />
+                                      Report
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         <div className="absolute right-3 bottom-3 flex items-center gap-2">
@@ -2597,6 +2658,15 @@ export default function MarketplacePage() {
         }}
         postUrl={postToShare ? `${window.location.origin}/property/${postToShare._id}` : ""}
         postTitle={postToShare?.title || "Property"}
+      />
+
+      <ReportPostModal
+        isOpen={Boolean(reportTargetPost)}
+        isPending={isReportPending}
+        onCancel={() => setReportTargetPost(null)}
+        onConfirm={({ reasonCode, description }) =>
+          submitPostReport({ postId: reportTargetPost._id, reasonCode, description })
+        }
       />
     </AppShell>
   );
