@@ -616,8 +616,6 @@ function PostsPanel() {
                           <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
                             <Link
                               to={`/property/${post._id}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
                               onClick={() => setOpenMenuId(null)}
                               className="flex items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                             >
@@ -627,8 +625,6 @@ function PostsPanel() {
                             {post.author?._id && (
                               <Link
                                 to={`/users/${post.author._id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
                                 onClick={() => setOpenMenuId(null)}
                                 className="flex items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                               >
