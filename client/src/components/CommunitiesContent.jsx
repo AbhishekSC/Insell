@@ -260,13 +260,13 @@ export default function CommunitiesContent({ onOpenChat }) {
   return (
     <div className="h-full">
       {/* Header */}
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold text-slate-900">Communities</h1>
-        <p className="text-sm text-slate-500">Join groups and connect with people who share your interests.</p>
+      <div className="mb-3 sm:mb-4">
+        <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Communities</h1>
+        <p className="text-xs text-slate-500 sm:text-sm">Join groups and connect with people who share your interests.</p>
       </div>
 
       {/* Search + Create, always on one row (mobile included) */}
-      <div className="mb-6 flex items-center gap-2">
+      <div className="mb-4 flex items-center gap-2 sm:mb-6">
         <div className="relative min-w-0 flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input
@@ -441,9 +441,9 @@ export default function CommunitiesContent({ onOpenChat }) {
           strip at the top of the feed) rather than a wrapping grid, so all
           of them are reachable with a swipe instead of a "view all" toggle. */}
       {myCommunities.length > 0 && (
-        <div className="mb-10">
-          <div className="mb-4 flex items-center gap-2">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+        <div className="mb-6 sm:mb-10">
+          <div className="mb-2 flex items-center gap-2 sm:mb-4">
+            <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900 sm:text-lg">
               My Communities
               <span className="inline-flex size-5 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
                 {myCommunities.length}
@@ -468,8 +468,8 @@ export default function CommunitiesContent({ onOpenChat }) {
           My Communities above, instead of a wrapping grid, so it behaves the
           same way on mobile. */}
       <div>
-        <h2 className="mb-1 text-lg font-semibold text-slate-900">Discover Communities</h2>
-        <p className="mb-4 text-sm text-slate-500">Find and join communities that match your interests.</p>
+        <h2 className="mb-1 text-base font-semibold text-slate-900 sm:text-lg">Discover Communities</h2>
+        <p className="mb-2 text-xs text-slate-500 sm:mb-4 sm:text-sm">Find and join communities that match your interests.</p>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
