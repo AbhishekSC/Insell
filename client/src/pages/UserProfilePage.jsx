@@ -672,7 +672,7 @@ export default function UserProfilePage() {
                                       <div className="relative">
                                         <button
                                           type="button"
-                                          className="btn btn-xs btn-circle border border-slate-200 bg-white/90 text-slate-600 opacity-0 transition group-hover:opacity-100"
+                                          className="btn btn-xs btn-circle border border-slate-200 bg-white/90 text-slate-600 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100"
                                           onClick={(event) => {
                                             event.stopPropagation();
                                             setMenuOpenPostId(menuOpenPostId === post._id ? null : post._id);
