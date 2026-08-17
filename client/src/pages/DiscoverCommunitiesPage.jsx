@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, Users } from "lucide-react";
 import toast from "react-hot-toast";
@@ -7,8 +8,30 @@ import DiscoverCommunityCard from "../components/DiscoverCommunityCard";
 import axiosInstance from "../lib/axios";
 
 export default function DiscoverCommunitiesPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
+
+  // This page only exists as a mobile workaround — the desktop Communities
+  // tab already has Discover Communities inline (the sm:hidden button that
+  // links here doesn't even render past that breakpoint). Reachable
+  // directly by URL, it'd otherwise become a second, inconsistent flow for
+  // the same thing on desktop, so bounce back to the tab it belongs to.
+  useEffect(() => {
+    const desktopQuery = window.matchMedia("(min-width: 640px)");
+    if (desktopQuery.matches) {
+      navigate("/marketplace?section=communities", { replace: true });
+      return;
+    }
+
+    const handleChange = (event) => {
+      if (event.matches) {
+        navigate("/marketplace?section=communities", { replace: true });
+      }
+    };
+    desktopQuery.addEventListener("change", handleChange);
+    return () => desktopQuery.removeEventListener("change", handleChange);
+  }, [navigate]);
 
   const { data: communitiesData, isLoading } = useQuery({
     queryKey: ["communities"],
