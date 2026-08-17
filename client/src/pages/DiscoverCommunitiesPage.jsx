@@ -55,7 +55,7 @@ export default function DiscoverCommunitiesPage() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-48 animate-pulse rounded-xl bg-slate-100" />
             ))}
@@ -68,7 +68,7 @@ export default function DiscoverCommunitiesPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {filteredSuggested.map((community) => (
               <DiscoverCommunityCard
                 key={community._id}
