@@ -35,6 +35,11 @@ export default function PostModerationNotice({ enabled }) {
       return res.data?.data;
     },
     enabled,
+    // Poll like the other notification badges in AppShell — there's no
+    // real-time push, so without this the modal only appears after a
+    // manual refresh or tab refocus.
+    refetchInterval: 15000,
+    refetchIntervalInBackground: true,
   });
 
   const notices = data?.notifications || [];
