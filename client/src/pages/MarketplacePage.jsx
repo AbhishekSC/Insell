@@ -1502,7 +1502,7 @@ export default function MarketplacePage() {
                         <div className="absolute right-3 bottom-3 flex items-center gap-2">
                           <button
                             type="button"
-                            className={`size-8 rounded-full backdrop-blur-sm flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100 ${
+                            className={`size-8 rounded-full backdrop-blur-sm flex items-center justify-center transition-all duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 ${
                               selectedForComparison.includes(post._id)
                                 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
                                 : 'bg-white/90 text-slate-600 hover:bg-white hover:text-indigo-600'
@@ -1533,7 +1533,7 @@ export default function MarketplacePage() {
                           </button>
                           <button
                             type="button"
-                            className="size-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-600 hover:bg-white transition-colors opacity-0 group-hover:opacity-100"
+                            className="size-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-600 hover:bg-white transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                             onClick={(event) => {
                               event.stopPropagation();
                               setPostToShare(post);
