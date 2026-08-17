@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  Flag,
   Loader2,
   MoreVertical,
   Search,
@@ -14,6 +15,7 @@ import {
   ShieldOff,
   User as UserIcon,
   Users,
+  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
@@ -31,6 +33,21 @@ const BLOCK_REASON_OPTIONS = [
   { code: "POLICY_VIOLATION", label: "Policy violation" },
   { code: "OTHER", label: "Other" },
 ];
+
+const REPORT_REASON_LABELS = {
+  SPAM: "Spam",
+  FALSE_INFORMATION: "False information",
+  INAPPROPRIATE_CONTENT: "Inappropriate content",
+  RESTRICTED_ITEM: "Restricted item",
+  HARASSMENT: "Harassment",
+  INTELLECTUAL_PROPERTY: "Intellectual property",
+  DUPLICATE_LISTING: "Duplicate / misleading listing",
+  OTHER: "Other",
+};
+
+function getReportReasonLabel(code) {
+  return REPORT_REASON_LABELS[code] || code || "Unknown";
+}
 
 function formatDate(dateString) {
   if (!dateString) return "—";
@@ -750,6 +767,376 @@ function PostsPanel() {
   );
 }
 
+function ReportDetailModal({ postId, onClose, onBlockPost, onUnblockPost, onDismiss, isDismissing }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["adminReportDetail", postId],
+    queryFn: async () => {
+      const response = await axiosInstance.get(`/admin/reports/${postId}`);
+      return response.data?.data;
+    },
+    enabled: Boolean(postId),
+  });
+
+  if (!postId) return null;
+
+  const post = data?.post;
+  const reports = data?.reports || [];
+  const pendingReports = reports.filter((report) => report.status === "PENDING");
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl bg-white shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-slate-200 p-4">
+          <h3 className="font-semibold text-slate-800">Reported post</h3>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-500 hover:bg-slate-100">
+            <X className="size-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4">
+          {isLoading ? (
+            <div className="py-10 text-center">
+              <Loader2 className="mx-auto size-6 animate-spin text-slate-400" />
+            </div>
+          ) : !post ? (
+            <p className="py-10 text-center text-sm text-slate-500">Post not found.</p>
+          ) : (
+            <>
+              <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <img
+                  src={post.mediaUrls?.[0] || "https://placehold.co/80x80?text=%20"}
+                  alt=""
+                  className="size-12 shrink-0 rounded-lg object-cover"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-slate-800">{post.title || "Untitled listing"}</p>
+                  <p className="text-xs text-slate-500">
+                    Posted by {post.author?.fullName || "Unknown"} · {formatMoney(post.price)}
+                  </p>
+                </div>
+                {post.isBlocked ? (
+                  <span className="shrink-0 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">Blocked</span>
+                ) : (
+                  <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">Active</span>
+                )}
+              </div>
+
+              <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {reports.length} report{reports.length === 1 ? "" : "s"}
+              </p>
+              <div className="space-y-2">
+                {reports.map((report) => (
+                  <div key={report._id} className="rounded-xl border border-slate-200 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <UserAvatar src={report.reporter?.profilePic} name={report.reporter?.fullName} sizeClass="size-6" userId={report.reporter?._id} />
+                        <span className="text-sm font-medium text-slate-800">{report.reporter?.fullName || "Unknown"}</span>
+                      </div>
+                      <span className="text-xs text-slate-400">{formatDate(report.createdAt)}</span>
+                    </div>
+                    <p className="mt-1.5 text-xs font-semibold text-red-600">{getReportReasonLabel(report.reasonCode)}</p>
+                    {report.description && <p className="mt-1 text-xs text-slate-600">{report.description}</p>}
+                    {report.status !== "PENDING" && (
+                      <span className="mt-1.5 inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+                        {report.status === "DISMISSED" ? "Dismissed" : "Action taken"}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {post && (
+          <div className="flex gap-3 border-t border-slate-200 p-4">
+            {pendingReports.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onDismiss(post._id)}
+                disabled={isDismissing}
+                className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              >
+                {isDismissing ? <Loader2 className="mx-auto size-4 animate-spin" /> : "Dismiss Reports"}
+              </button>
+            )}
+            {post.isBlocked ? (
+              <button
+                type="button"
+                onClick={() => onUnblockPost(post)}
+                className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500"
+              >
+                Unblock Post
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onBlockPost(post)}
+                className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-500"
+              >
+                Block Post
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ReportsPanel() {
+  const queryClient = useQueryClient();
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("pending");
+  const [page, setPage] = useState(1);
+  const [selectedPostId, setSelectedPostId] = useState(null);
+  const [blockTarget, setBlockTarget] = useState(null);
+  const [unblockTarget, setUnblockTarget] = useState(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [status]);
+
+  const { data, isLoading, isFetching, isError } = useQuery({
+    queryKey: ["adminReports", page, search, status],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/admin/reports", {
+        params: { page, limit: 20, search: search || undefined, status },
+      });
+      return response.data?.data;
+    },
+    placeholderData: keepPreviousData,
+  });
+
+  const reports = data?.reports || [];
+  const pagination = data?.pagination || { page: 1, totalPages: 1, total: 0 };
+
+  const invalidateReports = () => {
+    queryClient.invalidateQueries({ queryKey: ["adminReports"] });
+    queryClient.invalidateQueries({ queryKey: ["adminReportDetail"] });
+  };
+
+  const { mutate: dismissReports, isPending: isDismissing } = useMutation({
+    mutationFn: async (postId) => {
+      const response = await axiosInstance.post(`/admin/reports/${postId}/dismiss`);
+      return response.data?.data;
+    },
+    onSuccess: () => {
+      toast.success("Reports dismissed");
+      invalidateReports();
+      setSelectedPostId(null);
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to dismiss reports");
+    },
+  });
+
+  const { mutate: blockPostMutate, isPending: isBlocking } = useMutation({
+    mutationFn: async ({ postId, reasonCode, note }) => {
+      const response = await axiosInstance.post(`/admin/posts/${postId}/block`, { reasonCode, note });
+      return response.data?.data;
+    },
+    onSuccess: () => {
+      toast.success("Post blocked");
+      invalidateReports();
+      setBlockTarget(null);
+      setSelectedPostId(null);
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to block post");
+    },
+  });
+
+  const { mutate: unblockPostMutate, isPending: isUnblocking } = useMutation({
+    mutationFn: async (postId) => {
+      const response = await axiosInstance.post(`/admin/posts/${postId}/unblock`);
+      return response.data?.data;
+    },
+    onSuccess: () => {
+      toast.success("Post unblocked");
+      invalidateReports();
+      setUnblockTarget(null);
+      setSelectedPostId(null);
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to unblock post");
+    },
+  });
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div className="flex items-center gap-2">
+          <div className="grid size-9 place-items-center rounded-xl bg-indigo-100 text-indigo-600">
+            <Flag className="size-4" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-slate-800">Reported posts</h2>
+            <p className="text-xs text-slate-500">{pagination.total} total</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search post title..."
+              className="w-56 rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+            />
+          </div>
+
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+          >
+            <option value="pending">Pending</option>
+            <option value="reviewed">Reviewed</option>
+            <option value="all">All</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
+          <thead>
+            <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <th className="px-4 py-3 sm:px-5">Post</th>
+              <th className="px-4 py-3">Reports</th>
+              <th className="px-4 py-3">Top reason</th>
+              <th className="px-4 py-3">Latest report</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right sm:pr-5">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {isLoading ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-10 text-center text-slate-400">
+                  <Loader2 className="mx-auto size-6 animate-spin" />
+                </td>
+              </tr>
+            ) : isError ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-10 text-center text-sm text-red-500">
+                  Failed to load reports.
+                </td>
+              </tr>
+            ) : reports.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-10 text-center text-sm text-slate-500">
+                  No reports match these filters.
+                </td>
+              </tr>
+            ) : (
+              reports.map((entry) => (
+                <tr key={entry.postId} className="hover:bg-slate-50/70">
+                  <td className="px-4 py-3 sm:px-5">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={entry.post?.mediaUrls?.[0] || "https://placehold.co/80x80?text=%20"}
+                        alt=""
+                        className="size-9 shrink-0 rounded-lg object-cover"
+                      />
+                      <p className="max-w-[220px] truncate text-sm font-semibold text-slate-800">{entry.post?.title || "Untitled listing"}</p>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {entry.reportCount} {entry.pendingCount > 0 && <span className="text-xs text-red-500">({entry.pendingCount} pending)</span>}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">{getReportReasonLabel(entry.topReason)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatDate(entry.latestReportAt)}</td>
+                  <td className="px-4 py-3">
+                    {entry.post?.isBlocked ? (
+                      <span className="inline-flex items-center rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">Blocked</span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">Active</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right sm:pr-5">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPostId(entry.postId)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      <Eye className="size-3.5" />
+                      Review
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 sm:px-5">
+        <p className="text-xs text-slate-500">
+          Page {pagination.page} of {pagination.totalPages}
+          {isFetching ? " · updating..." : ""}
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+          >
+            <ChevronLeft className="size-3.5" /> Prev
+          </button>
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+            disabled={page >= pagination.totalPages}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+          >
+            Next <ChevronRight className="size-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {selectedPostId && (
+        <ReportDetailModal
+          postId={selectedPostId}
+          onClose={() => setSelectedPostId(null)}
+          onBlockPost={(post) => setBlockTarget(post)}
+          onUnblockPost={(post) => setUnblockTarget(post)}
+          onDismiss={(postId) => dismissReports(postId)}
+          isDismissing={isDismissing}
+        />
+      )}
+
+      <BlockPostModal
+        post={blockTarget}
+        isPending={isBlocking}
+        onCancel={() => setBlockTarget(null)}
+        onConfirm={({ reasonCode, note }) => blockPostMutate({ postId: blockTarget._id, reasonCode, note })}
+      />
+      <ConfirmUnblockPostModal
+        post={unblockTarget}
+        isPending={isUnblocking}
+        onCancel={() => setUnblockTarget(null)}
+        onConfirm={() => unblockPostMutate(unblockTarget._id)}
+      />
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("users");
 
@@ -774,9 +1161,18 @@ export default function AdminPage() {
         >
           Posts
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("reports")}
+          className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+            activeTab === "reports" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          Reports
+        </button>
       </div>
 
-      {activeTab === "users" ? <UsersPanel /> : <PostsPanel />}
+      {activeTab === "users" ? <UsersPanel /> : activeTab === "posts" ? <PostsPanel /> : <ReportsPanel />}
     </AppShell>
   );
 }

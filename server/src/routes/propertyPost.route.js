@@ -8,6 +8,7 @@ import {
   getPropertyFeed,
   getPropertyPostById,
   incrementViewCount,
+  reportPost,
   togglePropertyPostLike,
   togglePropertyPostSave,
   updatePropertyPost,
@@ -28,5 +29,6 @@ router.post("/upload-media", verifyUser, requireVerified, uploadPropertyMedia.ar
 router.post("/:id/like", verifyUser, requireVerified, togglePropertyPostLike);
 router.post("/:id/save", verifyUser, requireVerified, togglePropertyPostSave);
 router.post("/:id/view", verifyUser, requireVerified, incrementViewCount);
+router.post("/:id/report", verifyUser, requireVerified, reportPost);
 
 export default router;

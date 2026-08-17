@@ -18,9 +18,11 @@ import {
   Expand,
   ExternalLink,
   FileText,
+  Flag,
   Heart,
   Home,
   Layers,
+  Loader2,
   MapPin,
   MessageCircle,
   Phone,
@@ -32,9 +34,101 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import ShareModal from "../components/ShareModal";
 import axiosInstance from "../lib/axios";
 import AppShell from "../components/AppShell";
+
+const REPORT_REASON_OPTIONS = [
+  { code: "SPAM", label: "Spam" },
+  { code: "FALSE_INFORMATION", label: "False information" },
+  { code: "INAPPROPRIATE_CONTENT", label: "Inappropriate content" },
+  { code: "RESTRICTED_ITEM", label: "Restricted item" },
+  { code: "HARASSMENT", label: "Harassment" },
+  { code: "INTELLECTUAL_PROPERTY", label: "Intellectual property" },
+  { code: "DUPLICATE_LISTING", label: "Duplicate / misleading listing" },
+  { code: "OTHER", label: "Other" },
+];
+
+function ReportPostModal({ isOpen, isPending, onCancel, onConfirm }) {
+  const [reasonCode, setReasonCode] = useState("");
+  const [description, setDescription] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setReasonCode("");
+      setDescription("");
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mx-auto grid size-12 place-items-center rounded-full bg-red-50 text-red-600">
+          <Flag className="size-6" />
+        </div>
+        <h3 className="mt-4 text-center text-lg font-semibold text-slate-800">Why are you reporting this post?</h3>
+        <p className="mt-1.5 text-center text-sm text-slate-500">
+          Your report is anonymous to the post owner. Our team will review it.
+        </p>
+
+        <div className="mt-4">
+          <div className="space-y-1.5">
+            {REPORT_REASON_OPTIONS.map((option) => (
+              <label
+                key={option.code}
+                className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                  reasonCode === option.code ? "border-red-300 bg-red-50 text-red-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="reportReason"
+                  value={option.code}
+                  checked={reasonCode === option.code}
+                  onChange={() => setReasonCode(option.code)}
+                  className="radio radio-sm"
+                />
+                {option.label}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">Additional details (optional)</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Tell us more..."
+            rows={3}
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+          />
+        </div>
+
+        <div className="mt-6 flex gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => onConfirm({ reasonCode, description })}
+            disabled={isPending || !reasonCode}
+            className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-500 disabled:opacity-60"
+          >
+            {isPending ? <Loader2 className="mx-auto size-4 animate-spin" /> : "Submit Report"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function normalizeMediaUrls(raw) {
   if (Array.isArray(raw)) {
@@ -146,6 +240,7 @@ export default function PropertyDetailPage() {
   const [expandedAbout, setExpandedAbout] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const { data: authData } = useQuery({
     queryKey: ["authUser"],
@@ -201,6 +296,20 @@ export default function PropertyDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["propertyPost", id] });
       queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
+    },
+  });
+
+  const { mutate: submitReport, isPending: isReportPending } = useMutation({
+    mutationFn: async ({ reasonCode, description }) => {
+      const response = await axiosInstance.post(`/posts/${id}/report`, { reasonCode, description });
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Thanks for the report. Our team will review it.");
+      setShowReportModal(false);
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to submit report");
     },
   });
 
@@ -785,6 +894,15 @@ export default function PropertyDetailPage() {
                     <Share2 className="size-5" />
                     Share
                   </button>
+                  {!isOwner && (
+                    <button
+                      className="w-full py-3 px-4 bg-white text-red-600 border border-slate-200 font-semibold rounded-xl hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                      onClick={() => setShowReportModal(true)}
+                    >
+                      <Flag className="size-5" />
+                      Report
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -798,6 +916,13 @@ export default function PropertyDetailPage() {
         onClose={() => setShowShareModal(false)}
         postUrl={postData ? `${window.location.origin}/property/${postData._id}` : ""}
         postTitle={postData?.title || "Property"}
+      />
+
+      <ReportPostModal
+        isOpen={showReportModal}
+        isPending={isReportPending}
+        onCancel={() => setShowReportModal(false)}
+        onConfirm={(payload) => submitReport(payload)}
       />
     </AppShell>
   );

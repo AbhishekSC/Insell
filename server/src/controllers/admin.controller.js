@@ -1,5 +1,6 @@
 import User from "../models/User.model.js";
 import PropertyPost, { BLOCK_REASON_CODES } from "../models/PropertyPost.model.js";
+import PostReport from "../models/PostReport.model.js";
 import Notification from "../models/Notification.model.js";
 import { logger } from "../utils/logger.js";
 import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler.js";
@@ -180,6 +181,11 @@ export const blockPost = async (req, res) => {
     post.blockNote = String(note || "").trim().slice(0, 1000);
     await post.save();
 
+    await PostReport.updateMany(
+      { post: postId, status: "PENDING" },
+      { $set: { status: "ACTION_TAKEN", reviewedAt: new Date(), reviewedBy: adminId } }
+    );
+
     logger.info(`Post ${postId} blocked by admin ${adminId} (reason: ${reasonCode})`);
 
     try {
@@ -251,6 +257,146 @@ export const unblockPost = async (req, res) => {
     });
   } catch (error) {
     logger.error("Error unblocking post:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+};
+
+// List reported posts for the moderation dashboard, grouped by post — a post
+// with 5 reports shows as one row, not five. Reporting a post never blocks it
+// automatically; the admin reviews and decides (see dismissPostReports/blockPost).
+export const getAdminReports = async (req, res) => {
+  try {
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
+    const skip = (page - 1) * limit;
+    const search = String(req.query.search || "").trim();
+    const status = String(req.query.status || "pending"); // pending | reviewed | all
+
+    const matchStage = {};
+    if (status === "pending") {
+      matchStage.status = "PENDING";
+    } else if (status === "reviewed") {
+      matchStage.status = { $in: ["DISMISSED", "ACTION_TAKEN"] };
+    }
+
+    if (search) {
+      const searchRegex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      const matchingPosts = await PropertyPost.find({ title: searchRegex }).select("_id").lean();
+      matchStage.post = { $in: matchingPosts.map((p) => p._id) };
+    }
+
+    const [grouped, totalAgg] = await Promise.all([
+      PostReport.aggregate([
+        { $match: matchStage },
+        {
+          $group: {
+            _id: "$post",
+            reportCount: { $sum: 1 },
+            pendingCount: { $sum: { $cond: [{ $eq: ["$status", "PENDING"] }, 1, 0] } },
+            latestReportAt: { $max: "$createdAt" },
+            reasonCodes: { $push: "$reasonCode" },
+          },
+        },
+        { $sort: { latestReportAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+      ]),
+      PostReport.aggregate([{ $match: matchStage }, { $group: { _id: "$post" } }, { $count: "total" }]),
+    ]);
+
+    const postIds = grouped.map((g) => g._id);
+    const posts = await PropertyPost.find({ _id: { $in: postIds } })
+      .select("title price city mediaUrls author isBlocked isDeleted")
+      .populate("author", "fullName email")
+      .lean();
+    const postMap = new Map(posts.map((p) => [String(p._id), p]));
+
+    const reports = grouped
+      .map((g) => {
+        const counts = {};
+        g.reasonCodes.forEach((code) => {
+          counts[code] = (counts[code] || 0) + 1;
+        });
+        const topReason = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+
+        return {
+          postId: g._id,
+          post: postMap.get(String(g._id)) || null,
+          reportCount: g.reportCount,
+          pendingCount: g.pendingCount,
+          topReason,
+          latestReportAt: g.latestReportAt,
+        };
+      })
+      .filter((entry) => entry.post);
+
+    const total = totalAgg[0]?.total || 0;
+
+    return sendSuccessResponse(res, 200, "Reports fetched successfully", {
+      reports,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    });
+  } catch (error) {
+    logger.error("Error fetching admin reports:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+};
+
+// Detail view for a single reported post — the post plus every individual
+// report against it, so the admin has full context before acting.
+export const getAdminReportDetail = async (req, res) => {
+  try {
+    const { postId } = req.params;
+
+    const post = await PropertyPost.findById(postId)
+      .select(ADMIN_POST_FIELDS)
+      .populate("author", "fullName email profilePic")
+      .populate("blockedBy", "fullName")
+      .lean();
+
+    if (!post) {
+      return sendErrorResponse(res, 404, "Post not found");
+    }
+
+    const reports = await PostReport.find({ post: postId })
+      .populate("reporter", "fullName email profilePic")
+      .populate("reviewedBy", "fullName")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return sendSuccessResponse(res, 200, "Report detail fetched successfully", { post, reports });
+  } catch (error) {
+    logger.error("Error fetching report detail:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+};
+
+// Dismiss every pending report against a post — the admin reviewed and found
+// no violation, so the post stays exactly as it is.
+export const dismissPostReports = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const adminId = req.user._id;
+
+    const result = await PostReport.updateMany(
+      { post: postId, status: "PENDING" },
+      { $set: { status: "DISMISSED", reviewedAt: new Date(), reviewedBy: adminId } }
+    );
+
+    if (result.matchedCount === 0) {
+      return sendErrorResponse(res, 400, "No pending reports for this post");
+    }
+
+    logger.info(`Reports for post ${postId} dismissed by admin ${adminId}`);
+
+    return sendSuccessResponse(res, 200, "Reports dismissed successfully");
+  } catch (error) {
+    logger.error("Error dismissing reports:", error);
     return sendErrorResponse(res, 500, "Internal Server Error");
   }
 };

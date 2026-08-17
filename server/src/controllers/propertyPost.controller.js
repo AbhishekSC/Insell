@@ -1,4 +1,5 @@
 import PropertyPost from "../models/PropertyPost.model.js";
+import PostReport, { REPORT_REASON_CODES } from "../models/PostReport.model.js";
 import Notification from "../models/Notification.model.js";
 import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler.js";
 import { logger } from "../utils/logger.js";
@@ -1132,6 +1133,54 @@ export async function deletePropertyPost(req, res) {
     return sendSuccessResponse(res, 200, "Post deleted successfully");
   } catch (error) {
     logger.error("Error deleting property post:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
+// A user reports a post for review — this does NOT block the post; it just
+// creates a moderation case for an admin to review (see admin.controller.js).
+export async function reportPost(req, res) {
+  try {
+    const userId = req.user?._id;
+    const postId = req.params?.id;
+    const { reasonCode, description } = req.body || {};
+
+    if (!userId) {
+      return sendErrorResponse(res, 401, "Unauthorized");
+    }
+
+    if (!REPORT_REASON_CODES.includes(reasonCode)) {
+      return sendErrorResponse(res, 400, "A valid reason is required");
+    }
+
+    const post = await PropertyPost.findById(postId).select("author isDeleted");
+    if (!post || post.isDeleted) {
+      return sendErrorResponse(res, 404, "Post not found");
+    }
+
+    if (String(post.author) === String(userId)) {
+      return sendErrorResponse(res, 400, "You cannot report your own post");
+    }
+
+    try {
+      await PostReport.create({
+        post: postId,
+        reporter: userId,
+        reasonCode,
+        description: String(description || "").trim().slice(0, 1000),
+      });
+    } catch (error) {
+      if (error.code === 11000) {
+        return sendErrorResponse(res, 400, "You've already reported this post");
+      }
+      throw error;
+    }
+
+    logger.info(`Post ${postId} reported by user ${userId} (reason: ${reasonCode})`);
+
+    return sendSuccessResponse(res, 201, "Thanks for the report. Our team will review it.");
+  } catch (error) {
+    logger.error("Error reporting post:", error);
     return sendErrorResponse(res, 500, "Internal Server Error");
   }
 }
