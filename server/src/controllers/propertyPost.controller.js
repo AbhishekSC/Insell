@@ -1163,7 +1163,7 @@ export async function reportPost(req, res) {
       return sendErrorResponse(res, 400, "A valid reason is required");
     }
 
-    const post = await PropertyPost.findById(postId).select("author isDeleted");
+    const post = await PropertyPost.findById(postId).select("author isDeleted title");
     if (!post || post.isDeleted) {
       return sendErrorResponse(res, 404, "Post not found");
     }
@@ -1187,6 +1187,19 @@ export async function reportPost(req, res) {
     }
 
     logger.info(`Post ${postId} reported by user ${userId} (reason: ${reasonCode})`);
+
+    // Let the owner know, without naming the reporter — the report modal
+    // promises the reporter anonymity, so no `actor` is set here.
+    try {
+      await Notification.create({
+        recipient: post.author,
+        type: "post_reported",
+        message: `Your post "${post.title}" was reported and is under review by our team`,
+        propertyPost: post._id,
+      });
+    } catch (error) {
+      logger.error("Failed to notify owner of post report (non-fatal):", { message: error.message });
+    }
 
     return sendSuccessResponse(res, 201, "Thanks for the report. Our team will review it.");
   } catch (error) {
