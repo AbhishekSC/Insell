@@ -32,6 +32,7 @@ import {
   X,
 } from "lucide-react";
 import ShareModal from "../components/ShareModal";
+import { getCustomBadgeClasses } from "../lib/badgeColors";
 import UserListModal from "../components/UserListModal";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
@@ -646,7 +647,13 @@ export default function UserProfilePage() {
                                   )}
                                   
                                   <div className="absolute left-3 top-3 flex items-center gap-1.5">
-                                    <span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-semibold text-slate-700 shadow-sm">{badge}</span>
+                                    <span
+                                      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold shadow-sm ${
+                                        post.customBadge ? getCustomBadgeClasses(post.customBadge) : "bg-white/95 text-slate-700"
+                                      }`}
+                                    >
+                                      {badge}
+                                    </span>
                                     {post.isBlocked && (
                                       <span className="flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm">
                                         <ShieldAlert className="size-3" />
@@ -899,7 +906,13 @@ export default function UserProfilePage() {
                                         Blocked
                                       </span>
                                     )}
-                                    <span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-semibold text-slate-700 shadow-sm">{badge}</span>
+                                    <span
+                                      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold shadow-sm ${
+                                        post.customBadge ? getCustomBadgeClasses(post.customBadge) : "bg-white/95 text-slate-700"
+                                      }`}
+                                    >
+                                      {badge}
+                                    </span>
                                   </div>
                                   <div className="absolute right-3 bottom-3">
                                     <button
@@ -1345,7 +1358,13 @@ export default function UserProfilePage() {
 
                 <div className="flex items-center justify-between">
                   <p className="text-2xl font-black text-slate-800">{formatMoney(selectedPost.price)}</p>
-                  <span className="rounded-full bg-indigo-100 px-2 py-1 text-xs font-semibold text-indigo-700">{getListingBadge(selectedPost)}</span>
+                  <span
+                    className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                      selectedPost.customBadge ? getCustomBadgeClasses(selectedPost.customBadge) : "bg-indigo-100 text-indigo-700"
+                    }`}
+                  >
+                    {getListingBadge(selectedPost)}
+                  </span>
                 </div>
 
                 <div>

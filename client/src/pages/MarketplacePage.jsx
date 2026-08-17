@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import ShareModal from "../components/ShareModal";
 import ReportPostModal from "../components/ReportPostModal";
+import { getCustomBadgeClasses } from "../lib/badgeColors";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import PostAuthorLink from "../components/PostAuthorLink";
@@ -1476,7 +1477,13 @@ export default function MarketplacePage() {
                         </div>
 
                         <div className="absolute right-3 top-3 flex items-center gap-1">
-                          <span className="rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-slate-700">{badge}</span>
+                          <span
+                            className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
+                              post.customBadge ? getCustomBadgeClasses(post.customBadge) : "bg-white/90 text-slate-700"
+                            }`}
+                          >
+                            {badge}
+                          </span>
                           {!isOwnPost && (
                             <button
                               type="button"

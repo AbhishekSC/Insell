@@ -36,6 +36,7 @@ import {
 import toast from "react-hot-toast";
 import ShareModal from "../components/ShareModal";
 import ReportPostModal from "../components/ReportPostModal";
+import { getCustomBadgeClasses } from "../lib/badgeColors";
 import axiosInstance from "../lib/axios";
 import AppShell from "../components/AppShell";
 
@@ -357,7 +358,11 @@ export default function PropertyDetailPage() {
                   {carouselIndex + 1}/{media.length}
                 </span>
               )}
-              <span className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white">
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  postData.customBadge ? getCustomBadgeClasses(postData.customBadge) : "bg-indigo-600 text-white"
+                }`}
+              >
                 {getListingBadge(postData)}
               </span>
             </div>
