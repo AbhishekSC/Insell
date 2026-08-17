@@ -1234,9 +1234,11 @@ export default function MarketplacePage() {
 
           <main
             className={`min-w-0 flex-1 rounded-2xl bg-transparent p-1 pb-6 xl:h-[calc(100dvh-7.1rem)] xl:overflow-y-auto ${
-              activeSection === "chat" || activeSection === "communities"
+              activeSection === "chat"
                 ? "h-[calc(100dvh-9rem)] overflow-hidden"
-                : ""
+                : activeSection === "communities"
+                  ? "xl:h-[calc(100dvh-9rem)] xl:overflow-hidden"
+                  : ""
             }`}
           >
             {activeSection === "marketplace" ? (
