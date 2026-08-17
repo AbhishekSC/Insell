@@ -436,8 +436,12 @@ export default function CommunityChat({ community, onBack }) {
                   key={member._id}
                   className="flex items-center gap-3 rounded-lg p-2 hover:bg-slate-50"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 font-semibold">
-                    {member.fullName?.charAt(0) || "U"}
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-indigo-600 font-semibold">
+                    {member.profilePic ? (
+                      <img src={member.profilePic} alt={member.fullName} className="h-full w-full object-cover" />
+                    ) : (
+                      member.fullName?.charAt(0) || "U"
+                    )}
                   </div>
                   <div className="flex-1">
                     <p className="font-medium text-slate-900 text-sm">
@@ -555,8 +559,12 @@ export default function CommunityChat({ community, onBack }) {
                         selected ? "bg-indigo-50 ring-1 ring-indigo-300" : "hover:bg-slate-50"
                       }`}
                     >
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 text-sm font-semibold">
-                        {friend.fullName?.charAt(0) || "U"}
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-indigo-600 text-sm font-semibold">
+                        {friend.profilePic ? (
+                          <img src={friend.profilePic} alt={friend.fullName} className="h-full w-full object-cover" />
+                        ) : (
+                          friend.fullName?.charAt(0) || "U"
+                        )}
                       </div>
                       <span className="flex-1 text-sm font-medium text-slate-900">{friend.fullName}</span>
                       {selected && <Check size={16} className="text-indigo-600" />}
