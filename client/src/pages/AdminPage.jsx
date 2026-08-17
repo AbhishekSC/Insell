@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -443,9 +444,43 @@ function PostsPanel() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [page, setPage] = useState(1);
-  const [openMenuId, setOpenMenuId] = useState(null);
+  const [menuAnchor, setMenuAnchor] = useState(null); // { post, top, left, openUpward }
   const [blockTarget, setBlockTarget] = useState(null);
   const [unblockTarget, setUnblockTarget] = useState(null);
+
+  // The menu is portaled to <body> (see render below) specifically so it
+  // isn't clipped by the table's own overflow-x-auto wrapper — that wrapper
+  // implicitly clips the Y axis too, which was cutting the dropdown off for
+  // any row near the bottom of the visible table. Since it's `position:
+  // fixed` at a viewport coordinate captured on open, it won't track the
+  // table/page scrolling on its own — closing on scroll/resize is simpler
+  // and less surprising than trying to keep it glued to a button that moved.
+  useEffect(() => {
+    if (!menuAnchor) return;
+    const close = () => setMenuAnchor(null);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [menuAnchor]);
+
+  const toggleMenu = (post, event) => {
+    if (menuAnchor?.post._id === post._id) {
+      setMenuAnchor(null);
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const menuWidth = 176; // w-44
+    const estimatedMenuHeight = 190;
+    const openUpward = rect.bottom + estimatedMenuHeight > window.innerHeight;
+    setMenuAnchor({
+      post,
+      left: Math.max(8, rect.right - menuWidth),
+      top: openUpward ? Math.max(8, rect.top - estimatedMenuHeight - 4) : rect.bottom + 4,
+    });
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -602,66 +637,13 @@ function PostsPanel() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-right sm:pr-5">
-                    <div className="relative inline-block text-left">
-                      <button
-                        type="button"
-                        onClick={() => setOpenMenuId(openMenuId === post._id ? null : post._id)}
-                        className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
-                      >
-                        <MoreVertical className="size-4" />
-                      </button>
-                      {openMenuId === post._id && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
-                          <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-                            <Link
-                              to={`/property/${post._id}`}
-                              onClick={() => setOpenMenuId(null)}
-                              className="flex items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                            >
-                              <Eye className="size-4 text-slate-500" />
-                              View Post
-                            </Link>
-                            {post.author?._id && (
-                              <Link
-                                to={`/users/${post.author._id}`}
-                                onClick={() => setOpenMenuId(null)}
-                                className="flex items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                              >
-                                <UserIcon className="size-4 text-slate-500" />
-                                View User
-                              </Link>
-                            )}
-                            <div className="my-1 border-t border-slate-100" />
-                            {post.isBlocked ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenMenuId(null);
-                                  setUnblockTarget(post);
-                                }}
-                                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50"
-                              >
-                                <ShieldCheck className="size-4" />
-                                Unblock Post
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenMenuId(null);
-                                  setBlockTarget(post);
-                                }}
-                                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-                              >
-                                <ShieldOff className="size-4" />
-                                Block Post
-                              </button>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={(event) => toggleMenu(post, event)}
+                      className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+                    >
+                      <MoreVertical className="size-4" />
+                    </button>
                   </td>
                 </tr>
               ))
@@ -694,6 +676,63 @@ function PostsPanel() {
           </button>
         </div>
       </div>
+
+      {menuAnchor &&
+        createPortal(
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setMenuAnchor(null)} />
+            <div
+              className="fixed z-50 w-44 rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+              style={{ top: menuAnchor.top, left: menuAnchor.left }}
+            >
+              <Link
+                to={`/property/${menuAnchor.post._id}`}
+                onClick={() => setMenuAnchor(null)}
+                className="flex items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+              >
+                <Eye className="size-4 text-slate-500" />
+                View Post
+              </Link>
+              {menuAnchor.post.author?._id && (
+                <Link
+                  to={`/users/${menuAnchor.post.author._id}`}
+                  onClick={() => setMenuAnchor(null)}
+                  className="flex items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <UserIcon className="size-4 text-slate-500" />
+                  View User
+                </Link>
+              )}
+              <div className="my-1 border-t border-slate-100" />
+              {menuAnchor.post.isBlocked ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUnblockTarget(menuAnchor.post);
+                    setMenuAnchor(null);
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50"
+                >
+                  <ShieldCheck className="size-4" />
+                  Unblock Post
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBlockTarget(menuAnchor.post);
+                    setMenuAnchor(null);
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                >
+                  <ShieldOff className="size-4" />
+                  Block Post
+                </button>
+              )}
+            </div>
+          </>,
+          document.body
+        )}
 
       <BlockPostModal
         post={blockTarget}
