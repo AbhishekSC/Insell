@@ -94,6 +94,10 @@ export async function getCommunityData(req, res) {
     ]);
 
     const joinedCircleIdSet = new Set(studyCircles.map((circle) => String(circle._id)));
+    // Cast a wider net than we actually show (30 vs. the final 10) so the
+    // relevance ranking below has real candidates to sort through, instead
+    // of just re-sorting whatever the 10 most-recently-created circles
+    // happen to be.
     const suggestedCirclesRaw = await StudyCircle.find({
       _id: { $nin: [...joinedCircleIdSet] },
       creator: { $ne: currentUserId },
@@ -104,13 +108,28 @@ export async function getCommunityData(req, res) {
       .populate("creator", "fullName profilePic")
       .populate("members", "_id")
       .sort({ createdAt: -1 })
-      .limit(10)
+      .limit(30)
       .lean();
 
-    const suggestedCircles = suggestedCirclesRaw.map((circle) => ({
-      ...circle,
-      memberCount: Array.isArray(circle.members) ? circle.members.length : 0,
-    }));
+    const friendIdSet = new Set(friendIds);
+    const suggestedCircles = suggestedCirclesRaw
+      .map((circle) => {
+        const memberIds = Array.isArray(circle.members) ? circle.members.map((member) => String(member._id || member)) : [];
+        return {
+          ...circle,
+          memberCount: memberIds.length,
+          // "People you know" — how many of your friends are already in
+          // this community. The strongest signal we have for relevance
+          // without any explicit interest/category preferences on the
+          // user's profile to lean on.
+          mutualFriendCount: memberIds.filter((memberId) => friendIdSet.has(memberId)).length,
+        };
+      })
+      .sort((a, b) => {
+        if (b.mutualFriendCount !== a.mutualFriendCount) return b.mutualFriendCount - a.mutualFriendCount;
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      })
+      .slice(0, 10);
 
     const checkInIds = checkIns.map((item) => item._id);
     const recapIds = recaps.map((item) => item._id);

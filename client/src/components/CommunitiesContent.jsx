@@ -14,7 +14,6 @@ import {
   MoreVertical,
   Calendar,
   Camera,
-  ChevronRight,
   Building2,
   HardHat,
   Sofa,
@@ -51,7 +50,6 @@ export default function CommunitiesContent({ onOpenChat }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newCommunity, setNewCommunity] = useState({ name: "", topic: "", category: "General" });
   const [leaveTarget, setLeaveTarget] = useState(null);
-  const [showAllDiscover, setShowAllDiscover] = useState(false);
 
   // Fetch communities data
   const { data: communitiesData, isLoading } = useQuery({
@@ -259,8 +257,6 @@ export default function CommunitiesContent({ onOpenChat }) {
     c.members?.some(m => String(m._id || m) === String(authUser?._id))
   );
 
-  const visibleDiscoverCommunities = showAllDiscover ? filteredSuggested : filteredSuggested.slice(0, 8);
-
   return (
     <div className="h-full">
       {/* Header */}
@@ -454,7 +450,7 @@ export default function CommunitiesContent({ onOpenChat }) {
               </span>
             </h2>
           </div>
-          <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 sm:gap-4">
+          <div className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 sm:gap-4">
             {myCommunities.map((community) => (
               <div key={community._id} className="w-[180px] shrink-0 snap-start sm:w-[240px] lg:w-[300px]">
                 <MyCommunityCard
@@ -468,21 +464,11 @@ export default function CommunitiesContent({ onOpenChat }) {
         </div>
       )}
 
-      {/* Discover Communities */}
+      {/* Discover Communities — same horizontally-scrollable row pattern as
+          My Communities above, instead of a wrapping grid, so it behaves the
+          same way on mobile. */}
       <div>
-        <div className="mb-1 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">Discover Communities</h2>
-          {filteredSuggested.length > 8 ? (
-            <button
-              type="button"
-              onClick={() => setShowAllDiscover((prev) => !prev)}
-              className="flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-700"
-            >
-              {showAllDiscover ? "Show less" : "View all"}
-              <ChevronRight size={16} className={showAllDiscover ? "rotate-90 transition-transform" : "transition-transform"} />
-            </button>
-          ) : null}
-        </div>
+        <h2 className="mb-1 text-lg font-semibold text-slate-900">Discover Communities</h2>
         <p className="mb-4 text-sm text-slate-500">Find and join communities that match your interests.</p>
 
         {isLoading ? (
@@ -501,13 +487,11 @@ export default function CommunitiesContent({ onOpenChat }) {
             </button>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {visibleDiscoverCommunities.map((community) => (
-              <DiscoverCommunityCard
-                key={community._id}
-                community={community}
-                onJoin={handleJoinCommunity}
-              />
+          <div className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 sm:gap-4">
+            {filteredSuggested.map((community) => (
+              <div key={community._id} className="w-[180px] shrink-0 snap-start sm:w-[240px] lg:w-[300px]">
+                <DiscoverCommunityCard community={community} onJoin={handleJoinCommunity} />
+              </div>
             ))}
           </div>
         )}
@@ -814,9 +798,17 @@ function DiscoverCommunityCard({ community, onJoin }) {
       <p className="mt-0.5 line-clamp-2 text-sm text-slate-500">{community.topic}</p>
 
       <p className="mt-3 text-xs text-slate-500">{memberCount} members</p>
-      <span className={`mt-2 inline-block w-fit rounded-full px-2.5 py-1 text-[11px] font-semibold ${style.pill}`}>
-        {community.category || "General"}
-      </span>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <span className={`inline-block w-fit rounded-full px-2.5 py-1 text-[11px] font-semibold ${style.pill}`}>
+          {community.category || "General"}
+        </span>
+        {community.mutualFriendCount > 0 ? (
+          <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+            <Users size={11} />
+            {community.mutualFriendCount} {community.mutualFriendCount === 1 ? "friend" : "friends"} here
+          </span>
+        ) : null}
+      </div>
 
       <button
         onClick={() => onJoin(community._id)}
