@@ -32,6 +32,7 @@ import { useStreamContext } from "../context/StreamProvider";
 import { useTheme } from "../context/ThemeProvider";
 import UserAvatar from "./UserAvatar";
 import SearchFiltersModal from "./SearchFiltersModal";
+import PostModerationNotice from "./PostModerationNotice";
 
 function notifyBrowser(title, body) {
   if (typeof window === "undefined" || !("Notification" in window)) return;
@@ -1035,6 +1036,8 @@ export default function AppShell({
           </div>
         </div>
       )}
+
+      <PostModerationNotice enabled={Boolean(authUser?._id)} />
     </div>
   );
 }
