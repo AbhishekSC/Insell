@@ -425,6 +425,16 @@ export async function getPropertyFeed(req, res) {
     if (!isViewingOwnPosts) {
       filter.isBlocked = { $ne: true };
     }
+
+    // Reporting a post hides it from that reporter's own feed immediately —
+    // it's not blocked for everyone until an admin reviews it and blocks it.
+    if (currentUserId) {
+      const myReports = await PostReport.find({ reporter: currentUserId }).select("post").lean();
+      if (myReports.length > 0) {
+        filter._id = { $nin: myReports.map((report) => report.post) };
+      }
+    }
+
     if (authorId) {
       filter.author = authorId;
     }

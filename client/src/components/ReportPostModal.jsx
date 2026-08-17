@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Flag, Loader2 } from "lucide-react";
+import { CheckCircle2, Flag, Loader2 } from "lucide-react";
 
 const REPORT_REASON_OPTIONS = [
   { code: "SPAM", label: "Spam" },
@@ -12,22 +12,51 @@ const REPORT_REASON_OPTIONS = [
   { code: "OTHER", label: "Other" },
 ];
 
-export default function ReportPostModal({ isOpen, isPending, onCancel, onConfirm }) {
+// Bottom sheet on mobile (matches native app conventions and avoids the
+// modal running off-screen on short viewports), centered card on desktop.
+const OVERLAY_CLASSES = "fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4";
+const CARD_CLASSES =
+  "max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-6 shadow-xl sm:max-w-md sm:rounded-2xl";
+
+export default function ReportPostModal({ isOpen, isPending, isSubmitted, onCancel, onConfirm, onDone }) {
   const [reasonCode, setReasonCode] = useState("");
   const [description, setDescription] = useState("");
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isSubmitted) {
       setReasonCode("");
       setDescription("");
     }
-  }, [isOpen]);
+  }, [isOpen, isSubmitted]);
 
   if (!isOpen) return null;
 
+  if (isSubmitted) {
+    return (
+      <div className={OVERLAY_CLASSES} onClick={onDone}>
+        <div className={`${CARD_CLASSES} text-center`} onClick={(e) => e.stopPropagation()}>
+          <div className="mx-auto grid size-12 place-items-center rounded-full bg-emerald-50 text-emerald-600">
+            <CheckCircle2 className="size-6" />
+          </div>
+          <h3 className="mt-4 text-lg font-semibold text-slate-800">Thanks for reporting this post</h3>
+          <p className="mt-1.5 text-sm text-slate-500">
+            Your feedback helps us keep Insell safe. We've hidden this post from your feed while our team reviews it.
+          </p>
+          <button
+            type="button"
+            onClick={onDone}
+            className="mt-6 w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div className={OVERLAY_CLASSES} onClick={onCancel}>
+      <div className={CARD_CLASSES} onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto grid size-12 place-items-center rounded-full bg-red-50 text-red-600">
           <Flag className="size-6" />
         </div>

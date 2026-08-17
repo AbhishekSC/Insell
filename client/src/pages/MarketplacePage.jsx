@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -384,8 +385,22 @@ export default function MarketplacePage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [postToShare, setPostToShare] = useState(null);
   const [selectedForComparison, setSelectedForComparison] = useState([]);
-  const [openPostMenuId, setOpenPostMenuId] = useState(null);
+  const [postMenuAnchor, setPostMenuAnchor] = useState(null); // { post, top, left }
   const [reportTargetPost, setReportTargetPost] = useState(null);
+  const [reportSubmitted, setReportSubmitted] = useState(false);
+
+  // Portaled to <body> so the menu escapes the card's own overflow-hidden
+  // (needed for the image's rounded corners) — otherwise it gets clipped.
+  useEffect(() => {
+    if (!postMenuAnchor) return;
+    const close = () => setPostMenuAnchor(null);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [postMenuAnchor]);
 
   // Fetch friends data
   const { data: friendsData } = useQuery({
@@ -1041,9 +1056,19 @@ export default function MarketplacePage() {
       const response = await axiosInstance.post(`/posts/${postId}/report`, { reasonCode, description });
       return response.data;
     },
-    onSuccess: () => {
-      toast.success("Thanks for the report. Our team will review it.");
-      setReportTargetPost(null);
+    onSuccess: (_data, variables) => {
+      setReportSubmitted(true);
+      // Hide it from this user's feed immediately rather than waiting on a refetch.
+      queryClient.setQueriesData({ queryKey: ["propertyFeed"] }, (old) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            posts: (page.posts || []).filter((post) => post._id !== variables.postId),
+          })),
+        };
+      });
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || "Failed to submit report");
@@ -1452,45 +1477,25 @@ export default function MarketplacePage() {
                         <div className="absolute right-3 top-3 flex items-center gap-1">
                           <span className="rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-slate-700">{badge}</span>
                           {!isOwnPost && (
-                            <div className="relative">
-                              <button
-                                type="button"
-                                className="grid size-6 place-items-center rounded-full bg-white/90 text-slate-700 hover:bg-white"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  setOpenPostMenuId((current) => (current === post._id ? null : post._id));
-                                }}
-                              >
-                                <MoreVertical className="size-3.5" />
-                              </button>
-                              {openPostMenuId === post._id && (
-                                <>
-                                  <div
-                                    className="fixed inset-0 z-40"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      setOpenPostMenuId(null);
-                                    }}
-                                  />
-                                  <div
-                                    className="absolute right-0 top-8 z-50 w-36 rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
-                                    onClick={(event) => event.stopPropagation()}
-                                  >
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setReportTargetPost(post);
-                                        setOpenPostMenuId(null);
-                                      }}
-                                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-                                    >
-                                      <Flag className="size-3.5" />
-                                      Report
-                                    </button>
-                                  </div>
-                                </>
-                              )}
-                            </div>
+                            <button
+                              type="button"
+                              className="grid size-6 place-items-center rounded-full bg-white/90 text-slate-700 hover:bg-white"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                if (postMenuAnchor?.post._id === post._id) {
+                                  setPostMenuAnchor(null);
+                                  return;
+                                }
+                                const rect = event.currentTarget.getBoundingClientRect();
+                                setPostMenuAnchor({
+                                  post,
+                                  top: rect.bottom + 4,
+                                  left: Math.max(8, rect.right - 144),
+                                });
+                              }}
+                            >
+                              <MoreVertical className="size-3.5" />
+                            </button>
                           )}
                         </div>
 
@@ -2663,11 +2668,40 @@ export default function MarketplacePage() {
       <ReportPostModal
         isOpen={Boolean(reportTargetPost)}
         isPending={isReportPending}
+        isSubmitted={reportSubmitted}
         onCancel={() => setReportTargetPost(null)}
         onConfirm={({ reasonCode, description }) =>
           submitPostReport({ postId: reportTargetPost._id, reasonCode, description })
         }
+        onDone={() => {
+          setReportTargetPost(null);
+          setReportSubmitted(false);
+        }}
       />
+
+      {postMenuAnchor &&
+        createPortal(
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setPostMenuAnchor(null)} />
+            <div
+              className="fixed z-50 w-36 rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+              style={{ top: postMenuAnchor.top, left: postMenuAnchor.left }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setReportTargetPost(postMenuAnchor.post);
+                  setPostMenuAnchor(null);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+              >
+                <Flag className="size-3.5" />
+                Report
+              </button>
+            </div>
+          </>,
+          document.body
+        )}
     </AppShell>
   );
 }

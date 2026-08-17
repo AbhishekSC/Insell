@@ -150,6 +150,7 @@ export default function PropertyDetailPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [reportSubmitted, setReportSubmitted] = useState(false);
 
   const { data: authData } = useQuery({
     queryKey: ["authUser"],
@@ -214,8 +215,7 @@ export default function PropertyDetailPage() {
       return response.data;
     },
     onSuccess: () => {
-      toast.success("Thanks for the report. Our team will review it.");
-      setShowReportModal(false);
+      setReportSubmitted(true);
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || "Failed to submit report");
@@ -830,8 +830,13 @@ export default function PropertyDetailPage() {
       <ReportPostModal
         isOpen={showReportModal}
         isPending={isReportPending}
+        isSubmitted={reportSubmitted}
         onCancel={() => setShowReportModal(false)}
         onConfirm={(payload) => submitReport(payload)}
+        onDone={() => {
+          setShowReportModal(false);
+          setReportSubmitted(false);
+        }}
       />
     </AppShell>
   );
