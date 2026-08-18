@@ -8,9 +8,6 @@ on:
       - '.github/workflows/client-ci.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'client/**'
-      - '.github/workflows/client-ci.yml'
 
 jobs:
   lint-and-build:
