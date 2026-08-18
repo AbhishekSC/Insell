@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router";
 import { Mail, CheckCircle, Clock, RefreshCw, X } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
+import { setAuthToken } from "../lib/authToken";
 
 const PENDING_SIGNUP_EMAIL_KEY = "pendingSignupEmail";
 
@@ -112,6 +113,7 @@ export default function EmailVerification({ onClose, dismissible = true }) {
       } else {
         toast.success("Account created! Welcome to Insell.");
         sessionStorage.removeItem(PENDING_SIGNUP_EMAIL_KEY);
+        setAuthToken(data?.data?.token);
         // verify-signup just created the account and logged it in — seed
         // the auth cache directly instead of waiting on a refetch.
         queryClient.setQueryData(["authUser"], {

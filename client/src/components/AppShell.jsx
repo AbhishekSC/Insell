@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
+import { clearAuthToken } from "../lib/authToken";
 import { useStreamContext } from "../context/StreamProvider";
 import { useTheme } from "../context/ThemeProvider";
 import UserAvatar from "./UserAvatar";
@@ -540,6 +541,7 @@ export default function AppShell({
       return response.data;
     },
     onSuccess: () => {
+      clearAuthToken();
       toast.success("Logged out successfully");
       // setQueryData already clears the cache; invalidating on top of that would
       // just trigger a pointless extra /auth/verify call that returns 401.

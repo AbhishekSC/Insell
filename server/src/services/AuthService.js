@@ -90,7 +90,7 @@ export default class AuthService extends BaseService {
 
     await PendingSignup.deleteOne({ _id: pendingSignup._id });
 
-    tokenIssuer(newUser, res);
+    const accessToken = tokenIssuer(newUser, res);
 
     try {
       await streamUpdater({
@@ -114,7 +114,10 @@ export default class AuthService extends BaseService {
       logger.error("Failed to send welcome email:", error);
     }
 
-    return sanitizeUserData(newUser);
+    // Cookie auth is unreliable cross-site (Safari blocks third-party
+    // cookies by default) — also hand the token back in the body so the
+    // client can send it as an Authorization header instead.
+    return { ...sanitizeUserData(newUser), token: accessToken };
   }
 
   // Resends a fresh OTP for a still-pending (not yet verified) signup.
@@ -160,7 +163,7 @@ export default class AuthService extends BaseService {
       });
     }
 
-    tokenIssuer(user, res);
+    const accessToken = tokenIssuer(user, res);
 
     try {
       queuePublisher({ event: "user_logged_in", email: user.email, name: user.fullName });
@@ -168,7 +171,7 @@ export default class AuthService extends BaseService {
       // Queue failures should not block auth flow.
     }
 
-    return sanitizeUserData(user);
+    return { ...sanitizeUserData(user), token: accessToken };
   }
 
   async logout({ token, res }) {

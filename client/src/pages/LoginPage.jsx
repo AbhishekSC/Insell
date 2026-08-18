@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
 import AccountBlockedModal from "../components/AccountBlockedModal";
+import { setAuthToken } from "../lib/authToken";
 
 export default function LoginPage() {
   const queryClient = useQueryClient();
@@ -22,10 +23,14 @@ export default function LoginPage() {
     const error = searchParams.get('error');
 
     if (success === 'true') {
-      // Google auth was successful, invalidate auth query to pick up cookie
+      // Google auth was successful — also grab the token that rode along in
+      // the redirect URL (see googleAuthCallback), since Safari blocks the
+      // cross-site cookie the backend also tried to set.
+      const token = searchParams.get('token');
+      if (token) setAuthToken(token);
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
       toast.success('Successfully logged in with Google');
-      // Remove success from URL
+      // Remove success/token from URL
       navigate('/login');
     } else if (error) {
       toast.error(error === 'google_auth_failed' ? 'Google authentication failed' : 'Authentication failed');
@@ -44,6 +49,7 @@ export default function LoginPage() {
       return response.data;
     },
     onSuccess: (response) => {
+      setAuthToken(response?.data?.token);
       toast.success("Welcome back to InSell");
       queryClient.setQueryData(["authUser"], {
         status: "success",

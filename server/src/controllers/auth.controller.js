@@ -180,10 +180,12 @@ export async function googleAuthCallback(req, res, next) {
       logger.info(`Cookie set for Google user: ${user.email}`);
 
       logger.info(`Google authentication successful for user: ${user.email}`);
-      
-      // Redirect to frontend with success
+
+      // Redirect to frontend with success — the token rides along in the
+      // URL too (not just the cookie) since Safari blocks third-party
+      // cookies from the backend's onrender.com domain by default.
       const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-      res.redirect(`${clientUrl}/login?success=true`);
+      res.redirect(`${clientUrl}/login?success=true&token=${encodeURIComponent(token)}`);
     } catch (error) {
       logger.error('Error generating token after Google auth:', error);
       const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';

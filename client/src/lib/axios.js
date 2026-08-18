@@ -1,5 +1,6 @@
 import axios from "axios";
 import { toast } from "react-hot-toast";
+import { getAuthToken } from "./authToken";
 
 // In dev, VITE_API_URL is unset so this resolves to the relative "/api",
 // which vite.config.js proxies to localhost:5001. In production, set
@@ -9,9 +10,16 @@ const axiosInstance = axios.create({
   withCredentials: true,
 });
 
-// Request interceptor
+// Request interceptor — also send the token as a header, not just the
+// cookie. Safari blocks third-party cookies from the backend's own domain
+// by default, which otherwise silently breaks auth for every Safari/iOS
+// user (frontend and backend are on different domains here).
 axiosInstance.interceptors.request.use(
   (config) => {
+    const token = getAuthToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {
