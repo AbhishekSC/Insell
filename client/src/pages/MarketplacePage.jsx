@@ -68,7 +68,6 @@ const DEFAULT_MAP_CENTER = [20.5937, 78.9629]; // geographic center of India, us
 
 const LEFT_NAV_ITEMS = [
   { label: "Marketplace", icon: Home, section: "marketplace" },
-  { label: "Activity", icon: Bell, section: "activity" },
   { label: "Map View", icon: Map, section: "map" },
   { label: "Communities", icon: Users, section: "communities" },
   { label: "Messages", icon: MessageCircle, section: "chat" },
