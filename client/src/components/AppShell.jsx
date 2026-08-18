@@ -14,13 +14,11 @@ import {
   Menu,
   MessageCircle,
   MessageSquare,
-  Moon,
   Newspaper,
   Phone,
   Plus,
   Search,
   ShieldCheck,
-  Sun,
   TrendingUp,
   UserCircle,
   Users,
@@ -30,7 +28,6 @@ import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import { clearAuthToken } from "../lib/authToken";
 import { useStreamContext } from "../context/StreamProvider";
-import { useTheme } from "../context/ThemeProvider";
 import UserAvatar from "./UserAvatar";
 import SearchFiltersModal from "./SearchFiltersModal";
 import PostModerationNotice from "./PostModerationNotice";
@@ -249,7 +246,7 @@ function GlobalSearch({
   );
 }
 
-function HeaderActions({ onCreateProperty, toggleTheme, theme }) {
+function HeaderActions({ onCreateProperty, unreadActivityCount }) {
   return (
     <div className="hidden shrink-0 items-center gap-3 lg:flex">
       <button
@@ -260,15 +257,19 @@ function HeaderActions({ onCreateProperty, toggleTheme, theme }) {
         <Plus className="size-4" />
         Create Post
       </button>
-      <button
-        type="button"
-        className="btn btn-ghost btn-sm btn-circle border border-slate-200 text-slate-600 hover:bg-slate-100"
-        onClick={toggleTheme}
-        aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-        title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+      <Link
+        to="/activity"
+        className="btn btn-ghost btn-sm btn-circle relative border border-slate-200 text-slate-600 hover:bg-slate-100"
+        aria-label="Activity"
+        title="Activity"
       >
-        {theme === "light" ? <Moon className="size-4" /> : <Sun className="size-4" />}
-      </button>
+        <Bell className="size-4" />
+        {unreadActivityCount > 0 && (
+          <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+            {unreadActivityCount > 9 ? "9+" : unreadActivityCount}
+          </span>
+        )}
+      </Link>
     </div>
   );
 }
@@ -363,7 +364,6 @@ export default function AppShell({
   const queryClient = useQueryClient();
   const previousRequestCountRef = useRef(0);
   const { unreadCount, streamClient, currentUserId } = useStreamContext();
-  const { theme, toggleTheme } = useTheme();
 
   const [marketSearch, setMarketSearch] = useState(marketplaceSearch);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -592,7 +592,7 @@ export default function AppShell({
                   onOpenFilters={() => setIsFiltersModalOpen(true)}
                   hasActiveFilters={!!activeFilters}
                 />
-                <HeaderActions onCreateProperty={onCreateProperty} toggleTheme={toggleTheme} theme={theme} />
+                <HeaderActions onCreateProperty={onCreateProperty} unreadActivityCount={activityNotifications} />
                 <UserMenu userInitials={userInitials} authUser={authUser} userRoleLabel={userRoleLabel} isPending={isPending} logout={logout} />
               </div>
 
@@ -699,16 +699,6 @@ export default function AppShell({
               </nav>
 
               <div className="ml-auto flex shrink-0 items-center gap-2.5">
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm btn-circle border border-base-300/70"
-                  onClick={toggleTheme}
-                  aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-                  title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-                >
-                  {theme === "light" ? <Moon className="size-4" /> : <Sun className="size-4" />}
-                </button>
-
                 <div className="relative">
                   <button
                     type="button"

@@ -564,9 +564,6 @@ export default function MarketplacePage() {
     }
   };
 
-  const [isNavCollapsed, setIsNavCollapsed] = useState(false);
-  const [isNavHovered, setIsNavHovered] = useState(false);
-  const navExpanded = !isNavCollapsed || isNavHovered;
 
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [filters, setFilters] = useState({
@@ -1212,20 +1209,8 @@ export default function MarketplacePage() {
     >
       <div className="xl:h-full xl:min-h-0">
         <div className="flex gap-4 xl:h-full">
-          <aside
-            className={`hidden rounded-2xl border border-slate-100 bg-slate-50/90 p-3 pb-6 shadow-sm xl:sticky xl:top-1 xl:flex xl:h-[calc(100dvh-7.1rem)] xl:flex-col xl:overflow-y-auto ${navExpanded ? "w-[220px]" : "w-[78px]"}`}
-            onMouseEnter={() => setIsNavHovered(true)}
-            onMouseLeave={() => setIsNavHovered(false)}
-          >
-            <button
-              type="button"
-              className="btn btn-sm mb-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-              onClick={() => setIsNavCollapsed((prev) => !prev)}
-            >
-              {navExpanded ? "Compact" : "Expand"}
-            </button>
-
-            <p className={`text-[11px] font-semibold uppercase tracking-wide text-slate-500 ${navExpanded ? "" : "hidden"}`}>Navigation</p>
+          <aside className="hidden w-[220px] rounded-2xl border border-slate-100 bg-slate-50/90 p-3 pb-6 shadow-sm xl:sticky xl:top-1 xl:flex xl:h-[calc(100dvh-7.1rem)] xl:flex-col xl:overflow-y-auto">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Navigation</p>
             <div className="mt-2 space-y-1">
               {(authUser?.isAdmin ? [...LEFT_NAV_ITEMS, ADMIN_NAV_ITEM] : LEFT_NAV_ITEMS).map(({ label, icon: Icon, section }) => {
                 // Calculate notification counts for badges
@@ -1242,11 +1227,11 @@ export default function MarketplacePage() {
                   <button
                     key={label}
                     type="button"
-                    className={`btn btn-sm w-full rounded-lg border-none relative ${
+                    className={`btn btn-sm w-full justify-start rounded-lg border-none relative ${
                       activeSection === section
                         ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-100"
                         : "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-800"
-                    } ${navExpanded ? "justify-start" : "justify-center"}`}
+                    }`}
                     onClick={() => {
                       if (section === "map") {
                         navigate("/map-view");
@@ -1265,15 +1250,15 @@ export default function MarketplacePage() {
                         </span>
                       )}
                     </div>
-                    {navExpanded ? <span>{label}</span> : null}
+                    <span>{label}</span>
                   </button>
                 );
               })}
             </div>
 
             <div className="mt-auto rounded-xl border border-slate-200 bg-indigo-50 p-3 text-xs text-slate-600">
-              <p className={`font-semibold text-indigo-700 ${navExpanded ? "" : "text-center"}`}>Go Premium</p>
-              {navExpanded ? <p className="mt-1">Get more visibility and reach serious buyers faster.</p> : null}
+              <p className="font-semibold text-indigo-700">Go Premium</p>
+              <p className="mt-1">Get more visibility and reach serious buyers faster.</p>
               <button type="button" className="btn btn-sm mt-3 w-full border-none bg-indigo-600 text-white hover:bg-indigo-500">Upgrade</button>
             </div>
           </aside>

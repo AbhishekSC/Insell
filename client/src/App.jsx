@@ -32,27 +32,13 @@ import { Toaster } from "react-hot-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import axiosInstance from "./lib/axios";
-import { Moon, Sun } from "lucide-react";
-import { useTheme } from "./context/ThemeProvider";
 
 function App() {
-  const { theme, toggleTheme } = useTheme();
   const queryClient = useQueryClient();
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const isSwitchAccountFlow = searchParams.get("switchAccount") === "1";
-  const shellRoutes = ["/notification", "/connections", "/chat", "/toolkit", "/property-tools", "/community", "/marketplace", "/profile", "/news", "/trending-localities", "/discover-communities", "/requested-communities", "/activity", "/admin"];
-  const isCallRoute = location.pathname.startsWith("/call");
-  const isFriendDetailRoute = location.pathname.startsWith("/friends/");
-  const isUserProfileRoute = location.pathname.startsWith("/users/");
-  const isPropertyDetailRoute = location.pathname.startsWith("/property/");
-  const showFloatingThemeToggle =
-    !shellRoutes.includes(location.pathname) &&
-    !isCallRoute &&
-    !isFriendDetailRoute &&
-    !isUserProfileRoute &&
-    !isPropertyDetailRoute;
 
   // TODO: Axios
   // TODO: react tanstack query
@@ -121,18 +107,6 @@ function App() {
 
   return (
     <div className="min-h-screen app-ambient">
-      {showFloatingThemeToggle ? (
-        <button
-          type="button"
-          className="btn btn-sm btn-circle fixed right-4 top-4 z-50 border border-base-300/80 bg-base-100/90 shadow-lg backdrop-blur sm:right-6 sm:top-6"
-          onClick={toggleTheme}
-          aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-          title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-        >
-          {theme === "light" ? <Moon className="size-4" /> : <Sun className="size-4" />}
-        </button>
-      ) : null}
-
       <Routes>
         <Route
           path="/"

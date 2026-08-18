@@ -8,18 +8,10 @@ const ThemeContext = createContext({
   toggleTheme: () => {},
 });
 
+// Dark mode toggle is disabled for now (see AppShell.jsx) — light is the
+// only theme in use, regardless of saved preference or system setting.
 function getInitialTheme() {
-  if (typeof window === "undefined") {
-    return "light";
-  }
-
-  const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
-  if (savedTheme === "light" || savedTheme === "dark") {
-    return savedTheme;
-  }
-
-  const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)")?.matches;
-  return prefersDark ? "dark" : "light";
+  return "light";
 }
 
 export function ThemeProvider({ children }) {

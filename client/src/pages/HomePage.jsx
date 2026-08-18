@@ -14,7 +14,6 @@ import {
   MapPin,
   Menu,
   MessageCircle,
-  Moon,
   Plus,
   Search,
   Share2,
@@ -23,7 +22,6 @@ import {
 import toast from "react-hot-toast";
 import UserAvatar from "../components/UserAvatar";
 import CommentSection from "../components/CommentSection";
-import { useTheme } from "../context/ThemeProvider";
 import axiosInstance from "../lib/axios";
 
 const LEFT_MENU = [
@@ -69,7 +67,6 @@ export default function HomePage() {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData(["authUser"]);
   const authUser = authData?.data?.user || authData?.data || null;
-  const { toggleTheme } = useTheme();
 
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("For You");
@@ -191,7 +188,6 @@ export default function HomePage() {
             </button>
             <button type="button" className="btn btn-ghost btn-circle"><MessageCircle className="size-4" /></button>
             <button type="button" className="btn btn-ghost btn-circle"><Bell className="size-4" /></button>
-            <button type="button" className="btn btn-ghost btn-circle" onClick={toggleTheme}><Moon className="size-4" /></button>
             <div className="hidden items-center gap-2 rounded-xl border border-slate-200 px-2 py-1.5 sm:flex">
               <UserAvatar src={authUser?.profilePic} name={authUser?.fullName || "User"} sizeClass="size-8" userId={authUser?._id} />
               <div>
