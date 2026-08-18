@@ -20,7 +20,7 @@ export default function PropertyComparisonPage() {
 
   const propertyIds = searchParams.get('ids')?.split(',').filter(Boolean) || [];
 
-  const { data, isLoading, error, isRefetching } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["compareProperties", propertyIds, preferenceCriteria],
     queryFn: async () => {
       const response = await axiosInstance.post("/posts/compare", { 
@@ -35,7 +35,6 @@ export default function PropertyComparisonPage() {
 
   const properties = data?.data?.properties || [];
   const bestProperty = data?.data?.bestProperty || null;
-  const recommendations = data?.data?.recommendations || [];
 
   const criteriaOptions = [
     { value: 'balanced', label: 'Balanced', description: 'Considers all factors equally' },

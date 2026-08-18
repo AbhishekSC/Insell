@@ -79,7 +79,7 @@ function relativeDate(dateString) {
   return `${days}d ago`;
 }
 
-export default function RoleBasedPropertyCard({ post, userRole, onLike, onSave, onShare, onView, onClick, onContact, isOwnPost, isFriend }) {
+export default function RoleBasedPropertyCard({ post, userRole, onLike, onSave, onShare, onClick, onContact, isOwnPost, isFriend }) {
   const role = userRole || "Buyer";
   const config = ROLE_CARD_CONFIGS[role] || ROLE_CARD_CONFIGS.Buyer;
   const colors = ACCENT_COLORS[config.accentColor] || ACCENT_COLORS.blue;

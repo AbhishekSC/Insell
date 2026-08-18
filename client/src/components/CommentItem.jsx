@@ -3,7 +3,6 @@ import { Heart, MessageSquareReply } from "lucide-react";
 import UserAvatar from "./UserAvatar";
 import ReplyInput from "./ReplyInput";
 import ReplyList from "./ReplyList";
-import { useQueryClient } from "@tanstack/react-query";
 
 function formatRelativeTime(dateString) {
   if (!dateString) return "Just now";
@@ -35,8 +34,6 @@ function CommentItem({
   const [showReplies, setShowReplies] = useState(false);
   const [repliesLoaded, setRepliesLoaded] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
-  const queryClient = useQueryClient();
-  const maxDepth = 5; // Maximum indentation depth
 
   const handleReplyClick = () => {
     onSetActiveReply(comment._id);

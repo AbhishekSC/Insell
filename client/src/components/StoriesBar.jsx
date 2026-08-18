@@ -16,7 +16,7 @@ const STORY_CATEGORIES = [
   { label: "Trending", category: "trending", color: "from-cyan-400 to-blue-500" },
 ];
 
-export default function StoriesBar({ onCategorySelect }) {
+export default function StoriesBar() {
   const [activeStory, setActiveStory] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);

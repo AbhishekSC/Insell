@@ -252,97 +252,6 @@ function getListingBadge(post) {
   return "Featured";
 }
 
-function getPostPrimaryCta(post, friends, authUser) {
-  // Check if already friends
-  const isFriend = friends?.some(friend => friend._id === post.author?._id);
-  const isOwnPost = authUser?._id === post.author?._id;
-  
-  // Show "Message" if already friends
-  if (isFriend && !isOwnPost) {
-    return "💬 Message";
-  }
-  
-  // Show "Edit" if own post
-  if (isOwnPost) {
-    return "✏️ Edit";
-  }
-  
-  const postType = String(post.postType || "").toUpperCase();
-  const listingType = String(post.listingType || "").toUpperCase();
-  
-  // Dynamic contact buttons based on property type
-  if (postType === "PROPERTY_RENT" || postType === "REQUIREMENT_RENT") {
-    return "🏠 I'm Interested";
-  }
-  if (postType === "PROPERTY_SALE" || postType === "REQUIREMENT_BUY") {
-    return "💰 Make an Offer";
-  }
-  if (postType === "BUILDER_PROJECT") {
-    return "📅 Book Site Visit";
-  }
-  if (postType === "INVESTMENT_OPPORTUNITY") {
-    return "📊 View Details";
-  }
-  if (postType === "COMMERCIAL_LISTING") {
-    return "📅 Schedule Visit";
-  }
-  if (postType === "AGRICULTURAL_LISTING") {
-    return "🌾 Request Details";
-  }
-  if (postType === "OPEN_HOUSE_EVENT") {
-    return "🎟️ Register";
-  }
-  
-  // Fallback based on listing type
-  if (listingType === "RENT") return "🏠 I'm Interested";
-  if (listingType === "SALE") return "💰 Make an Offer";
-  
-  return "📩 Contact Owner";
-}
-
-function getRoleHighlights(post, role) {
-  const highlights = [];
-  const postType = String(post.postType || "").toUpperCase();
-
-  switch (role) {
-    case "Tenant":
-      if (post.postMeta?.furnishing) highlights.push(post.postMeta.furnishing);
-      if (post.postMeta?.occupancy) highlights.push(post.postMeta.occupancy);
-      if (post.postMeta?.moveInDate) highlights.push(`Move-in: ${new Date(post.postMeta.moveInDate).toLocaleDateString()}`);
-      break;
-    case "Buyer":
-      if (post.postMeta?.reraVerified) highlights.push("RERA Verified");
-      if (post.postMeta?.possessionStatus) highlights.push(post.postMeta.possessionStatus);
-      if (post.postMeta?.ageOfProperty) highlights.push(post.postMeta.ageOfProperty);
-      break;
-    case "Seller":
-      if (post.viewCount) highlights.push(`${post.viewCount} views`);
-      if (post.engagementScore) highlights.push(`Score: ${post.engagementScore}`);
-      if (post.postMeta?.daysListed) highlights.push(`${post.postMeta.daysListed} days listed`);
-      break;
-    case "Broker":
-      if (post.postMeta?.leadQuality) highlights.push(post.postMeta.leadQuality);
-      if (post.postMeta?.commissionRate) highlights.push(`${post.postMeta.commissionRate}% commission`);
-      if (post.postMeta?.isUrgent) highlights.push("Urgent");
-      break;
-    case "Builder":
-      if (post.postMeta?.projectStatus) highlights.push(post.postMeta.projectStatus);
-      if (post.postMeta?.reraNumber) highlights.push("RERA Registered");
-      if (post.postMeta?.launchYear) highlights.push(`Launched ${post.postMeta.launchYear}`);
-      break;
-    case "Investor":
-      if (post.postMeta?.roi) highlights.push(`${post.postMeta.roi}% ROI`);
-      if (post.postMeta?.investmentType) highlights.push(post.postMeta.investmentType);
-      if (post.postMeta?.timeHorizon) highlights.push(post.postMeta.timeHorizon);
-      break;
-    default:
-      if (post.bedrooms) highlights.push(`${post.bedrooms} BHK`);
-      if (post.areaSqft) highlights.push(`${Number(post.areaSqft)} sqft`);
-  }
-
-  return highlights;
-}
-
 export default function MarketplacePage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -360,7 +269,6 @@ export default function MarketplacePage() {
   const [searchAuthorId, setSearchAuthorId] = useState(null);
   const [activeCategory, setActiveCategory] = useState("For You");
   const [selectedTrendingLocation, setSelectedTrendingLocation] = useState(null);
-  const [activeStory, setActiveStory] = useState("Premium Projects");
   const [carouselIndex, setCarouselIndex] = useState({});
   const [expandedPostIds, setExpandedPostIds] = useState({});
   const [likedBurstPostId, setLikedBurstPostId] = useState(null);
@@ -565,7 +473,7 @@ export default function MarketplacePage() {
 
 
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [filters, setFilters] = useState({
+  const [filters] = useState({
     transactionType: "All",
     propertyType: "All",
     city: "",
@@ -617,7 +525,7 @@ export default function MarketplacePage() {
   });
 
   const [citySuggestions, setCitySuggestions] = useState([]);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [, setLoadingSuggestions] = useState(false);
   const mapRef = useRef(null);
   const geocodeTimeoutRef = useRef(null);
 
@@ -636,7 +544,7 @@ export default function MarketplacePage() {
     const [markerPosition, setMarkerPosition] = useState(position);
     const markerRef = useRef(null);
 
-    const map = useMapEvents({
+    useMapEvents({
       click(e) {
         const { lat, lng } = e.latlng;
         setMarkerPosition([lat, lng]);
@@ -945,7 +853,7 @@ export default function MarketplacePage() {
     },
   });
 
-  const { mutate: uploadMedia, isPending: uploading } = useMutation({
+  const { mutate: uploadMedia } = useMutation({
     mutationFn: async (files) => {
       const formData = new FormData();
       files.forEach((file) => formData.append("media", file));
@@ -1211,7 +1119,10 @@ export default function MarketplacePage() {
           <aside className="hidden w-[220px] rounded-2xl border border-slate-100 bg-slate-50/90 p-3 pb-6 shadow-sm xl:sticky xl:top-1 xl:flex xl:h-[calc(100dvh-7.1rem)] xl:flex-col xl:overflow-y-auto">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Navigation</p>
             <div className="mt-2 space-y-1">
-              {(authUser?.isAdmin ? [...LEFT_NAV_ITEMS, ADMIN_NAV_ITEM] : LEFT_NAV_ITEMS).map(({ label, icon: Icon, section }) => {
+              {(authUser?.isAdmin ? [...LEFT_NAV_ITEMS, ADMIN_NAV_ITEM] : LEFT_NAV_ITEMS).map(({ label, icon, section }) => {
+                // Renamed-destructure (`icon: NavIcon`) used only in JSX trips
+                // up this project's no-unused-vars config as a false positive.
+                const NavIcon = icon;
                 // Calculate notification counts for badges
                 let badgeCount = 0;
                 if (section === "activity") {
@@ -1242,7 +1153,7 @@ export default function MarketplacePage() {
                     }}
                   >
                     <div className="relative">
-                      <Icon className="size-4" />
+                      <NavIcon className="size-4" />
                       {badgeCount > 0 && (
                         <span className="absolute -right-2 -top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
                           {badgeCount > 9 ? "9+" : badgeCount}
@@ -1320,7 +1231,6 @@ export default function MarketplacePage() {
                 {posts.map((post) => {
                   const imageIndex = Number(carouselIndex[post._id] || 0);
                   const image = post.media[imageIndex] || post.media[0];
-                  const verified = post.author?.isVerified || false;
                   const readMore = expandedPostIds[post._id];
                   const badge = getListingBadge(post);
                   const postType = String(post.postType || "").toUpperCase();
@@ -1328,9 +1238,6 @@ export default function MarketplacePage() {
                   const requirementTitle = post.title || (postType === "REQUIREMENT_RENT" ? "Looking for Rental Property" : "Looking to Buy Property");
                   const hasMultipleImages = post.media.length > 1;
                   const isOwnPost = Boolean(authUser?._id) && String(authUser._id) === String(post.author?._id);
-
-                  // Role-based highlights
-                  const roleHighlights = getRoleHighlights(post, activeRole);
 
                   const handlePrevImage = (e) => {
                     e.stopPropagation();
@@ -2197,7 +2104,7 @@ export default function MarketplacePage() {
                                       toast.success("Coordinates captured (city/locality not found)");
                                     });
                                 },
-                                (error) => {
+                                () => {
                                   toast.error("Failed to get location. Please allow location access.");
                                 }
                               );

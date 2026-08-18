@@ -56,7 +56,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
     try {
       await axiosInstance.patch("/api/notifications/read-all");
       queryClient.invalidateQueries(["notifications"]);
-    } catch (error) {
+    } catch {
       toast.error("Failed to mark all as read");
     }
   };

@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Calendar, ExternalLink, Filter } from "lucide-react";
 import AppShell from "../components/AppShell";
 import axiosInstance from "../lib/axios";
-import toast from "react-hot-toast";
 
 const NEWS_CATEGORIES = [
   { id: "all", label: "All News" },
@@ -65,10 +63,9 @@ const analyzeNewsBadges = (title, description) => {
 };
 
 export default function NewsPage() {
-  const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState("all");
 
-  const { data: newsData, isLoading, error, refetch } = useQuery({
+  const { data: newsData, isLoading, error } = useQuery({
     queryKey: ["trendingNews", selectedCategory],
     queryFn: async () => {
       const categoryParam = selectedCategory === "all" ? "" : `?category=${selectedCategory}`;

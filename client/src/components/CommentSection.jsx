@@ -16,23 +16,6 @@ const trackReplyView = async (commentId, postId) => {
   }
 };
 
-function formatRelativeTime(dateString) {
-  if (!dateString) return "Just now";
-  const time = new Date(dateString).getTime();
-  if (!Number.isFinite(time)) return "Just now";
-  const delta = Date.now() - time;
-  const seconds = Math.floor(delta / 1000);
-  const minutes = Math.floor(delta / (1000 * 60));
-  const hours = Math.floor(delta / (1000 * 60 * 60));
-  const days = Math.floor(delta / (1000 * 60 * 60 * 24));
-
-  if (seconds < 60) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  if (days < 7) return `${days}d ago`;
-  return new Date(dateString).toLocaleDateString();
-}
-
 export default function CommentSection({ post, onClose }) {
   const [newComment, setNewComment] = useState("");
   const [activeReplyId, setActiveReplyId] = useState(null);

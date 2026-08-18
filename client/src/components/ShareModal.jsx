@@ -11,7 +11,7 @@ export default function ShareModal({ isOpen, onClose, postUrl, postTitle }) {
       setCopied(true);
       toast.success("Link copied to clipboard!");
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
+    } catch {
       toast.error("Failed to copy link");
     }
   };

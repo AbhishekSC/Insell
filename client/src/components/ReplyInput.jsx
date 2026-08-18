@@ -23,7 +23,7 @@ export default function ReplyInput({ postId, parentCommentId, onCancel, onReply 
       });
       return response.data?.data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       // Invalidate queries to fetch fresh data from server
       queryClient.invalidateQueries({ queryKey: ["commentReplies", parentCommentId] });
       queryClient.invalidateQueries({ queryKey: ["postComments", postId] });

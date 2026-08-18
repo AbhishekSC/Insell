@@ -196,7 +196,7 @@ export function StreamProvider({ children }) {
         return () => {
           client.off(handleEvent);
         };
-      } catch (error) {
+      } catch {
         if (isMounted) {
           setStreamReady(false);
         }
@@ -678,6 +678,7 @@ export function StreamProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- co-located with StreamProvider by design
 export function useStreamContext() {
   return useContext(StreamContext);
 }

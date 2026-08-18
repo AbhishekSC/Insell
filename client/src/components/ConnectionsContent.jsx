@@ -349,7 +349,7 @@ export default function ConnectionsContent({ onOpenMessages }) {
     onSuccess: () => {
       toast.success("Connection accepted successfully");
     },
-    onError: (error, { notificationId }, context) => {
+    onError: (error, _variables, context) => {
       queryClient.setQueryData(["notifications"], context?.previousNotifications);
       queryClient.setQueryData(["friends"], context?.previousFriends);
       queryClient.setQueryData(["incomingRequests"], context?.previousIncoming);

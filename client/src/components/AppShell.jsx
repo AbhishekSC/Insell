@@ -274,7 +274,7 @@ function HeaderActions({ onCreateProperty, unreadActivityCount }) {
   );
 }
 
-function UserMenu({ userInitials, authUser, userRoleLabel, isPending, logout }) {
+function UserMenu({ authUser, userRoleLabel, isPending, logout }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -333,7 +333,6 @@ export default function AppShell({
   actions,
   lockPageScroll = false,
   hideHero = false,
-  hideMetrics = false,
   hideBottomNav = false,
   marketplaceSearch = "",
   onMarketplaceSearchChange,
@@ -593,7 +592,7 @@ export default function AppShell({
                   hasActiveFilters={!!activeFilters}
                 />
                 <HeaderActions onCreateProperty={onCreateProperty} unreadActivityCount={activityNotifications} />
-                <UserMenu userInitials={userInitials} authUser={authUser} userRoleLabel={userRoleLabel} isPending={isPending} logout={logout} />
+                <UserMenu authUser={authUser} userRoleLabel={userRoleLabel} isPending={isPending} logout={logout} />
               </div>
 
               <div className="flex items-center justify-between gap-3 lg:hidden">

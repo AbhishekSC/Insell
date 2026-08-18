@@ -129,7 +129,7 @@ export default function PropertyMapView() {
     return () => clearTimeout(timer);
   }, [locationFilters.state, locationFilters.city, locationFilters.area]);
 
-  const { data: locationSuggestions, isLoading: locationLoading, error: locationError } = useQuery({
+  const { data: locationSuggestions } = useQuery({
     queryKey: ["locationSuggestions", debouncedQuery],
     queryFn: async () => {
       if (!debouncedQuery || debouncedQuery.length < 2) return [];

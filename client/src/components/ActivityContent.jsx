@@ -197,7 +197,6 @@ function ActivityItem({ activity, onNavigateToPost, isOwnActivity = false }) {
 export default function ActivityContent({ onNavigateToPost }) {
   const queryClient = useQueryClient();
   const [activeFilter, setActiveFilter] = useState("all");
-  const [expandedSections, setExpandedSections] = useState({ likes: true, comments: true, saved: true, connections: true });
 
   // Fetch user's activity
   const { data: activityData, isLoading: activityLoading, refetch: refetchActivity } = useQuery({
@@ -210,7 +209,7 @@ export default function ActivityContent({ onNavigateToPost }) {
   });
 
   // Fetch incoming notifications (from other users)
-  const { data: notificationsData, isLoading: notificationsLoading, refetch: refetchNotifications } = useQuery({
+  const { data: notificationsData } = useQuery({
     queryKey: ["notifications"],
     queryFn: async () => {
       const response = await axiosInstance.get("/notifications");
@@ -321,10 +320,6 @@ export default function ActivityContent({ onNavigateToPost }) {
   const refreshActivity = () => {
     refetchActivity();
     queryClient.invalidateQueries({ queryKey: ["notificationsCount"] });
-  };
-
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
   if (activityLoading) {

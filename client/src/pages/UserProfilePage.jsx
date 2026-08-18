@@ -141,7 +141,9 @@ export default function UserProfilePage() {
     setDetailCarouselIndex(0);
   }, [selectedPost]);
 
-  const { data: authData } = useQuery({
+  // Populates the shared ["authUser"] cache entry that other components read
+  // via queryClient.getQueryData — the return value itself isn't needed here.
+  useQuery({
     queryKey: ["authUser"],
     queryFn: async () => {
       const res = await axiosInstance.get("/auth/verify");
@@ -149,8 +151,6 @@ export default function UserProfilePage() {
     },
     staleTime: 1000 * 60 * 5,
   });
-
-  const currentUserId = authData?.data?.user?._id || authData?.data?.user?.id;
 
   const { data: profileData, isLoading: isProfileLoading, isError } = useQuery({
     queryKey: ["userProfile", userId],
@@ -224,7 +224,7 @@ export default function UserProfilePage() {
   });
 
   // Fetch user activity for Activity tab
-  const { data: userActivityData, isLoading: isActivityLoading, refetch: refetchActivity } = useQuery({
+  const { data: userActivityData, isLoading: isActivityLoading } = useQuery({
     queryKey: ["userProfileActivity", userId],
     enabled: Boolean(userId) && activeTab === "activity",
     queryFn: async () => {
@@ -369,7 +369,6 @@ export default function UserProfilePage() {
     );
   }
 
-  const roleLabel = profileUser.activeRole || profileUser.primaryRole || "User";
   const cityLabel = profileUser.city || profileUser.homeBase || profileUser.location || "City not set";
 
   return (

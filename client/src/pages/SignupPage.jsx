@@ -14,7 +14,7 @@ const SignupPage = () => {
     email: "",
     password: "",
   });
-  const [errorMsg, setErrorMsg] = useState("");
+  const [errorMsg] = useState("");
 
   // Handle Google OAuth callback
   useEffect(() => {

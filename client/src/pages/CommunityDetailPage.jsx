@@ -8,21 +8,6 @@ import AppShell from "../components/AppShell";
 import axiosInstance from "../lib/axios";
 import { useStreamContext } from "../context/StreamProvider";
 
-function formatRelativeTime(value) {
-  const diffMs = Date.now() - new Date(value).getTime();
-  const minutes = Math.max(1, Math.round(diffMs / 60000));
-
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
-
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) {
-    return `${hours}h ago`;
-  }
-
-  return `${Math.round(hours / 24)}d ago`;
-}
 
 function formatDateTime(value) {
   if (!value) return "Unknown";

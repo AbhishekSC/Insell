@@ -530,7 +530,6 @@ export default function OnboardingPage() {
             .then(res => res.json())
             .then(data => {
               const city = data.address.city || data.address.town || data.address.village || "";
-              const locality = data.address.suburb || data.address.neighbourhood || "";
               setFormData(prev => ({
                 ...prev,
                 city: prev.city || city,
@@ -545,7 +544,7 @@ export default function OnboardingPage() {
               toast.success("Coordinates captured (city/locality not found)");
             });
         },
-        (error) => {
+        () => {
           toast.error("Failed to get location. Please allow location access.");
         }
       );
