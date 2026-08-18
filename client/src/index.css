@@ -665,6 +665,50 @@
 		font-size: 0.65rem !important;
 	}
 
+	/* Screen-share presentation mode — the shared screen fills the stage,
+	   everyone's camera (including the sharer's own) drops into a scrollable
+	   strip along the bottom, matching how Zoom/Meet handle it. */
+	.live-call-screenshare-layout {
+		@apply relative flex h-full w-full flex-col;
+	}
+
+	.live-call-screenshare-main {
+		@apply min-h-0 flex-1 bg-black;
+		/* Unlike the camera PIP (which crops to fill via object-fit: cover
+		   from the SDK default), a shared screen must never be cropped —
+		   letterbox it instead so nothing off the edges gets cut off. */
+		max-width: 100% !important;
+		aspect-ratio: unset !important;
+		border-radius: 0 !important;
+	}
+
+	.live-call-screenshare-main video {
+		object-fit: contain !important;
+	}
+
+	.live-call-screenshare-camstrip {
+		@apply flex shrink-0 gap-2 overflow-x-auto bg-black/40 p-2 backdrop-blur-sm;
+	}
+
+	.live-call-screenshare-camtile {
+		@apply shrink-0 overflow-hidden rounded-xl border border-white/15;
+		width: 108px;
+		aspect-ratio: 3 / 4;
+	}
+
+	.live-call-screenshare-camtile__video {
+		width: 100% !important;
+		height: 100% !important;
+		max-width: 100% !important;
+		max-height: 100% !important;
+		aspect-ratio: unset !important;
+		border-radius: 0 !important;
+	}
+
+	.live-call-screenshare-camtile__video .str-video__participant-details {
+		@apply hidden;
+	}
+
 	/* Override the SDK's flex-wrap grid, which sizes tiles off fixed width
 	   percentages + a 4/3 aspect-ratio and leaves height unused. A real CSS
 	   grid sized off the actual participant count fills the whole stage and

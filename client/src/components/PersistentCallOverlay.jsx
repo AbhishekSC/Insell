@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  hasScreenShare,
   PaginatedGridLayout,
   ParticipantsAudio,
   ParticipantView,
@@ -72,6 +73,12 @@ function CallUi({ onEndCall, videoBusy }) {
   const localParticipant = useLocalParticipant();
   const remoteParticipants = useRemoteParticipants();
   const mainRemoteParticipant = remoteParticipants[0];
+
+  // ParticipantView defaults to the camera track — screen share is a
+  // separate track (trackType="screenShareTrack") that has to be rendered
+  // explicitly, or an active share is transmitted but never shown to anyone.
+  const screenSharingParticipant = participants.find(hasScreenShare);
+  const isScreenShareActive = Boolean(screenSharingParticipant);
 
   // WhatsApp-style running call timer, ticking off the call's real
   // server-recorded start time (not our own mount time) so it stays correct
@@ -257,7 +264,26 @@ function CallUi({ onEndCall, videoBusy }) {
       <CallParticipantsModal isOpen={showParticipants} onClose={() => setShowParticipants(false)} />
 
       <div className="live-call-stage" style={isGroupCall ? { "--tile-columns": gridColumns } : undefined}>
-        {isGroupCall ? (
+        {isScreenShareActive ? (
+          <div className="live-call-screenshare-layout">
+            {/* muteAudio here — the sharer's mic still plays via their own
+                tile in the camera strip below; without this their audio
+                would play twice. */}
+            <ParticipantView
+              participant={screenSharingParticipant}
+              trackType="screenShareTrack"
+              muteAudio
+              className="live-call-screenshare-main"
+            />
+            <div className="live-call-screenshare-camstrip">
+              {participants.map((participant) => (
+                <div key={participant.sessionId} className="live-call-screenshare-camtile">
+                  <ParticipantView participant={participant} className="live-call-screenshare-camtile__video" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : isGroupCall ? (
           // Same remount-on-flip defense as the 1:1 self-view below, applied
           // to the whole grid since individual tiles aren't ours to key.
           <PaginatedGridLayout key={cameraDirection} />
