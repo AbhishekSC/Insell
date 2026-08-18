@@ -8,9 +8,6 @@ on:
       - '.github/workflows/server-ci.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'server/**'
-      - '.github/workflows/server-ci.yml'
 
 jobs:
   syntax-check:
