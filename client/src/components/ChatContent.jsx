@@ -10,7 +10,6 @@ import {
 } from "stream-chat-react";
 import {
   ArrowLeft,
-  CheckCheck,
   Loader2,
   MessageCircleHeart,
   Radio,
@@ -50,7 +49,7 @@ export default function ChatContent({ deepLinkUserId } = {}) {
   const [activeChannel, setActiveChannel] = useState(null);
   const [directChatUser, setDirectChatUser] = useState(null);
   const processedDirectChatIds = useRef(new Set());
-  const { streamClient: chatClient, streamReady, streamConnecting, currentUserId, unreadCount } = useStreamContext();
+  const { streamClient: chatClient, streamReady, streamConnecting, currentUserId } = useStreamContext();
 
   const { data: authData } = useQuery({
     queryKey: ["authUser"],
@@ -267,14 +266,6 @@ export default function ChatContent({ deepLinkUserId } = {}) {
               <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${serviceReady ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600"}`}>
                 <Radio className="size-3" />
                 {serviceReady ? "Ready" : "Syncing"}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
-              <span>Direct conversations</span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 font-medium">
-                <CheckCheck className="size-3.5 text-indigo-600" />
-                {unreadCount ? `${unreadCount} unread` : "All caught up"}
               </span>
             </div>
 
