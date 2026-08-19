@@ -24,6 +24,25 @@ import { useStreamContext } from "../context/StreamProvider";
 
 const EMPTY_FRIENDS = [];
 
+function formatRelativeTime(timestamp) {
+  if (!timestamp) return "";
+
+  const diffMs = Date.now() - timestamp;
+  const diffMinutes = Math.floor(diffMs / (60 * 1000));
+
+  if (diffMinutes < 1) return "now";
+  if (diffMinutes < 60) return `${diffMinutes}m`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d`;
+
+  const diffWeeks = Math.floor(diffDays / 7);
+  return `${diffWeeks}w`;
+}
+
 export default function ChatContent({ deepLinkUserId } = {}) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFriendId, setSelectedFriendId] = useState("");
@@ -55,6 +74,14 @@ export default function ChatContent({ deepLinkUserId } = {}) {
   const friends = friendsData ?? EMPTY_FRIENDS;
 
   const [onlineFriendIds, setOnlineFriendIds] = useState(() => new Set());
+
+  // Forces the relative "2m/8h/3d" labels below to advance even when
+  // nothing else re-renders the list.
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => forceTick((n) => n + 1), 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Stream only reports presence for users it's actively watching, so we
   // opt in via queryUsers({ presence: true }) for the friend list, then keep
@@ -280,6 +307,8 @@ export default function ChatContent({ deepLinkUserId } = {}) {
               {filteredFriends.map((friend) => {
                 const isActive = selectedFriendId === friend._id;
                 const isOnline = onlineFriendIds.has(friend._id);
+                const lastMessageAt = lastMessageByFriendId?.[friend._id];
+                const lastMessageLabel = formatRelativeTime(lastMessageAt);
 
                 return (
                   <button
@@ -308,7 +337,7 @@ export default function ChatContent({ deepLinkUserId } = {}) {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
                           <p className="truncate text-sm font-semibold text-slate-800">{friend.fullName || "User"}</p>
-                          <p className="text-[10px] text-slate-400">2m</p>
+                          {lastMessageLabel && <p className="text-[10px] text-slate-400">{lastMessageLabel}</p>}
                         </div>
                         <p className="mt-0.5 truncate text-xs text-slate-500">Tap to start conversation</p>
                       </div>
