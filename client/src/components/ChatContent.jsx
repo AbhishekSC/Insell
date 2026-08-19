@@ -54,6 +54,48 @@ export default function ChatContent({ deepLinkUserId } = {}) {
 
   const friends = friendsData ?? EMPTY_FRIENDS;
 
+  const [onlineFriendIds, setOnlineFriendIds] = useState(() => new Set());
+
+  // Stream only reports presence for users it's actively watching, so we
+  // opt in via queryUsers({ presence: true }) for the friend list, then keep
+  // it live with user.presence.changed events (fired on connect/disconnect).
+  useEffect(() => {
+    if (!chatClient || !currentUserId || friends.length === 0) {
+      setOnlineFriendIds(new Set());
+      return;
+    }
+
+    let cancelled = false;
+    const friendIds = friends.map((friend) => friend._id);
+
+    chatClient
+      .queryUsers({ id: { $in: friendIds } }, {}, { presence: true })
+      .then((response) => {
+        if (cancelled) return;
+        const online = new Set((response.users || []).filter((u) => u.online).map((u) => u.id));
+        setOnlineFriendIds(online);
+      })
+      .catch(() => {});
+
+    const handlePresenceChanged = (event) => {
+      const userId = event.user?.id;
+      if (!userId || !friendIds.includes(userId)) return;
+      setOnlineFriendIds((prev) => {
+        const next = new Set(prev);
+        if (event.user.online) next.add(userId);
+        else next.delete(userId);
+        return next;
+      });
+    };
+
+    chatClient.on("user.presence.changed", handlePresenceChanged);
+
+    return () => {
+      cancelled = true;
+      chatClient.off("user.presence.changed", handlePresenceChanged);
+    };
+  }, [chatClient, currentUserId, friends]);
+
   // Drives the "most recently messaged first" ordering below — a map of
   // friendId -> last message timestamp, built from Stream's own channel
   // list rather than anything our backend tracks. Invalidated by
@@ -237,6 +279,7 @@ export default function ChatContent({ deepLinkUserId } = {}) {
             <div className="flex-1 min-h-0 overflow-y-auto p-2.5 pb-6">
               {filteredFriends.map((friend) => {
                 const isActive = selectedFriendId === friend._id;
+                const isOnline = onlineFriendIds.has(friend._id);
 
                 return (
                   <button
@@ -258,7 +301,9 @@ export default function ChatContent({ deepLinkUserId } = {}) {
                           sizeClass="size-12"
                           userId={friend._id}
                         />
-                        <span className="absolute bottom-0 right-0 grid size-3.5 place-items-center rounded-full border-2 border-white bg-emerald-500"></span>
+                        {isOnline && (
+                          <span className="absolute bottom-0 right-0 grid size-3.5 place-items-center rounded-full border-2 border-white bg-emerald-500"></span>
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
