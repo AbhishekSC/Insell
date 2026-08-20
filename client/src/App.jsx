@@ -30,8 +30,9 @@ import AdminPage from "./pages/AdminPage";
 import AccountBlockedModal from "./components/AccountBlockedModal";
 import { Toaster } from "react-hot-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axiosInstance from "./lib/axios";
+import posthog, { isPostHogEnabled } from "./lib/posthog";
 
 function App() {
   const queryClient = useQueryClient();
@@ -76,6 +77,27 @@ function App() {
   });
 
   const authUser = authData?.data?.user || authData?.data || null;
+
+  useEffect(() => {
+    if (!isPostHogEnabled()) return;
+
+    if (authUser?._id) {
+      posthog.identify(authUser._id, {
+        email: authUser.email,
+        name: authUser.fullName,
+        role: authUser.activeRole || authUser.primaryRole,
+      });
+    } else {
+      posthog.reset();
+    }
+    // Only re-run when the identity itself changes, not on every field edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser?._id]);
+
+  useEffect(() => {
+    if (!isPostHogEnabled()) return;
+    posthog.capture("$pageview", { $current_url: window.location.href });
+  }, [location.pathname]);
 
   if (isLoading) {
     return (

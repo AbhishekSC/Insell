@@ -5,6 +5,7 @@ import { Mail, CheckCircle, Clock, RefreshCw, X } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import { setAuthToken } from "../lib/authToken";
+import posthog, { isPostHogEnabled } from "../lib/posthog";
 
 const PENDING_SIGNUP_EMAIL_KEY = "pendingSignupEmail";
 
@@ -120,6 +121,9 @@ export default function EmailVerification({ onClose, dismissible = true }) {
           status: "success",
           data: { user: data?.data || null },
         });
+        if (isPostHogEnabled()) {
+          posthog.capture("signup_completed");
+        }
       }
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
       if (onClose) onClose();
