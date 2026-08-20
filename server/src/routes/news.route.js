@@ -70,6 +70,20 @@ const CATEGORY_SEARCH_QUERIES = {
   investment: '"real estate investment" OR "property prices" OR "commercial property" OR "rental yield"',
 };
 
+// Google News RSS carries no article images (no media:content, no
+// enclosure) — rotate a small pool of real-estate stock photos by index so
+// a batch of cards at least look visually distinct instead of identical.
+const FALLBACK_IMAGES = [
+  "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1582407947304-fd86f028f716?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1523217582562-09d0def993a6?auto=format&fit=crop&w=600&q=80",
+];
+
 // Free, unlimited fallback source when NewsAPI's daily quota is exhausted.
 // Returns real, city-specific articles (unlike the hardcoded template below).
 const fetchGoogleNews = async (query, requestId) => {
@@ -91,7 +105,7 @@ const fetchGoogleNews = async (query, requestId) => {
         id: index + 1,
         title,
         description: "",
-        image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=600&q=80",
+        image: FALLBACK_IMAGES[index % FALLBACK_IMAGES.length],
         source: { name: sourceName },
         url: item.link,
         publishedAt: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
