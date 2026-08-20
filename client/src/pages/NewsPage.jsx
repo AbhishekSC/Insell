@@ -6,7 +6,6 @@ import {
   ExternalLink,
   Info,
   MapPin,
-  RefreshCw,
   Search,
   SlidersHorizontal,
   Building2,
@@ -134,7 +133,7 @@ export default function NewsPage() {
     }
   }, [userCity, searchParams]);
 
-  const { data: newsResponse, isLoading, isFetching, error, refetch } = useQuery({
+  const { data: newsResponse, isLoading, error, refetch } = useQuery({
     queryKey: ["trendingNews", selectedCategory, selectedCity],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -155,6 +154,20 @@ export default function NewsPage() {
 
   const newsArticles = newsResponse?.data || [];
   const isFallback = Boolean(newsResponse?.isFallback);
+
+  const { data: weatherResponse } = useQuery({
+    queryKey: ["cityWeather", selectedCity],
+    queryFn: async () => {
+      const response = await axiosInstance.get(`/weather/current?city=${encodeURIComponent(selectedCity)}`);
+      return response.data;
+    },
+    enabled: Boolean(selectedCity) && selectedCity !== "all",
+    staleTime: 1000 * 60 * 15,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+
+  const weather = weatherResponse?.data;
 
   const handleCitySelect = (city) => {
     setSelectedCity(city);
@@ -240,24 +253,24 @@ export default function NewsPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {weather && (
+              <div
+                className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm"
+                title={`${weather.condition} in ${weather.city} · ${weather.humidity}% humidity · ${weather.windSpeedKmh} km/h wind`}
+              >
+                <span className="text-base leading-none">{weather.icon}</span>
+                {weather.temperatureC}°C
+              </div>
+            )}
             <button
               type="button"
               onClick={handleDetectLocation}
               disabled={isLocating}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition disabled:opacity-50"
+              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition disabled:opacity-50"
             >
               <MapPin className={`size-4 text-slate-600 ${isLocating ? "animate-spin text-indigo-600" : ""}`} />
               {isLocating ? "Locating..." : "Near Me"}
-            </button>
-            <button
-              type="button"
-              onClick={() => refetch()}
-              disabled={isFetching}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition disabled:opacity-50"
-            >
-              <RefreshCw className={`size-4 text-slate-600 ${isFetching ? "animate-spin text-indigo-600" : ""}`} />
-              Refresh
             </button>
           </div>
         </div>
