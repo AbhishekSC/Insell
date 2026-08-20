@@ -1,16 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import {
-  Calendar,
+  ChevronDown,
   ExternalLink,
-  Filter,
+  Info,
   MapPin,
-  Search,
-  Sparkles,
   RefreshCw,
+  Search,
+  SlidersHorizontal,
   Building2,
-  Navigation,
 } from "lucide-react";
 import AppShell from "../components/AppShell";
 import axiosInstance from "../lib/axios";
@@ -34,7 +33,7 @@ const NEWS_CATEGORIES = [
   { id: "all", label: "All Topics" },
   { id: "real-estate", label: "Real Estate" },
   { id: "housing", label: "Housing & Flats" },
-  { id: "infrastructure", label: "Metro & Infrastructure" },
+  { id: "infrastructure", label: "Infrastructure" },
   { id: "construction", label: "Development & Projects" },
   { id: "investment", label: "Investment & Prices" },
 ];
@@ -44,35 +43,45 @@ const analyzeNewsBadges = (title, description) => {
   const content = `${title} ${description || ""}`.toLowerCase();
   const badges = [];
 
-  if (content.includes("price") || content.includes("cost") || content.includes("rate") || content.includes("value") || content.includes("yield")) {
-    badges.push({ label: "Pricing", color: "bg-emerald-500/90" });
+  if (content.includes("housing") || content.includes("flat") || content.includes("apartment") || content.includes("residential") || content.includes("rent")) {
+    badges.push("Housing");
   }
 
-  if (content.includes("policy") || content.includes("government") || content.includes("regulation") || content.includes("law") || content.includes("rera")) {
-    badges.push({ label: "Policy & RERA", color: "bg-blue-500/90" });
+  if (content.includes("price") || content.includes("cost") || content.includes("rate") || content.includes("value") || content.includes("yield")) {
+    badges.push("Pricing");
   }
 
   if (content.includes("investment") || content.includes("invest") || content.includes("fund") || content.includes("crore") || content.includes("reit")) {
-    badges.push({ label: "Investment", color: "bg-purple-500/90" });
+    badges.push("Investment");
   }
 
-  if (content.includes("metro") || content.includes("expressway") || content.includes("airport") || content.includes("highway") || content.includes("road") || content.includes("corridor")) {
-    badges.push({ label: "Infrastructure", color: "bg-amber-500/90" });
+  if (content.includes("policy") || content.includes("government") || content.includes("regulation") || content.includes("law") || content.includes("rera") || content.includes("guidelines")) {
+    badges.push("Policy & RERA");
+  }
+
+  if (content.includes("metro") || content.includes("expressway") || content.includes("airport") || content.includes("highway") || content.includes("infrastructure")) {
+    badges.push("Infrastructure");
   }
 
   if (content.includes("construction") || content.includes("builder") || content.includes("redevelopment") || content.includes("luxury")) {
-    badges.push({ label: "Development", color: "bg-orange-500/90" });
-  }
-
-  if (content.includes("housing") || content.includes("flat") || content.includes("apartment") || content.includes("residential") || content.includes("rent")) {
-    badges.push({ label: "Housing", color: "bg-teal-500/90" });
+    badges.push("Development");
   }
 
   if (badges.length === 0) {
-    badges.push({ label: "Real Estate", color: "bg-indigo-500/90" });
+    badges.push("Real Estate");
   }
 
   return badges.slice(0, 2);
+};
+
+const formatNewsDate = (dateStr) => {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  } catch {
+    return "";
+  }
 };
 
 export default function NewsPage() {
@@ -90,8 +99,28 @@ export default function NewsPage() {
 
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [selectedCity, setSelectedCity] = useState(initialCity);
-  const [customCityInput, setCustomCityInput] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [isLocating, setIsLocating] = useState(false);
+
+  const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+
+  const cityDropdownRef = useRef(null);
+  const categoryDropdownRef = useRef(null);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (cityDropdownRef.current && !cityDropdownRef.current.contains(e.target)) {
+        setIsCityDropdownOpen(false);
+      }
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target)) {
+        setIsCategoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Automatically detect user location if no city is explicitly passed in URL or profile
   useEffect(() => {
@@ -129,6 +158,7 @@ export default function NewsPage() {
 
   const handleCitySelect = (city) => {
     setSelectedCity(city);
+    setIsCityDropdownOpen(false);
     const newParams = new URLSearchParams(searchParams);
     if (city === "all") {
       newParams.delete("city");
@@ -140,6 +170,7 @@ export default function NewsPage() {
 
   const handleCategorySelect = (categoryId) => {
     setSelectedCategory(categoryId);
+    setIsCategoryDropdownOpen(false);
     const newParams = new URLSearchParams(searchParams);
     if (categoryId === "all") {
       newParams.delete("category");
@@ -149,202 +180,196 @@ export default function NewsPage() {
     setSearchParams(newParams);
   };
 
-  const handleCustomCitySubmit = (e) => {
+  const handleSearchSubmit = (e) => {
     e.preventDefault();
-    const trimmed = customCityInput.trim();
+    const trimmed = searchInput.trim();
     if (trimmed) {
       handleCitySelect(trimmed);
-      setCustomCityInput("");
+      setSearchInput("");
     }
   };
 
-  const handleDetectLocation = () => {
-    if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser");
-      return;
-    }
-    setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`
-          );
-          const data = await res.json();
-          const city =
-            data.address?.city ||
-            data.address?.town ||
-            data.address?.state_district ||
-            data.address?.state;
-          if (city) {
-            handleCitySelect(city);
-          }
-        } catch {
-          if (userCity) {
-            handleCitySelect(userCity);
-          }
-        } finally {
-          setIsLocating(false);
-        }
-      },
-      () => {
-        setIsLocating(false);
-        if (userCity) {
-          handleCitySelect(userCity);
-        }
-      }
-    );
+  const handleResetFilters = () => {
+    setSelectedCity("all");
+    setSelectedCategory("all");
+    setSearchInput("");
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete("city");
+    newParams.delete("category");
+    setSearchParams(newParams);
   };
+
+  const handleDetectLocation = async () => {
+    setIsLocating(true);
+    try {
+      const detected = await getAutoDetectedCity();
+      if (detected) {
+        handleCitySelect(detected);
+      } else if (userCity) {
+        handleCitySelect(userCity);
+      }
+    } catch {
+      if (userCity) {
+        handleCitySelect(userCity);
+      }
+    } finally {
+      setIsLocating(false);
+    }
+  };
+
+  // Label for current city dropdown button
+  const currentCityLabel =
+    POPULAR_CITIES.find((c) => c.id.toLowerCase() === selectedCity.toLowerCase())?.label ||
+    (selectedCity === "all" ? "All India" : selectedCity);
+
+  // Label for current category dropdown button
+  const currentCategoryLabel =
+    NEWS_CATEGORIES.find((c) => c.id === selectedCategory)?.label || "All Topics";
 
   return (
-    <AppShell hideHero title="Real Estate News" subtitle="Hyper-local & national property market insights">
-      <div className="mx-auto max-w-7xl px-4 py-6 pb-24">
-        {/* Top Header Card */}
-        <div className="mb-6 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 p-6 text-white shadow-lg">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <Building2 className="size-6 text-indigo-200" />
-                <h1 className="text-xl font-bold text-white sm:text-2xl">
-                  {selectedCity && selectedCity !== "all" ? `${selectedCity} Property News` : "Real Estate & Housing News"}
-                </h1>
-              </div>
-              <p className="mt-1 text-sm text-indigo-100">
-                Filtered real estate market trends, infrastructure updates, and housing policies.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {userCity && selectedCity !== userCity && (
-                <button
-                  type="button"
-                  onClick={() => handleCitySelect(userCity)}
-                  className="flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur hover:bg-white/30 transition"
-                >
-                  <MapPin className="size-3.5 text-amber-300" />
-                  My City ({userCity})
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={handleDetectLocation}
-                disabled={isLocating}
-                className="flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur hover:bg-white/30 transition disabled:opacity-50"
-              >
-                <Navigation className={`size-3.5 ${isLocating ? "animate-spin" : ""}`} />
-                {isLocating ? "Detecting..." : "Near Me"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => refetch()}
-                disabled={isFetching}
-                className="flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur hover:bg-white/30 transition disabled:opacity-50"
-                title="Refresh news"
-              >
-                <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin" : ""}`} />
-                Refresh
-              </button>
-            </div>
+    <AppShell hideHero title="Property News" subtitle="Market trends, infrastructure updates, and housing policy in one place.">
+      <div className="mx-auto max-w-7xl px-4 py-8 pb-24">
+        {/* Page Header */}
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+              Property News
+            </h1>
+            <p className="mt-1 text-sm text-slate-500">
+              Market trends, infrastructure updates, and housing policy in one place.
+            </p>
           </div>
 
-          {/* Custom City Search Input */}
-          <form onSubmit={handleCustomCitySubmit} className="mt-4 flex max-w-md items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-indigo-200" />
-              <input
-                type="text"
-                placeholder="Search any city or region (e.g. Jaipur, Lucknow, Thane)..."
-                value={customCityInput}
-                onChange={(e) => setCustomCityInput(e.target.value)}
-                className="w-full rounded-xl border border-white/30 bg-white/10 py-2 pl-9 pr-3 text-sm text-white placeholder-indigo-200 backdrop-blur focus:bg-white focus:text-slate-900 focus:outline-none focus:ring-2 focus:ring-white"
-              />
-            </div>
+          <div className="flex items-center gap-2.5 shrink-0">
             <button
-              type="submit"
-              className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 transition shadow"
+              type="button"
+              onClick={handleDetectLocation}
+              disabled={isLocating}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition disabled:opacity-50"
             >
-              Filter
+              <MapPin className={`size-4 text-slate-600 ${isLocating ? "animate-spin text-indigo-600" : ""}`} />
+              {isLocating ? "Locating..." : "Near Me"}
             </button>
-          </form>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition disabled:opacity-50"
+            >
+              <RefreshCw className={`size-4 text-slate-600 ${isFetching ? "animate-spin text-indigo-600" : ""}`} />
+              Refresh
+            </button>
+          </div>
         </div>
 
-        {/* City Filter Pills */}
-        <div className="mb-4">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
-              <MapPin className="size-3.5 text-indigo-600" />
-              Select Region / City
-            </span>
-            {selectedCity !== "all" && (
+        {/* Filter Controls Bar */}
+        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            {/* City Dropdown */}
+            <div className="relative" ref={cityDropdownRef}>
               <button
                 type="button"
-                onClick={() => handleCitySelect("all")}
-                className="text-xs font-semibold text-indigo-600 hover:underline"
+                onClick={() => {
+                  setIsCityDropdownOpen((prev) => !prev);
+                  setIsCategoryDropdownOpen(false);
+                }}
+                className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 focus:outline-none md:w-auto md:min-w-[130px]"
               >
-                Reset to All India
+                <span className="flex items-center gap-1.5 truncate">
+                  <MapPin className="size-4 text-slate-500" />
+                  {currentCityLabel}
+                </span>
+                <ChevronDown className="size-4 text-slate-400" />
+              </button>
+
+              {isCityDropdownOpen && (
+                <div className="absolute left-0 top-full z-30 mt-1 max-h-60 w-52 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                  {POPULAR_CITIES.map((city) => (
+                    <button
+                      key={city.id}
+                      type="button"
+                      onClick={() => handleCitySelect(city.id)}
+                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium transition ${
+                        selectedCity.toLowerCase() === city.id.toLowerCase()
+                          ? "bg-indigo-50 font-semibold text-indigo-600"
+                          : "text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      <MapPin className="size-3.5 text-slate-400" />
+                      {city.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Category Dropdown */}
+            <div className="relative" ref={categoryDropdownRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCategoryDropdownOpen((prev) => !prev);
+                  setIsCityDropdownOpen(false);
+                }}
+                className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 focus:outline-none md:w-auto md:min-w-[135px]"
+              >
+                <span className="flex items-center gap-1.5 truncate">
+                  <SlidersHorizontal className="size-4 text-slate-500" />
+                  {currentCategoryLabel}
+                </span>
+                <ChevronDown className="size-4 text-slate-400" />
+              </button>
+
+              {isCategoryDropdownOpen && (
+                <div className="absolute left-0 top-full z-30 mt-1 max-h-60 w-56 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                  {NEWS_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => handleCategorySelect(cat.id)}
+                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium transition ${
+                        selectedCategory === cat.id
+                          ? "bg-indigo-50 font-semibold text-indigo-600"
+                          : "text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Search Any City/Region Input */}
+            <form onSubmit={handleSearchSubmit} className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Search any city or region..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </form>
+
+            {/* Reset Filters Link */}
+            {(selectedCity !== "all" || selectedCategory !== "all") && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="shrink-0 text-xs font-medium text-indigo-600 hover:underline px-1"
+              >
+                Reset filters
               </button>
             )}
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-            {POPULAR_CITIES.map((city) => {
-              const isActive = selectedCity.toLowerCase() === city.id.toLowerCase();
-              return (
-                <button
-                  key={city.id}
-                  type="button"
-                  onClick={() => handleCitySelect(city.id)}
-                  className={`flex shrink-0 items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                    isActive
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/60"
-                  }`}
-                >
-                  {city.id !== "all" && <MapPin className={`size-3 ${isActive ? "text-indigo-400" : "text-slate-400"}`} />}
-                  {city.label}
-                </button>
-              );
-            })}
-            {/* If custom city is selected and not in popular list */}
-            {selectedCity !== "all" &&
-              !POPULAR_CITIES.some((c) => c.id.toLowerCase() === selectedCity.toLowerCase()) && (
-                <button
-                  type="button"
-                  className="flex shrink-0 items-center gap-1 rounded-full bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm"
-                >
-                  <MapPin className="size-3 text-indigo-400" />
-                  {selectedCity}
-                </button>
-              )}
-          </div>
         </div>
 
-        {/* Category Topic Filters */}
-        <div className="mb-6 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-          <Filter className="size-4 shrink-0 text-slate-400" />
-          {NEWS_CATEGORIES.map((category) => (
-            <button
-              key={category.id}
-              type="button"
-              className={`rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition ${
-                selectedCategory === category.id
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
-              }`}
-              onClick={() => handleCategorySelect(category.id)}
-            >
-              {category.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Notice if Fallback national news is shown */}
-        {isFallback && selectedCity !== "all" && !isLoading && (
-          <div className="mb-6 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
-            <Sparkles className="size-4 shrink-0 text-amber-600" />
+        {/* Fallback Notice Banner */}
+        {isFallback && selectedCity && selectedCity !== "all" && !isLoading && (
+          <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-xs text-slate-700">
+            <Info className="size-4 shrink-0 text-blue-500" />
             <span>
-              Direct live articles for <strong>{selectedCity}</strong> are currently limited. Showing latest national and metropolitan real estate market updates.
+              Direct live articles for <strong>{selectedCity}</strong> are currently limited — showing the latest national and metropolitan real estate updates.
             </span>
           </div>
         )}
@@ -354,12 +379,15 @@ export default function NewsPage() {
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div key={i} className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-                <div className="w-full h-48 bg-slate-200 animate-pulse" />
-                <div className="p-4 space-y-3">
+                <div className="w-full h-52 bg-slate-200 animate-pulse" />
+                <div className="p-5 space-y-3">
+                  <div className="flex justify-between">
+                    <div className="h-3 bg-slate-200 rounded animate-pulse w-24" />
+                    <div className="h-3 bg-slate-200 rounded animate-pulse w-12" />
+                  </div>
                   <div className="h-4 bg-slate-200 rounded animate-pulse w-3/4" />
                   <div className="h-3 bg-slate-200 rounded animate-pulse w-full" />
                   <div className="h-3 bg-slate-200 rounded animate-pulse w-2/3" />
-                  <div className="h-3 bg-slate-200 rounded animate-pulse w-1/3" />
                 </div>
               </div>
             ))}
@@ -383,10 +411,7 @@ export default function NewsPage() {
             <p className="mt-2 text-sm text-slate-500">Try selecting "All India" or a different category</p>
             <button
               type="button"
-              onClick={() => {
-                handleCitySelect("all");
-                handleCategorySelect("all");
-              }}
+              onClick={handleResetFilters}
               className="btn btn-sm mt-4 border-none bg-indigo-600 text-white hover:bg-indigo-500"
             >
               View All India News
@@ -396,15 +421,17 @@ export default function NewsPage() {
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {newsArticles.map((news) => {
               const badges = analyzeNewsBadges(news.title, news.description);
+              const displayCity = news.city && news.city !== "National" ? news.city : (selectedCity !== "all" ? selectedCity : "");
+
               return (
                 <a
                   key={news.id || news.url}
                   href={news.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex flex-col rounded-2xl border border-slate-200 bg-white overflow-hidden hover:border-indigo-300 hover:shadow-xl transition-all duration-200"
+                  className="group flex flex-col rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-all duration-200"
                 >
-                  <div className="relative overflow-hidden aspect-[16/9] bg-slate-100">
+                  <div className="relative overflow-hidden aspect-[16/10] bg-slate-100">
                     <img
                       src={news.image}
                       alt={news.title}
@@ -414,55 +441,59 @@ export default function NewsPage() {
                       }}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    <div className="absolute top-3 left-3 flex flex-wrap gap-1">
-                      {news.city && news.city !== "National" && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-900/85 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur">
-                          <MapPin className="size-2.5 text-indigo-400" />
-                          {news.city}
+
+                    {/* Top Left: City Badge */}
+                    <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+                      {displayCity && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-900/80 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur">
+                          <MapPin className="size-2.5 text-white" />
+                          {displayCity}
                         </span>
                       )}
                     </div>
-                    <div className="absolute top-3 right-3 flex flex-wrap gap-1">
+
+                    {/* Top Right: Category Badges */}
+                    <div className="absolute top-3 right-3 flex flex-wrap gap-1.5">
                       {badges.map((badge, index) => (
                         <span
                           key={index}
-                          className={`inline-flex items-center rounded-full ${badge.color} px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur shadow-sm`}
+                          className="inline-flex items-center rounded-full bg-indigo-600/90 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur shadow-sm"
                         >
-                          {badge.label}
+                          {badge}
                         </span>
                       ))}
                     </div>
                   </div>
 
-                  <div className="flex flex-1 flex-col p-4">
-                    <div className="mb-2 flex items-center justify-between text-[11px] text-slate-500">
+                  <div className="flex flex-1 flex-col p-5">
+                    {/* Source & Date Row */}
+                    <div className="mb-2.5 flex items-center justify-between text-xs">
                       <span className="font-semibold text-indigo-600">
-                        {news.source?.name || news.source || "Real Estate Pulse"}
+                        {news.source?.name || news.source || "Real Estate News"}
                       </span>
                       {news.publishedAt && (
-                        <span className="flex items-center gap-1 text-slate-400">
-                          <Calendar className="size-3" />
-                          {new Date(news.publishedAt).toLocaleDateString("en-IN", {
-                            month: "short",
-                            day: "numeric",
-                          })}
+                        <span className="text-slate-400">
+                          {formatNewsDate(news.publishedAt)}
                         </span>
                       )}
                     </div>
 
-                    <h3 className="mb-2 text-sm font-bold text-slate-900 line-clamp-2 group-hover:text-indigo-600 transition">
+                    {/* Title */}
+                    <h3 className="mb-2 text-base font-bold text-slate-900 line-clamp-2 leading-snug group-hover:text-indigo-600 transition">
                       {news.title}
                     </h3>
 
+                    {/* Description */}
                     {news.description && (
                       <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed mb-4">
                         {news.description}
                       </p>
                     )}
 
-                    <div className="mt-auto flex items-center gap-1 pt-2 text-xs font-semibold text-indigo-600 group-hover:translate-x-1 transition-transform">
+                    {/* Read Full Article */}
+                    <div className="mt-auto flex items-center gap-1 pt-2 text-xs font-semibold text-indigo-600 group-hover:underline">
                       Read full article
-                      <ExternalLink className="size-3" />
+                      <ExternalLink className="size-3.5" />
                     </div>
                   </div>
                 </a>
