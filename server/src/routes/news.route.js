@@ -1,10 +1,13 @@
 import express from "express";
 import axios from "axios";
+import { XMLParser } from "fast-xml-parser";
 import { logger } from "../utils/logger.js";
 
 const router = express.Router();
 
 const NEWS_API_URL = "https://newsapi.org/v2";
+const GOOGLE_NEWS_RSS_URL = "https://news.google.com/rss/search";
+const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
 
 // In-memory cache with 10-minute TTL to respect NewsAPI rate limits
 const newsCache = new Map();
@@ -67,11 +70,45 @@ const CATEGORY_SEARCH_QUERIES = {
   investment: '"real estate investment" OR "property prices" OR "commercial property" OR "rental yield"',
 };
 
+// Free, unlimited fallback source when NewsAPI's daily quota is exhausted.
+// Returns real, city-specific articles (unlike the hardcoded template below).
+const fetchGoogleNews = async (query, requestId) => {
+  try {
+    const response = await axios.get(GOOGLE_NEWS_RSS_URL, {
+      params: { q: query, hl: "en-IN", gl: "IN", ceid: "IN:en" },
+      timeout: 8000,
+    });
+
+    const parsed = xmlParser.parse(response.data);
+    const rawItems = parsed?.rss?.channel?.item;
+    const items = Array.isArray(rawItems) ? rawItems : rawItems ? [rawItems] : [];
+
+    return items.map((item, index) => {
+      const sourceName = typeof item.source === "object" ? item.source["#text"] : item.source || "Google News";
+      const title = String(item.title || "").replace(new RegExp(`\\s*-\\s*${sourceName}\\s*$`), "");
+
+      return {
+        id: index + 1,
+        title,
+        description: "",
+        image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=600&q=80",
+        source: { name: sourceName },
+        url: item.link,
+        publishedAt: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
+      };
+    });
+  } catch (err) {
+    logger.warn("Google News RSS fallback failed", { requestId, error: err.message });
+    return [];
+  }
+};
+
 // GET /api/news/trending - Fetch trending real estate news with city & category filters
 router.get("/trending", async (req, res) => {
   try {
     const rawCategory = (req.query.category || "all").toString().trim().toLowerCase();
     const category = CATEGORY_SEARCH_QUERIES[rawCategory] ? rawCategory : "all";
+    const categoryKeyword = CATEGORY_SEARCH_QUERIES[category];
     const rawCity = (req.query.city || "").toString().trim();
     const isSpecificCity = rawCity && rawCity.toLowerCase() !== "all";
 
@@ -90,7 +127,6 @@ router.get("/trending", async (req, res) => {
     }
 
     if (process.env.NEWS_API_KEY) {
-      const categoryKeyword = CATEGORY_SEARCH_QUERIES[category];
       const query = isSpecificCity
         ? `(${rawCity}) AND (${categoryKeyword})`
         : `(India OR National) AND (${categoryKeyword})`;
@@ -162,7 +198,29 @@ router.get("/trending", async (req, res) => {
       }
     }
 
-    // Fallback static data if NewsAPI is unavailable or returned empty
+    // NewsAPI unavailable, unset, or quota-exhausted — try Google News RSS
+    // (free, unlimited, no key required) before falling back to the static template.
+    const googleQuery = isSpecificCity
+      ? `(${rawCity}) AND (${categoryKeyword})`
+      : `(India) AND (${categoryKeyword})`;
+    const googleArticles = (await fetchGoogleNews(googleQuery, req.id))
+      .filter((article) => article.title && article.url)
+      .slice(0, 12)
+      .map((article) => ({ ...article, city: isSpecificCity ? rawCity : "National" }));
+
+    if (googleArticles.length > 0) {
+      newsCache.set(cacheKey, { timestamp: Date.now(), data: googleArticles });
+      return res.json({
+        success: true,
+        data: googleArticles,
+        city: rawCity || "All Regions",
+        category,
+        isFallback: false,
+        source: "google-news",
+      });
+    }
+
+    // Last resort: static template if both NewsAPI and Google News are unavailable
     const fallbackData = getFallbackNews(rawCity);
     return res.json({
       success: true,
