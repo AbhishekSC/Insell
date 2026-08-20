@@ -8,6 +8,9 @@ import { BrowserRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StreamProvider } from "./context/StreamProvider";
 import { ThemeProvider } from "./context/ThemeProvider";
+import { initPostHog } from "./lib/posthog";
+
+initPostHog();
 
 // Create a client with optimized caching settings
 const queryClient = new QueryClient({
