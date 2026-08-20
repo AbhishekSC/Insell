@@ -10,6 +10,7 @@ import { logger } from "./utils/logger.js";
 import { errorHandler, notFoundHandler } from "./middlewares/errorHandler.js";
 import { requestIdMiddleware } from "./middlewares/requestId.middleware.js";
 import passport from "./config/googleAuth.config.js";
+import Sentry, { isSentryEnabled } from "./config/sentry.config.js";
 
 const app = express();
 
@@ -65,6 +66,9 @@ app.use(
 
 app.use("/api", routes);
 app.use(notFoundHandler);
+if (isSentryEnabled()) {
+  Sentry.setupExpressErrorHandler(app);
+}
 app.use(errorHandler);
 
 export default app;

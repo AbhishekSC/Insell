@@ -33,6 +33,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import axiosInstance from "./lib/axios";
 import posthog, { isPostHogEnabled } from "./lib/posthog";
+import Sentry, { isSentryEnabled } from "./lib/sentry";
 
 function App() {
   const queryClient = useQueryClient();
@@ -89,6 +90,10 @@ function App() {
       });
     } else {
       posthog.reset();
+    }
+
+    if (isSentryEnabled()) {
+      Sentry.setUser(authUser?._id ? { id: authUser._id, email: authUser.email } : null);
     }
     // Only re-run when the identity itself changes, not on every field edit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
