@@ -87,3 +87,60 @@ export const getFullLocationDetails = async () => {
     throw error;
   }
 };
+
+/**
+ * Automatically detect user's current city with GPS -> IP Geolocation fallback
+ * @returns {Promise<string|null>}
+ */
+export const getAutoDetectedCity = async () => {
+  // 1. Try sessionStorage cache first so we don't spam requests
+  try {
+    const cachedCity = sessionStorage.getItem("detected_user_city");
+    if (cachedCity) return cachedCity;
+  } catch {
+    // Ignore sessionStorage errors
+  }
+
+  // 2. Try browser GPS Geolocation (with 4s timeout)
+  try {
+    const coordinates = await new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject(new Error("No geolocation"));
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+        (err) => reject(err),
+        { timeout: 4000, maximumAge: 1000 * 60 * 30 }
+      );
+    });
+
+    const address = await reverseGeocode(coordinates.latitude, coordinates.longitude);
+    const resolvedCity = address.city || address.state;
+    if (resolvedCity) {
+      try {
+        sessionStorage.setItem("detected_user_city", resolvedCity);
+      } catch {}
+      return resolvedCity;
+    }
+  } catch {
+    // GPS failed, declined, or timed out - proceed to IP-based detection
+  }
+
+  // 3. Fallback to zero-permission IP Geolocation
+  try {
+    const res = await fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      const data = await res.json();
+      const city = data.city || data.region;
+      if (city) {
+        try {
+          sessionStorage.setItem("detected_user_city", city);
+        } catch {}
+        return city;
+      }
+    }
+  } catch {
+    // Fallback failed
+  }
+
+  return null;
+};
+

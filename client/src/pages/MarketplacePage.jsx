@@ -63,6 +63,7 @@ import RoleBasedFilters from "../components/RoleBasedFilters";
 import StoriesBar from "../components/StoriesBar";
 import RoleBasedDashboard from "../components/RoleBasedDashboard";
 import axiosInstance from "../lib/axios";
+import { getAutoDetectedCity } from "../utils/geolocation";
 
 const DEFAULT_MAP_CENTER = [20.5937, 78.9629]; // geographic center of India, used until a location is picked
 
@@ -1024,17 +1025,34 @@ export default function MarketplacePage() {
   const trendingLocalities = ["Indore - Super Corridor", "Bengaluru - Whitefield", "Pune - Hinjewadi", "Noida - Sector 150"];
   const savedSearches = ["2 BHK in Vijay Nagar", "Luxury Villa in Goa", "Commercial office in Noida"];
 
-  // Fetch trending news from backend
-  const { data: newsData, isLoading: newsLoading, refetch: refetchNews } = useQuery({
-    queryKey: ["trendingNews"],
+  const profileCity = authUser?.city || authUser?.locationDetails?.city || "";
+  const [detectedCity, setDetectedCity] = useState(profileCity);
+
+  useEffect(() => {
+    if (!profileCity) {
+      getAutoDetectedCity().then((city) => {
+        if (city) setDetectedCity(city);
+      });
+    } else {
+      setDetectedCity(profileCity);
+    }
+  }, [profileCity]);
+
+  const userCity = detectedCity || profileCity;
+
+  // Fetch trending news from backend filtered by user region
+  const { data: newsResponse, isLoading: newsLoading, refetch: refetchNews } = useQuery({
+    queryKey: ["trendingNews", userCity],
     queryFn: async () => {
-      const response = await axiosInstance.get("/news/trending");
-      console.log("Marketplace news response:", response.data);
-      return response.data.data || [];
+      const cityParam = userCity ? `?city=${encodeURIComponent(userCity)}` : "";
+      const response = await axiosInstance.get(`/news/trending${cityParam}`);
+      return response.data;
     },
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
     refetchOnWindowFocus: false,
   });
+
+  const newsData = newsResponse?.data || [];
 
   const composerMedia = useMemo(
     () =>
@@ -1716,18 +1734,29 @@ export default function MarketplacePage() {
 
             <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-bold text-slate-800">Trending News</p>
-                <div className="flex items-center gap-2">
+                <div>
+                  <p className="text-sm font-bold text-slate-800">
+                    {userCity ? `Trending in ${userCity}` : "Trending News"}
+                  </p>
+                  <p className="text-[10px] text-slate-400">Local property & infra updates</p>
+                </div>
+                <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    className="btn btn-ghost btn-circle text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
+                    className="btn btn-ghost btn-circle btn-xs text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
                     onClick={() => refetchNews()}
                     disabled={newsLoading}
                     title="Refresh news"
                   >
-                    <RefreshCw className={`size-4 ${newsLoading ? "animate-spin" : ""}`} />
+                    <RefreshCw className={`size-3.5 ${newsLoading ? "animate-spin" : ""}`} />
                   </button>
-                  <button type="button" className="btn btn-xs border border-slate-200 bg-white text-indigo-600 hover:bg-indigo-50" onClick={() => navigate("/news")}>View all</button>
+                  <button
+                    type="button"
+                    className="btn btn-xs border border-slate-200 bg-white text-indigo-600 hover:bg-indigo-50"
+                    onClick={() => navigate(`/news${userCity ? `?city=${encodeURIComponent(userCity)}` : ""}`)}
+                  >
+                    View all
+                  </button>
                 </div>
               </div>
               {newsLoading ? (
