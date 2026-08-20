@@ -117,7 +117,9 @@ export const getAutoDetectedCity = async () => {
     if (resolvedCity) {
       try {
         sessionStorage.setItem("detected_user_city", resolvedCity);
-      } catch {}
+      } catch {
+        // Ignore sessionStorage write errors (e.g. privacy mode)
+      }
       return resolvedCity;
     }
   } catch {
@@ -133,7 +135,9 @@ export const getAutoDetectedCity = async () => {
       if (city) {
         try {
           sessionStorage.setItem("detected_user_city", city);
-        } catch {}
+        } catch {
+          // Ignore sessionStorage write errors
+        }
         return city;
       }
     }
