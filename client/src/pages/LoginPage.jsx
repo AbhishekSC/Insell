@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
 import AccountBlockedModal from "../components/AccountBlockedModal";
 import { setAuthToken } from "../lib/authToken";
+import posthog, { isPostHogEnabled } from "../lib/posthog";
 
 export default function LoginPage() {
   const queryClient = useQueryClient();
@@ -58,6 +59,9 @@ export default function LoginPage() {
         },
       });
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
+      if (isPostHogEnabled()) {
+        posthog.capture("login_completed");
+      }
     },
     onError: (err) => {
       if (err?.response?.data?.missingFields?.code === "ACCOUNT_BLOCKED") {

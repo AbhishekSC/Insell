@@ -64,6 +64,7 @@ import StoriesBar from "../components/StoriesBar";
 import RoleBasedDashboard from "../components/RoleBasedDashboard";
 import axiosInstance from "../lib/axios";
 import { getAutoDetectedCity } from "../utils/geolocation";
+import posthog, { isPostHogEnabled } from "../lib/posthog";
 
 const DEFAULT_MAP_CENTER = [20.5937, 78.9629]; // geographic center of India, used until a location is picked
 
@@ -848,6 +849,14 @@ export default function MarketplacePage() {
       // Also invalidate to ensure data consistency
       queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
       setComposerStep(6);
+
+      if (isPostHogEnabled()) {
+        posthog.capture("post_created", {
+          postType: data?.postType,
+          listingType: data?.listingType,
+          propertyType: data?.propertyType,
+        });
+      }
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || "Failed to create post");
