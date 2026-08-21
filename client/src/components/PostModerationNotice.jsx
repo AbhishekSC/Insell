@@ -38,7 +38,11 @@ export default function PostModerationNotice({ enabled }) {
     // No polling — StreamProvider's socket listener invalidates this query
     // as soon as the server pushes a "post_moderation_notice" custom event
     // (see stream.service.js's pushRealtimeNotification), so it refetches
-    // in real time instead.
+    // in real time instead. That only reaches users connected at send
+    // time though — staleTime: 0 makes sure anyone who was logged out
+    // still gets a real check (not a stale cached empty result) on their
+    // next login instead of missing it entirely.
+    staleTime: 0,
   });
 
   const notices = data?.notifications || [];

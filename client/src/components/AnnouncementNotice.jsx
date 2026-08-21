@@ -27,6 +27,12 @@ export default function AnnouncementNotice({ enabled }) {
       return res.data?.data;
     },
     enabled,
+    // Realtime push only reaches users connected at send time — anyone who
+    // was logged out gets caught up on their next login instead. Force a
+    // real check whenever this becomes active rather than trusting the
+    // global staleTime, otherwise a stale cached "no notices" result from
+    // before logout can mask an announcement sent while they were away.
+    staleTime: 0,
   });
 
   const notices = data?.notifications || [];
