@@ -11,6 +11,7 @@ import { errorHandler, notFoundHandler } from "./middlewares/errorHandler.js";
 import { requestIdMiddleware } from "./middlewares/requestId.middleware.js";
 import passport from "./config/googleAuth.config.js";
 import Sentry, { isSentryEnabled } from "./config/sentry.config.js";
+import { apiLimiter } from "./middleware/expressRateLimit.js";
 
 const app = express();
 
@@ -64,7 +65,7 @@ app.use(
   })
 );
 
-app.use("/api", routes);
+app.use("/api", apiLimiter, routes);
 app.use(notFoundHandler);
 if (isSentryEnabled()) {
   Sentry.setupExpressErrorHandler(app);
