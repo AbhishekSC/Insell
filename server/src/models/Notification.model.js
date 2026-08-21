@@ -36,6 +36,7 @@ const notificationSchema = new mongoose.Schema(
         "post_unblocked",
         "post_reported",
         "post_report_resolved",
+        "admin_announcement",
       ],
     },
     message: {

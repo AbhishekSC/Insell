@@ -8,6 +8,7 @@ import {
   Eye,
   Flag,
   Loader2,
+  Megaphone,
   MoreVertical,
   Search,
   ShieldAlert,
@@ -1137,6 +1138,179 @@ function ReportsPanel() {
   );
 }
 
+function AnnouncementsPanel() {
+  const queryClient = useQueryClient();
+  const [message, setMessage] = useState("");
+  const [role, setRole] = useState("");
+  const [city, setCity] = useState("");
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [page, setPage] = useState(1);
+
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ["adminAnnouncements", page],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/admin/announcements", { params: { page, limit: 20 } });
+      return response.data?.data;
+    },
+    placeholderData: keepPreviousData,
+  });
+
+  const announcements = data?.announcements || [];
+  const pagination = data?.pagination || { page: 1, totalPages: 1, total: 0 };
+
+  const { mutate: sendAnnouncement, isPending: isSending } = useMutation({
+    mutationFn: async () => {
+      const response = await axiosInstance.post("/admin/announcements", {
+        message: message.trim(),
+        role: role || undefined,
+        city: city.trim() || undefined,
+        verifiedOnly,
+      });
+      return response.data?.data;
+    },
+    onSuccess: (result) => {
+      toast.success(`Sent to ${result.announcement.recipientCount} users`);
+      setMessage("");
+      setRole("");
+      setCity("");
+      setVerifiedOnly(false);
+      setPage(1);
+      queryClient.invalidateQueries({ queryKey: ["adminAnnouncements"] });
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to send announcement");
+    },
+  });
+
+  const segmentLabel = (announcement) => {
+    const parts = [];
+    if (announcement.segment?.verifiedOnly) parts.push("Verified");
+    if (announcement.segment?.role) parts.push(announcement.segment.role);
+    if (announcement.segment?.city) parts.push(announcement.segment.city);
+    return parts.length ? parts.join(" · ") : "All users";
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <div className="grid size-9 place-items-center rounded-xl bg-indigo-100 text-indigo-600">
+            <Megaphone className="size-4" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-slate-800">New announcement</h2>
+            <p className="text-xs text-slate-500">Pushes instantly as a must-dismiss notice to matching users.</p>
+          </div>
+        </div>
+
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          maxLength={240}
+          rows={3}
+          placeholder="e.g. We're rolling out a new verification badge for brokers this week."
+          className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+        />
+        <p className="mt-1 text-right text-xs text-slate-400">{message.length}/240</p>
+
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            disabled={verifiedOnly}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 disabled:opacity-50"
+          >
+            <option value="">Any role</option>
+            {ROLE_OPTIONS.map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+
+          <input
+            type="text"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            placeholder="Any city"
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400"
+          />
+
+          <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={verifiedOnly}
+              onChange={(e) => {
+                setVerifiedOnly(e.target.checked);
+                if (e.target.checked) setRole("");
+              }}
+              className="size-4 rounded border-slate-300"
+            />
+            Verified brokers/sellers/landlords only
+          </label>
+
+          <button
+            type="button"
+            onClick={() => sendAnnouncement()}
+            disabled={isSending || !message.trim()}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 disabled:opacity-50 sm:ml-auto"
+          >
+            {isSending ? <Loader2 className="size-4 animate-spin" /> : <Megaphone className="size-4" />}
+            Send
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 p-4 sm:p-5">
+          <h2 className="font-semibold text-slate-800">History</h2>
+          <p className="text-xs text-slate-500">{pagination.total} sent</p>
+        </div>
+
+        <div className="divide-y divide-slate-100">
+          {isLoading ? (
+            <div className="p-8 text-center text-sm text-slate-500">Loading...</div>
+          ) : announcements.length === 0 ? (
+            <div className="p-8 text-center text-sm text-slate-500">No announcements sent yet</div>
+          ) : (
+            announcements.map((a) => (
+              <div key={a._id} className="flex flex-col gap-1 px-4 py-3 sm:px-5">
+                <p className="text-sm text-slate-800">{a.message}</p>
+                <p className="text-xs text-slate-500">
+                  {segmentLabel(a)} · {a.recipientCount} recipients · by {a.sentBy?.fullName || "Admin"} · {formatDate(a.createdAt)}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 sm:px-5">
+          <p className="text-xs text-slate-500">
+            Page {pagination.page} of {pagination.totalPages}
+            {isFetching ? " · updating..." : ""}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            >
+              <ChevronLeft className="size-3.5" /> Prev
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+              disabled={page >= pagination.totalPages}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            >
+              Next <ChevronRight className="size-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("users");
 
@@ -1170,9 +1344,26 @@ export default function AdminPage() {
         >
           Reports
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("announcements")}
+          className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+            activeTab === "announcements" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          Announcements
+        </button>
       </div>
 
-      {activeTab === "users" ? <UsersPanel /> : activeTab === "posts" ? <PostsPanel /> : <ReportsPanel />}
+      {activeTab === "users" ? (
+        <UsersPanel />
+      ) : activeTab === "posts" ? (
+        <PostsPanel />
+      ) : activeTab === "reports" ? (
+        <ReportsPanel />
+      ) : (
+        <AnnouncementsPanel />
+      )}
     </AppShell>
   );
 }

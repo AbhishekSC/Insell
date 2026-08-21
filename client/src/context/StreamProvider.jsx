@@ -183,6 +183,12 @@ export function StreamProvider({ children }) {
           if (event.type === "post_moderation_notice") {
             queryClient.invalidateQueries({ queryKey: ["notifications", "postModeration", "unread"] });
           }
+
+          // Pushed via admin.controller.js's createAnnouncement — same
+          // instant-refetch pattern as the moderation notice above.
+          if (event.type === "admin_announcement") {
+            queryClient.invalidateQueries({ queryKey: ["notifications", "announcement", "unread"] });
+          }
         };
 
         client.on(handleEvent);
