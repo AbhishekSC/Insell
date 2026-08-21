@@ -50,6 +50,11 @@ const notificationSchema = new mongoose.Schema(
       trim: true,
       maxlength: 1000,
     },
+    // Optional image on admin_announcement notifications.
+    image: {
+      type: String,
+      trim: true,
+    },
     session: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Session",

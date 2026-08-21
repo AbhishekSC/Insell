@@ -1,5 +1,6 @@
 import express from "express";
 import { verifyUser, requireVerified, requireAdmin } from "../middlewares/auth.middleware.js";
+import { uploadAnnouncementImage } from "../middlewares/upload.middleware.js";
 import {
   getAdminUsers,
   toggleUserBlock,
@@ -11,6 +12,7 @@ import {
   dismissPostReports,
   createAnnouncement,
   getAnnouncements,
+  uploadAnnouncementImageController,
 } from "../controllers/admin.controller.js";
 
 const router = new express.Router();
@@ -32,5 +34,6 @@ router.post("/reports/:postId/dismiss", dismissPostReports);
 
 router.get("/announcements", getAnnouncements);
 router.post("/announcements", createAnnouncement);
+router.post("/announcements/upload-image", uploadAnnouncementImage.single("image"), uploadAnnouncementImageController);
 
 export default router;

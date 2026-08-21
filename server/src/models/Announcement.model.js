@@ -11,6 +11,10 @@ const announcementSchema = new mongoose.Schema(
       trim: true,
       maxlength: 240,
     },
+    image: {
+      type: String,
+      trim: true,
+    },
     segment: {
       role: { type: String, trim: true, default: "" },
       city: { type: String, trim: true, default: "" },

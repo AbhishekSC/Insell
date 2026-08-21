@@ -445,12 +445,25 @@ export const dismissPostReports = async (req, res) => {
 // in the recipient's notification bell with no new client-side plumbing, and
 // pushes a realtime event so it also surfaces immediately as a no-TTL,
 // must-dismiss notice (mirrors the post-moderation notice pattern).
+export const uploadAnnouncementImageController = async (req, res) => {
+  try {
+    if (!req.file) {
+      return sendErrorResponse(res, 400, "No image uploaded");
+    }
+    return sendSuccessResponse(res, 200, "Image uploaded successfully", { url: req.file.path });
+  } catch (error) {
+    logger.error("Error uploading announcement image:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+};
+
 export const createAnnouncement = async (req, res) => {
   try {
     const message = String(req.body?.message || "").trim();
     const role = String(req.body?.role || "").trim();
     const city = String(req.body?.city || "").trim();
     const verifiedOnly = Boolean(req.body?.verifiedOnly);
+    const image = String(req.body?.image || "").trim();
     const adminId = req.user._id;
 
     if (!message) {
@@ -478,6 +491,7 @@ export const createAnnouncement = async (req, res) => {
       actor: adminId,
       type: "admin_announcement",
       message,
+      image: image || undefined,
       createdAt: now,
       updatedAt: now,
     }));
@@ -488,6 +502,7 @@ export const createAnnouncement = async (req, res) => {
 
     const announcement = await Announcement.create({
       message,
+      image: image || undefined,
       segment: { role, city, verifiedOnly },
       sentBy: adminId,
       recipientCount: recipientIds.length,

@@ -73,13 +73,18 @@ export default function AnnouncementNotice({ enabled }) {
 
         <div className="mt-4 max-h-52 space-y-2 overflow-y-auto">
           {notices.map((notice) => (
-            <div key={notice._id} className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <div className="grid size-6 shrink-0 place-items-center rounded-full bg-indigo-50 text-indigo-600">
-                <Megaphone className="size-3.5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-slate-700">{notice.message}</p>
-                <p className="mt-1 text-xs text-slate-400">{relativeDate(notice.createdAt)}</p>
+            <div key={notice._id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              {notice.image && (
+                <img src={notice.image} alt="" className="mb-2 max-h-40 w-full rounded-lg object-cover" />
+              )}
+              <div className="flex items-start gap-2.5">
+                <div className="grid size-6 shrink-0 place-items-center rounded-full bg-indigo-50 text-indigo-600">
+                  <Megaphone className="size-3.5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-slate-700">{notice.message}</p>
+                  <p className="mt-1 text-xs text-slate-400">{relativeDate(notice.createdAt)}</p>
+                </div>
               </div>
             </div>
           ))}

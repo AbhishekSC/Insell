@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Eye,
   Flag,
+  Image as ImageIcon,
   Loader2,
   Megaphone,
   MoreVertical,
@@ -1144,7 +1145,21 @@ function AnnouncementsPanel() {
   const [role, setRole] = useState("");
   const [city, setCity] = useState("");
   const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [imageUrl, setImageUrl] = useState("");
   const [page, setPage] = useState(1);
+
+  const { mutate: uploadImage, isPending: isUploadingImage } = useMutation({
+    mutationFn: async (file) => {
+      const formData = new FormData();
+      formData.append("image", file);
+      const response = await axiosInstance.post("/admin/announcements/upload-image", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data?.data;
+    },
+    onSuccess: (result) => setImageUrl(result.url),
+    onError: (error) => toast.error(error?.response?.data?.message || "Failed to upload image"),
+  });
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ["adminAnnouncements", page],
@@ -1165,6 +1180,7 @@ function AnnouncementsPanel() {
         role: role || undefined,
         city: city.trim() || undefined,
         verifiedOnly,
+        image: imageUrl || undefined,
       });
       return response.data?.data;
     },
@@ -1174,6 +1190,7 @@ function AnnouncementsPanel() {
       setRole("");
       setCity("");
       setVerifiedOnly(false);
+      setImageUrl("");
       setPage(1);
       queryClient.invalidateQueries({ queryKey: ["adminAnnouncements"] });
     },
@@ -1213,6 +1230,38 @@ function AnnouncementsPanel() {
         />
         <p className="mt-1 text-right text-xs text-slate-400">{message.length}/240</p>
 
+        <div className="mt-3">
+          {imageUrl ? (
+            <div className="relative inline-block">
+              <img src={imageUrl} alt="Announcement" className="h-28 w-auto rounded-xl border border-slate-200 object-cover" />
+              <button
+                type="button"
+                onClick={() => setImageUrl("")}
+                className="absolute -right-2 -top-2 grid size-6 place-items-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-700"
+                title="Remove image"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+          ) : (
+            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+              {isUploadingImage ? <Loader2 className="size-4 animate-spin" /> : <ImageIcon className="size-4" />}
+              {isUploadingImage ? "Uploading..." : "Add image (optional)"}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadImage(file);
+                  e.target.value = "";
+                }}
+                disabled={isUploadingImage}
+                className="hidden"
+              />
+            </label>
+          )}
+        </div>
+
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
           <select
             value={role}
@@ -1250,7 +1299,7 @@ function AnnouncementsPanel() {
           <button
             type="button"
             onClick={() => sendAnnouncement()}
-            disabled={isSending || !message.trim()}
+            disabled={isSending || isUploadingImage || !message.trim()}
             className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 disabled:opacity-50 sm:ml-auto"
           >
             {isSending ? <Loader2 className="size-4 animate-spin" /> : <Megaphone className="size-4" />}
@@ -1272,11 +1321,16 @@ function AnnouncementsPanel() {
             <div className="p-8 text-center text-sm text-slate-500">No announcements sent yet</div>
           ) : (
             announcements.map((a) => (
-              <div key={a._id} className="flex flex-col gap-1 px-4 py-3 sm:px-5">
-                <p className="text-sm text-slate-800">{a.message}</p>
-                <p className="text-xs text-slate-500">
-                  {segmentLabel(a)} · {a.recipientCount} recipients · by {a.sentBy?.fullName || "Admin"} · {formatDate(a.createdAt)}
-                </p>
+              <div key={a._id} className="flex items-start gap-3 px-4 py-3 sm:px-5">
+                {a.image && (
+                  <img src={a.image} alt="" className="size-12 shrink-0 rounded-lg border border-slate-200 object-cover" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-slate-800">{a.message}</p>
+                  <p className="text-xs text-slate-500">
+                    {segmentLabel(a)} · {a.recipientCount} recipients · by {a.sentBy?.fullName || "Admin"} · {formatDate(a.createdAt)}
+                  </p>
+                </div>
               </div>
             ))
           )}
