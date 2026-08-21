@@ -1,11 +1,16 @@
 import rateLimit from "express-rate-limit";
 
-// General, IP-based ceiling across the whole API — not meant to bother a
-// real user (300 requests/15min is generous), just to stop one runaway
-// client or bot from monopolizing the server's limited free-tier capacity.
+// General, IP-based ceiling across the whole API. The app already polls
+// aggressively in the background — AppShell.jsx alone runs four
+// refetchInterval: 15000 queries at once, plus StoriesBar.jsx at 8000ms —
+// so a single idle tab with zero clicks already generates ~350+ requests
+// per 15 minutes on its own, before counting the marketplace's own polling,
+// multiple tabs, or several people sharing one office/NAT IP. This is set
+// with real headroom above that baseline; it's meant to catch a genuinely
+// runaway client or bot, not normal usage.
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 300,
+  limit: 2000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: "Too many requests, please try again later." },
