@@ -236,6 +236,14 @@ const propertyPostSchema = new mongoose.Schema(
 );
 
 propertyPostSchema.index({ createdAt: -1 });
+// Matches the marketplace feed's base filter (getFeedPosts in
+// propertyPost.controller.js: isDeleted/isBlocked excluded, sorted by
+// newest) — without this, that filter+sort can't be served by a single
+// index and falls back to a slower in-memory sort as the collection grows.
+propertyPostSchema.index({ isDeleted: 1, isBlocked: 1, createdAt: -1 });
+// Matches "my posts" / author-filtered feeds (profile pages, authorId
+// query param) sorted by newest.
+propertyPostSchema.index({ author: 1, isDeleted: 1, createdAt: -1 });
 
 const PropertyPost = mongoose.model("PropertyPost", propertyPostSchema);
 

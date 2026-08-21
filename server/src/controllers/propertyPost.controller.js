@@ -35,7 +35,7 @@ export async function getPropertyAnalytics(req, res) {
     const { propertyId } = req.params;
     const currentUserId = req.user?._id ? String(req.user._id) : "";
 
-    const property = await PropertyPost.findById(propertyId);
+    const property = await PropertyPost.findById(propertyId).lean();
     if (!property) {
       return sendErrorResponse(res, 404, "Property not found");
     }
@@ -95,7 +95,7 @@ export async function compareProperties(req, res) {
       _id: { $in: propertyIds },
       isDeleted: { $ne: true },
       isBlocked: { $ne: true }
-    }).populate('author', 'fullName profilePic isVerified');
+    }).populate('author', 'fullName profilePic isVerified').lean();
 
     if (properties.length === 0) {
       return sendErrorResponse(res, 404, "No properties found");
@@ -105,7 +105,7 @@ export async function compareProperties(req, res) {
     const scoredProperties = properties.map(property => {
       const score = calculatePropertyScore(property, properties, preferenceCriteria);
       return {
-        ...property.toObject(),
+        ...property,
         id: property._id,
         comparisonScore: score.total,
         scoreBreakdown: score.breakdown,
