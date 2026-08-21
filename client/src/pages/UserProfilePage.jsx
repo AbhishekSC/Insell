@@ -179,6 +179,10 @@ export default function UserProfilePage() {
   const isOwnProfile = relationship.isSelf;
 
   const [selectedPostForComments, setSelectedPostForComments] = useState(null);
+  const [showAvatarPreview, setShowAvatarPreview] = useState(false);
+  // Full-size preview is limited to your own profile and confirmed friends —
+  // not something a stranger/pending connection can zoom into.
+  const canPreviewAvatar = isOwnProfile || relationship.connectionStatus === "friends";
 
   const { data: postsData, isLoading: isPostsLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ["userPosts", userId],
@@ -404,12 +408,21 @@ export default function UserProfilePage() {
             {/* Left: Avatar and Info */}
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-6 lg:items-center">
               <div className="relative shrink-0">
-                <UserAvatar
-                  src={profileUser.profilePic}
-                  name={profileUser.fullName || "User"}
-                  sizeClass="size-24"
-                  className="ring-4 ring-slate-100"
-                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (canPreviewAvatar && profileUser.profilePic) setShowAvatarPreview(true);
+                  }}
+                  className={canPreviewAvatar && profileUser.profilePic ? "cursor-zoom-in" : "cursor-default"}
+                  aria-label={canPreviewAvatar ? "View full-size profile photo" : undefined}
+                >
+                  <UserAvatar
+                    src={profileUser.profilePic}
+                    name={profileUser.fullName || "User"}
+                    sizeClass="size-24"
+                    className="ring-4 ring-slate-100"
+                  />
+                </button>
                 <div className="absolute bottom-1 right-1 size-4 rounded-full bg-emerald-500 ring-2 ring-white"></div>
               </div>
               <div className="min-w-0 text-center sm:text-left">
@@ -1651,6 +1664,29 @@ export default function UserProfilePage() {
         isLoading={isConnectionsLoading}
         emptyMessage={connectionsForbidden ? "Only friends can view this list." : "Nobody here yet."}
       />
+
+      {/* Avatar Preview — full-size photo, own profile or friends only */}
+      {showAvatarPreview && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setShowAvatarPreview(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setShowAvatarPreview(false)}
+            className="absolute right-4 top-4 grid size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"
+            aria-label="Close"
+          >
+            <X className="size-5" />
+          </button>
+          <img
+            src={profileUser.profilePic}
+            alt={profileUser.fullName || "Profile photo"}
+            className="max-h-[85vh] max-w-full rounded-2xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </AppShell>
   );
 }
