@@ -1,14 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Flag, ShieldOff, ShieldCheck, X } from "lucide-react";
+import { Megaphone, X } from "lucide-react";
 import axiosInstance from "../lib/axios";
-
-const NOTICE_TYPES = ["post_reported", "post_blocked", "post_report_resolved"];
-
-const NOTICE_ICONS = {
-  post_reported: { Icon: Flag, bg: "bg-amber-50", text: "text-amber-600" },
-  post_blocked: { Icon: ShieldOff, bg: "bg-red-50", text: "text-red-600" },
-  post_report_resolved: { Icon: ShieldCheck, bg: "bg-emerald-50", text: "text-emerald-600" },
-};
 
 function relativeDate(dateString) {
   if (!dateString) return "";
@@ -20,28 +12,26 @@ function relativeDate(dateString) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-// A no-TTL, must-dismiss notice for post moderation events (a post you own
-// was reported or blocked, or a post you reported was acted on) — unlike a
-// toast, this stays up until the user explicitly closes it with the X button.
-export default function PostModerationNotice({ enabled }) {
+// A no-TTL, must-dismiss notice for admin broadcasts — same pattern as
+// PostModerationNotice: stays up until explicitly closed, refetches
+// instantly on the "admin_announcement" realtime push instead of polling.
+export default function AnnouncementNotice({ enabled }) {
   const queryClient = useQueryClient();
 
   const { data } = useQuery({
-    queryKey: ["notifications", "postModeration", "unread"],
+    queryKey: ["notifications", "announcement", "unread"],
     queryFn: async () => {
       const res = await axiosInstance.get("/notifications", {
-        params: { unreadOnly: "true", type: NOTICE_TYPES.join(",") },
+        params: { unreadOnly: "true", type: "admin_announcement" },
       });
       return res.data?.data;
     },
     enabled,
-    // No polling — StreamProvider's socket listener invalidates this query
-    // as soon as the server pushes a "post_moderation_notice" custom event
-    // (see stream.service.js's pushRealtimeNotification), so it refetches
-    // in real time instead. That only reaches users connected at send
-    // time though — staleTime: 0 makes sure anyone who was logged out
-    // still gets a real check (not a stale cached empty result) on their
-    // next login instead of missing it entirely.
+    // Realtime push only reaches users connected at send time — anyone who
+    // was logged out gets caught up on their next login instead. Force a
+    // real check whenever this becomes active rather than trusting the
+    // global staleTime, otherwise a stale cached "no notices" result from
+    // before logout can mask an announcement sent while they were away.
     staleTime: 0,
   });
 
@@ -52,20 +42,18 @@ export default function PostModerationNotice({ enabled }) {
       await Promise.all(notices.map((notice) => axiosInstance.patch(`/notifications/${notice._id}/read`)));
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications", "postModeration", "unread"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications", "announcement", "unread"] });
     },
   });
 
   if (notices.length === 0) return null;
 
-  const headerIcon = NOTICE_ICONS[notices[0].type] || NOTICE_ICONS.post_reported;
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
         <div className="flex items-start justify-between gap-3">
-          <div className={`grid size-10 shrink-0 place-items-center rounded-full ${headerIcon.bg} ${headerIcon.text}`}>
-            <headerIcon.Icon className="size-5" />
+          <div className="grid size-10 shrink-0 place-items-center rounded-full bg-indigo-50 text-indigo-600">
+            <Megaphone className="size-5" />
           </div>
           <button
             type="button"
@@ -79,25 +67,27 @@ export default function PostModerationNotice({ enabled }) {
         </div>
 
         <h3 className="mt-3 text-lg font-semibold text-slate-800">
-          {notices.length > 1 ? `${notices.length} updates on your posts` : "Update on your posts"}
+          {notices.length > 1 ? `${notices.length} announcements` : "Announcement"}
         </h3>
-        <p className="mt-1 text-sm text-slate-500">Moderation activity on posts you own or reported.</p>
+        <p className="mt-1 text-sm text-slate-500">Platform updates from the Insell team.</p>
 
         <div className="mt-4 max-h-52 space-y-2 overflow-y-auto">
-          {notices.map((notice) => {
-            const { Icon, bg, text } = NOTICE_ICONS[notice.type] || NOTICE_ICONS.post_reported;
-            return (
-              <div key={notice._id} className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <div className={`grid size-6 shrink-0 place-items-center rounded-full ${bg} ${text}`}>
-                  <Icon className="size-3.5" />
+          {notices.map((notice) => (
+            <div key={notice._id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              {notice.image && (
+                <img src={notice.image} alt="" className="mb-2 max-h-40 w-full rounded-lg object-cover" />
+              )}
+              <div className="flex items-start gap-2.5">
+                <div className="grid size-6 shrink-0 place-items-center rounded-full bg-indigo-50 text-indigo-600">
+                  <Megaphone className="size-3.5" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-slate-700">{notice.message}</p>
                   <p className="mt-1 text-xs text-slate-400">{relativeDate(notice.createdAt)}</p>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
 
         <button

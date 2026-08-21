@@ -2,9 +2,27 @@ import User from "../models/User.model.js";
 import PropertyPost, { BLOCK_REASON_CODES } from "../models/PropertyPost.model.js";
 import PostReport from "../models/PostReport.model.js";
 import Notification from "../models/Notification.model.js";
+import Announcement from "../models/Announcement.model.js";
 import { logger } from "../utils/logger.js";
 import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler.js";
 import { pushRealtimeNotification } from "../services/stream.service.js";
+
+// Roles treated as "verified" — same rule the marketplace's Verified filter
+// already uses (there's no dedicated verified-broker flag yet, just role).
+const VERIFIED_ROLES = ["Broker", "Seller", "Landlord"];
+
+// Bulk Notification insert can outgrow a single write; chunk to stay safe.
+const NOTIFICATION_INSERT_CHUNK_SIZE = 1000;
+// Realtime pushes are one Stream API call each — cap concurrency so a huge
+// broadcast doesn't fire thousands of requests at once.
+const REALTIME_PUSH_CONCURRENCY = 25;
+
+async function pushRealtimeInBatches(userIds, eventType) {
+  for (let i = 0; i < userIds.length; i += REALTIME_PUSH_CONCURRENCY) {
+    const batch = userIds.slice(i, i + REALTIME_PUSH_CONCURRENCY);
+    await Promise.allSettled(batch.map((id) => pushRealtimeNotification(id, eventType)));
+  }
+}
 
 const ADMIN_POST_FIELDS =
   "title price city listingType propertyType mediaUrls author status isDeleted isBlocked blockedAt blockedBy blockReasonCode blockNote createdAt";
@@ -418,6 +436,116 @@ export const dismissPostReports = async (req, res) => {
     return sendSuccessResponse(res, 200, "Reports dismissed successfully");
   } catch (error) {
     logger.error("Error dismissing reports:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+};
+
+// Broadcast a message to every user matching a segment (role/city/verified-only,
+// or everyone). Delivers via the existing Notification pipeline so it shows up
+// in the recipient's notification bell with no new client-side plumbing, and
+// pushes a realtime event so it also surfaces immediately as a no-TTL,
+// must-dismiss notice (mirrors the post-moderation notice pattern).
+export const uploadAnnouncementImageController = async (req, res) => {
+  try {
+    if (!req.file) {
+      return sendErrorResponse(res, 400, "No image uploaded");
+    }
+    return sendSuccessResponse(res, 200, "Image uploaded successfully", { url: req.file.path });
+  } catch (error) {
+    logger.error("Error uploading announcement image:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+};
+
+export const createAnnouncement = async (req, res) => {
+  try {
+    const message = String(req.body?.message || "").trim();
+    const role = String(req.body?.role || "").trim();
+    const city = String(req.body?.city || "").trim();
+    const verifiedOnly = Boolean(req.body?.verifiedOnly);
+    const image = String(req.body?.image || "").trim();
+    const adminId = req.user._id;
+
+    if (!message) {
+      return sendErrorResponse(res, 400, "Message is required");
+    }
+    if (message.length > 240) {
+      return sendErrorResponse(res, 400, "Message must be 240 characters or fewer");
+    }
+
+    const conditions = { isBlocked: { $ne: true } };
+    if (role) conditions.activeRole = role;
+    if (city) conditions.city = new RegExp(`^${city.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+    if (verifiedOnly) conditions.activeRole = { $in: VERIFIED_ROLES };
+
+    const recipients = await User.find(conditions).select("_id").lean();
+    const recipientIds = recipients.map((u) => u._id);
+
+    if (recipientIds.length === 0) {
+      return sendErrorResponse(res, 400, "No users match this segment");
+    }
+
+    const now = new Date();
+    const notificationDocs = recipientIds.map((recipientId) => ({
+      recipient: recipientId,
+      actor: adminId,
+      type: "admin_announcement",
+      message,
+      image: image || undefined,
+      createdAt: now,
+      updatedAt: now,
+    }));
+
+    for (let i = 0; i < notificationDocs.length; i += NOTIFICATION_INSERT_CHUNK_SIZE) {
+      await Notification.insertMany(notificationDocs.slice(i, i + NOTIFICATION_INSERT_CHUNK_SIZE));
+    }
+
+    const announcement = await Announcement.create({
+      message,
+      image: image || undefined,
+      segment: { role, city, verifiedOnly },
+      sentBy: adminId,
+      recipientCount: recipientIds.length,
+    });
+
+    // Best-effort — notifications already exist in Mongo, so a failed push
+    // just means recipients pick it up on next load instead of instantly.
+    pushRealtimeInBatches(recipientIds, "admin_announcement").catch((error) => {
+      logger.error("Error pushing realtime announcement (non-fatal):", error);
+    });
+
+    logger.info(`Announcement sent by admin ${adminId} to ${recipientIds.length} users`);
+
+    return sendSuccessResponse(res, 201, "Announcement sent successfully", { announcement });
+  } catch (error) {
+    logger.error("Error creating announcement:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+};
+
+// List past broadcasts for the admin panel's history view.
+export const getAnnouncements = async (req, res) => {
+  try {
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
+    const skip = (page - 1) * limit;
+
+    const [announcements, total] = await Promise.all([
+      Announcement.find()
+        .populate("sentBy", "fullName email")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Announcement.countDocuments(),
+    ]);
+
+    return sendSuccessResponse(res, 200, "Announcements fetched successfully", {
+      announcements,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
+  } catch (error) {
+    logger.error("Error fetching announcements:", error);
     return sendErrorResponse(res, 500, "Internal Server Error");
   }
 };

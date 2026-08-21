@@ -36,6 +36,7 @@ const notificationSchema = new mongoose.Schema(
         "post_unblocked",
         "post_reported",
         "post_report_resolved",
+        "admin_announcement",
       ],
     },
     message: {
@@ -48,6 +49,11 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       trim: true,
       maxlength: 1000,
+    },
+    // Optional image on admin_announcement notifications.
+    image: {
+      type: String,
+      trim: true,
     },
     session: {
       type: mongoose.Schema.Types.ObjectId,
