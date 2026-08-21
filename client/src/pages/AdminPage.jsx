@@ -1164,7 +1164,7 @@ function AnnouncementsPanel() {
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ["adminAnnouncements", page],
     queryFn: async () => {
-      const response = await axiosInstance.get("/admin/announcements", { params: { page, limit: 20 } });
+      const response = await axiosInstance.get("/admin/announcements", { params: { page, limit: 6 } });
       return response.data?.data;
     },
     placeholderData: keepPreviousData,
