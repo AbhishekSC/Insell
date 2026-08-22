@@ -7,8 +7,33 @@ import PendingSignup from "../models/PendingSignup.model.js";
 import { generateVerificationCode, VERIFICATION_CODE_EXPIRY_MINUTES } from "./VerificationService.js";
 import { sendVerificationEmail, sendWelcomeEmail } from "./EmailService.js";
 import { logger } from "../utils/logger.js";
+import Notification from "../models/Notification.model.js";
+import { pushRealtimeNotification } from "./stream.service.js";
 
 const { BCRYPT_SALT_ROUNDS } = SCHEMA_CONSTANTS;
+
+const WELCOME_MESSAGE = "🚀 New to Insell? Explore, connect, and discover what's waiting for you!";
+const WELCOME_DELAY_MS = 15 * 1000;
+
+// Fired once per new account, ~15s after signup (which also logs the user
+// in immediately, so this is effectively their first-login moment) — long
+// enough that it doesn't slam a popup on top of the very first paint, but
+// while they're still in that first session. Delivered through the same
+// Notification pipeline as an admin-sent announcement (must-dismiss modal,
+// realtime push), so it reuses AnnouncementNotice.jsx with no client changes.
+function scheduleWelcomeAnnouncement(userId) {
+  setTimeout(() => {
+    Notification.create({
+      recipient: userId,
+      type: "admin_announcement",
+      message: WELCOME_MESSAGE,
+    })
+      .then(() => pushRealtimeNotification(userId, "admin_announcement"))
+      .catch((error) => {
+        logger.error("Failed to create welcome announcement (non-fatal):", { userId: String(userId), error: error.message });
+      });
+  }, WELCOME_DELAY_MS);
+}
 
 export default class AuthService extends BaseService {
   constructor({ userRepository, tokenIssuer, streamUpdater, queuePublisher, tokenBlacklistService }) {
@@ -113,6 +138,8 @@ export default class AuthService extends BaseService {
     } catch (error) {
       logger.error("Failed to send welcome email:", error);
     }
+
+    scheduleWelcomeAnnouncement(newUser._id);
 
     // Cookie auth is unreliable cross-site (Safari blocks third-party
     // cookies by default) — also hand the token back in the body so the
