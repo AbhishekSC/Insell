@@ -39,6 +39,7 @@ import ReportPostModal from "../components/ReportPostModal";
 import { getCustomBadgeClasses } from "../lib/badgeColors";
 import axiosInstance from "../lib/axios";
 import AppShell from "../components/AppShell";
+import { addRecentlyViewed } from "../utils/recentlyViewed";
 
 function normalizeMediaUrls(raw) {
   if (Array.isArray(raw)) {
@@ -232,6 +233,12 @@ export default function PropertyDetailPage() {
       });
     }
   }, [id]);
+
+  // Track for the "Recently Viewed" rail once the post's data has actually
+  // loaded (need title/image/price to display it later, not just the id).
+  useEffect(() => {
+    if (postData) addRecentlyViewed(postData);
+  }, [postData]);
 
   if (isLoading) {
     return (
