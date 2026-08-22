@@ -61,6 +61,7 @@ import CommunityChat from "../components/CommunityChat";
 import RoleBasedPropertyCard from "../components/RoleBasedPropertyCard";
 import RoleBasedFilters from "../components/RoleBasedFilters";
 import StoriesBar from "../components/StoriesBar";
+import RecentlyViewedRail from "../components/RecentlyViewedRail";
 import RoleBasedDashboard from "../components/RoleBasedDashboard";
 import axiosInstance from "../lib/axios";
 import { getAutoDetectedCity } from "../utils/geolocation";
@@ -772,7 +773,7 @@ export default function MarketplacePage() {
   }, [activeCategory, appliedFilters, authUser?.city, data]);
 
   const { mutate: createPost, isPending: creating } = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (statusOverride) => {
       const isRequirement = String(draft.postType || "").startsWith("REQUIREMENT_");
       const mediaUrls = String(draft.mediaUrls || "")
         .split(",")
@@ -811,6 +812,7 @@ export default function MarketplacePage() {
 
       const payload = {
         ...draft,
+        status: statusOverride || "PUBLISHED",
         price: isRequirement ? Number(draft.budgetMax || draft.price || 0) : Number(draft.price || 0),
         mediaUrls,
         postType: draft.postType,
@@ -822,36 +824,43 @@ export default function MarketplacePage() {
       return response.data?.data?.post;
     },
     onSuccess: (data) => {
-      // Add the new post to the beginning of the feed cache for immediate visibility
-      queryClient.setQueryData(["propertyFeed", activeCategory, search, searchType, searchAuthorId, queryListingType || "all", queryPropertyType || "all"], (oldData) => {
-        if (!oldData) return oldData;
-        
-        const newPost = {
-          ...data,
-          likesCount: 0,
-          isLikedByMe: false,
-          savesCount: 0,
-          isSavedByMe: false,
-        };
-        
-        return {
-          ...oldData,
-          pages: [
-            {
-              ...oldData.pages[0],
-              posts: [newPost, ...oldData.pages[0].posts],
-            },
-            ...oldData.pages.slice(1),
-          ],
-       };
-      });
-      
-      // Also invalidate to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
+      // Drafts aren't visible in the public feed, so only splice a
+      // published post into the feed cache — a draft only shows up in
+      // "My Drafts" (fetched separately).
+      if (data?.status === "PUBLISHED") {
+        queryClient.setQueryData(["propertyFeed", activeCategory, search, searchType, searchAuthorId, queryListingType || "all", queryPropertyType || "all"], (oldData) => {
+          if (!oldData) return oldData;
+
+          const newPost = {
+            ...data,
+            likesCount: 0,
+            isLikedByMe: false,
+            savesCount: 0,
+            isSavedByMe: false,
+          };
+
+          return {
+            ...oldData,
+            pages: [
+              {
+                ...oldData.pages[0],
+                posts: [newPost, ...oldData.pages[0].posts],
+              },
+              ...oldData.pages.slice(1),
+            ],
+         };
+        });
+
+        // Also invalidate to ensure data consistency
+        queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["myDrafts"] });
+      }
+
       setComposerStep(6);
 
       if (isPostHogEnabled()) {
-        posthog.capture("post_created", {
+        posthog.capture(data?.status === "DRAFT" ? "post_draft_saved" : "post_created", {
           postType: data?.postType,
           listingType: data?.listingType,
           propertyType: data?.propertyType,
@@ -1244,6 +1253,8 @@ export default function MarketplacePage() {
               onApply={(filters) => setAppliedFilters(filters)}
               onReset={() => setAppliedFilters(filters)}
             />
+
+            <RecentlyViewedRail />
 
             {isLoading ? (
               <div className="mt-4 grid gap-4 xl:grid-cols-2">
@@ -2463,8 +2474,14 @@ export default function MarketplacePage() {
 
               {composerStep === 6 ? (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center">
-                  <p className="text-2xl font-black text-emerald-700">Post Published</p>
-                  <p className="mt-2 text-sm text-slate-600">Your post is now live and discoverable.</p>
+                  <p className="text-2xl font-black text-emerald-700">
+                    {draft.status === "DRAFT" ? "Saved as Draft" : "Post Published"}
+                  </p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    {draft.status === "DRAFT"
+                      ? "Find it under My Drafts on your profile whenever you're ready to publish."
+                      : "Your post is now live and discoverable."}
+                  </p>
                 </div>
               ) : null}
 
@@ -2474,10 +2491,31 @@ export default function MarketplacePage() {
                 {composerStep < 5 ? (
                   <button type="button" className="btn border-none bg-indigo-600 text-white hover:bg-indigo-500" disabled={!stepValid} onClick={() => setComposerStep((prev) => Math.min(5, prev + 1))}>Next</button>
                 ) : composerStep === 5 ? (
-                  <button type="button" className="btn border-none bg-indigo-600 text-white hover:bg-indigo-500" disabled={creating} onClick={() => createPost()}>
-                    <Send className="size-4" />
-                    {creating ? "Publishing..." : "Publish"}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      disabled={creating}
+                      onClick={() => {
+                        setDraft((prev) => ({ ...prev, status: "DRAFT" }));
+                        createPost("DRAFT");
+                      }}
+                    >
+                      Save as Draft
+                    </button>
+                    <button
+                      type="button"
+                      className="btn border-none bg-indigo-600 text-white hover:bg-indigo-500"
+                      disabled={creating}
+                      onClick={() => {
+                        setDraft((prev) => ({ ...prev, status: "PUBLISHED" }));
+                        createPost("PUBLISHED");
+                      }}
+                    >
+                      <Send className="size-4" />
+                      {creating ? "Publishing..." : "Publish"}
+                    </button>
+                  </div>
                 ) : (
                   <button type="button" className="btn border-none bg-indigo-600 text-white hover:bg-indigo-500" onClick={resetComposer}>Done</button>
                 )}

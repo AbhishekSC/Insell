@@ -52,6 +52,13 @@ function formatMoney(value) {
   }).format(amount);
 }
 
+function formatDate(dateString) {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
 function normalizeMedia(post) {
   return Array.isArray(post.mediaUrls) && post.mediaUrls.length
     ? post.mediaUrls
@@ -192,6 +199,9 @@ export default function UserProfilePage() {
       params.set("page", String(pageParam));
       params.set("limit", "12");
       params.set("authorId", userId);
+      // Explicit, so this tab keeps showing only published posts even on
+      // your own profile — drafts live in their own tab (see draftsData).
+      params.set("status", "PUBLISHED");
 
       const response = await axiosInstance.get(`/posts?${params.toString()}`);
       return response.data?.data || { posts: [], pagination: { page: 1, totalPages: 1 } };
@@ -206,6 +216,31 @@ export default function UserProfilePage() {
   const posts = useMemo(
     () => (postsData?.pages || []).flatMap((page) => page.posts || []),
     [postsData]
+  );
+
+  const { data: draftsData, isLoading: isDraftsLoading, hasNextPage: hasNextDraftPage, fetchNextPage: fetchNextDraftPage, isFetchingNextPage: isFetchingNextDraftPage } = useInfiniteQuery({
+    queryKey: ["myDrafts", userId],
+    enabled: Boolean(userId) && isOwnProfile,
+    queryFn: async ({ pageParam = 1 }) => {
+      const params = new URLSearchParams();
+      params.set("page", String(pageParam));
+      params.set("limit", "12");
+      params.set("authorId", userId);
+      params.set("status", "DRAFT");
+
+      const response = await axiosInstance.get(`/posts?${params.toString()}`);
+      return response.data?.data || { posts: [], pagination: { page: 1, totalPages: 1 } };
+    },
+    getNextPageParam: (lastPage) => {
+      const current = Number(lastPage?.pagination?.page || 1);
+      const total = Number(lastPage?.pagination?.totalPages || 1);
+      return current < total ? current + 1 : undefined;
+    },
+  });
+
+  const drafts = useMemo(
+    () => (draftsData?.pages || []).flatMap((page) => page.posts || []),
+    [draftsData]
   );
 
   const { data: bookmarksData, isLoading: isBookmarksLoading, hasNextPage: hasNextBookmarkPage, fetchNextPage: fetchNextBookmarkPage, isFetchingNextPage: isFetchingNextBookmarkPage } = useInfiniteQuery({
@@ -331,6 +366,7 @@ export default function UserProfilePage() {
     onSuccess: () => {
       toast.success("Post updated successfully");
       queryClient.invalidateQueries({ queryKey: ["userPosts", userId] });
+      queryClient.invalidateQueries({ queryKey: ["myDrafts", userId] });
       queryClient.invalidateQueries({ queryKey: ["userProfile", userId] });
       setShowEditModal(false);
       setPostToEdit(null);
@@ -524,6 +560,7 @@ export default function UserProfilePage() {
                       { id: "posts", label: "Posts", icon: Grid3x3 },
                       { id: "listings", label: "Listings", icon: Building2 },
                       { id: "bookmarks", label: "Saved", icon: Save },
+                      { id: "drafts", label: "Drafts", icon: Edit2 },
                       { id: "about", label: "About", icon: User },
                       { id: "reviews", label: "Reviews", icon: Star },
                       { id: "activity", label: "Activity", icon: Calendar },
@@ -1004,6 +1041,100 @@ export default function UserProfilePage() {
                             onClick={() => fetchNextBookmarkPage()}
                           >
                             {isFetchingNextBookmarkPage ? "Loading..." : "Load more bookmarks"}
+                          </button>
+                        ) : null}
+                      </>
+                    )}
+                  </section>
+                </>
+              ) : activeTab === "drafts" ? (
+                <>
+                  <section>
+                    {isDraftsLoading ? (
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {[1, 2].map((item) => (
+                          <div key={item} className="h-24 animate-pulse rounded-2xl bg-slate-100" />
+                        ))}
+                      </div>
+                    ) : drafts.length === 0 ? (
+                      <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
+                        <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-indigo-50">
+                          <Edit2 className="size-10 text-indigo-400" />
+                        </div>
+                        <h3 className="mt-6 text-lg font-semibold text-slate-900">No drafts yet</h3>
+                        <p className="mt-2 text-sm text-slate-500">
+                          Save a listing as a draft while creating it to pick up where you left off.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          {drafts.map((post) => {
+                            const media = normalizeMedia(post);
+                            const image = media[0];
+                            return (
+                              <div key={post._id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                                <div className="size-16 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+                                  {image ? (
+                                    <img src={image} alt={post.title || "Draft"} className="h-full w-full object-cover" />
+                                  ) : (
+                                    <div className="grid h-full w-full place-items-center text-slate-300">
+                                      <Grid3x3 className="size-6" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm font-semibold text-slate-800">{post.title || "Untitled draft"}</p>
+                                  <p className="text-xs text-slate-500">
+                                    {post.price ? formatMoney(post.price) : "No price set"} · Last edited {formatDate(post.updatedAt)}
+                                  </p>
+                                </div>
+                                <div className="flex shrink-0 items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    className="btn btn-xs rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                                    onClick={() => {
+                                      setPostToEdit(post);
+                                      setShowEditModal(true);
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-xs rounded-lg border-none bg-indigo-600 text-white hover:bg-indigo-500"
+                                    disabled={updatingPost}
+                                    onClick={() =>
+                                      updatePost({
+                                        postId: post._id,
+                                        postData: {
+                                          title: post.title,
+                                          caption: post.caption,
+                                          customBadge: post.customBadge,
+                                          mediaUrls: Array.isArray(post.mediaUrls) ? post.mediaUrls : [],
+                                          status: "PUBLISHED",
+                                        },
+                                        files: [],
+                                        removedUrls: [],
+                                      })
+                                    }
+                                  >
+                                    Publish
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {hasNextDraftPage ? (
+                          <button
+                            type="button"
+                            className="btn mt-6 w-full rounded-xl border border-slate-200 bg-white text-indigo-600 hover:bg-indigo-50"
+                            disabled={isFetchingNextDraftPage}
+                            onClick={() => fetchNextDraftPage()}
+                          >
+                            {isFetchingNextDraftPage ? "Loading..." : "Load more drafts"}
                           </button>
                         ) : null}
                       </>

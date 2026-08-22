@@ -398,6 +398,7 @@ export async function getPropertyFeed(req, res) {
     const authorId = String(req.query.authorId || "").trim();
     const savedBy = String(req.query.savedBy || "").trim();
     const category = String(req.query.category || "").trim().toLowerCase();
+    const statusFilter = String(req.query.status || "").trim().toUpperCase();
     const currentUserId = req.user?._id ? String(req.user._id) : "";
 
     // Generate cache key based on query parameters
@@ -425,6 +426,12 @@ export async function getPropertyFeed(req, res) {
     const isViewingOwnPosts = Boolean(authorId) && currentUserId && String(authorId) === currentUserId;
     if (!isViewingOwnPosts) {
       filter.isBlocked = { $ne: true };
+    }
+
+    // Only the owner can filter their own feed by status (e.g. "My Drafts")
+    // — a stranger can't use this to discover someone else's drafts.
+    if (isViewingOwnPosts && ["DRAFT", "PUBLISHED", "ARCHIVED"].includes(statusFilter)) {
+      filter.status = statusFilter;
     }
 
     // Reporting a post hides it from that reporter's own feed immediately —
@@ -544,23 +551,28 @@ export async function getPropertyFeed(req, res) {
       }
     }
 
-    // Backward-compatible visibility/status filtering so legacy posts still show.
-    filter.$and = [
-      {
-        $or: [
-          { status: "PUBLISHED" },
-          { status: { $exists: false } },
-          { status: null },
-        ],
-      },
-      {
-        $or: [
-          { visibility: "PUBLIC" },
-          { visibility: { $exists: false } },
-          { visibility: null },
-        ],
-      },
-    ];
+    // Backward-compatible visibility/status filtering so legacy posts still
+    // show — skipped when viewing your own posts, so drafts (and any
+    // private posts) show up in "My Posts"/"My Drafts" instead of being
+    // invisible to their own author.
+    if (!isViewingOwnPosts) {
+      filter.$and = [
+        {
+          $or: [
+            { status: "PUBLISHED" },
+            { status: { $exists: false } },
+            { status: null },
+          ],
+        },
+        {
+          $or: [
+            { visibility: "PUBLIC" },
+            { visibility: { $exists: false } },
+            { visibility: null },
+          ],
+        },
+      ];
+    }
 
     async function getVerifiedUserIds() {
       const User = (await import("../models/User.model.js")).default;
