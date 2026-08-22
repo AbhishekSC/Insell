@@ -61,7 +61,6 @@ import CommunityChat from "../components/CommunityChat";
 import RoleBasedPropertyCard from "../components/RoleBasedPropertyCard";
 import RoleBasedFilters from "../components/RoleBasedFilters";
 import StoriesBar from "../components/StoriesBar";
-import RecentlyViewedRail from "../components/RecentlyViewedRail";
 import RoleBasedDashboard from "../components/RoleBasedDashboard";
 import axiosInstance from "../lib/axios";
 import { getAutoDetectedCity } from "../utils/geolocation";
@@ -1253,8 +1252,6 @@ export default function MarketplacePage() {
               onApply={(filters) => setAppliedFilters(filters)}
               onReset={() => setAppliedFilters(filters)}
             />
-
-            <RecentlyViewedRail />
 
             {isLoading ? (
               <div className="mt-4 grid gap-4 xl:grid-cols-2">

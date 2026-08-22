@@ -10,6 +10,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Edit2,
   Eye,
   Grid3x3,
@@ -38,6 +39,7 @@ import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import UserAvatar from "../components/UserAvatar";
 import CommentSection from "../components/CommentSection";
+import { getRecentlyViewed } from "../utils/recentlyViewed";
 import PostAuthorLink from "../components/PostAuthorLink";
 import EmailVerification from "../components/EmailVerification";
 import axiosInstance from "../lib/axios";
@@ -123,6 +125,7 @@ export default function UserProfilePage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("posts");
   const [selectedPost, setSelectedPost] = useState(null);
+  const [recentlyViewed, setRecentlyViewed] = useState([]);
   const [detailCarouselIndex, setDetailCarouselIndex] = useState(0);
   const [showVerification, setShowVerification] = useState(false);
   const [menuOpenPostId, setMenuOpenPostId] = useState(null);
@@ -271,6 +274,15 @@ export default function UserProfilePage() {
       return response.data?.data || { likes: [], comments: [], saved: [], connections: [] };
     },
   });
+
+  // Recently Viewed lives in localStorage (per-browser, not per-account —
+  // see utils/recentlyViewed.js), so it's read fresh whenever this tab
+  // opens rather than fetched from the server.
+  useEffect(() => {
+    if (isOwnProfile && activeTab === "activity") {
+      setRecentlyViewed(getRecentlyViewed());
+    }
+  }, [isOwnProfile, activeTab]);
 
   const bookmarks = useMemo(
     () => (bookmarksData?.pages || []).flatMap((page) => page.posts || []),
@@ -1304,6 +1316,45 @@ export default function UserProfilePage() {
                                     </div>
                                   </div>
                                 </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Recently Viewed Section — client-side history (localStorage), not from userActivityData */}
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-900">
+                            <Clock className="size-4 text-slate-500" />
+                            Recently Viewed ({recentlyViewed.length})
+                          </h3>
+                          {recentlyViewed.length === 0 ? (
+                            <p className="text-sm text-slate-500">No recently viewed properties yet</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {recentlyViewed.map((item) => (
+                                <Link
+                                  key={item.id}
+                                  to={`/property/${item.id}`}
+                                  className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 hover:bg-slate-100 transition"
+                                >
+                                  {item.image && (
+                                    <img
+                                      src={item.image}
+                                      alt="Property"
+                                      className="size-12 rounded-lg object-cover"
+                                    />
+                                  )}
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-xs font-semibold text-slate-800">{item.title || "Property"}</p>
+                                    <div className="flex items-center gap-1 text-xs text-slate-500">
+                                      <IndianRupee className="size-3" />
+                                      <span>{item.price?.toLocaleString()}</span>
+                                      <span className="mx-1">·</span>
+                                      <MapPin className="size-3" />
+                                      <span>{item.city}</span>
+                                    </div>
+                                  </div>
+                                </Link>
                               ))}
                             </div>
                           )}
