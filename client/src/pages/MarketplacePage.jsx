@@ -14,6 +14,7 @@ import {
   ChevronRight,
   ClipboardList,
   Compass,
+  Edit3,
   Eye,
   Filter,
   Flag,
@@ -32,6 +33,7 @@ import {
   Share2,
   ShieldCheck,
   Sparkles,
+  Trash2,
   TrendingUp,
   Upload,
   UserCircle,
@@ -487,6 +489,8 @@ export default function MarketplacePage() {
 
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [composerStep, setComposerStep] = useState(1);
+  const [showDraftsList, setShowDraftsList] = useState(false);
+  const [editingDraftId, setEditingDraftId] = useState(null);
   const [draft, setDraft] = useState({
     postType: "PROPERTY_SALE",
     listingType: "Sell",
@@ -771,8 +775,89 @@ export default function MarketplacePage() {
       }));
   }, [activeCategory, appliedFilters, authUser?.city, data]);
 
+  const { data: draftsListData, isLoading: isDraftsListLoading } = useQuery({
+    queryKey: ["myDrafts", authUser?._id],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/posts", {
+        params: { authorId: authUser._id, status: "DRAFT", limit: 50 },
+      });
+      return response.data?.data?.posts || [];
+    },
+    enabled: Boolean(authUser?._id) && showDraftsList,
+  });
+  const draftsList = draftsListData || [];
+
+  // Maps a saved draft post back into the composer's flat draft shape
+  // (postMeta's requirement/project/investment sub-objects get flattened
+  // back to top-level fields) so resuming feels identical to creating —
+  // every field editable through the same steps, not a stripped-down form.
+  const mapPostToDraftState = (post) => {
+    const requirement = post.postMeta?.requirement || {};
+    const project = post.postMeta?.project || {};
+    const investment = post.postMeta?.investment || {};
+    return {
+      postType: post.postType || "PROPERTY_SALE",
+      listingType: post.listingType || "Sell",
+      propertyType: post.propertyType || "Apartment",
+      title: post.title || "",
+      caption: post.caption || "",
+      city: post.city || "",
+      locality: post.locality || "",
+      price: post.price || "",
+      bedrooms: post.bedrooms || "",
+      bathrooms: post.bathrooms || "",
+      areaSqft: post.areaSqft || "",
+      mediaUrls: Array.isArray(post.mediaUrls) ? post.mediaUrls.join(",") : "",
+      mediaFiles: [],
+      moveInDate: requirement.moveInDate || "",
+      availableFromDate: requirement.availableFromDate || "",
+      leaseDurationMonths: requirement.leaseDurationMonths || "",
+      depositAmount: requirement.depositAmount || "",
+      budgetMin: requirement.budgetMin || "",
+      budgetMax: requirement.budgetMax || "",
+      occupancyPreference: requirement.occupancyPreference || "",
+      genderPreference: requirement.genderPreference || "",
+      furnishedPreference: requirement.furnishedPreference || "",
+      requirementPropertyType: requirement.requirementPropertyType || "",
+      parkingRequired: Boolean(requirement.parkingRequired),
+      amenitiesText: requirement.amenitiesText || "",
+      possessionDate: requirement.possessionDate || "",
+      loanRequired: Boolean(requirement.loanRequired),
+      tenantType: requirement.tenantType || "",
+      occupation: requirement.occupation || "",
+      latitude: post.latitude ?? null,
+      longitude: post.longitude ?? null,
+      reraNumber: project.reraNumber || "",
+      projectName: project.projectName || "",
+      launchDate: project.launchDate || "",
+      brochureUrl: project.brochureUrl || "",
+      investmentThesis: investment.thesis || "",
+      status: "DRAFT",
+    };
+  };
+
+  const resumeDraft = (post) => {
+    setDraft(mapPostToDraftState(post));
+    setEditingDraftId(post._id);
+    setShowDraftsList(false);
+    setComposerStep(1);
+  };
+
+  const { mutate: deleteDraft, isPending: deletingDraft } = useMutation({
+    mutationFn: async (postId) => {
+      await axiosInstance.delete(`/posts/${postId}`);
+    },
+    onSuccess: () => {
+      toast.success("Draft deleted");
+      queryClient.invalidateQueries({ queryKey: ["myDrafts"] });
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to delete draft");
+    },
+  });
+
   const { mutate: createPost, isPending: creating } = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (statusOverride) => {
       const isRequirement = String(draft.postType || "").startsWith("REQUIREMENT_");
       const mediaUrls = String(draft.mediaUrls || "")
         .split(",")
@@ -811,6 +896,7 @@ export default function MarketplacePage() {
 
       const payload = {
         ...draft,
+        status: statusOverride || "PUBLISHED",
         price: isRequirement ? Number(draft.budgetMax || draft.price || 0) : Number(draft.price || 0),
         mediaUrls,
         postType: draft.postType,
@@ -818,40 +904,56 @@ export default function MarketplacePage() {
         latitude: draft.latitude,
         longitude: draft.longitude,
       };
-      const response = await axiosInstance.post("/posts", payload);
+      // Resuming a saved draft updates that same post instead of creating
+      // a duplicate — updatePropertyPost accepts the identical field set.
+      const response = editingDraftId
+        ? await axiosInstance.put(`/posts/${editingDraftId}`, payload)
+        : await axiosInstance.post("/posts", payload);
       return response.data?.data?.post;
     },
     onSuccess: (data) => {
-      // Add the new post to the beginning of the feed cache for immediate visibility
-      queryClient.setQueryData(["propertyFeed", activeCategory, search, searchType, searchAuthorId, queryListingType || "all", queryPropertyType || "all"], (oldData) => {
-        if (!oldData) return oldData;
-        
-        const newPost = {
-          ...data,
-          likesCount: 0,
-          isLikedByMe: false,
-          savesCount: 0,
-          isSavedByMe: false,
-        };
-        
-        return {
-          ...oldData,
-          pages: [
-            {
-              ...oldData.pages[0],
-              posts: [newPost, ...oldData.pages[0].posts],
-            },
-            ...oldData.pages.slice(1),
-          ],
-       };
-      });
-      
-      // Also invalidate to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
+      // Drafts aren't visible in the public feed, so only splice a
+      // published post into the feed cache — a draft only shows up in
+      // "My Drafts" (fetched separately).
+      if (data?.status === "PUBLISHED") {
+        queryClient.setQueryData(["propertyFeed", activeCategory, search, searchType, searchAuthorId, queryListingType || "all", queryPropertyType || "all"], (oldData) => {
+          if (!oldData) return oldData;
+
+          const newPost = {
+            ...data,
+            likesCount: 0,
+            isLikedByMe: false,
+            savesCount: 0,
+            isSavedByMe: false,
+          };
+
+          return {
+            ...oldData,
+            pages: [
+              {
+                ...oldData.pages[0],
+                posts: [newPost, ...oldData.pages[0].posts],
+              },
+              ...oldData.pages.slice(1),
+            ],
+         };
+        });
+
+        // Also invalidate to ensure data consistency
+        queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
+      }
+
+      // Covers both directions: a draft that just got published should
+      // disappear from "My Drafts", and a re-saved draft should refresh
+      // there with its latest edits.
+      if (editingDraftId || data?.status === "DRAFT") {
+        queryClient.invalidateQueries({ queryKey: ["myDrafts"] });
+      }
+
       setComposerStep(6);
 
       if (isPostHogEnabled()) {
-        posthog.capture("post_created", {
+        posthog.capture(data?.status === "DRAFT" ? "post_draft_saved" : "post_created", {
           postType: data?.postType,
           listingType: data?.listingType,
           propertyType: data?.propertyType,
@@ -1087,6 +1189,8 @@ export default function MarketplacePage() {
   const resetComposer = () => {
     setIsComposerOpen(false);
     setComposerStep(1);
+    setShowDraftsList(false);
+    setEditingDraftId(null);
     const defaultPostType = recommendedPostTypes[0] || "PROPERTY_SALE";
     const defaults = POST_TYPE_DEFINITIONS[defaultPostType] || POST_TYPE_DEFINITIONS.PROPERTY_SALE;
     setDraft((prev) => ({
@@ -1948,15 +2052,97 @@ export default function MarketplacePage() {
                     <Sparkles className="size-4" />
                     Create Post
                   </p>
-                  <h3 className="mt-2 text-2xl font-black text-slate-800">Step {composerStep} of 6</h3>
+                  <h3 className="mt-2 text-2xl font-black text-slate-800">
+                    {showDraftsList ? "Your Drafts" : `Step ${composerStep} of 6`}
+                  </h3>
                 </div>
-                <button type="button" className="btn btn-sm btn-circle btn-ghost" onClick={resetComposer}><X className="size-4" /></button>
+                <div className="flex items-center gap-2">
+                  {composerStep === 1 && !showDraftsList && (
+                    <button
+                      type="button"
+                      className="btn btn-sm rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      onClick={() => setShowDraftsList(true)}
+                    >
+                      <Edit3 className="size-4" />
+                      Drafts{draftsList.length > 0 ? ` (${draftsList.length})` : ""}
+                    </button>
+                  )}
+                  {showDraftsList && (
+                    <button
+                      type="button"
+                      className="btn btn-sm rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      onClick={() => setShowDraftsList(false)}
+                    >
+                      Back
+                    </button>
+                  )}
+                  <button type="button" className="btn btn-sm btn-circle btn-ghost" onClick={resetComposer}><X className="size-4" /></button>
+                </div>
               </div>
-              <progress className="progress progress-primary mt-3 h-2 w-full" value={composerStep} max="6" />
+              {!showDraftsList && (
+                <progress className="progress progress-primary mt-3 h-2 w-full" value={composerStep} max="6" />
+              )}
             </div>
 
             <div className="px-6 py-5">
-              {composerStep === 1 ? (
+              {showDraftsList ? (
+                <div>
+                  {isDraftsListLoading ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {[1, 2, 3, 4].map((item) => (
+                        <div key={item} className="h-20 animate-pulse rounded-2xl bg-slate-100" />
+                      ))}
+                    </div>
+                  ) : draftsList.length === 0 ? (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-10 text-center">
+                      <Edit3 className="mx-auto size-8 text-slate-300" />
+                      <p className="mt-3 text-sm font-semibold text-slate-700">No drafts yet</p>
+                      <p className="mt-1 text-sm text-slate-500">Save a post as a draft to pick up where you left off.</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {draftsList.map((post) => {
+                        const image = Array.isArray(post.mediaUrls) ? post.mediaUrls[0] : null;
+                        return (
+                          <div key={post._id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                            <div className="size-14 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+                              {image ? (
+                                <img src={image} alt={post.title || "Draft"} className="h-full w-full object-cover" />
+                              ) : null}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-slate-800">{post.title || "Untitled draft"}</p>
+                              <p className="text-xs text-slate-500">{formatMoney(post.price)}</p>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1.5">
+                              <button
+                                type="button"
+                                className="btn btn-xs rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                                onClick={() => resumeDraft(post)}
+                              >
+                                Continue
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-xs btn-circle border-none text-red-500 hover:bg-red-50"
+                                disabled={deletingDraft}
+                                onClick={() => {
+                                  if (window.confirm("Delete this draft? This can't be undone.")) {
+                                    deleteDraft(post._id);
+                                  }
+                                }}
+                                title="Delete draft"
+                              >
+                                <Trash2 className="size-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : composerStep === 1 ? (
                 <div>
                   <p className="text-sm font-semibold text-slate-600">What would you like to post? Recommended for {activeRole}</p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -2463,21 +2649,50 @@ export default function MarketplacePage() {
 
               {composerStep === 6 ? (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center">
-                  <p className="text-2xl font-black text-emerald-700">Post Published</p>
-                  <p className="mt-2 text-sm text-slate-600">Your post is now live and discoverable.</p>
+                  <p className="text-2xl font-black text-emerald-700">
+                    {draft.status === "DRAFT" ? "Saved as Draft" : "Post Published"}
+                  </p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    {draft.status === "DRAFT"
+                      ? "Find it under My Drafts on your profile whenever you're ready to publish."
+                      : "Your post is now live and discoverable."}
+                  </p>
                 </div>
               ) : null}
 
               <div className="mt-6 flex items-center justify-between">
+                {showDraftsList ? null : (
                 <button type="button" className="btn btn-ghost" disabled={composerStep === 1 || composerStep === 6} onClick={() => setComposerStep((prev) => Math.max(1, prev - 1))}>Back</button>
+                )}
 
-                {composerStep < 5 ? (
+                {showDraftsList ? null : composerStep < 5 ? (
                   <button type="button" className="btn border-none bg-indigo-600 text-white hover:bg-indigo-500" disabled={!stepValid} onClick={() => setComposerStep((prev) => Math.min(5, prev + 1))}>Next</button>
                 ) : composerStep === 5 ? (
-                  <button type="button" className="btn border-none bg-indigo-600 text-white hover:bg-indigo-500" disabled={creating} onClick={() => createPost()}>
-                    <Send className="size-4" />
-                    {creating ? "Publishing..." : "Publish"}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      disabled={creating}
+                      onClick={() => {
+                        setDraft((prev) => ({ ...prev, status: "DRAFT" }));
+                        createPost("DRAFT");
+                      }}
+                    >
+                      Save as Draft
+                    </button>
+                    <button
+                      type="button"
+                      className="btn border-none bg-indigo-600 text-white hover:bg-indigo-500"
+                      disabled={creating}
+                      onClick={() => {
+                        setDraft((prev) => ({ ...prev, status: "PUBLISHED" }));
+                        createPost("PUBLISHED");
+                      }}
+                    >
+                      <Send className="size-4" />
+                      {creating ? "Publishing..." : "Publish"}
+                    </button>
+                  </div>
                 ) : (
                   <button type="button" className="btn border-none bg-indigo-600 text-white hover:bg-indigo-500" onClick={resetComposer}>Done</button>
                 )}

@@ -10,6 +10,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Edit2,
   Eye,
   Grid3x3,
@@ -38,6 +39,7 @@ import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import UserAvatar from "../components/UserAvatar";
 import CommentSection from "../components/CommentSection";
+import { getRecentlyViewed } from "../utils/recentlyViewed";
 import PostAuthorLink from "../components/PostAuthorLink";
 import EmailVerification from "../components/EmailVerification";
 import axiosInstance from "../lib/axios";
@@ -116,6 +118,7 @@ export default function UserProfilePage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("posts");
   const [selectedPost, setSelectedPost] = useState(null);
+  const [recentlyViewed, setRecentlyViewed] = useState([]);
   const [detailCarouselIndex, setDetailCarouselIndex] = useState(0);
   const [showVerification, setShowVerification] = useState(false);
   const [menuOpenPostId, setMenuOpenPostId] = useState(null);
@@ -192,6 +195,10 @@ export default function UserProfilePage() {
       params.set("page", String(pageParam));
       params.set("limit", "12");
       params.set("authorId", userId);
+      // Explicit, so this tab keeps showing only published posts even on
+      // your own profile — drafts are managed from the create-post
+      // composer's own Drafts view instead (MarketplacePage.jsx).
+      params.set("status", "PUBLISHED");
 
       const response = await axiosInstance.get(`/posts?${params.toString()}`);
       return response.data?.data || { posts: [], pagination: { page: 1, totalPages: 1 } };
@@ -227,15 +234,14 @@ export default function UserProfilePage() {
     },
   });
 
-  // Fetch user activity for Activity tab
-  const { data: userActivityData, isLoading: isActivityLoading } = useQuery({
-    queryKey: ["userProfileActivity", userId],
-    enabled: Boolean(userId) && activeTab === "activity",
-    queryFn: async () => {
-      const response = await axiosInstance.get(`/users/${userId}/activity`);
-      return response.data?.data || { likes: [], comments: [], saved: [], connections: [] };
-    },
-  });
+  // Recently Viewed lives in localStorage (per-browser, not per-account —
+  // see utils/recentlyViewed.js), so it's read fresh whenever this tab
+  // opens rather than fetched from the server.
+  useEffect(() => {
+    if (isOwnProfile && activeTab === "activity") {
+      setRecentlyViewed(getRecentlyViewed());
+    }
+  }, [isOwnProfile, activeTab]);
 
   const bookmarks = useMemo(
     () => (bookmarksData?.pages || []).flatMap((page) => page.posts || []),
@@ -526,7 +532,7 @@ export default function UserProfilePage() {
                       { id: "bookmarks", label: "Saved", icon: Save },
                       { id: "about", label: "About", icon: User },
                       { id: "reviews", label: "Reviews", icon: Star },
-                      { id: "activity", label: "Activity", icon: Calendar },
+                      { id: "activity", label: "Recently Viewed", icon: Clock },
                     ] : [
                       { id: "posts", label: "Posts", icon: Grid3x3 },
                       { id: "listings", label: "Listings", icon: Building2 },
@@ -1060,125 +1066,43 @@ export default function UserProfilePage() {
               ) : activeTab === "activity" ? (
                 <>
                   <section>
-                    {isActivityLoading ? (
-                      <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
-                        <Loader2 className="mx-auto size-5 animate-spin text-indigo-600" />
-                        <p className="mt-2 text-sm text-slate-500">Loading activity...</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-6">
-                        {/* Likes Section */}
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-900">
-                            <Heart className="size-4 text-red-500" />
-                            Liked Posts ({userActivityData?.likes?.length || 0})
-                          </h3>
-                          {userActivityData?.likes?.length === 0 ? (
-                            <p className="text-sm text-slate-500">No liked posts yet</p>
-                          ) : (
-                            <div className="space-y-3">
-                              {userActivityData?.likes?.map((like) => (
-                                <div 
-                                  key={like._id}
-                                  className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 cursor-pointer hover:bg-slate-100 transition"
-                                  onClick={() => setSelectedPost(like.post)}
-                                >
-                                  {like.post?.mediaUrls?.[0] && (
-                                    <img 
-                                      src={like.post.mediaUrls[0]} 
-                                      alt="Post" 
-                                      className="size-12 rounded-lg object-cover"
-                                    />
-                                  )}
-                                  <div className="min-w-0 flex-1">
-                                    <p className="truncate text-xs font-semibold text-slate-800">{like.post?.title || "Property"}</p>
-                                    <div className="flex items-center gap-1 text-xs text-slate-500">
-                                      <IndianRupee className="size-3" />
-                                      <span>{like.post?.price?.toLocaleString()}</span>
-                                      <span className="mx-1">·</span>
-                                      <MapPin className="size-3" />
-                                      <span>{like.post?.city}</span>
-                                    </div>
-                                  </div>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-900">
+                        <Clock className="size-4 text-slate-500" />
+                        Recently Viewed ({recentlyViewed.length})
+                      </h3>
+                      {recentlyViewed.length === 0 ? (
+                        <p className="text-sm text-slate-500">No recently viewed properties yet</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {recentlyViewed.map((item) => (
+                            <Link
+                              key={item.id}
+                              to={`/property/${item.id}`}
+                              className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 hover:bg-slate-100 transition"
+                            >
+                              {item.image && (
+                                <img
+                                  src={item.image}
+                                  alt="Property"
+                                  className="size-12 rounded-lg object-cover"
+                                />
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-xs font-semibold text-slate-800">{item.title || "Property"}</p>
+                                <div className="flex items-center gap-1 text-xs text-slate-500">
+                                  <IndianRupee className="size-3" />
+                                  <span>{item.price?.toLocaleString()}</span>
+                                  <span className="mx-1">·</span>
+                                  <MapPin className="size-3" />
+                                  <span>{item.city}</span>
                                 </div>
-                              ))}
-                            </div>
-                          )}
+                              </div>
+                            </Link>
+                          ))}
                         </div>
-
-                        {/* Comments Section */}
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-900">
-                            <MessageCircle className="size-4 text-blue-500" />
-                            Comments ({userActivityData?.comments?.length || 0})
-                          </h3>
-                          {userActivityData?.comments?.length === 0 ? (
-                            <p className="text-sm text-slate-500">No comments yet</p>
-                          ) : (
-                            <div className="space-y-3">
-                              {userActivityData?.comments?.map((comment) => (
-                                <div 
-                                  key={comment._id}
-                                  className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 cursor-pointer hover:bg-slate-100 transition"
-                                  onClick={() => comment.post && setSelectedPost(comment.post)}
-                                >
-                                  {comment.post?.mediaUrls?.[0] && (
-                                    <img 
-                                      src={comment.post.mediaUrls[0]} 
-                                      alt="Post" 
-                                      className="size-12 rounded-lg object-cover"
-                                    />
-                                  )}
-                                  <div className="min-w-0 flex-1">
-                                    <p className="truncate text-xs font-semibold text-slate-800">{comment.post?.title || "Property"}</p>
-                                    <p className="truncate text-xs text-slate-600">"{comment.commentText}"</p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Saved Section */}
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-900">
-                            <Bookmark className="size-4 text-indigo-500" />
-                            Saved Posts ({userActivityData?.saved?.length || 0})
-                          </h3>
-                          {userActivityData?.saved?.length === 0 ? (
-                            <p className="text-sm text-slate-500">No saved posts yet</p>
-                          ) : (
-                            <div className="space-y-3">
-                              {userActivityData?.saved?.map((save) => (
-                                <div 
-                                  key={save._id}
-                                  className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 cursor-pointer hover:bg-slate-100 transition"
-                                  onClick={() => setSelectedPost(save.post)}
-                                >
-                                  {save.post?.mediaUrls?.[0] && (
-                                    <img 
-                                      src={save.post.mediaUrls[0]} 
-                                      alt="Post" 
-                                      className="size-12 rounded-lg object-cover"
-                                    />
-                                  )}
-                                  <div className="min-w-0 flex-1">
-                                    <p className="truncate text-xs font-semibold text-slate-800">{save.post?.title || "Property"}</p>
-                                    <div className="flex items-center gap-1 text-xs text-slate-500">
-                                      <IndianRupee className="size-3" />
-                                      <span>{save.post?.price?.toLocaleString()}</span>
-                                      <span className="mx-1">·</span>
-                                      <MapPin className="size-3" />
-                                      <span>{save.post?.city}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </section>
                 </>
               ) : (
