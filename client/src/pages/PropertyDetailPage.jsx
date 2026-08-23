@@ -838,6 +838,8 @@ export default function PropertyDetailPage() {
         onClose={() => setShowShareModal(false)}
         postUrl={postData ? `${window.location.origin}/property/${postData._id}` : ""}
         postTitle={postData?.title || "Property"}
+        postId={postData?._id}
+        postImage={media[0] || ""}
       />
 
       <ReportPostModal

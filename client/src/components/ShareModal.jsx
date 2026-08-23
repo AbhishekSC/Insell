@@ -1,26 +1,33 @@
-import { useState } from "react";
-import { X, Copy, Check, Share2, MessageCircle, Facebook, Send, ArrowLeft, Loader2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { X, Copy, Check, Search, MessageCircle, Facebook, Send, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import { useStreamContext } from "../context/StreamProvider";
 import UserAvatar from "./UserAvatar";
 
-export default function ShareModal({ isOpen, onClose, postUrl, postTitle }) {
+export default function ShareModal({ isOpen, onClose, postUrl, postTitle, postId, postImage }) {
   const [copied, setCopied] = useState(false);
-  const [mode, setMode] = useState("main"); // "main" | "friends"
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedFriendIds, setSelectedFriendIds] = useState(() => new Set());
   const [isSending, setIsSending] = useState(false);
   const { streamClient, currentUserId } = useStreamContext();
 
   const { data: friends, isLoading: isLoadingFriends } = useQuery({
     queryKey: ["friends"],
-    enabled: mode === "friends",
+    enabled: isOpen,
     queryFn: async () => {
       const response = await axiosInstance.get("/users/friends");
       return response.data?.data?.friends || [];
     },
   });
+
+  const filteredFriends = useMemo(() => {
+    const list = friends || [];
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return list;
+    return list.filter((friend) => (friend.fullName || "").toLowerCase().includes(query));
+  }, [friends, searchQuery]);
 
   const handleCopyLink = async () => {
     try {
@@ -43,7 +50,7 @@ export default function ShareModal({ isOpen, onClose, postUrl, postTitle }) {
   };
 
   const handleClose = () => {
-    setMode("main");
+    setSearchQuery("");
     setSelectedFriendIds(new Set());
     onClose();
   };
@@ -69,14 +76,29 @@ export default function ShareModal({ isOpen, onClose, postUrl, postTitle }) {
 
     setIsSending(true);
     try {
-      const text = `Check out this property: ${postTitle}\n${postUrl}`;
+      // Custom attachment type, not a plain-text link — ChatContent.jsx
+      // renders "property" attachments as a proper card (image + title) and
+      // navigates within the app on click, instead of relying on Stream's
+      // generic URL-unfurl preview (which only reflects the SPA's static,
+      // site-wide OG tags) or a plain external link that opens a new tab.
       await Promise.all(
         Array.from(selectedFriendIds).map(async (friendId) => {
           const channel = streamClient.channel("messaging", {
             members: [currentUserId, friendId],
           });
           await channel.watch();
-          await channel.sendMessage({ text });
+          await channel.sendMessage({
+            text: "",
+            attachments: [
+              {
+                type: "property",
+                title: postTitle,
+                image_url: postImage || "",
+                title_link: postUrl,
+                property_id: postId,
+              },
+            ],
+          });
         })
       );
       toast.success(selectedFriendIds.size === 1 ? "Shared with your friend" : "Shared with your friends");
@@ -93,153 +115,118 @@ export default function ShareModal({ isOpen, onClose, postUrl, postTitle }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={handleClose}>
       <div
-        className="w-full max-w-md rounded-2xl bg-white shadow-xl"
+        className="flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-slate-200 p-4">
-          <div className="flex items-center gap-2">
-            {mode === "friends" && (
-              <button
-                type="button"
-                onClick={() => setMode("main")}
-                className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                aria-label="Back"
-              >
-                <ArrowLeft className="size-5" />
-              </button>
-            )}
-            <Share2 className="size-5 text-indigo-600" />
-            <h3 className="text-lg font-semibold text-slate-900">
-              {mode === "friends" ? "Share to Friend" : "Share Property"}
-            </h3>
-          </div>
+        <div className="relative flex shrink-0 items-center justify-center border-b border-slate-200 p-4">
+          <h3 className="text-base font-semibold text-slate-900">Share</h3>
           <button
             type="button"
             onClick={handleClose}
-            className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+            className="absolute left-4 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
           >
             <X className="size-5" />
           </button>
         </div>
 
-        {mode === "main" ? (
-          <div className="p-4 space-y-4">
-            {/* Copy Link Section */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Property Link</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={postUrl}
-                  readOnly
-                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600 bg-slate-50"
-                />
-                <button
-                  type="button"
-                  onClick={handleCopyLink}
-                  className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
-                >
-                  {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-                  {copied ? "Copied" : "Copy"}
-                </button>
-              </div>
-            </div>
-
-            {/* Share Options */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Share to</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setMode("friends")}
-                  className="col-span-2 flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  <Send className="size-5 text-indigo-600" />
-                  Share to Friend
-                </button>
-                <button
-                  type="button"
-                  onClick={shareToWhatsApp}
-                  className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  <MessageCircle className="size-5 text-green-600" />
-                  WhatsApp
-                </button>
-                <button
-                  type="button"
-                  onClick={shareToFacebook}
-                  className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  <Facebook className="size-5 text-blue-600" />
-                  Facebook
-                </button>
-              </div>
-            </div>
+        <div className="shrink-0 p-4 pb-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search friends"
+              className="w-full rounded-full border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-700 outline-none focus:border-indigo-300"
+            />
           </div>
-        ) : (
-          <div className="p-4">
-            {isLoadingFriends ? (
-              <p className="py-6 text-center text-sm text-slate-500">Loading your friends...</p>
-            ) : (friends || []).length === 0 ? (
-              <p className="py-6 text-center text-sm text-slate-500">
-                You don&apos;t have any friends to share with yet.
-              </p>
-            ) : (
-              <div className="max-h-72 space-y-1 overflow-y-auto">
-                {friends.map((friend) => {
-                  const isSelected = selectedFriendIds.has(friend._id);
-                  return (
-                    <button
-                      key={friend._id}
-                      type="button"
-                      onClick={() => toggleFriend(friend._id)}
-                      className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-slate-50"
-                    >
-                      <UserAvatar src={friend.profilePic} name={friend.fullName || "User"} sizeClass="size-10" />
-                      <span className="flex-1 truncate text-sm font-medium text-slate-800">{friend.fullName}</span>
-                      <span
-                        className={`grid size-5 shrink-0 place-items-center rounded-full border-2 ${
-                          isSelected ? "border-indigo-600 bg-indigo-600" : "border-slate-300"
-                        }`}
-                      >
-                        {isSelected && <Check className="size-3 text-white" />}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 pt-2">
+          {isLoadingFriends ? (
+            <p className="py-6 text-center text-sm text-slate-500">Loading your friends...</p>
+          ) : filteredFriends.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-500">
+              {friends?.length ? "No friends match your search." : "You don't have any friends to share with yet."}
+            </p>
+          ) : (
+            <div className="grid grid-cols-4 gap-3">
+              {filteredFriends.map((friend) => {
+                const isSelected = selectedFriendIds.has(friend._id);
+                return (
+                  <button
+                    key={friend._id}
+                    type="button"
+                    onClick={() => toggleFriend(friend._id)}
+                    className={`flex flex-col items-center gap-1.5 rounded-xl p-1.5 text-center transition-colors ${
+                      isSelected ? "bg-indigo-50" : "hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="relative">
+                      <UserAvatar src={friend.profilePic} name={friend.fullName || "User"} sizeClass="size-16" />
+                      {isSelected && (
+                        <span className="absolute -bottom-0.5 -right-0.5 grid size-5 place-items-center rounded-full border-2 border-white bg-indigo-600">
+                          <Check className="size-3 text-white" />
+                        </span>
+                      )}
+                    </div>
+                    <span className="line-clamp-2 max-w-16 text-xs font-medium text-slate-700">
+                      {friend.fullName}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {selectedFriendIds.size > 0 && (
+          <div className="shrink-0 px-4 pb-2">
+            <button
+              type="button"
+              disabled={isSending}
+              onClick={handleShareToFriends}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:opacity-60"
+            >
+              {isSending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+              {isSending ? "Sharing..." : `Share (${selectedFriendIds.size})`}
+            </button>
           </div>
         )}
 
-        <div className="border-t border-slate-200 p-4">
-          {mode === "friends" ? (
+        <div className="shrink-0 border-t border-slate-200 p-4">
+          <div className="grid grid-cols-3 gap-3">
             <button
               type="button"
-              disabled={selectedFriendIds.size === 0 || isSending}
-              onClick={handleShareToFriends}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors disabled:opacity-60"
+              onClick={handleCopyLink}
+              className="flex flex-col items-center gap-1.5 rounded-xl p-2 text-slate-600 hover:bg-slate-50 transition-colors"
             >
-              {isSending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Send className="size-4" />
-              )}
-              {isSending
-                ? "Sharing..."
-                : selectedFriendIds.size > 0
-                ? `Share (${selectedFriendIds.size})`
-                : "Share"}
+              <span className="grid size-11 place-items-center rounded-full bg-slate-100">
+                {copied ? <Check className="size-5 text-emerald-600" /> : <Copy className="size-5" />}
+              </span>
+              <span className="text-xs font-medium">{copied ? "Copied" : "Copy Link"}</span>
             </button>
-          ) : (
             <button
               type="button"
-              onClick={handleClose}
-              className="w-full rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 transition-colors"
+              onClick={shareToWhatsApp}
+              className="flex flex-col items-center gap-1.5 rounded-xl p-2 text-slate-600 hover:bg-slate-50 transition-colors"
             >
-              Close
+              <span className="grid size-11 place-items-center rounded-full bg-slate-100">
+                <MessageCircle className="size-5 text-green-600" />
+              </span>
+              <span className="text-xs font-medium">WhatsApp</span>
             </button>
-          )}
+            <button
+              type="button"
+              onClick={shareToFacebook}
+              className="flex flex-col items-center gap-1.5 rounded-xl p-2 text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              <span className="grid size-11 place-items-center rounded-full bg-slate-100">
+                <Facebook className="size-5 text-blue-600" />
+              </span>
+              <span className="text-xs font-medium">Facebook</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -2825,6 +2825,8 @@ export default function MarketplacePage() {
         }}
         postUrl={postToShare ? `${window.location.origin}/property/${postToShare._id}` : ""}
         postTitle={postToShare?.title || "Property"}
+        postId={postToShare?._id}
+        postImage={postToShare ? normalizeMedia(postToShare)[0] : ""}
       />
 
       <ReportPostModal
