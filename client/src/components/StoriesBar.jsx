@@ -430,7 +430,10 @@ export function StoryViewer({
                 {isRemoving ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
               </button>
             ) : null}
-            {isOwnStory && !highlightId ? (
+            {/* expiresAt is unset the moment a story is claimed into any
+                highlight (see claimStoryForHighlight) — reuse that as the
+                "already highlighted" signal instead of a separate lookup. */}
+            {isOwnStory && !highlightId && story.expiresAt ? (
               <button
                 type="button"
                 onClick={() => setShowSaveToHighlight(true)}
@@ -527,6 +530,9 @@ function SaveToHighlightModal({ storyId, authorId, onClose }) {
     onSuccess: (highlightId) => {
       setSavedHighlightId(highlightId);
       queryClient.invalidateQueries({ queryKey: ["highlights", authorId] });
+      // Refetch the feed too — the story's expiresAt just got unset server-side,
+      // which is what hides the "Save to Highlight" button once it's saved.
+      queryClient.invalidateQueries({ queryKey: ["stories"] });
       toast.success("Saved to highlight");
     },
     onError: (error) => {
@@ -542,6 +548,7 @@ function SaveToHighlightModal({ storyId, authorId, onClose }) {
     onSuccess: (highlight) => {
       setSavedHighlightId(highlight._id);
       queryClient.invalidateQueries({ queryKey: ["highlights", authorId] });
+      queryClient.invalidateQueries({ queryKey: ["stories"] });
       toast.success("Highlight created");
     },
     onError: (error) => {
