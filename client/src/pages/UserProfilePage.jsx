@@ -840,8 +840,8 @@ export default function UserProfilePage() {
                                   
                                   <div className="absolute left-3 top-3 flex items-center gap-1.5">
                                     <span
-                                      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold shadow-sm ${
-                                        post.customBadge ? getCustomBadgeClasses(post.customBadge) : "bg-white/95 text-slate-700"
+                                      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                                        post.customBadge ? getCustomBadgeClasses(post.customBadge) : "bg-black/55 backdrop-blur-sm text-white"
                                       }`}
                                     >
                                       {badge}
@@ -856,7 +856,7 @@ export default function UserProfilePage() {
                                   <div className="absolute right-3 bottom-3">
                                     <button
                                       type="button"
-                                      className="size-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-600 hover:bg-white transition-colors opacity-0 group-hover:opacity-100"
+                                      className="size-8 rounded-full flex items-center justify-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75 transition-opacity"
                                       onClick={(event) => {
                                         event.stopPropagation();
                                         setPostToShare(post);
@@ -871,7 +871,7 @@ export default function UserProfilePage() {
                                       <div className="relative">
                                         <button
                                           type="button"
-                                          className="btn btn-xs btn-circle border border-slate-200 bg-white/90 text-slate-600 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100"
+                                          className="btn btn-xs btn-circle border-none bg-transparent text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
                                           onClick={(event) => {
                                             event.stopPropagation();
                                             setMenuOpenPostId(menuOpenPostId === post._id ? null : post._id);
@@ -1099,8 +1099,8 @@ export default function UserProfilePage() {
                                       </span>
                                     )}
                                     <span
-                                      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold shadow-sm ${
-                                        post.customBadge ? getCustomBadgeClasses(post.customBadge) : "bg-white/95 text-slate-700"
+                                      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                                        post.customBadge ? getCustomBadgeClasses(post.customBadge) : "bg-black/55 backdrop-blur-sm text-white"
                                       }`}
                                     >
                                       {badge}
@@ -1109,7 +1109,7 @@ export default function UserProfilePage() {
                                   <div className="absolute right-3 bottom-3">
                                     <button
                                       type="button"
-                                      className="size-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-600 hover:bg-white transition-colors opacity-0 group-hover:opacity-100"
+                                      className="size-8 rounded-full flex items-center justify-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75 transition-opacity"
                                       onClick={(event) => {
                                         event.stopPropagation();
                                         setPostToShare(post);
