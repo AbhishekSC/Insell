@@ -361,7 +361,7 @@ export default function PropertyDetailPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none">
             <div className="absolute top-4 right-4 flex items-center gap-2 pointer-events-auto">
               {media.length > 0 && (
-                <span className="rounded-full bg-white/90 backdrop-blur-sm px-3 py-1 text-xs font-semibold text-slate-800">
+                <span className="rounded-full bg-black/55 backdrop-blur-sm px-3 py-1 text-xs font-semibold text-white">
                   {carouselIndex + 1}/{media.length}
                 </span>
               )}
@@ -377,20 +377,20 @@ export default function PropertyDetailPage() {
             <div className="absolute bottom-4 right-4 flex items-center gap-2 pointer-events-auto">
               {media.length > 0 && (
                 <button
-                  className="size-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-700 hover:bg-white transition-colors"
+                  className="size-10 rounded-full flex items-center justify-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75 transition-opacity"
                   onClick={() => setIsFullscreen(true)}
                 >
                   <Expand className="size-5" />
                 </button>
               )}
               <button
-                className="size-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-700 hover:bg-white transition-colors"
+                className="size-10 rounded-full flex items-center justify-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75 transition-opacity"
                 onClick={() => setShowShareModal(true)}
               >
                 <Share2 className="size-5" />
               </button>
               <button
-                className={`size-10 rounded-full backdrop-blur-sm flex items-center justify-center transition-colors ${postData.isSavedByMe ? 'bg-indigo-600 text-white' : 'bg-white/90 text-slate-700 hover:bg-white'}`}
+                className={`size-10 rounded-full flex items-center justify-center transition-colors ${postData.isSavedByMe ? 'bg-indigo-600 text-white' : 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75'}`}
                 onClick={() => toggleSave(postData._id)}
               >
                 {postData.isSavedByMe ? <BookmarkCheck className="size-5" /> : <Bookmark className="size-5" />}
