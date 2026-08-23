@@ -1505,7 +1505,7 @@ export default function MarketplacePage() {
                         <div className="absolute right-3 top-3 flex items-center gap-1">
                           <span
                             className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
-                              post.customBadge ? getCustomBadgeClasses(post.customBadge) : "bg-white/90 text-slate-700"
+                              post.customBadge ? getCustomBadgeClasses(post.customBadge) : "bg-black/55 text-white backdrop-blur-sm"
                             }`}
                           >
                             {badge}
@@ -1513,7 +1513,7 @@ export default function MarketplacePage() {
                           {!isOwnPost && (
                             <button
                               type="button"
-                              className="grid size-6 place-items-center rounded-full bg-white/90 text-slate-700 hover:bg-white"
+                              className="grid size-6 place-items-center rounded-full text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
                               onClick={(event) => {
                                 event.stopPropagation();
                                 if (postMenuAnchor?.post._id === post._id) {
@@ -1536,10 +1536,10 @@ export default function MarketplacePage() {
                         <div className="absolute right-3 bottom-3 flex items-center gap-2">
                           <button
                             type="button"
-                            className={`size-8 rounded-full backdrop-blur-sm flex items-center justify-center transition-all duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 ${
+                            className={`size-8 rounded-full flex items-center justify-center transition-all duration-200 ${
                               selectedForComparison.includes(post._id)
                                 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
-                                : 'bg-white/90 text-slate-600 hover:bg-white hover:text-indigo-600'
+                                : 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75'
                             }`}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -1567,7 +1567,7 @@ export default function MarketplacePage() {
                           </button>
                           <button
                             type="button"
-                            className="size-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-600 hover:bg-white transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                            className="size-8 rounded-full flex items-center justify-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75 transition-opacity"
                             onClick={(event) => {
                               event.stopPropagation();
                               setPostToShare(post);
