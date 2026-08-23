@@ -384,7 +384,7 @@ export function StoryViewer({
 
           {/* Caption */}
           {story.caption && (
-            <div className="absolute bottom-20 left-4 right-4">
+            <div className="absolute bottom-20 left-4 right-4 rounded-xl bg-black/50 px-3 py-2 backdrop-blur-sm">
               <p className="text-sm text-white">{story.caption}</p>
             </div>
           )}
