@@ -188,7 +188,7 @@ function CreateHighlightModal({ onClose, onCreated }) {
                   key={story._id}
                   type="button"
                   onClick={() => setSelectedStoryId(story._id)}
-                  className={`aspect-square overflow-hidden rounded-lg border-2 ${
+                  className={`relative aspect-square overflow-hidden rounded-lg border-2 ${
                     selectedStoryId === story._id ? "border-indigo-600" : "border-transparent"
                   }`}
                 >
@@ -197,6 +197,9 @@ function CreateHighlightModal({ onClose, onCreated }) {
                   ) : (
                     <img src={resolveMediaUrl(story.mediaUrl)} alt="" className="h-full w-full object-cover" />
                   )}
+                  <span className="absolute bottom-1 right-1 rounded bg-black/60 px-1 py-0.5 text-[10px] font-medium leading-none text-white">
+                    {formatBadgeDate(story.createdAt)}
+                  </span>
                 </button>
               ))}
             </div>
@@ -223,4 +226,11 @@ function CreateHighlightModal({ onClose, onCreated }) {
       </div>
     </div>
   );
+}
+
+// "7 Jul" / "30 Aug" style — day + short month, no year (stories never live
+// long enough for the year to matter).
+function formatBadgeDate(dateString) {
+  if (!dateString) return "";
+  return new Date(dateString).toLocaleDateString("en-US", { day: "numeric", month: "short" });
 }
