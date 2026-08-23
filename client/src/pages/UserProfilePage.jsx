@@ -1751,6 +1751,8 @@ export default function UserProfilePage() {
         }}
         postUrl={postToShare ? `${window.location.origin}/property/${postToShare._id}` : ""}
         postTitle={postToShare?.title || "Property"}
+        postId={postToShare?._id}
+        postImage={postToShare ? normalizeMedia(postToShare)[0] : ""}
       />
 
       {/* Followers / Following Modal */}

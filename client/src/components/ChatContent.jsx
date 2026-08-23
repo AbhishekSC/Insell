@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Attachment,
   Channel,
   Chat,
   MessageComposer,
@@ -10,6 +12,7 @@ import {
 } from "stream-chat-react";
 import {
   ArrowLeft,
+  Building2,
   Loader2,
   MessageCircleHeart,
   Radio,
@@ -22,6 +25,46 @@ import axiosInstance from "../lib/axios";
 import { useStreamContext } from "../context/StreamProvider";
 
 const EMPTY_FRIENDS = [];
+
+// Renders a shared property (see ShareModal.jsx) as a proper card — image,
+// title, and a click that navigates inside the app — instead of Stream's
+// default generic link-preview card or an external <a> that opens a new tab.
+// Falls back to Stream's own Attachment component for every other kind of
+// attachment (images someone actually uploads, etc).
+function CustomAttachment(props) {
+  const navigate = useNavigate();
+  const propertyAttachment = props.attachment?.type === "property" ? props.attachment : null;
+
+  if (!propertyAttachment) {
+    return <Attachment {...props} />;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(`/property/${propertyAttachment.property_id}`)}
+      className="block w-full max-w-xs overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition-shadow hover:shadow-md"
+    >
+      <div className="aspect-video w-full overflow-hidden bg-slate-100">
+        {propertyAttachment.image_url ? (
+          <img
+            src={propertyAttachment.image_url}
+            alt={propertyAttachment.title || "Property"}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-slate-300">
+            <Building2 className="size-8" />
+          </div>
+        )}
+      </div>
+      <div className="p-3">
+        <p className="text-[11px] font-semibold tracking-wide text-indigo-600">INSELL PROPERTY</p>
+        <p className="mt-0.5 line-clamp-2 text-sm font-medium text-slate-800">{propertyAttachment.title}</p>
+      </div>
+    </button>
+  );
+}
 
 function formatRelativeTime(timestamp) {
   if (!timestamp) return "";
@@ -365,7 +408,7 @@ export default function ChatContent({ deepLinkUserId } = {}) {
             </div>
             <div className="flex-1 min-h-0 overflow-hidden pb-6">
               <Chat client={chatClient}>
-                <Channel channel={activeChannel}>
+                <Channel channel={activeChannel} Attachment={CustomAttachment}>
                   <Window>
                     <MessageList />
                     <MessageComposer />
