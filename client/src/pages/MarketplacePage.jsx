@@ -57,6 +57,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
 import ProfileContent from "../components/ProfileContent";
+import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 import ActivityContent from "../components/ActivityContent";
 import CommunitiesContent from "../components/CommunitiesContent";
 import CommunityChat from "../components/CommunityChat";
@@ -2702,35 +2703,13 @@ export default function MarketplacePage() {
       ) : null}
 
       {draftToDelete ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setDraftToDelete(null)}>
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={(event) => event.stopPropagation()}>
-            <div className="grid size-10 place-items-center rounded-full bg-red-50 text-red-600">
-              <Trash2 className="size-5" />
-            </div>
-            <h3 className="mt-3 text-lg font-semibold text-slate-800">Delete this draft?</h3>
-            <p className="mt-1 text-sm text-slate-500">
-              "{draftToDelete.title || "Untitled draft"}" will be permanently deleted. This can't be undone.
-            </p>
-            <div className="mt-5 flex items-center gap-2">
-              <button
-                type="button"
-                className="btn flex-1 border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                onClick={() => setDraftToDelete(null)}
-                disabled={deletingDraft}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn flex-1 border-none bg-red-600 text-white hover:bg-red-500"
-                onClick={() => deleteDraft(draftToDelete._id)}
-                disabled={deletingDraft}
-              >
-                {deletingDraft ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteModal
+          title="Delete this draft?"
+          description={`"${draftToDelete.title || "Untitled draft"}" will be permanently deleted. This can't be undone.`}
+          isPending={deletingDraft}
+          onConfirm={() => deleteDraft(draftToDelete._id)}
+          onClose={() => setDraftToDelete(null)}
+        />
       ) : null}
 
       {selectedPostForComments ? (
