@@ -1,7 +1,7 @@
 import { Component, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Channel, Chat, MessageComposer, MessageList, Thread, Window } from "stream-chat-react";
-import { ArrowLeft, Camera, Check, Crown, LogOut, Menu, Shield, Trash2, UserPlus, Users, X } from "lucide-react";
+import { ArrowLeft, Calendar, Camera, Check, Crown, LogOut, Menu, Shield, Trash2, UserPlus, Users, X } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import { useStreamContext } from "../context/StreamProvider";
@@ -36,6 +36,7 @@ export default function CommunityChat({ community, onBack }) {
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showDestroyModal, setShowDestroyModal] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [showPhotoPreview, setShowPhotoPreview] = useState(false);
   const [selectedFriendIds, setSelectedFriendIds] = useState([]);
   const [communityChannel, setCommunityChannel] = useState(null);
   const { streamClient, streamReady } = useStreamContext();
@@ -280,7 +281,12 @@ export default function CommunityChat({ community, onBack }) {
           >
             <ArrowLeft size={20} />
           </button>
-          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold">
+          <button
+            type="button"
+            onClick={() => circle?.photo && setShowPhotoPreview(true)}
+            className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold ${circle?.photo ? "cursor-zoom-in" : "cursor-default"}`}
+            aria-label={circle?.photo ? "View community photo" : undefined}
+          >
             {circle?.photo ? (
               <img src={circle.photo} alt={community.name} className="h-full w-full object-cover" />
             ) : (
@@ -291,7 +297,7 @@ export default function CommunityChat({ community, onBack }) {
                 <div className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
               </div>
             ) : null}
-          </div>
+          </button>
           <div>
             <h2 className="font-semibold text-slate-900">{community.name}</h2>
             <p className="text-xs text-slate-500">
@@ -671,6 +677,44 @@ export default function CommunityChat({ community, onBack }) {
               >
                 {destroyMutation.isPending ? "Deleting..." : "Delete community"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPhotoPreview && circle?.photo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setShowPhotoPreview(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setShowPhotoPreview(false)}
+            className="absolute right-4 top-4 grid size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"
+            aria-label="Close"
+          >
+            <X className="size-5" />
+          </button>
+          <div className="flex max-w-lg flex-col items-center" onClick={(event) => event.stopPropagation()}>
+            <img
+              src={circle.photo}
+              alt={community.name}
+              className="max-h-[70vh] max-w-full rounded-2xl object-contain"
+            />
+            <div className="mt-4 w-full rounded-2xl bg-white/10 p-4 text-center text-white backdrop-blur">
+              <h3 className="text-lg font-semibold">{community.name}</h3>
+              <div className="mt-2 flex items-center justify-center gap-4 text-sm text-white/80">
+                <span className="inline-flex items-center gap-1.5">
+                  <Users className="size-4" />
+                  {circle?.members?.length || 0} members
+                </span>
+                {circle?.createdAt && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Calendar className="size-4" />
+                    Created {new Date(circle.createdAt).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
