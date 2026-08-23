@@ -5,6 +5,7 @@ import {
   Attachment,
   Channel,
   Chat,
+  ComponentProvider,
   MessageComposer,
   MessageList,
   Thread,
@@ -31,9 +32,12 @@ const EMPTY_FRIENDS = [];
 // default generic link-preview card or an external <a> that opens a new tab.
 // Falls back to Stream's own Attachment component for every other kind of
 // attachment (images someone actually uploads, etc).
+//
+// The override component receives `attachments` (plural, an array) — NOT a
+// singular `attachment` — that's the actual prop stream-chat-react passes.
 function CustomAttachment(props) {
   const navigate = useNavigate();
-  const propertyAttachment = props.attachment?.type === "property" ? props.attachment : null;
+  const propertyAttachment = props.attachments?.find((attachment) => attachment.type === "property") || null;
 
   if (!propertyAttachment) {
     return <Attachment {...props} />;
@@ -408,12 +412,14 @@ export default function ChatContent({ deepLinkUserId } = {}) {
             </div>
             <div className="flex-1 min-h-0 overflow-hidden pb-6">
               <Chat client={chatClient}>
-                <Channel channel={activeChannel} Attachment={CustomAttachment}>
-                  <Window>
-                    <MessageList />
-                    <MessageComposer />
-                  </Window>
-                  <Thread />
+                <Channel channel={activeChannel}>
+                  <ComponentProvider value={{ Attachment: CustomAttachment }}>
+                    <Window>
+                      <MessageList />
+                      <MessageComposer />
+                    </Window>
+                    <Thread />
+                  </ComponentProvider>
                 </Channel>
               </Chat>
             </div>

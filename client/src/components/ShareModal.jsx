@@ -142,7 +142,7 @@ export default function ShareModal({ isOpen, onClose, postUrl, postTitle, postId
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 pt-2">
+        <div className="max-h-[248px] shrink-0 overflow-y-auto p-4 pt-2">
           {isLoadingFriends ? (
             <p className="py-6 text-center text-sm text-slate-500">Loading your friends...</p>
           ) : filteredFriends.length === 0 ? (
