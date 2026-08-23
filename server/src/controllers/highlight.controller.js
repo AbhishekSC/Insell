@@ -1,7 +1,19 @@
 import Highlight from "../models/Highlight.model.js";
 import Story from "../models/Story.model.js";
+import User from "../models/User.model.js";
 import { logger } from "../utils/logger.js";
 import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler.js";
+
+// Same rule as the rest of the app's friends-only content (e.g. the friends
+// list itself, private stories): only the owner or a confirmed friend can
+// see it. Highlights are built from a user's own stories, which follow the
+// same visibility model, so they shouldn't be more open than the stories
+// that make them up.
+async function canViewHighlights(ownerId, viewerId) {
+  if (String(ownerId) === String(viewerId)) return true;
+  const owner = await User.findById(ownerId).select("friends").lean();
+  return (owner?.friends || []).some((friendId) => String(friendId) === String(viewerId));
+}
 
 // Only your own story can become a highlight, and only while it's still
 // within its normal 24h life — no general "archive" of every past story in
@@ -123,6 +135,10 @@ export const getUserHighlights = async (req, res) => {
   try {
     const { userId } = req.params;
 
+    if (!(await canViewHighlights(userId, req.user._id))) {
+      return sendErrorResponse(res, 403, "Only friends can view this user's highlights");
+    }
+
     const highlights = await Highlight.find({ owner: userId, stories: { $ne: [] } })
       .select("title coverImage stories createdAt")
       .sort({ createdAt: -1 })
@@ -158,6 +174,10 @@ export const getHighlightById = async (req, res) => {
 
     if (!highlight) {
       return sendErrorResponse(res, 404, "Highlight not found");
+    }
+
+    if (!(await canViewHighlights(highlight.owner, req.user._id))) {
+      return sendErrorResponse(res, 403, "Only friends can view this user's highlights");
     }
 
     return sendSuccessResponse(res, 200, "Highlight fetched successfully", { highlight });

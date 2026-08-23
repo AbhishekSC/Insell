@@ -646,9 +646,12 @@ export default function UserProfilePage() {
             <div className="flex shrink-0 items-center gap-2">{renderProfileActions("")}</div>
           </section>
 
-          <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
-            <HighlightsBar userId={userId} isOwnProfile={isOwnProfile} authUser={authUser} />
-          </div>
+          <HighlightsBar
+            userId={userId}
+            isOwnProfile={isOwnProfile}
+            isFriend={relationship.connectionStatus === "friends"}
+            authUser={authUser}
+          />
 
           {/* Content Area */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[3fr_1fr]">
