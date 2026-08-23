@@ -734,8 +734,9 @@ export default function UserProfilePage() {
               {/* Tab Content */}
               {activeTab === "posts" ? (
                 <>
-                  {/* Filter Chips */}
-                  <div className="flex flex-wrap gap-2">
+                  {/* Filter Chips — desktop/tablet only, hidden on the mobile
+                      Instagram-style layout to keep it clean */}
+                  <div className="hidden flex-wrap gap-2 sm:flex">
                     {["All Posts", "For Sale", "Looking to Buy", "Sold", "Rented"].map((filter) => (
                       <button
                         key={filter}

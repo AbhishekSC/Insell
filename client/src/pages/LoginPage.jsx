@@ -181,13 +181,11 @@ export default function LoginPage() {
               Continue with Google
             </button>
 
-            <div className="text-center mt-4">
-              <p className="text-sm">
-                Don&apos;t have an account?{" "}
-                <Link to="/signup" className="text-primary hover:underline">
-                  Create one
-                </Link>
-              </p>
+            <div className="mt-4 text-center">
+              <p className="text-sm opacity-70 mb-2">New to InSell?</p>
+              <Link to="/signup" className="btn btn-outline btn-primary w-full rounded-xl">
+                Create New Account
+              </Link>
             </div>
           </form>
         </div>

@@ -3,16 +3,21 @@ import Story from "../models/Story.model.js";
 import { logger } from "../utils/logger.js";
 import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler.js";
 
-// Only your own story can become a highlight, and only while the document
-// still exists — once Mongo's TTL sweep actually deletes it there's nothing
-// left to highlight (no general "archive" of every past story in this app).
-// Deliberately NOT rejecting a story whose expiresAt has technically passed
-// but hasn't been swept yet (the TTL background task runs periodically, not
-// instantly, so there's normally up to ~60s of slack after expiry) — this is
-// what actually fixes the race where a story goes stale mid highlight-creation.
+// Only your own story can become a highlight, and only while it's still
+// within its normal 24h life — no general "archive" of every past story in
+// this app, so once a story has actually expired there's nothing left to
+// highlight it from.
+//
+// Checked against feedExpiresAt, NOT expiresAt: feedExpiresAt is a stable
+// copy of the original 24h mark that nothing else touches, so this check
+// can't race with anything. expiresAt, by contrast, gets unset the moment
+// this function runs (below) purely to stop TTL deletion — checking THAT
+// field here was the original bug (a story mid highlight-creation could
+// read as "expired" before its own flow finished). See Story.model.js.
 async function claimStoryForHighlight(storyId, userId) {
   const story = await Story.findOne({ _id: storyId, author: userId });
   if (!story) return null;
+  if (story.feedExpiresAt && story.feedExpiresAt <= new Date()) return null;
 
   // Unset rather than null/far-future date — MongoDB's TTL monitor skips
   // documents that don't have the indexed field at all, so this is what
