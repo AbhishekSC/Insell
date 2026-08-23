@@ -9,15 +9,21 @@ import { resolveMediaUrl } from "../lib/media";
 // Instagram-style permanent story collections on a profile. Tapping a
 // circle opens the same StoryViewer used for live 24h stories, just fed
 // this highlight's own (permanent) story list instead.
-export default function HighlightsBar({ userId, isOwnProfile, authUser }) {
+export default function HighlightsBar({ userId, isOwnProfile, isFriend, authUser }) {
   const queryClient = useQueryClient();
   const [viewingHighlightId, setViewingHighlightId] = useState(null);
   const [storyIndex, setStoryIndex] = useState(0);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
+  // Highlights follow the same friends-only visibility as the stories they're
+  // built from — a stranger shouldn't even see the row, let alone fetch it
+  // (the API enforces this too, but skipping the call here avoids firing an
+  // error toast on every stranger's profile visit).
+  const canView = isOwnProfile || isFriend;
+
   const { data: highlights, isLoading } = useQuery({
     queryKey: ["highlights", userId],
-    enabled: Boolean(userId),
+    enabled: Boolean(userId) && canView,
     queryFn: async () => {
       const response = await axiosInstance.get(`/highlights/user/${userId}`);
       return response.data?.data?.highlights || [];
@@ -55,15 +61,21 @@ export default function HighlightsBar({ userId, isOwnProfile, authUser }) {
     }
   };
 
+  if (!canView) {
+    return null;
+  }
+
   if (isLoading) {
     return (
-      <div className="flex gap-4 overflow-x-auto py-1">
-        {[1, 2, 3].map((item) => (
-          <div key={item} className="flex shrink-0 flex-col items-center gap-1.5">
-            <div className="size-16 animate-pulse rounded-full bg-slate-100" />
-            <div className="h-2.5 w-10 animate-pulse rounded bg-slate-100" />
-          </div>
-        ))}
+      <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
+        <div className="flex gap-4 overflow-x-auto py-1">
+          {[1, 2, 3].map((item) => (
+            <div key={item} className="flex shrink-0 flex-col items-center gap-1.5">
+              <div className="size-16 animate-pulse rounded-full bg-slate-100" />
+              <div className="h-2.5 w-10 animate-pulse rounded bg-slate-100" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -73,7 +85,7 @@ export default function HighlightsBar({ userId, isOwnProfile, authUser }) {
   }
 
   return (
-    <>
+    <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
       <div className="flex gap-4 overflow-x-auto py-1">
         {isOwnProfile && (
           <button
@@ -129,7 +141,7 @@ export default function HighlightsBar({ userId, isOwnProfile, authUser }) {
           onCreated={() => queryClient.invalidateQueries({ queryKey: ["highlights", userId] })}
         />
       )}
-    </>
+    </div>
   );
 }
 
