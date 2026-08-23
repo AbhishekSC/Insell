@@ -491,6 +491,7 @@ export default function MarketplacePage() {
   const [composerStep, setComposerStep] = useState(1);
   const [showDraftsList, setShowDraftsList] = useState(false);
   const [editingDraftId, setEditingDraftId] = useState(null);
+  const [draftToDelete, setDraftToDelete] = useState(null);
   const [draft, setDraft] = useState({
     postType: "PROPERTY_SALE",
     listingType: "Sell",
@@ -850,9 +851,11 @@ export default function MarketplacePage() {
     onSuccess: () => {
       toast.success("Draft deleted");
       queryClient.invalidateQueries({ queryKey: ["myDrafts"] });
+      setDraftToDelete(null);
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || "Failed to delete draft");
+      setDraftToDelete(null);
     },
   });
 
@@ -2126,11 +2129,7 @@ export default function MarketplacePage() {
                                 type="button"
                                 className="btn btn-xs btn-circle border-none text-red-500 hover:bg-red-50"
                                 disabled={deletingDraft}
-                                onClick={() => {
-                                  if (window.confirm("Delete this draft? This can't be undone.")) {
-                                    deleteDraft(post._id);
-                                  }
-                                }}
+                                onClick={() => setDraftToDelete(post)}
                                 title="Delete draft"
                               >
                                 <Trash2 className="size-3.5" />
@@ -2699,6 +2698,38 @@ export default function MarketplacePage() {
               </div>
             </div>
           </aside>
+        </div>
+      ) : null}
+
+      {draftToDelete ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setDraftToDelete(null)}>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={(event) => event.stopPropagation()}>
+            <div className="grid size-10 place-items-center rounded-full bg-red-50 text-red-600">
+              <Trash2 className="size-5" />
+            </div>
+            <h3 className="mt-3 text-lg font-semibold text-slate-800">Delete this draft?</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              "{draftToDelete.title || "Untitled draft"}" will be permanently deleted. This can't be undone.
+            </p>
+            <div className="mt-5 flex items-center gap-2">
+              <button
+                type="button"
+                className="btn flex-1 border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                onClick={() => setDraftToDelete(null)}
+                disabled={deletingDraft}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn flex-1 border-none bg-red-600 text-white hover:bg-red-500"
+                onClick={() => deleteDraft(draftToDelete._id)}
+                disabled={deletingDraft}
+              >
+                {deletingDraft ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 
