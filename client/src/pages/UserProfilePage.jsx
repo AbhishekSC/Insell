@@ -40,9 +40,11 @@ import AppShell from "../components/AppShell";
 import UserAvatar from "../components/UserAvatar";
 import CommentSection from "../components/CommentSection";
 import { getRecentlyViewed } from "../utils/recentlyViewed";
+import HighlightsBar from "../components/HighlightsBar";
 import PostAuthorLink from "../components/PostAuthorLink";
 import EmailVerification from "../components/EmailVerification";
 import axiosInstance from "../lib/axios";
+import { useStreamContext } from "../context/StreamProvider";
 
 function formatMoney(value) {
   const amount = Number(value || 0);
@@ -144,9 +146,9 @@ export default function UserProfilePage() {
     setDetailCarouselIndex(0);
   }, [selectedPost]);
 
-  // Populates the shared ["authUser"] cache entry that other components read
-  // via queryClient.getQueryData — the return value itself isn't needed here.
-  useQuery({
+  // Also populates the shared ["authUser"] cache entry that other components
+  // read via queryClient.getQueryData.
+  const { data: authData } = useQuery({
     queryKey: ["authUser"],
     queryFn: async () => {
       const res = await axiosInstance.get("/auth/verify");
@@ -154,6 +156,7 @@ export default function UserProfilePage() {
     },
     staleTime: 1000 * 60 * 5,
   });
+  const authUser = authData?.data?.user || authData?.data || null;
 
   const { data: profileData, isLoading: isProfileLoading, isError } = useQuery({
     queryKey: ["userProfile", userId],
@@ -183,9 +186,46 @@ export default function UserProfilePage() {
 
   const [selectedPostForComments, setSelectedPostForComments] = useState(null);
   const [showAvatarPreview, setShowAvatarPreview] = useState(false);
+  const [showAboutModal, setShowAboutModal] = useState(false);
   // Full-size preview is limited to your own profile and confirmed friends —
   // not something a stranger/pending connection can zoom into.
   const canPreviewAvatar = isOwnProfile || relationship.connectionStatus === "friends";
+
+  // Real presence, not a decorative always-on dot — only shown on someone
+  // else's profile (you already know you're online). Same mechanism
+  // ChatContent.jsx uses for the friends list: Stream only reports presence
+  // for users it's actively watching, so we opt in per-profile via
+  // queryUsers({ presence: true }) and keep it live with presence.changed.
+  const { streamClient, currentUserId } = useStreamContext();
+  const [isProfileUserOnline, setIsProfileUserOnline] = useState(false);
+
+  useEffect(() => {
+    if (isOwnProfile || !streamClient || !currentUserId || !userId) {
+      setIsProfileUserOnline(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    streamClient
+      .queryUsers({ id: userId }, {}, { presence: true })
+      .then((response) => {
+        if (cancelled) return;
+        setIsProfileUserOnline(Boolean(response.users?.[0]?.online));
+      })
+      .catch(() => {});
+
+    const handlePresenceChanged = (event) => {
+      if (event.user?.id !== userId) return;
+      setIsProfileUserOnline(Boolean(event.user.online));
+    };
+    streamClient.on("user.presence.changed", handlePresenceChanged);
+
+    return () => {
+      cancelled = true;
+      streamClient.off("user.presence.changed", handlePresenceChanged);
+    };
+  }, [isOwnProfile, streamClient, currentUserId, userId]);
 
   const { data: postsData, isLoading: isPostsLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ["userPosts", userId],
@@ -381,6 +421,69 @@ export default function UserProfilePage() {
 
   const cityLabel = profileUser.city || profileUser.homeBase || profileUser.location || "City not set";
 
+  // Shared between the desktop header (auto-width buttons) and the mobile
+  // header (equal-width, full-row buttons) so the 5 relationship states
+  // don't drift out of sync between the two layouts.
+  const renderProfileActions = (buttonClass) => {
+    if (isOwnProfile) {
+      return (
+        <>
+          <Link to="/marketplace?section=profile" className={`btn btn-sm rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 ${buttonClass}`}>
+            Edit Profile
+          </Link>
+          {/* "About" replaces Instagram's "View archive" slot on mobile,
+              where About isn't its own visible tab — see the mobile-only
+              tab bar below. */}
+          <button
+            type="button"
+            onClick={() => setShowAboutModal(true)}
+            className={`btn btn-sm rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 sm:hidden ${buttonClass}`}
+          >
+            About
+          </button>
+        </>
+      );
+    }
+    if (relationship.connectionStatus === "friends") {
+      return (
+        <>
+          <Link to="/chat" className={`btn btn-sm rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 ${buttonClass}`}>
+            <MessageCircle className="size-4" />
+            Message
+          </Link>
+          <button type="button" className={`btn btn-sm rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 ${buttonClass}`}>
+            Share
+          </button>
+        </>
+      );
+    }
+    if (relationship.connectionStatus === "pending_sent") {
+      return (
+        <button type="button" className={`btn btn-sm rounded-full border border-slate-200 bg-slate-50 text-slate-500 ${buttonClass}`} disabled>
+          Request Sent
+        </button>
+      );
+    }
+    if (relationship.connectionStatus === "pending_received") {
+      return (
+        <Link to="/connections" className={`btn btn-sm rounded-full border-none bg-indigo-600 text-white hover:bg-indigo-500 ${buttonClass}`}>
+          Respond to Request
+        </Link>
+      );
+    }
+    return (
+      <button
+        type="button"
+        className={`btn btn-sm rounded-full border-none bg-indigo-600 text-white hover:bg-indigo-500 ${buttonClass}`}
+        disabled={isConnecting}
+        onClick={() => sendConnectionRequest()}
+      >
+        <UserRoundPlus className="size-4" />
+        {isConnecting ? "Connecting..." : "Connect"}
+      </button>
+    );
+  };
+
   return (
     <AppShell hideHero title="Profile" subtitle={profileUser.fullName || "User profile"}>
       <div className="mx-auto max-w-[1440px] px-4 py-0 sm:px-8">
@@ -409,8 +512,65 @@ export default function UserProfilePage() {
             </div>
           )}
 
-          {/* Profile Header */}
-          <section className="flex flex-col items-center gap-6 rounded-2xl border border-slate-100 bg-white p-5 text-center shadow-sm sm:p-8 lg:flex-row lg:items-center lg:justify-between lg:text-left">
+          {/* Profile Header — mobile: Instagram layout (avatar + stats in
+              one row, name/bio full-width below, then equal-split action
+              buttons). Structurally different enough from the desktop
+              header (avatar+stats+button side by side) that it's a
+              separate block rather than a responsive reflow of one. */}
+          <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:hidden">
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => {
+                  if (canPreviewAvatar && profileUser.profilePic) setShowAvatarPreview(true);
+                }}
+                className={`relative shrink-0 ${canPreviewAvatar && profileUser.profilePic ? "cursor-zoom-in" : "cursor-default"}`}
+                aria-label={canPreviewAvatar ? "View full-size profile photo" : undefined}
+              >
+                <UserAvatar
+                  src={profileUser.profilePic}
+                  name={profileUser.fullName || "User"}
+                  sizeClass="size-20"
+                  className="ring-4 ring-slate-100"
+                />
+                {isProfileUserOnline && (
+                  <div className="absolute bottom-0.5 right-0.5 size-3.5 rounded-full bg-emerald-500 ring-2 ring-white"></div>
+                )}
+              </button>
+
+              <div className="flex flex-1 justify-around">
+                <div className="text-center">
+                  <p className="text-lg font-bold text-slate-900">{stats.postsCount || 0}</p>
+                  <p className="text-xs text-slate-500">posts</p>
+                </div>
+                <button type="button" onClick={() => setConnectionsModalTitle("Followers")} className="text-center">
+                  <p className="text-lg font-bold text-slate-900">{stats.followersCount || 0}</p>
+                  <p className="text-xs text-slate-500">followers</p>
+                </button>
+                <button type="button" onClick={() => setConnectionsModalTitle("Following")} className="text-center">
+                  <p className="text-lg font-bold text-slate-900">{stats.followingCount || 0}</p>
+                  <p className="text-xs text-slate-500">following</p>
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <h1 className="flex items-center gap-1.5 text-base font-bold text-slate-900">
+                {profileUser.fullName || "Unknown User"}
+                {verified ? <BadgeCheck className="size-4 text-emerald-600" /> : null}
+              </h1>
+              <p className="flex items-center gap-1 text-xs text-slate-500">
+                <MapPin className="size-3.5" />
+                {cityLabel}
+              </p>
+              <p className="mt-1 text-sm text-slate-600">{profileUser.bio?.trim() || "No bio added yet."}</p>
+            </div>
+
+            <div className="mt-3 flex gap-2">{renderProfileActions("flex-1")}</div>
+          </section>
+
+          {/* Profile Header — desktop/tablet */}
+          <section className="hidden rounded-2xl border border-slate-100 bg-white p-5 text-center shadow-sm sm:flex sm:p-8 lg:flex-row lg:items-center lg:justify-between lg:text-left">
             {/* Left: Avatar and Info */}
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-6 lg:items-center">
               <div className="relative shrink-0">
@@ -429,7 +589,9 @@ export default function UserProfilePage() {
                     className="ring-4 ring-slate-100"
                   />
                 </button>
-                <div className="absolute bottom-1 right-1 size-4 rounded-full bg-emerald-500 ring-2 ring-white"></div>
+                {isProfileUserOnline && (
+                  <div className="absolute bottom-1 right-1 size-4 rounded-full bg-emerald-500 ring-2 ring-white"></div>
+                )}
               </div>
               <div className="min-w-0 text-center sm:text-left">
                 <div className="flex items-center justify-center gap-2 sm:justify-start">
@@ -481,49 +643,22 @@ export default function UserProfilePage() {
             </div>
 
             {/* Right: Action Button */}
-            <div className="shrink-0">
-              {isOwnProfile ? (
-                <Link to="/marketplace?section=profile" className="btn btn-sm rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
-                  Edit Profile
-                </Link>
-              ) : relationship.connectionStatus === "friends" ? (
-                <div className="flex gap-2">
-                  <Link to="/chat" className="btn btn-sm rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
-                    <MessageCircle className="size-4" />
-                    Message
-                  </Link>
-                  <button type="button" className="btn btn-sm rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
-                    Share
-                  </button>
-                </div>
-              ) : relationship.connectionStatus === "pending_sent" ? (
-                <button type="button" className="btn btn-sm rounded-full border border-slate-200 bg-slate-50 text-slate-500" disabled>
-                  Request Sent
-                </button>
-              ) : relationship.connectionStatus === "pending_received" ? (
-                <Link to="/connections" className="btn btn-sm rounded-full border-none bg-indigo-600 text-white hover:bg-indigo-500">
-                  Respond to Request
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn-sm rounded-full border-none bg-indigo-600 text-white hover:bg-indigo-500"
-                  disabled={isConnecting}
-                  onClick={() => sendConnectionRequest()}
-                >
-                  <UserRoundPlus className="size-4" />
-                  {isConnecting ? "Connecting..." : "Connect"}
-                </button>
-              )}
-            </div>
+            <div className="flex shrink-0 items-center gap-2">{renderProfileActions("")}</div>
           </section>
+
+          <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
+            <HighlightsBar userId={userId} isOwnProfile={isOwnProfile} authUser={authUser} />
+          </div>
 
           {/* Content Area */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[3fr_1fr]">
             {/* Left Column */}
             <div className="flex flex-col gap-6">
-              {/* Navigation Tabs */}
-              <div className="border-b border-slate-200">
+              {/* Navigation Tabs — desktop/tablet: full labeled set. About and
+                  Reviews move out of the mobile tab bar (About becomes a
+                  header button, see above; Reviews isn't part of the
+                  simplified mobile view at all). */}
+              <div className="hidden border-b border-slate-200 sm:block">
                 <div className="flex items-center gap-1 overflow-x-auto">
                   {(() => {
                     const tabs = isOwnProfile ? [
@@ -554,6 +689,41 @@ export default function UserProfilePage() {
                         >
                           <Icon className="size-4" />
                           {tab.label}
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+
+              {/* Navigation Tabs — mobile: Instagram-style icon-only row,
+                  limited to Posts (+ Saved / Recently Viewed on your own
+                  profile, since those are private to you). */}
+              <div className="border-b border-slate-200 sm:hidden">
+                <div className="flex items-center justify-around">
+                  {(() => {
+                    const tabs = isOwnProfile
+                      ? [
+                          { id: "posts", icon: Grid3x3, label: "Posts" },
+                          { id: "bookmarks", icon: Save, label: "Saved" },
+                          { id: "activity", icon: Clock, label: "Recently Viewed" },
+                        ]
+                      : [{ id: "posts", icon: Grid3x3, label: "Posts" }];
+                    return tabs.map((tab) => {
+                      const Icon = tab.icon;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          aria-label={tab.label}
+                          className={`flex-1 border-b-2 py-3 flex items-center justify-center ${
+                            activeTab === tab.id
+                              ? "border-indigo-600 text-indigo-600"
+                              : "border-transparent text-slate-400"
+                          }`}
+                          onClick={() => setActiveTab(tab.id)}
+                        >
+                          <Icon className="size-5" />
                         </button>
                       );
                     });
@@ -1609,6 +1779,75 @@ export default function UserProfilePage() {
             className="max-h-[85vh] max-w-full rounded-2xl object-contain"
             onClick={(e) => e.stopPropagation()}
           />
+        </div>
+      )}
+
+      {/* About Modal — mobile only entry point (the About header button);
+          desktop reaches the same content through its own visible tab
+          instead, so this modal is never triggered there. */}
+      {showAboutModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:hidden"
+          onClick={() => setShowAboutModal(false)}
+        >
+          <div
+            className="max-h-[80vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900">About</h3>
+              <button
+                type="button"
+                onClick={() => setShowAboutModal(false)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+                  <Calendar className="size-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-900 uppercase">Member Since</p>
+                  <p className="text-sm text-slate-600 truncate">
+                    {profileUser.createdAt ? new Date(profileUser.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "N/A"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                  <BadgeCheck className="size-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-900 uppercase">Verified Email</p>
+                  <p className="text-sm text-slate-600 truncate">{profileUser.emailVerified ? "Verified" : "Not Verified"}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-600">
+                  <Phone className="size-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-900 uppercase">Phone</p>
+                  <p className="text-sm text-slate-600 truncate">{profileUser.phoneNumber || "Not provided"}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                  <MapPin className="size-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-900 uppercase">Locations</p>
+                  <p className="text-sm text-slate-600 truncate">
+                    {(profileUser.preferredLocalities || []).slice(0, 2).join(", ") || "Not specified"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </AppShell>

@@ -17,7 +17,10 @@ export const createStory = async (req, res) => {
       });
     }
 
-    // Set expiry to 24 hours from now
+    // Set expiry to 24 hours from now. feedExpiresAt is a separate copy of
+    // this used purely for feed visibility — see Story.model.js — so that
+    // saving this story into a Highlight later (which unsets expiresAt to
+    // stop it being deleted) doesn't also pull it out of the feed early.
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const story = await Story.create({
@@ -30,6 +33,7 @@ export const createStory = async (req, res) => {
       propertyId: propertyId || null,
       linkUrl: linkUrl || "",
       expiresAt,
+      feedExpiresAt: expiresAt,
     });
 
     // Populate author details
@@ -64,7 +68,7 @@ export const getActiveStories = async (req, res) => {
 
     const query = {
       isActive: true,
-      expiresAt: { $gt: new Date() },
+      feedExpiresAt: { $gt: new Date() },
       $or: [
         { visibility: "public" },
         { visibility: "private", author: { $in: followingIds } },
@@ -113,7 +117,7 @@ export const getUserStories = async (req, res) => {
     const stories = await Story.find({
       author: userId,
       isActive: true,
-      expiresAt: { $gt: new Date() },
+      feedExpiresAt: { $gt: new Date() },
     })
       .populate("author", "fullName profilePic isVerified activeRole primaryRole")
       .populate("propertyId", "title price city listingType")
@@ -156,10 +160,16 @@ export const getMyStories = async (req, res) => {
       .populate("propertyId", "title price city listingType")
       .sort({ createdAt: -1 });
 
-    // Separate active and expired
+    // Separate active and expired using feedExpiresAt (the natural 24h
+    // lifecycle field, untouched by highlighting) rather than expiresAt
+    // (which gets unset once a story is saved into a Highlight, purely to
+    // stop TTL deletion). This keeps "my stories" consistent with the main
+    // feed: a highlighted story still moves to expired here once its normal
+    // 24h window passes, even though it stays permanently viewable in its
+    // Highlight.
     const now = new Date();
-    const activeStories = stories.filter((s) => s.expiresAt > now && s.isActive);
-    const expiredStories = stories.filter((s) => s.expiresAt <= now || !s.isActive);
+    const activeStories = stories.filter((s) => (!s.feedExpiresAt || s.feedExpiresAt > now) && s.isActive);
+    const expiredStories = stories.filter((s) => (s.feedExpiresAt && s.feedExpiresAt <= now) || !s.isActive);
 
     res.status(200).json({
       success: true,

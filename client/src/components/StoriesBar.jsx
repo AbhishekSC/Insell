@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { Plus, X, ChevronLeft, ChevronRight, Eye, Heart, MessageCircle, Share2, MapPin, Building2, IndianRupee, Clock } from "lucide-react";
+import { Plus, X, ChevronLeft, ChevronRight, Eye, Heart, MessageCircle, Share2, MapPin, Building2, IndianRupee, Clock, BookmarkPlus, Check, Loader2, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
 import toast from "react-hot-toast";
 import UserListModal from "./UserListModal";
+import ConfirmDeleteModal from "./ConfirmDeleteModal";
+import { resolveMediaUrl } from "../lib/media";
 
 const STORY_CATEGORIES = [
   { label: "Premium Projects", category: "premium", color: "from-amber-400 to-orange-500" },
@@ -207,9 +209,21 @@ export default function StoriesBar() {
   );
 }
 
-function StoryViewer({ story, currentIndex, totalStories, authUser, onNext, onPrevious, onClose }) {
+export function StoryViewer({
+  story,
+  currentIndex,
+  totalStories,
+  authUser,
+  onNext,
+  onPrevious,
+  onClose,
+  highlightId,
+  onRemovedFromHighlight,
+}) {
   const [progress, setProgress] = useState(0);
   const [showLikes, setShowLikes] = useState(false);
+  const [showSaveToHighlight, setShowSaveToHighlight] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const queryClient = useQueryClient();
 
   const isOwnStory = authUser?._id && story.author?._id && String(authUser._id) === String(story.author._id);
@@ -230,6 +244,25 @@ function StoryViewer({ story, currentIndex, totalStories, authUser, onNext, onPr
     },
   });
 
+  // Only relevant when viewing a story inside a Highlight (highlightId set) —
+  // removes it from that highlight only, the underlying story itself stays
+  // permanent (same as Instagram: no "undo" back into the 24h feed).
+  const { mutate: removeFromHighlight, isPending: isRemoving } = useMutation({
+    mutationFn: async () => {
+      await axiosInstance.delete(`/highlights/${highlightId}/stories/${story._id}`);
+    },
+    onSuccess: () => {
+      toast.success("Removed from highlight");
+      setShowRemoveConfirm(false);
+      queryClient.invalidateQueries({ queryKey: ["highlights", story.author?._id] });
+      queryClient.invalidateQueries({ queryKey: ["highlight", highlightId] });
+      onRemovedFromHighlight?.();
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to remove from highlight");
+    },
+  });
+
   const { data: likesData, isLoading: isLoadingLikes } = useQuery({
     queryKey: ["storyLikes", story._id],
     enabled: showLikes,
@@ -240,13 +273,14 @@ function StoryViewer({ story, currentIndex, totalStories, authUser, onNext, onPr
     },
   });
 
-  // Auto-advance after 5 seconds — paused while the likes list is open
+  // Auto-advance after 5 seconds — paused while the likes list or the save-to-
+  // highlight modal is open, so those flows can't get yanked out from under you
   useEffect(() => {
     setProgress(0);
   }, [story]);
 
   useEffect(() => {
-    if (showLikes) {
+    if (showLikes || showSaveToHighlight || showRemoveConfirm || isRemoving) {
       return undefined;
     }
 
@@ -261,7 +295,7 @@ function StoryViewer({ story, currentIndex, totalStories, authUser, onNext, onPr
     }, 100);
 
     return () => clearInterval(interval);
-  }, [story, onNext, showLikes]);
+  }, [story, onNext, showLikes, showSaveToHighlight, showRemoveConfirm, isRemoving]);
 
   const isVideo = story.mediaType === "video";
 
@@ -313,14 +347,14 @@ function StoryViewer({ story, currentIndex, totalStories, authUser, onNext, onPr
       <div className="relative h-full w-full max-w-lg overflow-hidden">
         {isVideo ? (
           <video
-            src={story.mediaUrl.startsWith('http') ? story.mediaUrl : `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}${story.mediaUrl}`}
+            src={resolveMediaUrl(story.mediaUrl)}
             className="h-full w-full object-contain"
             autoPlay
             controls
           />
         ) : (
           <img
-            src={story.mediaUrl.startsWith('http') ? story.mediaUrl : `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}${story.mediaUrl}`}
+            src={resolveMediaUrl(story.mediaUrl)}
             alt="Story"
             className="h-full w-full object-contain"
           />
@@ -385,6 +419,27 @@ function StoryViewer({ story, currentIndex, totalStories, authUser, onNext, onPr
               <Eye className="size-4" />
               <span className="text-xs">{story.viewCount}</span>
             </div>
+            {isOwnStory && highlightId ? (
+              <button
+                type="button"
+                onClick={() => setShowRemoveConfirm(true)}
+                disabled={isRemoving}
+                className="flex items-center gap-1 transition-opacity hover:opacity-75 disabled:opacity-60"
+                title="Remove from Highlight"
+              >
+                {isRemoving ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+              </button>
+            ) : null}
+            {isOwnStory && !highlightId ? (
+              <button
+                type="button"
+                onClick={() => setShowSaveToHighlight(true)}
+                className="flex items-center gap-1 transition-opacity hover:opacity-75"
+                title="Save to Highlight"
+              >
+                <BookmarkPlus className="size-4" />
+              </button>
+            ) : null}
             {isOwnStory ? (
               <button
                 type="button"
@@ -422,6 +477,162 @@ function StoryViewer({ story, currentIndex, totalStories, authUser, onNext, onPr
           emptyMessage="No likes yet."
         />
       ) : null}
+
+      {isOwnStory && showSaveToHighlight ? (
+        <SaveToHighlightModal
+          storyId={story._id}
+          authorId={story.author?._id}
+          onClose={() => setShowSaveToHighlight(false)}
+        />
+      ) : null}
+
+      {isOwnStory && highlightId && showRemoveConfirm ? (
+        <ConfirmDeleteModal
+          title="Remove from highlight?"
+          description="This story will be removed from this highlight. It won't affect any other highlights it's saved in."
+          confirmLabel="Remove"
+          pendingLabel="Removing..."
+          isPending={isRemoving}
+          onConfirm={() => removeFromHighlight()}
+          onClose={() => setShowRemoveConfirm(false)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+// Lets the story's own author add it to an existing Highlight, or create a
+// new one named after it — same entry point Instagram exposes from an open
+// story via the "..." menu.
+function SaveToHighlightModal({ storyId, authorId, onClose }) {
+  const [mode, setMode] = useState("pick"); // "pick" | "create"
+  const [newTitle, setNewTitle] = useState("");
+  const [savedHighlightId, setSavedHighlightId] = useState(null);
+  const queryClient = useQueryClient();
+
+  const { data: highlights, isLoading } = useQuery({
+    queryKey: ["highlights", authorId],
+    enabled: Boolean(authorId),
+    queryFn: async () => {
+      const response = await axiosInstance.get(`/highlights/user/${authorId}`);
+      return response.data?.data?.highlights || [];
+    },
+  });
+
+  const { mutate: addToExisting, isPending: isAdding } = useMutation({
+    mutationFn: async (highlightId) => {
+      await axiosInstance.post(`/highlights/${highlightId}/stories`, { storyId });
+      return highlightId;
+    },
+    onSuccess: (highlightId) => {
+      setSavedHighlightId(highlightId);
+      queryClient.invalidateQueries({ queryKey: ["highlights", authorId] });
+      toast.success("Saved to highlight");
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to save to highlight");
+    },
+  });
+
+  const { mutate: createNew, isPending: isCreating } = useMutation({
+    mutationFn: async () => {
+      const response = await axiosInstance.post("/highlights", { title: newTitle.trim(), storyId });
+      return response.data?.data?.highlight;
+    },
+    onSuccess: (highlight) => {
+      setSavedHighlightId(highlight._id);
+      queryClient.invalidateQueries({ queryKey: ["highlights", authorId] });
+      toast.success("Highlight created");
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to create highlight");
+    },
+  });
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-base font-bold text-slate-900">Save to Highlight</h3>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100">
+            <X className="size-5" />
+          </button>
+        </div>
+
+        {mode === "pick" ? (
+          <>
+            {isLoading ? (
+              <p className="py-6 text-center text-sm text-slate-500">Loading your highlights...</p>
+            ) : (
+              <div className="max-h-60 space-y-1.5 overflow-y-auto">
+                {(highlights || []).map((highlight) => {
+                  const isSaved = savedHighlightId === highlight._id;
+                  return (
+                    <button
+                      key={highlight._id}
+                      type="button"
+                      disabled={isAdding || isSaved}
+                      onClick={() => addToExisting(highlight._id)}
+                      className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-slate-50 disabled:opacity-70"
+                    >
+                      <div className="size-11 shrink-0 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
+                        {highlight.coverImage && (
+                          <img src={highlight.coverImage} alt={highlight.title} className="h-full w-full object-cover" />
+                        )}
+                      </div>
+                      <span className="flex-1 truncate text-sm font-medium text-slate-800">{highlight.title}</span>
+                      {isSaved && <Check className="size-4 text-emerald-600" />}
+                    </button>
+                  );
+                })}
+                {(highlights || []).length === 0 && (
+                  <p className="py-6 text-center text-sm text-slate-500">You don't have any highlights yet.</p>
+                )}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setMode("create")}
+              className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 py-2.5 text-sm font-semibold text-indigo-600 hover:bg-indigo-50"
+            >
+              <Plus className="size-4" />
+              New Highlight
+            </button>
+          </>
+        ) : (
+          <>
+            <input
+              type="text"
+              autoFocus
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              maxLength={30}
+              placeholder="Highlight name"
+              className="input input-bordered w-full"
+            />
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMode("pick")}
+                className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                disabled={!newTitle.trim() || isCreating}
+                onClick={() => createNew()}
+                className="flex-1 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
+              >
+                {isCreating ? <Loader2 className="mx-auto size-4 animate-spin" /> : "Create"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
