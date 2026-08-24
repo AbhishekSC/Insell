@@ -30,6 +30,8 @@ import {
   ShieldCheck,
   TrendingUp,
   Users,
+  Volume2,
+  VolumeX,
   Wallet,
   X,
 } from "lucide-react";
@@ -151,6 +153,7 @@ export default function PropertyDetailPage() {
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [expandedAbout, setExpandedAbout] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isHeroVideoMuted, setIsHeroVideoMuted] = useState(true);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportSubmitted, setReportSubmitted] = useState(false);
@@ -333,7 +336,17 @@ export default function PropertyDetailPage() {
             className="fixed inset-0 z-[100] bg-black flex items-center justify-center"
             onClick={() => setIsFullscreen(false)}
           >
-            <img src={currentImage} alt="Fullscreen view" className="max-w-full max-h-full object-contain" />
+            {isVideo ? (
+              <video
+                src={currentImage}
+                controls
+                autoPlay
+                className="max-w-full max-h-full object-contain"
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <img src={currentImage} alt="Fullscreen view" className="max-w-full max-h-full object-contain" />
+            )}
             <button
               className="absolute top-4 right-4 size-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-all"
               onClick={(e) => {
@@ -353,7 +366,41 @@ export default function PropertyDetailPage() {
               <Home className="size-16" />
             </div>
           ) : isVideo ? (
-            <video src={currentImage} className="w-full h-full object-cover" controls />
+            <>
+              <video
+                src={currentImage}
+                className="w-full h-full object-cover"
+                muted={isHeroVideoMuted}
+                loop
+                playsInline
+                // Same Instagram-style behavior as the marketplace feed cards: no
+                // player chrome, autoplay while scrolled into view, pause once
+                // scrolled out. Full controls still show in the fullscreen viewer.
+                ref={(el) => {
+                  if (!el) return;
+                  const observer = new IntersectionObserver(
+                    ([entry]) => {
+                      if (entry.isIntersecting) {
+                        el.play().catch(() => {});
+                      } else {
+                        el.pause();
+                      }
+                    },
+                    { threshold: 0.5 }
+                  );
+                  observer.observe(el);
+                  return () => observer.disconnect();
+                }}
+              />
+              <button
+                type="button"
+                className="absolute bottom-4 left-4 z-10 grid size-9 place-items-center rounded-full text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75 transition-opacity"
+                onClick={() => setIsHeroVideoMuted((prev) => !prev)}
+                title={isHeroVideoMuted ? "Unmute" : "Mute"}
+              >
+                {isHeroVideoMuted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
+              </button>
+            </>
           ) : (
             <img src={currentImage} alt={postData.title || "Property"} className="w-full h-full object-cover" />
           )}
