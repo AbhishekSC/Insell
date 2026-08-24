@@ -151,7 +151,7 @@ export default function UserProfilePage() {
   const { data: authData } = useQuery({
     queryKey: ["authUser"],
     queryFn: async () => {
-      const res = await axiosInstance.get("/auth/verify");
+      const res = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
       return res.data;
     },
     staleTime: 1000 * 60 * 5,

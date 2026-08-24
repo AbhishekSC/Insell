@@ -67,7 +67,7 @@ export default function CommunityDetailPage() {
   const { data: authData, isLoading: authLoading } = useQuery({
     queryKey: ["authUser"],
     queryFn: async () => {
-      const response = await axiosInstance.get("/auth/verify");
+      const response = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
       return response.data;
     },
     staleTime: 1000 * 60 * 5,

@@ -4,7 +4,7 @@ import { logger } from "../utils/logger.js";
 import generateAccessToken from "../services/generateToken.service.js";
 import { addTokenBlacklist } from "../services/tokenBlacklist.service.js";
 import { UpdateStreamUser } from "../services/stream.service.js";
-import AuthService from "../services/AuthService.js";
+import AuthService, { PASSWORD_STRENGTH_REGEX, PASSWORD_STRENGTH_MESSAGE } from "../services/AuthService.js";
 import {
   sendErrorResponse,
   sendSuccessResponse,
@@ -146,31 +146,42 @@ export async function onboarding(req, res) {
   }
 }
 
+// Which page to land back on — carried through Google's own "state" param
+// (echoed back unchanged on the callback) so a signup-initiated flow doesn't
+// land on /login with a "logged in" message and vice versa.
+function resolveAuthPage(intent) {
+  return intent === 'signup' ? 'signup' : 'login';
+}
+
 // **Google OAuth Login/Signup**
 export async function googleAuth(req, res, next) {
+  const authPage = resolveAuthPage(req.query.intent);
+
   // Check if Google OAuth is configured
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     logger.warn('Google OAuth attempt but credentials not configured');
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-    return res.redirect(`${clientUrl}/login?error=google_not_configured`);
+    return res.redirect(`${clientUrl}/${authPage}?error=google_not_configured`);
   }
-  
-  passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+
+  passport.authenticate('google', { scope: ['profile', 'email'], state: authPage })(req, res, next);
 }
 
 export async function googleAuthCallback(req, res, next) {
+  const authPage = resolveAuthPage(req.query.state);
+
   // Check if Google OAuth is configured
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     logger.warn('Google OAuth callback but credentials not configured');
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-    return res.redirect(`${clientUrl}/login?error=google_not_configured`);
+    return res.redirect(`${clientUrl}/${authPage}?error=google_not_configured`);
   }
 
   passport.authenticate('google', { session: false }, async (err, user) => {
     if (err || !user) {
       logger.error('Google authentication failed:', err);
       const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-      return res.redirect(`${clientUrl}/login?error=google_auth_failed`);
+      return res.redirect(`${clientUrl}/${authPage}?error=google_auth_failed`);
     }
 
     try {
@@ -185,11 +196,11 @@ export async function googleAuthCallback(req, res, next) {
       // URL too (not just the cookie) since Safari blocks third-party
       // cookies from the backend's onrender.com domain by default.
       const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-      res.redirect(`${clientUrl}/login?success=true&token=${encodeURIComponent(token)}`);
+      res.redirect(`${clientUrl}/${authPage}?success=true&token=${encodeURIComponent(token)}`);
     } catch (error) {
       logger.error('Error generating token after Google auth:', error);
       const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-      res.redirect(`${clientUrl}/login?error=token_generation_failed`);
+      res.redirect(`${clientUrl}/${authPage}?error=token_generation_failed`);
     }
   })(req, res, next);
 }
@@ -281,8 +292,8 @@ export async function resetPassword(req, res) {
       return sendErrorResponse(res, 400, "Email and new password are required");
     }
 
-    if (newPassword.length < 6) {
-      return sendErrorResponse(res, 400, "Password must be at least 6 characters long");
+    if (!PASSWORD_STRENGTH_REGEX.test(newPassword)) {
+      return sendErrorResponse(res, 400, PASSWORD_STRENGTH_MESSAGE);
     }
 
     const user = await User.findOne({ email }).select('+password');

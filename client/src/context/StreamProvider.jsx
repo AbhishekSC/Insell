@@ -94,7 +94,7 @@ export function StreamProvider({ children }) {
   const { data: authData } = useQuery({
     queryKey: ["authUser"],
     queryFn: async () => {
-      const response = await axiosInstance.get("/auth/verify");
+      const response = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
       return response.data;
     },
     retry: false,

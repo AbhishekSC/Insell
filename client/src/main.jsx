@@ -10,9 +10,22 @@ import { StreamProvider } from "./context/StreamProvider";
 import { ThemeProvider } from "./context/ThemeProvider";
 import { initPostHog } from "./lib/posthog";
 import Sentry, { initSentry } from "./lib/sentry";
+import { setAuthToken } from "./lib/authToken";
 
 initPostHog();
 initSentry();
+
+// If this load is the browser landing back from the Google OAuth redirect,
+// persist the token synchronously before anything renders. Doing this inside
+// LoginPage's own effect (as before) was too late — App.jsx and other
+// components fire their own queries on mount, which happens before a child
+// route's effect runs, so those requests raced ahead with no token attached
+// and each surfaced its own spurious "Unauthorized" toast.
+const oauthParams = new URLSearchParams(window.location.search);
+if (oauthParams.get("success") === "true") {
+  const oauthToken = oauthParams.get("token");
+  if (oauthToken) setAuthToken(oauthToken);
+}
 
 // Create a client with optimized caching settings
 const queryClient = new QueryClient({
