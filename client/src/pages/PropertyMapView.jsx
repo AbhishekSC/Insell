@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet";
 import { MapPin, IndianRupee, Bed, Bath, Square, Building2, Home, Filter, X, SlidersHorizontal, GraduationCap, Hospital, Train, ShoppingBag, ChevronDown } from "lucide-react";
 import L from "leaflet";
@@ -81,6 +81,9 @@ function MapViewUpdater({ center, zoom }) {
 
 export default function PropertyMapView() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const focusPropertyId = searchParams.get("propertyId");
+  const hasAppliedFocusRef = useRef(false);
   const [mapCenter, setMapCenter] = useState([20.5937, 78.9629]);
   const [mapZoom, setMapZoom] = useState(5);
   const [showFilters, setShowFilters] = useState(false);
@@ -312,6 +315,25 @@ export default function PropertyMapView() {
     setSelectedProperty(property);
     setAmenitiesAnchor(property);
   };
+
+  // Deep-linked from a post's "Live Location" button (?propertyId=...) — once
+  // the property list loads, auto-select the matching one the same way a
+  // manual marker click would, so its amenities panel populates immediately.
+  // Guarded to run only once so it doesn't fight a user's own subsequent
+  // selection on every unrelated re-render.
+  useEffect(() => {
+    if (!focusPropertyId || hasAppliedFocusRef.current) return;
+    const match = data?.posts?.find((post) => post._id === focusPropertyId);
+    if (!match?.latitude || !match?.longitude) return;
+    hasAppliedFocusRef.current = true;
+    handleMarkerClick(match);
+    // handleMarkerClick only recenters — it doesn't touch zoom, since a
+    // manual marker click happens while already zoomed in somewhere
+    // reasonable. Landing here fresh from a deep link starts at the
+    // whole-India default (5), so zoom in close on this specific property
+    // (street level) rather than leaving it at a wide, whole-state view.
+    setMapZoom(15);
+  }, [focusPropertyId, data?.posts]);
 
   const clearFilters = () => {
     setPriceRange({ min: '', max: '' });

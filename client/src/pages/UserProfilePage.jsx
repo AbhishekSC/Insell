@@ -7,12 +7,10 @@ import {
   Bookmark,
   Building2,
   Calendar,
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
   Clock,
   Edit2,
   Eye,
+  Flag,
   Grid3x3,
   Heart,
   IndianRupee,
@@ -22,7 +20,6 @@ import {
   MoreVertical,
   Phone,
   Save,
-  Send,
   Share2,
   ShieldAlert,
   Sparkles,
@@ -33,6 +30,7 @@ import {
   X,
 } from "lucide-react";
 import ShareModal from "../components/ShareModal";
+import ReportPostModal from "../components/ReportPostModal";
 import { getCustomBadgeClasses } from "../lib/badgeColors";
 import UserListModal from "../components/UserListModal";
 import toast from "react-hot-toast";
@@ -41,6 +39,13 @@ import UserAvatar from "../components/UserAvatar";
 import CommentSection from "../components/CommentSection";
 import { getRecentlyViewed } from "../utils/recentlyViewed";
 import HighlightsBar from "../components/HighlightsBar";
+import PropertyPostCard from "../components/PropertyPostCard";
+import ClampedCaption from "../components/ClampedCaption";
+import CompareToggleButton from "../components/CompareToggleButton";
+import CompareFloatingBar from "../components/CompareFloatingBar";
+import FullscreenMediaViewer from "../components/FullscreenMediaViewer";
+import { buildPropertyDetailBadges } from "../lib/propertyDetailBadges";
+import { toggleCompareSelection } from "../lib/compareSelection";
 import PostAuthorLink from "../components/PostAuthorLink";
 import EmailVerification from "../components/EmailVerification";
 import axiosInstance from "../lib/axios";
@@ -88,23 +93,6 @@ function getBlockReasonLabel(reasonCode) {
   return BLOCK_REASON_LABELS[reasonCode] || "Policy violation";
 }
 
-function relativeDate(dateString) {
-  if (!dateString) return "Just now";
-  const time = new Date(dateString).getTime();
-  if (!Number.isFinite(time)) return "Just now";
-  const delta = Date.now() - time;
-  const hours = Math.floor(delta / (1000 * 60 * 60));
-  if (hours < 1) return "Just now";
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
-function isVideoUrl(url) {
-  const videoExtensions = [".mp4", ".webm", ".mov", ".avi", ".mkv"];
-  return videoExtensions.some((ext) => String(url).toLowerCase().endsWith(ext));
-}
-
 function ProfileStat({ label, value }) {
   return (
     <div className="text-center sm:text-left">
@@ -119,9 +107,7 @@ export default function UserProfilePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("posts");
-  const [selectedPost, setSelectedPost] = useState(null);
   const [recentlyViewed, setRecentlyViewed] = useState([]);
-  const [detailCarouselIndex, setDetailCarouselIndex] = useState(0);
   const [showVerification, setShowVerification] = useState(false);
   const [menuOpenPostId, setMenuOpenPostId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -132,19 +118,24 @@ export default function UserProfilePage() {
   const [newImagePreviews, setNewImagePreviews] = useState([]);
   const [removedImageUrls, setRemovedImageUrls] = useState([]);
   const [postCarouselIndex, setPostCarouselIndex] = useState({});
+  // Shared across both the Posts and Saved grids — comparing a mix of your
+  // own listings and saved ones is a reasonable use case, same as
+  // Marketplace's single feed grid.
+  const [selectedForComparison, setSelectedForComparison] = useState([]);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [likedBurstPostId, setLikedBurstPostId] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [postToShare, setPostToShare] = useState(null);
+  // Report menu for posts that aren't your own — reuses menuOpenPostId,
+  // the same single-open-dropdown state the edit/delete menu already uses.
+  const [reportTargetPost, setReportTargetPost] = useState(null);
+  const [reportSubmitted, setReportSubmitted] = useState(false);
   const [connectionsModalTitle, setConnectionsModalTitle] = useState(null);
 
   // Reset tab to posts when userId changes (viewing different user)
   useEffect(() => {
     setActiveTab("posts");
   }, [userId]);
-
-  // Reset carousel index when post changes
-  useEffect(() => {
-    setDetailCarouselIndex(0);
-  }, [selectedPost]);
 
   // Also populates the shared ["authUser"] cache entry that other components
   // read via queryClient.getQueryData.
@@ -327,6 +318,32 @@ export default function UserProfilePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["userPosts", userId] });
       queryClient.invalidateQueries({ queryKey: ["userBookmarks", userId] });
+    },
+  });
+
+  const { mutate: submitPostReport, isPending: isReportPending } = useMutation({
+    mutationFn: async ({ postId, reasonCode, description }) => {
+      const response = await axiosInstance.post(`/posts/${postId}/report`, { reasonCode, description });
+      return response.data;
+    },
+    onSuccess: (_data, variables) => {
+      setReportSubmitted(true);
+      // Hide it from this profile's grids immediately rather than waiting on a refetch.
+      const dropReportedPost = (old) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            posts: (page.posts || []).filter((post) => post._id !== variables.postId),
+          })),
+        };
+      };
+      queryClient.setQueriesData({ queryKey: ["userPosts", userId] }, dropReportedPost);
+      queryClient.setQueriesData({ queryKey: ["userBookmarks", userId] }, dropReportedPost);
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to submit report");
     },
   });
 
@@ -773,10 +790,9 @@ export default function UserProfilePage() {
                           {posts.map((post) => {
                             const media = normalizeMedia(post);
                             const currentIndex = postCarouselIndex[post._id] || 0;
-                            const image = media[currentIndex];
                             const badge = getListingBadge(post);
-                            const hasMultipleImages = media.length > 1;
-                            
+                            const detailBadges = buildPropertyDetailBadges(post);
+
                             const handlePrevImage = (e) => {
                               e.stopPropagation();
                               setPostCarouselIndex(prev => ({
@@ -793,182 +809,195 @@ export default function UserProfilePage() {
                               }));
                             };
                             
+                            const handleDoubleClickMedia = (event) => {
+                              event.stopPropagation();
+                              toggleLike(post._id);
+                              setLikedBurstPostId(post._id);
+                              setTimeout(() => {
+                                setLikedBurstPostId((current) => (current === post._id ? null : current));
+                              }, 700);
+                            };
+
                             return (
-                              <div
+                              <PropertyPostCard
                                 key={post._id}
-                                className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md"
-                                onClick={() => setSelectedPost(post)}
-                              >
-                                <div className="relative aspect-square overflow-hidden bg-slate-100">
-                                  <img
-                                    src={image}
-                                    alt={post.title || "Listing"}
-                                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                    loading="lazy"
-                                  />
-                                  
-                                  {/* Image navigation arrows */}
-                                  {hasMultipleImages && (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={handlePrevImage}
-                                        className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white transition-opacity hover:bg-black/70"
-                                      >
-                                        <ChevronLeft className="size-4" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={handleNextImage}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white transition-opacity hover:bg-black/70"
-                                      >
-                                        <ChevronRight className="size-4" />
-                                      </button>
-                                      {/* Image indicator */}
-                                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                                        {media.map((_, idx) => (
-                                          <div
-                                            key={idx}
-                                            className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                                              idx === currentIndex ? 'bg-white' : 'bg-white/50'
-                                            }`}
-                                          />
-                                        ))}
-                                      </div>
-                                    </>
-                                  )}
-                                  
-                                  <div className="absolute left-3 top-3 flex items-center gap-1.5">
-                                    <span
-                                      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                                        post.customBadge ? getCustomBadgeClasses(post.customBadge) : "bg-black/55 backdrop-blur-sm text-white"
-                                      }`}
-                                    >
-                                      {badge}
+                                post={post}
+                                media={media}
+                                imageIndex={currentIndex}
+                                onPrevImage={handlePrevImage}
+                                onNextImage={handleNextImage}
+                                onDoubleClickMedia={handleDoubleClickMedia}
+                                mediaHeightClass="aspect-square"
+                                mediaOverlay={
+                                  likedBurstPostId === post._id ? (
+                                    <Heart className="pointer-events-none absolute left-1/2 top-1/2 size-16 -translate-x-1/2 -translate-y-1/2 fill-white/95 text-white drop-shadow-md animate-pulse" />
+                                  ) : null
+                                }
+                                badge={badge}
+                                badgeClassName={post.customBadge ? getCustomBadgeClasses(post.customBadge) : undefined}
+                                extraTopRight={
+                                  post.isBlocked ? (
+                                    <span className="flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm">
+                                      <ShieldAlert className="size-3" />
+                                      Blocked
                                     </span>
-                                    {post.isBlocked && (
-                                      <span className="flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm">
-                                        <ShieldAlert className="size-3" />
-                                        Blocked
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="absolute right-3 bottom-3">
-                                    <button
-                                      type="button"
-                                      className="size-8 rounded-full flex items-center justify-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75 transition-opacity"
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        setPostToShare(post);
-                                        setShowShareModal(true);
-                                      }}
-                                    >
-                                      <Share2 className="size-4" />
-                                    </button>
-                                  </div>
-                                  {isOwnProfile && (
-                                    <div className="absolute right-3 top-3">
-                                      <div className="relative">
+                                  ) : null
+                                }
+                                menu={
+                                  isOwnProfile ? (
+                                    <div className="relative">
+                                      <button
+                                        type="button"
+                                        className="btn btn-xs btn-circle border-none bg-transparent text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          setMenuOpenPostId(menuOpenPostId === post._id ? null : post._id);
+                                        }}
+                                      >
+                                        <MoreVertical className="size-3.5" />
+                                      </button>
+                                      {menuOpenPostId === post._id && (
+                                        <div className="absolute right-0 top-full z-10 mt-1 w-36 rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                                          <button
+                                            type="button"
+                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              setPostToEdit(post);
+                                              setShowEditModal(true);
+                                              setNewImageFiles([]);
+                                              setNewImagePreviews([]);
+                                              setRemovedImageUrls([]);
+                                              setMenuOpenPostId(null);
+                                            }}
+                                          >
+                                            <Edit2 className="size-4 text-slate-500" />
+                                            Edit Post
+                                          </button>
+                                          <div className="border-t border-slate-100" />
+                                          <button
+                                            type="button"
+                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              setPostToDelete(post);
+                                              setShowDeleteModal(true);
+                                              setMenuOpenPostId(null);
+                                            }}
+                                          >
+                                            <Trash2 className="size-4" />
+                                            Delete Post
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div className="relative">
+                                      <button
+                                        type="button"
+                                        className="btn btn-xs btn-circle border-none bg-transparent text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          setMenuOpenPostId(menuOpenPostId === post._id ? null : post._id);
+                                        }}
+                                      >
+                                        <MoreVertical className="size-3.5" />
+                                      </button>
+                                      {menuOpenPostId === post._id && (
+                                        <div className="absolute right-0 top-full z-10 mt-1 w-36 rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                                          <button
+                                            type="button"
+                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              setReportTargetPost(post);
+                                              setMenuOpenPostId(null);
+                                            }}
+                                          >
+                                            <Flag className="size-3.5" />
+                                            Report
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )
+                                }
+                                compareControl={
+                                  <CompareToggleButton
+                                    postId={post._id}
+                                    selected={selectedForComparison}
+                                    onToggle={(id) => setSelectedForComparison((prev) => toggleCompareSelection(prev, id))}
+                                  />
+                                }
+                                onShare={() => {
+                                  setPostToShare(post);
+                                  setShowShareModal(true);
+                                }}
+                                onFullscreen={(img) => setSelectedImage(img)}
+                                priceBlock={
+                                  <>
+                                    <p className="text-lg font-bold text-slate-900">{formatMoney(post.price)}</p>
+                                    <p className="text-sm font-medium text-slate-800 line-clamp-1">{post.title || "Premium Listing"}</p>
+                                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                                      <MapPin className="size-3" />
+                                      <span>{post.city || "City"}</span>
+                                      {post.locality && <><span>·</span><span>{post.locality}</span></>}
+                                      {post.latitude && post.longitude && (
                                         <button
                                           type="button"
-                                          className="btn btn-xs btn-circle border-none bg-transparent text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
+                                          className="flex items-center gap-1 text-indigo-600 hover:underline"
                                           onClick={(event) => {
                                             event.stopPropagation();
-                                            setMenuOpenPostId(menuOpenPostId === post._id ? null : post._id);
+                                            navigate(`/map-view?propertyId=${post._id}`);
                                           }}
                                         >
-                                          <MoreVertical className="size-3.5" />
+                                          <span className="size-1.5 rounded-full bg-indigo-600"></span>
+                                          <span>Live Location</span>
                                         </button>
-                                        {menuOpenPostId === post._id && (
-                                          <div className="absolute right-0 top-full z-10 mt-1 w-36 rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden">
-                                            <button
-                                              type="button"
-                                              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-                                              onClick={(event) => {
-                                                event.stopPropagation();
-                                                setPostToEdit(post);
-                                                setShowEditModal(true);
-                                                setNewImageFiles([]);
-                                                setNewImagePreviews([]);
-                                                setRemovedImageUrls([]);
-                                                setMenuOpenPostId(null);
-                                              }}
-                                            >
-                                              <Edit2 className="size-4 text-slate-500" />
-                                              Edit Post
-                                            </button>
-                                            <div className="border-t border-slate-100" />
-                                            <button
-                                              type="button"
-                                              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
-                                              onClick={(event) => {
-                                                event.stopPropagation();
-                                                setPostToDelete(post);
-                                                setShowDeleteModal(true);
-                                                setMenuOpenPostId(null);
-                                              }}
-                                            >
-                                              <Trash2 className="size-4" />
-                                              Delete Post
-                                            </button>
-                                          </div>
-                                        )}
-                                      </div>
+                                      )}
                                     </div>
-                                  )}
-                                </div>
-                                <div className="p-4">
-                                  <p className="text-lg font-bold text-slate-900">{formatMoney(post.price)}</p>
-                                  <p className="mt-1 text-sm font-medium text-slate-800 line-clamp-1">{post.title || "Premium Listing"}</p>
-                                  <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-                                    <MapPin className="size-3.5" />
-                                    <span className="truncate">{post.city || "Location"}</span>
-                                  </div>
-                                  {post.isBlocked && (
-                                    <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5">
-                                      <p className="flex items-center gap-1.5 text-xs font-semibold text-red-700">
-                                        <ShieldAlert className="size-3.5" />
-                                        Blocked by Admin
-                                      </p>
-                                      <p className="mt-1 text-[11px] text-red-600">
-                                        Reason: {getBlockReasonLabel(post.blockReasonCode)}
-                                      </p>
-                                      {post.blockNote && <p className="mt-1 text-[11px] text-red-600">{post.blockNote}</p>}
-                                    </div>
-                                  )}
-                                  <div className="mt-3 flex flex-wrap gap-2">
-                                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                                      {post.bedrooms || 0} Beds
-                                    </span>
-                                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                                      {post.bathrooms || 0} Baths
-                                    </span>
-                                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                                      {Number(post.areaSqft || 0)} sqft
-                                    </span>
-                                  </div>
-                                  <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-                                    <div className="flex items-center gap-4">
-                                      <div className="flex items-center gap-1">
-                                        <button type="button" className="btn btn-ghost btn-xs btn-circle" onClick={(event) => { event.stopPropagation(); toggleLike(post._id); }}><Heart className={`size-4 ${post.isLikedByMe ? "fill-red-500 text-red-500" : ""}`} /></button>
-                                        <span className="text-[11px] text-slate-500">{post.likesCount || 0}</span>
+                                    {post.isBlocked && (
+                                      <div className="rounded-lg border border-red-200 bg-red-50 p-2.5">
+                                        <p className="flex items-center gap-1.5 text-xs font-semibold text-red-700">
+                                          <ShieldAlert className="size-3.5" />
+                                          Blocked by Admin
+                                        </p>
+                                        <p className="mt-1 text-[11px] text-red-600">
+                                          Reason: {getBlockReasonLabel(post.blockReasonCode)}
+                                        </p>
+                                        {post.blockNote && <p className="mt-1 text-[11px] text-red-600">{post.blockNote}</p>}
                                       </div>
-                                      <div className="flex items-center gap-1">
-                                        <Eye className="size-4 text-slate-400" />
-                                        <span className="text-[11px] text-slate-500">{post.viewCount || 0}</span>
+                                    )}
+                                    {detailBadges.length > 0 && (
+                                      <div className="flex flex-wrap gap-2">
+                                        {detailBadges.slice(0, 6).map((detail, idx) => (
+                                          <span
+                                            key={idx}
+                                            className={`rounded-full ${detail.color} px-2.5 py-1 text-xs font-medium ${detail.textColor}`}
+                                          >
+                                            {detail.label}
+                                          </span>
+                                        ))}
                                       </div>
-                                      <div className="flex items-center gap-1">
-                                        <button type="button" className="btn btn-ghost btn-xs btn-circle" onClick={(event) => { event.stopPropagation(); setSelectedPostForComments(post); }}><MessageCircle className="size-4" /></button>
-                                        <span className="text-[11px] text-slate-500">{post.commentCount || 0}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1">
-                                        <button type="button" className="btn btn-ghost btn-xs btn-circle" onClick={(event) => { event.stopPropagation(); toggleSave(post._id); }}><Bookmark className={`size-4 ${post.isSavedByMe ? "fill-indigo-600 text-indigo-600" : ""}`} /></button>
-                                        <span className="text-[11px] text-slate-500">{post.savesCount || 0}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
+                                    )}
+                                  </>
+                                }
+                                description={
+                                  <ClampedCaption text={post.caption || "A beautifully curated property with modern design and premium amenities."} />
+                                }
+                                onLike={() => toggleLike(post._id)}
+                                isLiked={post.isLikedByMe}
+                                likesCount={post.likesCount || 0}
+                                viewsCount={post.viewCount || 0}
+                                onComment={() => setSelectedPostForComments(post)}
+                                commentsCount={post.commentCount || 0}
+                                onSave={() => toggleSave(post._id)}
+                                isSaved={post.isSavedByMe}
+                                savesCount={post.savesCount || 0}
+                                onContact={!isOwnProfile ? () => navigate(`/property/${post._id}`) : undefined}
+                                onOpenPost={() => navigate(`/property/${post._id}`)}
+                                className={selectedForComparison.includes(post._id) ? "border-indigo-500 ring-2 ring-indigo-200" : "border-slate-100"}
+                              />
                             );
                           })}
                         </div>
@@ -1018,10 +1047,9 @@ export default function UserProfilePage() {
                           {bookmarks.map((post) => {
                             const media = normalizeMedia(post);
                             const currentIndex = postCarouselIndex[post._id] || 0;
-                            const image = media[currentIndex];
                             const badge = getListingBadge(post);
-                            const hasMultipleImages = media.length > 1;
-                            
+                            const detailBadges = buildPropertyDetailBadges(post);
+
                             const handlePrevImage = (e) => {
                               e.stopPropagation();
                               setPostCarouselIndex(prev => ({
@@ -1029,7 +1057,7 @@ export default function UserProfilePage() {
                                 [post._id]: (prev[post._id] || 0) > 0 ? (prev[post._id] || 0) - 1 : media.length - 1
                               }));
                             };
-                            
+
                             const handleNextImage = (e) => {
                               e.stopPropagation();
                               setPostCarouselIndex(prev => ({
@@ -1037,141 +1065,151 @@ export default function UserProfilePage() {
                                 [post._id]: (prev[post._id] || 0) < media.length - 1 ? (prev[post._id] || 0) + 1 : 0
                               }));
                             };
-                            
+
+                            const isOwnPost = post.author?._id && String(post.author._id) === String(authUser?._id);
+
+                            const handleDoubleClickMedia = (event) => {
+                              event.stopPropagation();
+                              toggleLike(post._id);
+                              setLikedBurstPostId(post._id);
+                              setTimeout(() => {
+                                setLikedBurstPostId((current) => (current === post._id ? null : current));
+                              }, 700);
+                            };
+
                             return (
-                              <div
+                              <PropertyPostCard
                                 key={post._id}
-                                className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md"
-                                onClick={() => setSelectedPost(post)}
-                              >
-                                <div className="relative aspect-square overflow-hidden bg-slate-100">
-                                  <img
-                                    src={image}
-                                    alt={post.title || "Listing"}
-                                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                    loading="lazy"
+                                post={post}
+                                media={media}
+                                imageIndex={currentIndex}
+                                onPrevImage={handlePrevImage}
+                                onNextImage={handleNextImage}
+                                onDoubleClickMedia={handleDoubleClickMedia}
+                                mediaHeightClass="aspect-square"
+                                mediaOverlay={
+                                  likedBurstPostId === post._id ? (
+                                    <Heart className="pointer-events-none absolute left-1/2 top-1/2 size-16 -translate-x-1/2 -translate-y-1/2 fill-white/95 text-white drop-shadow-md animate-pulse" />
+                                  ) : null
+                                }
+                                badge={badge}
+                                badgeClassName={post.customBadge ? getCustomBadgeClasses(post.customBadge) : undefined}
+                                extraTopRight={
+                                  post.isBlocked ? (
+                                    <span className="flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm">
+                                      <ShieldAlert className="size-3" />
+                                      Blocked
+                                    </span>
+                                  ) : null
+                                }
+                                menu={
+                                  !isOwnPost ? (
+                                    <div className="relative">
+                                      <button
+                                        type="button"
+                                        className="btn btn-xs btn-circle border-none bg-transparent text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          setMenuOpenPostId(menuOpenPostId === post._id ? null : post._id);
+                                        }}
+                                      >
+                                        <MoreVertical className="size-3.5" />
+                                      </button>
+                                      {menuOpenPostId === post._id && (
+                                        <div className="absolute right-0 top-full z-10 mt-1 w-36 rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                                          <button
+                                            type="button"
+                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              setReportTargetPost(post);
+                                              setMenuOpenPostId(null);
+                                            }}
+                                          >
+                                            <Flag className="size-3.5" />
+                                            Report
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : null
+                                }
+                                compareControl={
+                                  <CompareToggleButton
+                                    postId={post._id}
+                                    selected={selectedForComparison}
+                                    onToggle={(id) => setSelectedForComparison((prev) => toggleCompareSelection(prev, id))}
                                   />
-                                  
-                                  {/* Image navigation arrows */}
-                                  {hasMultipleImages && (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={handlePrevImage}
-                                        className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white transition-opacity hover:bg-black/70"
-                                      >
-                                        <ChevronLeft className="size-4" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={handleNextImage}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white transition-opacity hover:bg-black/70"
-                                      >
-                                        <ChevronRight className="size-4" />
-                                      </button>
-                                      {/* Image indicator */}
-                                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                                        {media.map((_, idx) => (
-                                          <div
+                                }
+                                onShare={() => {
+                                  setPostToShare(post);
+                                  setShowShareModal(true);
+                                }}
+                                onFullscreen={(img) => setSelectedImage(img)}
+                                priceBlock={
+                                  <>
+                                    <p className="text-lg font-bold text-slate-900">{formatMoney(post.price)}</p>
+                                    <p className="text-sm font-medium text-slate-800 line-clamp-1">{post.title || "Premium Listing"}</p>
+                                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                                      <MapPin className="size-3" />
+                                      <span>{post.city || "City"}</span>
+                                      {post.locality && <><span>·</span><span>{post.locality}</span></>}
+                                      {post.latitude && post.longitude && (
+                                        <button
+                                          type="button"
+                                          className="flex items-center gap-1 text-indigo-600 hover:underline"
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            navigate(`/map-view?propertyId=${post._id}`);
+                                          }}
+                                        >
+                                          <span className="size-1.5 rounded-full bg-indigo-600"></span>
+                                          <span>Live Location</span>
+                                        </button>
+                                      )}
+                                    </div>
+                                    {post.isBlocked && (
+                                      <div className="rounded-lg border border-red-200 bg-red-50 p-2.5">
+                                        <p className="flex items-center gap-1.5 text-xs font-semibold text-red-700">
+                                          <ShieldAlert className="size-3.5" />
+                                          Blocked by Admin
+                                        </p>
+                                        <p className="mt-1 text-[11px] text-red-600">
+                                          Reason: {getBlockReasonLabel(post.blockReasonCode)}
+                                        </p>
+                                        {post.blockNote && <p className="mt-1 text-[11px] text-red-600">{post.blockNote}</p>}
+                                      </div>
+                                    )}
+                                    {detailBadges.length > 0 && (
+                                      <div className="flex flex-wrap gap-2">
+                                        {detailBadges.slice(0, 6).map((detail, idx) => (
+                                          <span
                                             key={idx}
-                                            className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                                              idx === currentIndex ? 'bg-white' : 'bg-white/50'
-                                            }`}
-                                          />
+                                            className={`rounded-full ${detail.color} px-2.5 py-1 text-xs font-medium ${detail.textColor}`}
+                                          >
+                                            {detail.label}
+                                          </span>
                                         ))}
                                       </div>
-                                    </>
-                                  )}
-                                  
-                                  <div className="absolute left-3 top-3">
-                                    <PostAuthorLink
-                                      author={post.author}
-                                      sizeClass="size-6"
-                                      textColor="white"
-                                      meta={<p className="truncate text-[10px] text-white/90">{relativeDate(post.createdAt)}</p>}
-                                    />
-                                  </div>
-                                  <div className="absolute right-3 top-3 flex items-center gap-1.5">
-                                    {post.isBlocked && (
-                                      <span className="flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm">
-                                        <ShieldAlert className="size-3" />
-                                        Blocked
-                                      </span>
                                     )}
-                                    <span
-                                      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                                        post.customBadge ? getCustomBadgeClasses(post.customBadge) : "bg-black/55 backdrop-blur-sm text-white"
-                                      }`}
-                                    >
-                                      {badge}
-                                    </span>
-                                  </div>
-                                  <div className="absolute right-3 bottom-3">
-                                    <button
-                                      type="button"
-                                      className="size-8 rounded-full flex items-center justify-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75 transition-opacity"
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        setPostToShare(post);
-                                        setShowShareModal(true);
-                                      }}
-                                    >
-                                      <Share2 className="size-4" />
-                                    </button>
-                                  </div>
-                                </div>
-                                <div className="p-4">
-                                  <p className="text-lg font-bold text-slate-900">{formatMoney(post.price)}</p>
-                                  <p className="mt-1 text-sm font-medium text-slate-800 line-clamp-1">{post.title || "Premium Listing"}</p>
-                                  <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-                                    <MapPin className="size-3.5" />
-                                    <span className="truncate">{post.city || "Location"}</span>
-                                  </div>
-                                  {post.isBlocked && (
-                                    <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5">
-                                      <p className="flex items-center gap-1.5 text-xs font-semibold text-red-700">
-                                        <ShieldAlert className="size-3.5" />
-                                        Blocked by Admin
-                                      </p>
-                                      <p className="mt-1 text-[11px] text-red-600">
-                                        Reason: {getBlockReasonLabel(post.blockReasonCode)}
-                                      </p>
-                                      {post.blockNote && <p className="mt-1 text-[11px] text-red-600">{post.blockNote}</p>}
-                                    </div>
-                                  )}
-                                  <div className="mt-3 flex flex-wrap gap-2">
-                                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                                      {post.bedrooms || 0} Beds
-                                    </span>
-                                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                                      {post.bathrooms || 0} Baths
-                                    </span>
-                                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                                      {Number(post.areaSqft || 0)} sqft
-                                    </span>
-                                  </div>
-                                  <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-                                    <div className="flex items-center gap-4">
-                                      <div className="flex items-center gap-1">
-                                        <button type="button" className="btn btn-ghost btn-xs btn-circle" onClick={(event) => { event.stopPropagation(); toggleLike(post._id); }}><Heart className={`size-4 ${post.isLikedByMe ? "fill-red-500 text-red-500" : ""}`} /></button>
-                                        <span className="text-[11px] text-slate-500">{post.likesCount || 0}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1">
-                                        <Eye className="size-4 text-slate-400" />
-                                        <span className="text-[11px] text-slate-500">{post.viewCount || 0}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1">
-                                        <button type="button" className="btn btn-ghost btn-xs btn-circle" onClick={(event) => { event.stopPropagation(); setSelectedPostForComments(post); }}><MessageCircle className="size-4" /></button>
-                                        <span className="text-[11px] text-slate-500">{post.commentCount || 0}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1">
-                                        <button type="button" className="btn btn-ghost btn-xs btn-circle" onClick={(event) => { event.stopPropagation(); toggleSave(post._id); }}><Bookmark className={`size-4 ${post.isSavedByMe ? "fill-indigo-600 text-indigo-600" : ""}`} /></button>
-                                        <span className="text-[11px] text-slate-500">{post.savesCount || 0}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
+                                  </>
+                                }
+                                description={
+                                  <ClampedCaption text={post.caption || "A beautifully curated property with modern design and premium amenities."} />
+                                }
+                                onLike={() => toggleLike(post._id)}
+                                isLiked={post.isLikedByMe}
+                                likesCount={post.likesCount || 0}
+                                viewsCount={post.viewCount || 0}
+                                onComment={() => setSelectedPostForComments(post)}
+                                commentsCount={post.commentCount || 0}
+                                onSave={() => toggleSave(post._id)}
+                                isSaved={post.isSavedByMe}
+                                savesCount={post.savesCount || 0}
+                                onContact={!isOwnPost ? () => navigate(`/property/${post._id}`) : undefined}
+                                onOpenPost={() => navigate(`/property/${post._id}`)}
+                                className={selectedForComparison.includes(post._id) ? "border-indigo-500 ring-2 ring-indigo-200" : "border-slate-100"}
+                              />
                             );
                           })}
                         </div>
@@ -1395,129 +1433,6 @@ export default function UserProfilePage() {
           post={selectedPostForComments}
           onClose={() => setSelectedPostForComments(null)}
         />
-      ) : null}
-
-      {selectedPost ? (
-        <div className="fixed inset-0 z-50 bg-black/30" onClick={() => setSelectedPost(null)}>
-          <aside className="absolute right-0 top-0 h-full w-full max-w-2xl border-l border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
-            <div className="flex h-full flex-col">
-              <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-                <p className="text-lg font-black text-slate-800">Property Details</p>
-                <button type="button" className="btn btn-sm btn-circle btn-ghost" onClick={() => setSelectedPost(null)}><X className="size-4" /></button>
-              </div>
-
-              <div className="flex-1 space-y-4 overflow-y-auto p-5">
-                <div className="relative h-72 w-full rounded-2xl overflow-hidden bg-slate-100">
-                  {(() => {
-                    const media = normalizeMedia(selectedPost);
-                    const currentImage = media[detailCarouselIndex] || media[0];
-                    const isVideo = isVideoUrl(currentImage);
-                    return isVideo ? (
-                      <video
-                        src={currentImage}
-                        alt={selectedPost.title || "Property"}
-                        className="h-full w-full object-cover"
-                        controls
-                      />
-                    ) : (
-                      <img
-                        src={currentImage}
-                        alt={selectedPost.title || "Property"}
-                        className="h-full w-full object-cover"
-                      />
-                    );
-                  })()}
-                  {normalizeMedia(selectedPost).length > 1 ? (
-                    <>
-                      <button
-                        type="button"
-                        className="btn btn-xs btn-circle absolute left-2 top-1/2 -translate-y-1/2 z-20 border border-slate-200 bg-white/90 text-slate-600"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          event.nativeEvent.stopImmediatePropagation();
-                          setDetailCarouselIndex((prev) => {
-                            const media = normalizeMedia(selectedPost);
-                            return prev === 0 ? media.length - 1 : prev - 1;
-                          });
-                        }}
-                      >
-                        <ChevronLeft className="size-3" />
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-xs btn-circle absolute right-2 top-1/2 -translate-y-1/2 z-20 border border-slate-200 bg-white/90 text-slate-600"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          event.nativeEvent.stopImmediatePropagation();
-                          setDetailCarouselIndex((prev) => {
-                            const media = normalizeMedia(selectedPost);
-                            return prev === media.length - 1 ? 0 : prev + 1;
-                          });
-                        }}
-                      >
-                        <ChevronRight className="size-3" />
-                      </button>
-                      <span className="absolute bottom-2 right-2 rounded-full bg-black/55 px-2 py-1 text-[10px] font-semibold text-white">
-                        {detailCarouselIndex + 1}/{normalizeMedia(selectedPost).length}
-                      </span>
-                    </>
-                  ) : null}
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <p className="text-2xl font-black text-slate-800">{formatMoney(selectedPost.price)}</p>
-                  <span
-                    className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                      selectedPost.customBadge ? getCustomBadgeClasses(selectedPost.customBadge) : "bg-indigo-100 text-indigo-700"
-                    }`}
-                  >
-                    {getListingBadge(selectedPost)}
-                  </span>
-                </div>
-
-                <div>
-                  <p className="text-lg font-semibold text-slate-800">{selectedPost.title || "Property Listing"}</p>
-                  <p className="mt-1 inline-flex items-center gap-1 text-sm text-slate-500"><MapPin className="size-3.5" />{selectedPost.locality || selectedPost.city || "Location"}</p>
-                  <p className="mt-2 text-sm text-slate-600">{selectedPost.caption || "Beautifully designed property with excellent connectivity and amenities."}</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-lg border border-slate-200 p-3 text-sm text-slate-700">Bedrooms: {selectedPost.bedrooms || 0}</div>
-                  <div className="rounded-lg border border-slate-200 p-3 text-sm text-slate-700">Bathrooms: {selectedPost.bathrooms || 0}</div>
-                  <div className="rounded-lg border border-slate-200 p-3 text-sm text-slate-700">Area: {Number(selectedPost.areaSqft || 0)} sqft</div>
-                  <div className="rounded-lg border border-slate-200 p-3 text-sm text-slate-700">Parking: Available</div>
-                </div>
-
-                <div className="rounded-xl border border-slate-200 p-3">
-                  <p className="text-sm font-semibold text-slate-800">Seller Profile</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <PostAuthorLink author={selectedPost.author} sizeClass="size-9" onClick={() => setSelectedPost(null)} />
-                    <BadgeCheck className="ml-auto size-4 text-indigo-600" />
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-slate-200 p-3">
-                  <p className="text-sm font-semibold text-slate-800">Nearby & Market Context</p>
-                  <div className="mt-2 grid gap-2 text-xs text-slate-600">
-                    <p>Schools: 3 within 2.5 km</p>
-                    <p>Hospitals: 2 within 3 km</p>
-                    <p>Public Transport: Metro station in 1.1 km</p>
-                    <p>Market Trend: +6.8% YoY in this locality</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-4 gap-2 border-t border-slate-200 p-4">
-                <button type="button" className="btn btn-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"><MessageCircle className="size-4" />Chat</button>
-                <button type="button" className="btn btn-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"><CalendarDays className="size-4" />Visit</button>
-                <button type="button" className="btn btn-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50" onClick={() => toggleSave(selectedPost._id)}><Bookmark className="size-4" />Save</button>
-                <button type="button" className="btn btn-sm border-none bg-indigo-600 text-white hover:bg-indigo-500"><Send className="size-4" />Call</button>
-              </div>
-            </div>
-          </aside>
-        </div>
       ) : null}
 
       {/* Delete Confirmation Modal */}
@@ -1754,6 +1669,23 @@ export default function UserProfilePage() {
         postId={postToShare?._id}
         postImage={postToShare ? normalizeMedia(postToShare)[0] : ""}
       />
+
+      <ReportPostModal
+        isOpen={Boolean(reportTargetPost)}
+        isPending={isReportPending}
+        isSubmitted={reportSubmitted}
+        onCancel={() => setReportTargetPost(null)}
+        onConfirm={({ reasonCode, description }) =>
+          submitPostReport({ postId: reportTargetPost._id, reasonCode, description })
+        }
+        onDone={() => {
+          setReportTargetPost(null);
+          setReportSubmitted(false);
+        }}
+      />
+
+      <CompareFloatingBar selected={selectedForComparison} />
+      <FullscreenMediaViewer src={selectedImage} onClose={() => setSelectedImage(null)} />
 
       {/* Followers / Following Modal */}
       <UserListModal

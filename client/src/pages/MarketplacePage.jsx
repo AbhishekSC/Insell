@@ -10,8 +10,6 @@ import {
   Building2,
   CalendarDays,
   Check,
-  ChevronLeft,
-  ChevronRight,
   ClipboardList,
   Compass,
   Edit3,
@@ -40,17 +38,19 @@ import {
   UserRoundPlus,
   Users,
   X,
-  CheckSquare,
-  Square,
-  Volume2,
-  VolumeX,
 } from "lucide-react";
 import ShareModal from "../components/ShareModal";
+import PropertyPostCard from "../components/PropertyPostCard";
+import ClampedCaption from "../components/ClampedCaption";
+import CompareToggleButton from "../components/CompareToggleButton";
+import CompareFloatingBar from "../components/CompareFloatingBar";
+import FullscreenMediaViewer from "../components/FullscreenMediaViewer";
+import { buildPropertyDetailBadges } from "../lib/propertyDetailBadges";
+import { toggleCompareSelection } from "../lib/compareSelection";
 import ReportPostModal from "../components/ReportPostModal";
 import { getCustomBadgeClasses } from "../lib/badgeColors";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
-import PostAuthorLink from "../components/PostAuthorLink";
 import CommentSection from "../components/CommentSection";
 import ChatContent from "../components/ChatContent";
 import ConnectionsContent from "../components/ConnectionsContent";
@@ -232,18 +232,6 @@ function isVideoUrl(url) {
   return videoExtensions.some((ext) => String(url).toLowerCase().endsWith(ext));
 }
 
-function relativeDate(dateString) {
-  if (!dateString) return "Just now";
-  const time = new Date(dateString).getTime();
-  if (!Number.isFinite(time)) return "Just now";
-  const delta = Date.now() - time;
-  const hours = Math.floor(delta / (1000 * 60 * 60));
-  if (hours < 1) return "Just now";
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
 function getListingBadge(post) {
   if (post.customBadge) return post.customBadge;
   const postType = String(post.postType || "").toUpperCase();
@@ -277,11 +265,6 @@ export default function MarketplacePage() {
   const [activeCategory, setActiveCategory] = useState("For You");
   const [selectedTrendingLocation, setSelectedTrendingLocation] = useState(null);
   const [carouselIndex, setCarouselIndex] = useState({});
-  // Per-post mute state for feed videos — starts muted (required by browser
-  // autoplay policy), keyed by post id so toggling one card's sound doesn't
-  // affect any other.
-  const [unmutedVideoIds, setUnmutedVideoIds] = useState(() => new Set());
-  const [expandedPostIds, setExpandedPostIds] = useState({});
   const [likedBurstPostId, setLikedBurstPostId] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [selectedPostForComments, setSelectedPostForComments] = useState(null);
@@ -1371,13 +1354,10 @@ export default function MarketplacePage() {
               <div className="mt-4 grid gap-5 2xl:grid-cols-2">
                 {posts.map((post) => {
                   const imageIndex = Number(carouselIndex[post._id] || 0);
-                  const image = post.media[imageIndex] || post.media[0];
-                  const readMore = expandedPostIds[post._id];
                   const badge = getListingBadge(post);
                   const postType = String(post.postType || "").toUpperCase();
                   const isRequirement = postType.startsWith("REQUIREMENT_");
                   const requirementTitle = post.title || (postType === "REQUIREMENT_RENT" ? "Looking for Rental Property" : "Looking to Buy Property");
-                  const hasMultipleImages = post.media.length > 1;
                   const isOwnPost = Boolean(authUser?._id) && String(authUser._id) === String(post.author?._id);
 
                   const handlePrevImage = (e) => {
@@ -1396,103 +1376,53 @@ export default function MarketplacePage() {
                     }));
                   };
 
+                  const detailBadges = buildPropertyDetailBadges(post, activeRole);
+
+                  const handleDoubleClickMedia = (event) => {
+                    event.stopPropagation();
+                    toggleLike(post._id);
+                    setLikedBurstPostId(post._id);
+                    setTimeout(() => {
+                      setLikedBurstPostId((current) => (current === post._id ? null : current));
+                    }, 700);
+                  };
+
                   return (
-                    <article
+                    <PropertyPostCard
                       key={post._id}
-                      className={`group overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:shadow-md ${
-                        selectedForComparison.includes(post._id)
-                          ? 'border-indigo-500 ring-2 ring-indigo-200'
-                          : 'border-slate-100'
-                      }`}
-                      onClick={() => navigate(`/property/${post._id}`)}
-                    >
-                      <div className="relative overflow-hidden">
-                        {post.media.length > 0 ? (
-                          isVideoUrl(image) ? (
-                            <video
-                              src={image}
-                              className="h-[22rem] w-full object-cover"
-                              muted={!unmutedVideoIds.has(post._id)}
-                              loop
-                              playsInline
-                              // Instagram-style feed playback: no player chrome, just
-                              // autoplay (muted, browsers require that) while scrolled
-                              // into view and pause once it scrolls back out. Full
-                              // controls still show in the "Full screen" viewer.
-                              ref={(el) => {
-                                if (!el) return;
-                                const observer = new IntersectionObserver(
-                                  ([entry]) => {
-                                    if (entry.isIntersecting) {
-                                      el.play().catch(() => {});
-                                    } else {
-                                      el.pause();
-                                    }
-                                  },
-                                  { threshold: 0.5 }
-                                );
-                                observer.observe(el);
-                                return () => observer.disconnect();
-                              }}
-                              onDoubleClick={(event) => {
-                                event.stopPropagation();
-                                toggleLike(post._id);
-                                setLikedBurstPostId(post._id);
-                                setTimeout(() => {
-                                  setLikedBurstPostId((current) => (current === post._id ? null : current));
-                                }, 700);
-                              }}
-                            />
-                          ) : (
-                            <>
-                              <img
-                                src={image}
-                                alt={post.title || "Property"}
-                                className="h-[22rem] w-full object-cover"
-                                loading="lazy"
-                                onDoubleClick={(event) => {
-                                  event.stopPropagation();
-                                  toggleLike(post._id);
-                                  setLikedBurstPostId(post._id);
-                                  setTimeout(() => {
-                                    setLikedBurstPostId((current) => (current === post._id ? null : current));
-                                  }, 700);
-                                }}
-                              />
-                              
-                              {/* Image navigation arrows */}
-                              {hasMultipleImages && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={handlePrevImage}
-                                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white transition-opacity hover:bg-black/70"
-                                  >
-                                    <ChevronLeft className="size-4" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={handleNextImage}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white transition-opacity hover:bg-black/70"
-                                  >
-                                    <ChevronRight className="size-4" />
-                                  </button>
-                                  {/* Image indicator */}
-                                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                                    {post.media.map((_, idx) => (
-                                      <div
-                                        key={idx}
-                                        className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                                          idx === imageIndex ? 'bg-white' : 'bg-white/50'
-                                        }`}
-                                      />
-                                    ))}
-                                  </div>
-                                </>
-                              )}
-                            </>
-                          )
-                        ) : isRequirement ? (
+                      post={post}
+                      media={post.media}
+                      imageIndex={imageIndex}
+                      onPrevImage={handlePrevImage}
+                      onNextImage={handleNextImage}
+                      onDoubleClickMedia={handleDoubleClickMedia}
+                      badge={badge}
+                      badgeClassName={post.customBadge ? getCustomBadgeClasses(post.customBadge) : undefined}
+                      menu={
+                        !isOwnPost ? (
+                          <button
+                            type="button"
+                            className="grid size-6 place-items-center rounded-full text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (postMenuAnchor?.post._id === post._id) {
+                                setPostMenuAnchor(null);
+                                return;
+                              }
+                              const rect = event.currentTarget.getBoundingClientRect();
+                              setPostMenuAnchor({
+                                post,
+                                top: rect.bottom + 4,
+                                left: Math.max(8, rect.right - 144),
+                              });
+                            }}
+                          >
+                            <MoreVertical className="size-3.5" />
+                          </button>
+                        ) : null
+                      }
+                      requirementBlock={
+                        post.media.length === 0 && isRequirement ? (
                           <div className="flex h-[18rem] items-end bg-gradient-to-br from-indigo-500 via-violet-500 to-sky-500 p-4 text-white">
                             <div>
                               <p className="text-xs uppercase tracking-wide text-white/80">Requirement Post</p>
@@ -1502,339 +1432,84 @@ export default function MarketplacePage() {
                               </p>
                             </div>
                           </div>
-                        ) : (
-                          <img
-                            src={image}
-                            alt={post.title || "Property"}
-                            className="h-[22rem] w-full object-cover"
-                            loading="lazy"
-                            onDoubleClick={(event) => {
-                              event.stopPropagation();
-                              toggleLike(post._id);
-                              setLikedBurstPostId(post._id);
-                              setTimeout(() => {
-                                setLikedBurstPostId((current) => (current === post._id ? null : current));
-                              }, 700);
-                            }}
-                          />
-                        )}
-
-                        <div className="absolute left-3 top-3">
-                          <PostAuthorLink
-                            author={post.author}
-                            sizeClass="size-6"
-                            textColor="white"
-                            meta={<p className="truncate text-[10px] text-white/90">{relativeDate(post.createdAt)}</p>}
-                          />
-                        </div>
-
-                        <div className="absolute right-3 top-3 flex items-center gap-1">
-                          <span
-                            className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
-                              post.customBadge ? getCustomBadgeClasses(post.customBadge) : "bg-black/55 text-white backdrop-blur-sm"
-                            }`}
-                          >
-                            {badge}
-                          </span>
-                          {!isOwnPost && (
-                            <button
-                              type="button"
-                              className="grid size-6 place-items-center rounded-full text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                if (postMenuAnchor?.post._id === post._id) {
-                                  setPostMenuAnchor(null);
-                                  return;
-                                }
-                                const rect = event.currentTarget.getBoundingClientRect();
-                                setPostMenuAnchor({
-                                  post,
-                                  top: rect.bottom + 4,
-                                  left: Math.max(8, rect.right - 144),
-                                });
-                              }}
-                            >
-                              <MoreVertical className="size-3.5" />
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="absolute right-3 bottom-3 flex items-center gap-2">
-                          {isVideoUrl(image) && (
-                            <button
-                              type="button"
-                              className="size-8 rounded-full flex items-center justify-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75 transition-opacity"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setUnmutedVideoIds((prev) => {
-                                  const next = new Set(prev);
-                                  if (next.has(post._id)) {
-                                    next.delete(post._id);
-                                  } else {
-                                    next.add(post._id);
-                                  }
-                                  return next;
-                                });
-                              }}
-                              title={unmutedVideoIds.has(post._id) ? "Mute" : "Unmute"}
-                            >
-                              {unmutedVideoIds.has(post._id) ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            className={`size-8 rounded-full flex items-center justify-center transition-all duration-200 ${
-                              selectedForComparison.includes(post._id)
-                                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
-                                : 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75'
-                            }`}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setSelectedForComparison(prev => {
-                                const isSelected = prev.includes(post._id);
-                                if (isSelected) {
-                                  return prev.filter(id => id !== post._id);
-                                } else if (prev.length < 4) {
-                                  return [...prev, post._id];
-                                } else {
-                                  toast.error("Maximum 4 properties can be compared");
-                                  return prev;
-                                }
-                              });
-                            }}
-                            title={selectedForComparison.includes(post._id) ? "Remove from comparison" : "Add to comparison"}
-                          >
-                            {selectedForComparison.includes(post._id) ? (
-                              <div className="relative">
-                                <Check className="size-5" strokeWidth={3} />
-                              </div>
-                            ) : (
-                              <Square className="size-4" strokeWidth={2} />
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            className="size-8 rounded-full flex items-center justify-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75 transition-opacity"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setPostToShare(post);
-                              setShowShareModal(true);
-                            }}
-                          >
-                            <Share2 className="size-4" />
-                          </button>
-                        </div>
-
-                        {likedBurstPostId === post._id ? (
+                        ) : null
+                      }
+                      compareControl={
+                        <CompareToggleButton
+                          postId={post._id}
+                          selected={selectedForComparison}
+                          onToggle={(id) => setSelectedForComparison((prev) => toggleCompareSelection(prev, id))}
+                        />
+                      }
+                      onShare={() => {
+                        setPostToShare(post);
+                        setShowShareModal(true);
+                      }}
+                      onFullscreen={(img) => setSelectedImage(img)}
+                      mediaOverlay={
+                        likedBurstPostId === post._id ? (
                           <Heart className="pointer-events-none absolute left-1/2 top-1/2 size-16 -translate-x-1/2 -translate-y-1/2 fill-white/95 text-white drop-shadow-md animate-pulse" />
-                        ) : null}
-
-                        {/* {post.media.length > 1 ? (
-                          <>
-                            <button
-                              type="button"
-                              className="btn btn-xs btn-circle absolute left-2 top-1/2 -translate-y-1/2 z-50 border border-slate-200 bg-white/90 text-slate-600 pointer-events-auto"
-                              onClick={(event) => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                event.nativeEvent.stopImmediatePropagation();
-                                setCarouselIndex((prev) => ({
-                                  ...prev,
-                                  [post._id]: imageIndex === 0 ? post.media.length - 1 : imageIndex - 1,
-                                }));
-                              }}
-                            >
-                              <ChevronLeft className="size-3" />
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-xs btn-circle absolute right-2 top-1/2 -translate-y-1/2 z-50 border border-slate-200 bg-white/90 text-slate-600 pointer-events-auto"
-                              onClick={(event) => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                event.nativeEvent.stopImmediatePropagation();
-                                setCarouselIndex((prev) => ({
-                                  ...prev,
-                                  [post._id]: imageIndex === post.media.length - 1 ? 0 : imageIndex + 1,
-                                }));
-                              }}
-                            >
-                              <ChevronRight className="size-3" />
-                            </button>
-                            <span className="absolute bottom-2 right-2 rounded-full bg-black/55 px-2 py-1 text-[10px] font-semibold text-white">
-                              {imageIndex + 1}/{post.media.length}
-                            </span>
-                          </>
-                        ) : null} */}
-
-                        {post.media.length > 0 ? (
-                          <button
-                            type="button"
-                            className="btn btn-xs absolute bottom-2 left-2 border-none bg-black/55 text-white hover:bg-black/65"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setSelectedImage(image);
-                            }}
-                          >
-                            Full screen
-                          </button>
-                        ) : null}
-                      </div>
-
-                      <div className="space-y-2 p-3">
-                        {/* Role-based content display */}
-                        {(() => {
-                          // Collect all available details
-                          const details = [];
-                          
-                          // Basic details always shown
-                          if (post.bedrooms) details.push({ label: `${post.bedrooms} BHK`, color: 'bg-slate-100', textColor: 'text-slate-700' });
-                          if (post.bathrooms) details.push({ label: `${post.bathrooms} Baths`, color: 'bg-slate-100', textColor: 'text-slate-700' });
-                          if (post.areaSqft) details.push({ label: `${Number(post.areaSqft)} sqft`, color: 'bg-slate-100', textColor: 'text-slate-700' });
-                          if (post.propertyType) details.push({ label: post.propertyType, color: 'bg-slate-100', textColor: 'text-slate-700' });
-                          
-                          // Role-specific details
-                          if (activeRole === "Tenant") {
-                            if (post.postMeta?.furnishing) details.push({ label: post.postMeta.furnishing, color: 'bg-indigo-50', textColor: 'text-indigo-700' });
-                            if (post.postMeta?.occupancy) details.push({ label: post.postMeta.occupancy, color: 'bg-indigo-50', textColor: 'text-indigo-700' });
-                            if (post.postMeta?.amenities?.length) details.push({ label: `${post.postMeta.amenities.length} Amenities`, color: 'bg-emerald-50', textColor: 'text-emerald-700' });
-                          } else if (activeRole === "Buyer") {
-                            if (post.postMeta?.possessionStatus) details.push({ label: post.postMeta.possessionStatus, color: 'bg-emerald-50', textColor: 'text-emerald-700' });
-                            if (post.postMeta?.reraVerified) details.push({ label: 'RERA Verified', color: 'bg-blue-50', textColor: 'text-blue-700' });
-                            if (post.postMeta?.ageOfProperty) details.push({ label: post.postMeta.ageOfProperty, color: 'bg-slate-100', textColor: 'text-slate-700' });
-                            if (post.postMeta?.parking) details.push({ label: 'Parking', color: 'bg-slate-100', textColor: 'text-slate-700' });
-                          } else if (activeRole === "Seller") {
-                            if (post.engagementScore) details.push({ label: `Score: ${post.engagementScore}`, color: 'bg-indigo-50', textColor: 'text-indigo-700' });
-                            if (post.postMeta?.daysListed) details.push({ label: `${post.postMeta.daysListed} days`, color: 'bg-slate-100', textColor: 'text-slate-700' });
-                          } else if (activeRole === "Broker") {
-                            if (post.postMeta?.leadQuality) details.push({ label: post.postMeta.leadQuality, color: 'bg-emerald-50', textColor: 'text-emerald-700' });
-                            if (post.postMeta?.commissionRate) details.push({ label: `${post.postMeta.commissionRate}% Comm`, color: 'bg-amber-50', textColor: 'text-amber-700' });
-                            if (post.postMeta?.isUrgent) details.push({ label: 'Urgent', color: 'bg-red-50', textColor: 'text-red-700' });
-                          } else if (activeRole === "Builder") {
-                            if (post.postMeta?.projectStatus) details.push({ label: post.postMeta.projectStatus, color: 'bg-blue-50', textColor: 'text-blue-700' });
-                            if (post.postMeta?.reraNumber) details.push({ label: 'RERA Registered', color: 'bg-emerald-50', textColor: 'text-emerald-700' });
-                            if (post.postMeta?.launchYear) details.push({ label: post.postMeta.launchYear, color: 'bg-slate-100', textColor: 'text-slate-700' });
-                          } else if (activeRole === "Investor") {
-                            if (post.postMeta?.roi) details.push({ label: `${post.postMeta.roi}% ROI`, color: 'bg-emerald-50', textColor: 'text-emerald-700' });
-                            if (post.postMeta?.investmentType) details.push({ label: post.postMeta.investmentType, color: 'bg-indigo-50', textColor: 'text-indigo-700' });
-                            if (post.postMeta?.timeHorizon) details.push({ label: post.postMeta.timeHorizon, color: 'bg-slate-100', textColor: 'text-slate-700' });
-                          }
-                          
-                          // Additional postMeta fields if available
-                          if (post.postMeta?.facing) details.push({ label: post.postMeta.facing, color: 'bg-slate-100', textColor: 'text-slate-700' });
-                          if (post.postMeta?.floorNumber) details.push({ label: `Floor ${post.postMeta.floorNumber}`, color: 'bg-slate-100', textColor: 'text-slate-700' });
-                          if (post.postMeta?.totalFloors) details.push({ label: `${post.postMeta.totalFloors} Floors`, color: 'bg-slate-100', textColor: 'text-slate-700' });
-                          if (post.postMeta?.maintenanceCharges) details.push({ label: `₹${post.postMeta.maintenanceCharges}/mo`, color: 'bg-slate-100', textColor: 'text-slate-700' });
-
-                          return (
-                            <>
-                              <p className="inline-flex items-center gap-0.5 text-2xl font-black text-slate-800">
-                                <IndianRupee className="size-4 text-slate-700" />
-                                {formatMoney(post.price).replace("₹", "")}
-                                {activeRole === "Tenant" && <span className="text-sm font-normal text-slate-500">/mo</span>}
-                              </p>
-                              <p className="line-clamp-1 text-base font-semibold text-slate-800">{isRequirement ? requirementTitle : post.title || "Premium Listing"}</p>
-                              <div className="flex items-center gap-2 text-xs text-slate-500">
-                                <MapPin className="size-3" />
-                                <span>{post.city || "City"}</span>
-                                {post.locality && <><span>·</span><span>{post.locality}</span></>}
-                                {post.latitude && post.longitude && (
-                                  <span className="flex items-center gap-1 text-indigo-600">
-                                    <span className="size-1.5 rounded-full bg-indigo-600"></span>
-                                    <span>Live Location</span>
-                                  </span>
-                                )}
-                              </div>
-                              {details.length > 0 && (
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                  {details.slice(0, 6).map((detail, idx) => (
-                                    <span
-                                      key={idx}
-                                      className={`rounded-full ${detail.color} px-2.5 py-1 text-xs font-medium ${detail.textColor}`}
-                                    >
-                                      {detail.label}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                              {post.postMeta?.moveInDate && activeRole === "Tenant" && (
-                                <p className="text-xs text-slate-600">Move-in: {new Date(post.postMeta.moveInDate).toLocaleDateString()}</p>
-                              )}
-                            </>
-                          );
-                        })()}
-
-                        <div className="text-xs text-slate-600">
-                          <p className={readMore ? "" : "line-clamp-2"}>{post.caption || "A beautifully curated property with modern design and premium amenities."}</p>
-                          {(post.caption || "").length > 100 ? (
-                            <button
-                              type="button"
-                              className="mt-1 font-semibold text-indigo-600"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setExpandedPostIds((prev) => ({ ...prev, [post._id]: !prev[post._id] }));
-                              }}
-                            >
-                              {readMore ? "Read less" : "Read more"}
-                            </button>
-                          ) : null}
-                        </div>
-
-                        <div className="flex items-center justify-between border-t border-slate-100 pt-2">
-                          <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-1">
+                        ) : null
+                      }
+                      priceBlock={
+                        <>
+                          <p className="inline-flex items-center gap-0.5 text-2xl font-black text-slate-800">
+                            <IndianRupee className="size-4 text-slate-700" />
+                            {formatMoney(post.price).replace("₹", "")}
+                            {activeRole === "Tenant" && <span className="text-sm font-normal text-slate-500">/mo</span>}
+                          </p>
+                          <p className="line-clamp-1 text-base font-semibold text-slate-800">{isRequirement ? requirementTitle : post.title || "Premium Listing"}</p>
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            <MapPin className="size-3" />
+                            <span>{post.city || "City"}</span>
+                            {post.locality && <><span>·</span><span>{post.locality}</span></>}
+                            {post.latitude && post.longitude && (
                               <button
                                 type="button"
-                                className="btn btn-ghost btn-xs btn-circle text-slate-500 hover:bg-slate-100"
+                                className="flex items-center gap-1 text-indigo-600 hover:underline"
                                 onClick={(event) => {
                                   event.stopPropagation();
-                                  toggleLike(post._id);
+                                  navigate(`/map-view?propertyId=${post._id}`);
                                 }}
                               >
-                                <Heart className={`size-4 ${post.isLikedByMe ? "fill-red-500 text-red-500" : ""}`} />
+                                <span className="size-1.5 rounded-full bg-indigo-600"></span>
+                                <span>Live Location</span>
                               </button>
-                              <span className="text-[11px] text-slate-500">{post.likesCount}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Eye className="size-4 text-slate-400" />
-                              <span className="text-[11px] text-slate-500">{post.viewCount || 0}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button type="button" className="btn btn-ghost btn-xs btn-circle text-slate-500 hover:bg-slate-100" onClick={(event) => { event.stopPropagation(); setSelectedPostForComments(post); }}><MessageCircle className="size-4" /></button>
-                              <span className="text-[11px] text-slate-500">{post.commentCount || 0}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn-xs btn-circle text-slate-500 hover:bg-slate-100"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  toggleSave(post._id);
-                                }}
-                              >
-                                <Bookmark className={`size-4 ${post.isSavedByMe ? "fill-indigo-600 text-indigo-600" : ""}`} />
-                              </button>
-                              <span className="text-[11px] text-slate-500">{post.savesCount || 0}</span>
-                            </div>
+                            )}
                           </div>
-                          <button 
-                            type="button" 
-                            className="btn btn-ghost btn-xs rounded-full text-slate-600 hover:bg-slate-100" 
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleContactClick(post);
-                            }}
-                          >
-                            <Phone className="size-3.5" />
-                            {(() => {
-                              const authorName = post.author?.fullName || post.author?.name || "Owner";
-                              const firstName = authorName.split(" ")[0];
-                              return `Contact ${firstName}`;
-                            })()}
-                          </button>
-                        </div>
-                      </div>
-                    </article>
+                          {detailBadges.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {detailBadges.slice(0, 6).map((detail, idx) => (
+                                <span
+                                  key={idx}
+                                  className={`rounded-full ${detail.color} px-2.5 py-1 text-xs font-medium ${detail.textColor}`}
+                                >
+                                  {detail.label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {post.postMeta?.moveInDate && activeRole === "Tenant" && (
+                            <p className="text-xs text-slate-600">Move-in: {new Date(post.postMeta.moveInDate).toLocaleDateString()}</p>
+                          )}
+                        </>
+                      }
+                      description={
+                        <ClampedCaption text={post.caption || "A beautifully curated property with modern design and premium amenities."} />
+                      }
+                      onLike={() => toggleLike(post._id)}
+                      isLiked={post.isLikedByMe}
+                      likesCount={post.likesCount}
+                      viewsCount={post.viewCount || 0}
+                      onComment={() => setSelectedPostForComments(post)}
+                      commentsCount={post.commentCount || 0}
+                      onSave={() => toggleSave(post._id)}
+                      isSaved={post.isSavedByMe}
+                      savesCount={post.savesCount || 0}
+                      onContact={() => handleContactClick(post)}
+                      onOpenPost={() => navigate(`/property/${post._id}`)}
+                      className={selectedForComparison.includes(post._id) ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-slate-100'}
+                    />
                   );
                 })}
               </div>
@@ -2071,37 +1746,9 @@ export default function MarketplacePage() {
         </button>
       )}
 
-      {selectedForComparison.length >= 2 && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50">
-          <button
-            type="button"
-            className="group inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-full font-semibold shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-            onClick={() => navigate(`/compare-properties?ids=${selectedForComparison.join(',')}`)}
-          >
-            <span>Compare {selectedForComparison.length} Properties</span>
-          </button>
-        </div>
-      )}
+      <CompareFloatingBar selected={selectedForComparison} />
 
-      {selectedImage ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-6" onClick={() => setSelectedImage(null)}>
-          {isVideoUrl(selectedImage) ? (
-            <video
-              src={selectedImage}
-              controls
-              autoPlay
-              className="max-h-full max-w-full rounded-2xl object-contain"
-              onClick={(event) => event.stopPropagation()}
-            />
-          ) : (
-            <img src={selectedImage} alt="Property preview" className="max-h-full max-w-full rounded-2xl object-contain" />
-          )}
-          <button type="button" className="btn btn-sm absolute right-6 top-6 border-none bg-white text-slate-700 hover:bg-slate-100" onClick={() => setSelectedImage(null)}>
-            <X className="size-4" />
-            Close
-          </button>
-        </div>
-      ) : null}
+      <FullscreenMediaViewer src={selectedImage} onClose={() => setSelectedImage(null)} />
 
       {isComposerOpen ? (
         <div className="fixed inset-0 z-50 bg-black/35" onClick={resetComposer}>

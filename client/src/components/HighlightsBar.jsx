@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, X, Loader2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
 import toast from "react-hot-toast";
 import { StoryViewer } from "./StoriesBar";
 import { resolveMediaUrl } from "../lib/media";
+import { useStoryOverlay } from "../context/StoryOverlayContext";
 
 // Instagram-style permanent story collections on a profile. Tapping a
 // circle opens the same StoryViewer used for live 24h stories, just fed
@@ -14,6 +15,14 @@ export default function HighlightsBar({ userId, isOwnProfile, isFriend, authUser
   const [viewingHighlightId, setViewingHighlightId] = useState(null);
   const [storyIndex, setStoryIndex] = useState(0);
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Pauses any autoplaying feed video underneath while a highlight story is
+  // open — see StoryOverlayContext.jsx.
+  const { setActive: setStoryOverlayActive } = useStoryOverlay();
+  useEffect(() => {
+    setStoryOverlayActive(Boolean(viewingHighlightId));
+    return () => setStoryOverlayActive(false);
+  }, [viewingHighlightId, setStoryOverlayActive]);
 
   // Highlights follow the same friends-only visibility as the stories they're
   // built from — a stranger shouldn't even see the row, let alone fetch it
