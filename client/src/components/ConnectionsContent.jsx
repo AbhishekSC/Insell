@@ -288,7 +288,7 @@ export default function ConnectionsContent({ onOpenMessages }) {
     }, 
     placeholderData: (previousData) => previousData 
   });
-  const { data: authData } = useQuery({ queryKey: ["authUser"], queryFn: async () => (await axiosInstance.get("/auth/verify")).data, retry: false, staleTime: 1000 * 60 * 5 });
+  const { data: authData } = useQuery({ queryKey: ["authUser"], queryFn: async () => (await axiosInstance.get("/auth/verify", { skipErrorToast: true })).data, retry: false, staleTime: 1000 * 60 * 5 });
   const { data: notificationsData, isLoading: notificationsLoading } = useQuery({ queryKey: ["notifications"], queryFn: async () => (await axiosInstance.get("/notifications?type=message_request")).data?.data?.notifications || [], refetchInterval: 30000, select: (notifications) => notifications.filter(n => n.requestStatus === "pending") });
   const friends = friendsData ?? EMPTY_LIST;
   const incomingRequests = incomingData ?? EMPTY_LIST;

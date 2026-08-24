@@ -10,7 +10,19 @@ import { logger } from "../utils/logger.js";
 import Notification from "../models/Notification.model.js";
 import { pushRealtimeNotification } from "./stream.service.js";
 
-const { BCRYPT_SALT_ROUNDS } = SCHEMA_CONSTANTS;
+const { BCRYPT_SALT_ROUNDS, PASSWORD_MIN_LENGTH } = SCHEMA_CONSTANTS;
+
+// At least PASSWORD_MIN_LENGTH chars, one uppercase letter, one special
+// character — mirrored on the client (SignupPage.jsx) for instant feedback,
+// but enforced here too since the client check alone doesn't stop a direct
+// API call with a weak password.
+const PASSWORD_STRENGTH_REGEX = new RegExp(
+  `^(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>_\\-+=~\`[\\]\\\\/;']).{${PASSWORD_MIN_LENGTH},}$`
+);
+const PASSWORD_STRENGTH_MESSAGE =
+  `Password must be at least ${PASSWORD_MIN_LENGTH} characters and include one uppercase letter and one special character.`;
+
+export { PASSWORD_STRENGTH_REGEX, PASSWORD_STRENGTH_MESSAGE };
 
 const WELCOME_MESSAGE = "🚀 New to Insell? Explore, connect, and discover what's waiting for you!";
 const WELCOME_DELAY_MS = 15 * 1000;
@@ -51,6 +63,10 @@ export default class AuthService extends BaseService {
     const existingUser = await userRepository.findByEmail(email);
     if (existingUser) {
       throw new AppError("Email already exists. Please use a different email.", 400);
+    }
+
+    if (!PASSWORD_STRENGTH_REGEX.test(password)) {
+      throw new AppError(PASSWORD_STRENGTH_MESSAGE, 400);
     }
 
     const hashedPassword = await bcrypt.hash(password, await bcrypt.genSalt(BCRYPT_SALT_ROUNDS));

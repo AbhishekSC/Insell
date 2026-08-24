@@ -36,7 +36,12 @@ axiosInstance.interceptors.response.use(
     // Blocked-account errors get a dedicated modal (see AccountBlockedModal /
     // App.jsx and LoginPage.jsx) — skip the generic toast so it doesn't fire
     // alongside that more informative UI.
-    if (error.response?.data?.missingFields?.code !== "ACCOUNT_BLOCKED") {
+    const isAccountBlocked = error.response?.data?.missingFields?.code === "ACCOUNT_BLOCKED";
+    // Requests that opt out (e.g. the on-load "am I logged in?" check in
+    // App.jsx) expect a routine 401 for anyone not yet signed in — that's
+    // not an error worth alarming a fresh, logged-out visitor with.
+    const isSilenced = error.config?.skipErrorToast;
+    if (!isAccountBlocked && !isSilenced) {
       const message = error.response?.data?.message || error.message || "Something went wrong";
       toast.error(message);
     }

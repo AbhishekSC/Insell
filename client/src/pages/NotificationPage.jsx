@@ -119,7 +119,7 @@ export default function NotificationPage() {
   });
   const { data: authData } = useQuery({
     queryKey: ["authUser"],
-    queryFn: async () => (await axiosInstance.get("/auth/verify")).data,
+    queryFn: async () => (await axiosInstance.get("/auth/verify", { skipErrorToast: true })).data,
     retry: false,
     staleTime: 1000 * 60 * 5,
   });

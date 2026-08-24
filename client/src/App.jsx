@@ -51,7 +51,7 @@ function App() {
     queryKey: ["authUser"],
     queryFn: async () => {
       try {
-        const res = await axiosInstance.get("/auth/verify");
+        const res = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
         return res.data;
       } catch (err) {
         if (err?.response?.data?.missingFields?.code === "ACCOUNT_BLOCKED") {

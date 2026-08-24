@@ -4,6 +4,15 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import toast from "react-hot-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
+import { setAuthToken } from "../lib/authToken";
+
+// Mirrors the server-side check in AuthService.js — kept in sync manually
+// since this is plain client validation, not a shared package.
+const PASSWORD_RULES = [
+  { key: "length", label: "At least 6 characters", test: (pw) => pw.length >= 6 },
+  { key: "uppercase", label: "One uppercase letter", test: (pw) => /[A-Z]/.test(pw) },
+  { key: "special", label: "One special character", test: (pw) => /[!@#$%^&*(),.?":{}|<>_\-+=~`[\]\\/;']/.test(pw) },
+];
 
 const SignupPage = () => {
   const queryClient = useQueryClient();
@@ -16,14 +25,17 @@ const SignupPage = () => {
   });
   const [errorMsg] = useState("");
 
-  // Handle Google OAuth callback
+  // Handle Google OAuth callback. handleGoogleSignup below sends
+  // ?intent=signup, which the backend echoes back via Google's own "state"
+  // param and uses to redirect here instead of /login (see googleAuth /
+  // googleAuthCallback in auth.controller.js).
   useEffect(() => {
+    const success = searchParams.get('success');
     const token = searchParams.get('token');
     const error = searchParams.get('error');
 
-    if (token) {
-      // Store token and redirect
-      localStorage.setItem('token', token);
+    if (success === 'true' && token) {
+      setAuthToken(token);
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
       navigate('/');
       toast.success('Successfully signed up with Google');
@@ -35,7 +47,7 @@ const SignupPage = () => {
   }, [searchParams, navigate, queryClient]);
 
   const handleGoogleSignup = () => {
-    window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/auth/google`;
+    window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/auth/google?intent=signup`;
   };
 
   // handle input changes generically
@@ -64,9 +76,16 @@ const SignupPage = () => {
     },
   });
 
+  const passwordChecks = PASSWORD_RULES.map((rule) => ({ ...rule, passed: rule.test(signupData.password) }));
+  const isPasswordValid = passwordChecks.every((rule) => rule.passed);
+
   // handle submit
   const handleSignup = async (e) => {
     e.preventDefault();
+    if (!isPasswordValid) {
+      toast.error("Password doesn't meet the requirements below");
+      return;
+    }
     mutate();
   };
 
@@ -151,9 +170,19 @@ const SignupPage = () => {
                 required
                 minLength={6}
               />
-              <p className="text-xs opacity-70 mt-1">
-                Password must be at least 6 characters long
-              </p>
+              {signupData.password.length > 0 && (
+                <ul className="mt-1.5 space-y-0.5">
+                  {passwordChecks.map((rule) => (
+                    <li
+                      key={rule.key}
+                      className={`flex items-center gap-1.5 text-xs ${rule.passed ? "text-success" : "opacity-60"}`}
+                    >
+                      <span>{rule.passed ? "✓" : "○"}</span>
+                      {rule.label}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             {/* Terms checkbox */}
