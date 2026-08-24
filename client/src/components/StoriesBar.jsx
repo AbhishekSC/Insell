@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import UserListModal from "./UserListModal";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import { resolveMediaUrl } from "../lib/media";
+import { useStoryOverlay } from "../context/StoryOverlayContext";
 
 const STORY_CATEGORIES = [
   { label: "Premium Projects", category: "premium", color: "from-amber-400 to-orange-500" },
@@ -25,6 +26,16 @@ export default function StoriesBar() {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData(["authUser"]);
   const authUser = authData?.data?.user || authData?.data || null;
+
+  // Pauses any autoplaying feed video underneath while a story is open —
+  // see StoryOverlayContext.jsx.
+  const { setActive: setStoryOverlayActive } = useStoryOverlay();
+  useEffect(() => {
+    setStoryOverlayActive(Boolean(activeStory));
+    // Reset on unmount too — otherwise navigating away mid-story would leave
+    // this stuck true forever, wrongly pausing videos on every other page.
+    return () => setStoryOverlayActive(false);
+  }, [activeStory, setStoryOverlayActive]);
 
   // Fetch active stories
   const { data: storiesData, isLoading } = useQuery({

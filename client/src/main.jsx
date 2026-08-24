@@ -8,6 +8,7 @@ import { BrowserRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StreamProvider } from "./context/StreamProvider";
 import { ThemeProvider } from "./context/ThemeProvider";
+import { StoryOverlayProvider } from "./context/StoryOverlayContext";
 import { initPostHog } from "./lib/posthog";
 import Sentry, { initSentry } from "./lib/sentry";
 import { setAuthToken } from "./lib/authToken";
@@ -62,7 +63,9 @@ createRoot(document.getElementById("root")).render(
         <BrowserRouter>
           <QueryClientProvider client={queryClient}>
             <StreamProvider>
-              <App />
+              <StoryOverlayProvider>
+                <App />
+              </StoryOverlayProvider>
             </StreamProvider>
           </QueryClientProvider>
         </BrowserRouter>
