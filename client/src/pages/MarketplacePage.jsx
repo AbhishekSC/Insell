@@ -42,6 +42,8 @@ import {
   X,
   CheckSquare,
   Square,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import ShareModal from "../components/ShareModal";
 import ReportPostModal from "../components/ReportPostModal";
@@ -275,6 +277,10 @@ export default function MarketplacePage() {
   const [activeCategory, setActiveCategory] = useState("For You");
   const [selectedTrendingLocation, setSelectedTrendingLocation] = useState(null);
   const [carouselIndex, setCarouselIndex] = useState({});
+  // Per-post mute state for feed videos — starts muted (required by browser
+  // autoplay policy), keyed by post id so toggling one card's sound doesn't
+  // affect any other.
+  const [unmutedVideoIds, setUnmutedVideoIds] = useState(() => new Set());
   const [expandedPostIds, setExpandedPostIds] = useState({});
   const [likedBurstPostId, setLikedBurstPostId] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -1405,9 +1411,29 @@ export default function MarketplacePage() {
                           isVideoUrl(image) ? (
                             <video
                               src={image}
-                              alt={post.title || "Property"}
                               className="h-[22rem] w-full object-cover"
-                              controls
+                              muted={!unmutedVideoIds.has(post._id)}
+                              loop
+                              playsInline
+                              // Instagram-style feed playback: no player chrome, just
+                              // autoplay (muted, browsers require that) while scrolled
+                              // into view and pause once it scrolls back out. Full
+                              // controls still show in the "Full screen" viewer.
+                              ref={(el) => {
+                                if (!el) return;
+                                const observer = new IntersectionObserver(
+                                  ([entry]) => {
+                                    if (entry.isIntersecting) {
+                                      el.play().catch(() => {});
+                                    } else {
+                                      el.pause();
+                                    }
+                                  },
+                                  { threshold: 0.5 }
+                                );
+                                observer.observe(el);
+                                return () => observer.disconnect();
+                              }}
                               onDoubleClick={(event) => {
                                 event.stopPropagation();
                                 toggleLike(post._id);
@@ -1534,6 +1560,27 @@ export default function MarketplacePage() {
                         </div>
 
                         <div className="absolute right-3 bottom-3 flex items-center gap-2">
+                          {isVideoUrl(image) && (
+                            <button
+                              type="button"
+                              className="size-8 rounded-full flex items-center justify-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75 transition-opacity"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setUnmutedVideoIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(post._id)) {
+                                    next.delete(post._id);
+                                  } else {
+                                    next.add(post._id);
+                                  }
+                                  return next;
+                                });
+                              }}
+                              title={unmutedVideoIds.has(post._id) ? "Mute" : "Unmute"}
+                            >
+                              {unmutedVideoIds.has(post._id) ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+                            </button>
+                          )}
                           <button
                             type="button"
                             className={`size-8 rounded-full flex items-center justify-center transition-all duration-200 ${
@@ -2038,7 +2085,17 @@ export default function MarketplacePage() {
 
       {selectedImage ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-6" onClick={() => setSelectedImage(null)}>
-          <img src={selectedImage} alt="Property preview" className="max-h-full max-w-full rounded-2xl object-contain" />
+          {isVideoUrl(selectedImage) ? (
+            <video
+              src={selectedImage}
+              controls
+              autoPlay
+              className="max-h-full max-w-full rounded-2xl object-contain"
+              onClick={(event) => event.stopPropagation()}
+            />
+          ) : (
+            <img src={selectedImage} alt="Property preview" className="max-h-full max-w-full rounded-2xl object-contain" />
+          )}
           <button type="button" className="btn btn-sm absolute right-6 top-6 border-none bg-white text-slate-700 hover:bg-slate-100" onClick={() => setSelectedImage(null)}>
             <X className="size-4" />
             Close
