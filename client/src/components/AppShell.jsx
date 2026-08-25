@@ -9,6 +9,7 @@ import {
   HelpCircle,
   Home,
   House,
+  LocateFixed,
   LogOut,
   Map,
   Menu,
@@ -28,6 +29,7 @@ import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import { clearAuthToken } from "../lib/authToken";
 import { useStreamContext } from "../context/StreamProvider";
+import { getFullLocationDetails } from "../utils/geolocation";
 import UserAvatar from "./UserAvatar";
 import SearchFiltersModal from "./SearchFiltersModal";
 import PostModerationNotice from "./PostModerationNotice";
@@ -247,7 +249,7 @@ function GlobalSearch({
   );
 }
 
-function HeaderActions({ onCreateProperty, unreadActivityCount }) {
+function HeaderActions({ onCreateProperty, unreadActivityCount, onShareLocation, isSharingLocation }) {
   return (
     <div className="hidden shrink-0 items-center gap-3 lg:flex">
       <button
@@ -257,6 +259,20 @@ function HeaderActions({ onCreateProperty, unreadActivityCount }) {
       >
         <Plus className="size-4" />
         Create Post
+      </button>
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm btn-circle border border-slate-200 text-slate-600 hover:bg-slate-100"
+        aria-label="Share live location for a more personalized feed"
+        title="Share live location for a more personalized feed"
+        onClick={() => onShareLocation?.()}
+        disabled={isSharingLocation}
+      >
+        {isSharingLocation ? (
+          <span className="loading loading-spinner loading-xs" />
+        ) : (
+          <LocateFixed className="size-4" />
+        )}
       </button>
       <Link
         to="/activity"
@@ -364,6 +380,29 @@ export default function AppShell({
   const queryClient = useQueryClient();
   const previousRequestCountRef = useRef(0);
   const { unreadCount, streamClient, currentUserId } = useStreamContext();
+
+  const { mutate: shareLocation, isPending: isSharingLocation } = useMutation({
+    mutationFn: async () => {
+      const locationData = await getFullLocationDetails();
+      const response = await axiosInstance.patch("/users/location", locationData);
+      return response.data;
+    },
+    onSuccess: (response) => {
+      const user = response?.data?.user;
+      queryClient.setQueryData(["authUser"], (prev) => {
+        const prevData = prev?.data?.user || prev?.data || {};
+        return { status: "success", data: { user: { ...prevData, ...user } } };
+      });
+      toast.success("Location updated — your feed will now be more personalized to you");
+    },
+    onError: (err) => {
+      if (err?.code === 1 || err?.message?.toLowerCase().includes("denied")) {
+        toast.error("Location permission denied — enable it in your browser settings to personalize your feed");
+      } else {
+        toast.error(err?.response?.data?.message || "Couldn't get your location, please try again");
+      }
+    },
+  });
 
   const [marketSearch, setMarketSearch] = useState(marketplaceSearch);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -592,7 +631,12 @@ export default function AppShell({
                   onOpenFilters={() => setIsFiltersModalOpen(true)}
                   hasActiveFilters={!!activeFilters}
                 />
-                <HeaderActions onCreateProperty={onCreateProperty} unreadActivityCount={activityNotifications} />
+                <HeaderActions
+                  onCreateProperty={onCreateProperty}
+                  unreadActivityCount={activityNotifications}
+                  onShareLocation={shareLocation}
+                  isSharingLocation={isSharingLocation}
+                />
                 <UserMenu authUser={authUser} userRoleLabel={userRoleLabel} isPending={isPending} logout={logout} />
               </div>
 
@@ -612,6 +656,20 @@ export default function AppShell({
                     onClick={() => setSearchFocused(true)}
                   >
                     <Search className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm btn-circle border border-slate-200 text-slate-600 hover:bg-slate-100"
+                    aria-label="Share live location for a more personalized feed"
+                    title="Share live location for a more personalized feed"
+                    onClick={() => shareLocation()}
+                    disabled={isSharingLocation}
+                  >
+                    {isSharingLocation ? (
+                      <span className="loading loading-spinner loading-xs" />
+                    ) : (
+                      <LocateFixed className="size-4" />
+                    )}
                   </button>
                   <Link
                     to="/marketplace?section=activity"

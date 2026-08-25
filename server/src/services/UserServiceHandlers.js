@@ -542,6 +542,21 @@ export async function updateUserLocation(req, res) {
 
     await invalidateDiscoverCache(currentUserId);
 
+    // Bust this user's own cached feed responses so the next "For You" load
+    // recomputes with the new location instead of serving a stale cached
+    // response for up to the feed cache's TTL — mirrors how like/save force
+    // an immediate re-personalization, scoped to just this user's entries
+    // since a location change only affects their own ranking.
+    try {
+      const keys = await redisClient.keys(`property:feed:*:${currentUserId}`);
+      if (keys.length > 0) {
+        await redisClient.del(keys);
+        logger.info(`Invalidated ${keys.length} property feed cache entries for user ${currentUserId} after location update`);
+      }
+    } catch (cacheError) {
+      logger.warn("Redis cache invalidation error after location update:", cacheError);
+    }
+
     return sendSuccessResponse(res, 200, "Location updated successfully", {
       user: sanitizeUserData(updatedUser),
     });
