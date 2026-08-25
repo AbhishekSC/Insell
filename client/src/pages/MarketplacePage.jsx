@@ -766,6 +766,33 @@ export default function MarketplacePage() {
       }));
   }, [activeCategory, appliedFilters, authUser?.city, data]);
 
+  // Lightweight polling for "is there something new" — checks just the newest
+  // post's id/timestamp every 30s instead of re-running the full feed query,
+  // and only while this tab is visible/focused (React Query's default
+  // refetchIntervalInBackground: false pauses it otherwise).
+  const { data: latestFeedPost } = useQuery({
+    queryKey: ["propertyFeedLatest"],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/posts/latest");
+      return response.data?.data || null;
+    },
+    enabled: Boolean(authUser?._id) && !search.trim(),
+    refetchInterval: 30000,
+    staleTime: 0,
+  });
+
+  const hasNewPosts = Boolean(
+    latestFeedPost?.latestPostId &&
+    posts[0]?.createdAt &&
+    posts[0]?._id !== String(latestFeedPost.latestPostId) &&
+    new Date(latestFeedPost.latestCreatedAt).getTime() > new Date(posts[0].createdAt).getTime()
+  );
+
+  const handleShowNewPosts = () => {
+    queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const { data: draftsListData, isLoading: isDraftsListLoading } = useQuery({
     queryKey: ["myDrafts", authUser?._id],
     queryFn: async () => {
@@ -1341,6 +1368,19 @@ export default function MarketplacePage() {
               onApply={(filters) => setAppliedFilters(filters)}
               onReset={() => setAppliedFilters(filters)}
             />
+
+            {hasNewPosts && (
+              <div className="sticky top-2 z-10 mt-4 flex justify-center">
+                <button
+                  type="button"
+                  onClick={handleShowNewPosts}
+                  className="btn btn-sm gap-1.5 rounded-full border-none bg-indigo-600 text-white shadow-lg hover:bg-indigo-500"
+                >
+                  <RefreshCw className="size-3.5" />
+                  New posts available
+                </button>
+              </div>
+            )}
 
             {isLoading ? (
               <div className="mt-4 grid gap-4 xl:grid-cols-2">

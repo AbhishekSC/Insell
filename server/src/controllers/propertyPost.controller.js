@@ -386,6 +386,34 @@ function getMatchReason(property, comparedProperties, userBehavior) {
   return reasons.length > 0 ? reasons[0] : "Similar to properties you viewed";
 }
 
+// Cheap "is there anything new" check for feed polling — returns just the
+// newest visible post's id/createdAt instead of re-running the full ranked
+// feed query, so the client can poll frequently without the cost of
+// personalization/pagination on every tick.
+export async function getLatestFeedPost(req, res) {
+  try {
+    const latestPost = await PropertyPost.findOne({
+      isDeleted: { $ne: true },
+      isBlocked: { $ne: true },
+      $and: [
+        { $or: [{ status: "PUBLISHED" }, { status: { $exists: false } }, { status: null }] },
+        { $or: [{ visibility: "PUBLIC" }, { visibility: { $exists: false } }, { visibility: null }] },
+      ],
+    })
+      .sort({ createdAt: -1 })
+      .select("createdAt")
+      .lean();
+
+    return sendSuccessResponse(res, 200, "Latest post retrieved", {
+      latestPostId: latestPost?._id || null,
+      latestCreatedAt: latestPost?.createdAt || null,
+    });
+  } catch (error) {
+    logger.error("Error in getLatestFeedPost:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
 export async function getPropertyFeed(req, res) {
   try {
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
@@ -491,13 +519,25 @@ export async function getPropertyFeed(req, res) {
           }
           break;
         case "near me":
-          // Only show posts from the same city as current user
+          // Prefer real coordinates (a ~50km bounding box around the user's
+          // last-known lat/lon) over city-string matching — this also covers
+          // users near a city border, or whose profile city doesn't exactly
+          // match how the post's city was typed in. Falls back to the old
+          // city regex when the user has no stored coordinates yet.
           if (currentUserId) {
             const User = (await import("../models/User.model.js")).default;
-            const currentUser = await User.findById(currentUserId).select("city").lean();
-            const userCity = currentUser?.city;
-            if (userCity) {
-              filter.city = { $regex: new RegExp(userCity, "i") };
+            const currentUser = await User.findById(currentUserId).select("city locationDetails").lean();
+            const userLat = currentUser?.locationDetails?.latitude;
+            const userLon = currentUser?.locationDetails?.longitude;
+
+            if (userLat != null && userLon != null) {
+              const RADIUS_KM = 50;
+              const latDelta = RADIUS_KM / 111;
+              const lonDelta = RADIUS_KM / (111 * Math.cos((userLat * Math.PI) / 180) || 1);
+              filter.latitude = { $gte: userLat - latDelta, $lte: userLat + latDelta };
+              filter.longitude = { $gte: userLon - lonDelta, $lte: userLon + lonDelta };
+            } else if (currentUser?.city) {
+              filter.city = { $regex: new RegExp(currentUser.city, "i") };
             }
           }
           break;
@@ -527,9 +567,11 @@ export async function getPropertyFeed(req, res) {
       }
     }
 
-    // Apply personalization for "for you" category
+    // Apply personalization for "for you" category — only computed for page 1,
+    // since getPersonalizedRecommendations always returns the same top-N and
+    // isn't paginated; running it on later pages would just repeat page 1's picks.
     let personalizedPosts = [];
-    if (category === "for you" && currentUserId) {
+    if (category === "for you" && currentUserId && page === 1) {
       try {
         personalizedPosts = await PersonalizationService.getPersonalizedRecommendations(currentUserId, limit);
         // Decorate personalized posts
@@ -607,8 +649,14 @@ export async function getPropertyFeed(req, res) {
       };
     });
 
-    // Structure the feed for "for you" category
-    if (category === "for you") {
+    // Structure the feed for "for you" category — only on page 1. Later pages
+    // fall through to plain chronological pagination below: the new/recent
+    // date buckets are computed from that page's own slice, which is almost
+    // always older than the 48h window once there's real post volume, and
+    // personalizedPosts is intentionally empty past page 1 (see above) — so
+    // bucketing every page here would return an empty `posts` array on page 2+
+    // even though pagination.totalPages still claims more pages exist.
+    if (category === "for you" && page === 1) {
       const now = new Date();
       const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
@@ -623,7 +671,7 @@ export async function getPropertyFeed(req, res) {
       const combinedPosts = [
         ...newPosts,
         ...recentPosts,
-        ...personalizedPosts.filter(p => !decoratedPosts.find(dp => dp._id === p._id))
+        ...personalizedPosts.filter(p => !decoratedPosts.some(dp => String(dp._id) === String(p._id)))
       ];
 
       const responseData = {
@@ -644,7 +692,7 @@ export async function getPropertyFeed(req, res) {
       // Cache the response for 5 minutes (only for first page)
       try {
         if (page === 1 && !query && !authorId && !savedBy) {
-          await redisClient.setEx(cacheKey, 300, JSON.stringify(responseData));
+          await redisClient.setEx(cacheKey, 180, JSON.stringify(responseData));
           logger.info("Cached property feed data");
         }
       } catch (cacheError) {
@@ -667,7 +715,7 @@ export async function getPropertyFeed(req, res) {
     // Cache the response for 5 minutes (only for first page without complex filters)
     try {
       if (page === 1 && !query && !authorId && !savedBy) {
-        await redisClient.setEx(cacheKey, 300, JSON.stringify(responseData));
+        await redisClient.setEx(cacheKey, 180, JSON.stringify(responseData));
         logger.info("Cached property feed data");
       }
     } catch (cacheError) {

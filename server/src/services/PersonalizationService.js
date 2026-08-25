@@ -5,6 +5,18 @@ import { logger } from "../utils/logger.js";
 
 const PERSONALIZATION_CACHE_TTL_BASE = 10 * 60; // 10 minutes base
 const PERSONALIZATION_CACHE_KEY = (userId, type) => `personalization:${type}:${userId}`;
+const SEEN_POSTS_KEY = (userId) => `personalization:seen:${userId}`;
+const SEEN_POSTS_TTL_SECONDS = 24 * 60 * 60; // rotate seen posts back into the pool after 24h
+
+// Weights for blending the final "For You" ranking score. Kept as named
+// constants (rather than scattered magic numbers) so they're easy to tune.
+const FEED_SCORE_WEIGHTS = {
+  personalization: 0.5,
+  comment: 0.2,
+  recency: 0.15,
+  popularity: 0.15,
+};
+const RECENCY_HALF_LIFE_DAYS = 21; // recency contribution halves roughly every 3 weeks
 
 /**
  * Calculate dynamic TTL based on user activity level
@@ -63,10 +75,39 @@ class PersonalizationService {
   }
 
   /**
+   * Great-circle distance between two lat/lon points, in kilometers.
+   */
+  static getDistanceKm(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  /**
    * Calculate location-based score
-   * Higher score for properties in user's city or nearby areas
+   * Uses real lat/lon proximity when both the user and the property have
+   * coordinates; falls back to city-string matching otherwise (e.g. a user
+   * who never granted geolocation, or a property with no coordinates).
    */
   static getLocationScore(property, user) {
+    const userLat = user.locationDetails?.latitude;
+    const userLon = user.locationDetails?.longitude;
+    const propertyLat = property.latitude;
+    const propertyLon = property.longitude;
+
+    if (userLat != null && userLon != null && propertyLat != null && propertyLon != null) {
+      const distanceKm = this.getDistanceKm(userLat, userLon, propertyLat, propertyLon);
+      if (distanceKm <= 5) return 100;
+      if (distanceKm <= 15) return 85;
+      if (distanceKm <= 30) return 65;
+      if (distanceKm <= 60) return 40;
+      return 15;
+    }
+
     if (!user.city || !property.city) return 0;
 
     const userCity = user.city.toLowerCase();
@@ -78,9 +119,9 @@ class PersonalizationService {
     // Same state/region (simplified - in production, use proper geolocation)
     const userCityParts = userCity.split(' ');
     const propertyCityParts = propertyCity.split(' ');
-    
+
     // Check if they share any part (e.g., "North Mumbai" and "South Mumbai")
-    const hasCommonPart = userCityParts.some(part => 
+    const hasCommonPart = userCityParts.some(part =>
       propertyCityParts.some(propPart => propPart.includes(part) || part.includes(propPart))
     );
 
@@ -346,6 +387,40 @@ class PersonalizationService {
     } catch (error) {
       logger.error('Error fetching user behavior:', error);
       return {};
+    }
+  }
+
+  /**
+   * Get the set of post IDs recently shown to this user in their personalized
+   * feed, so repeat visits within the window surface fresh picks instead of
+   * the same top-scored posts every time.
+   */
+  static async getRecentlySeenPostIds(userId) {
+    try {
+      const key = SEEN_POSTS_KEY(userId);
+      const cutoff = Date.now() - SEEN_POSTS_TTL_SECONDS * 1000;
+      await redisClient.zRemRangeByScore(key, 0, cutoff);
+      const ids = await redisClient.zRange(key, 0, -1);
+      return new Set(ids);
+    } catch (error) {
+      logger.warn("Failed to read recently-seen posts:", error);
+      return new Set();
+    }
+  }
+
+  /**
+   * Record post IDs as shown so they can be excluded from this user's
+   * personalized feed until they roll out of the seen window.
+   */
+  static async markPostsAsSeen(userId, postIds) {
+    if (!Array.isArray(postIds) || postIds.length === 0) return;
+    try {
+      const key = SEEN_POSTS_KEY(userId);
+      const now = Date.now();
+      await redisClient.zAdd(key, postIds.map((id) => ({ score: now, value: String(id) })));
+      await redisClient.expire(key, SEEN_POSTS_TTL_SECONDS);
+    } catch (error) {
+      logger.warn("Failed to mark posts as seen:", error);
     }
   }
 
@@ -962,7 +1037,10 @@ class PersonalizationService {
       if (!user) return [];
 
       logger.info(`👤 [PERSONALIZED RECOMMENDATIONS] User found - City: ${user.city}, Verified: ${user.isVerified}`);
-      const userBehavior = await this.getUserBehavior(userId);
+      const [userBehavior, recentlySeenIds] = await Promise.all([
+        this.getUserBehavior(userId),
+        this.getRecentlySeenPostIds(userId),
+      ]);
 
       // Get all published properties (excluding user's own posts)
       const properties = await PropertyPost.find({
@@ -975,16 +1053,33 @@ class PersonalizationService {
 
       logger.info(`📊 [PERSONALIZED RECOMMENDATIONS] Found ${properties.length} properties to analyze`);
 
-      // Score each property with enhanced comment-based scoring
+      // Score each property, blending preference-match (personalization +
+      // comment signals) with objective quality signals (recency, popularity)
+      // so cold-start users — who get neutral 50s on every preference signal —
+      // still get a meaningfully ranked feed instead of arbitrary DB order.
       const scoredProperties = properties.map(property => {
         const personalizationScore = this.calculatePropertyScore(property, user, userBehavior);
         const commentScore = this.calculateCommentBasedScore(property, userBehavior);
-        const finalScore = (personalizationScore * 0.7) + (commentScore * 0.3);
-        
+
+        const ageInDays = (Date.now() - new Date(property.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+        const recencyScore = 100 * Math.pow(0.5, Math.max(0, ageInDays) / RECENCY_HALF_LIFE_DAYS);
+
+        const likesCount = Array.isArray(property.likedBy) ? property.likedBy.length : 0;
+        const savesCount = Array.isArray(property.savedBy) ? property.savedBy.length : 0;
+        const popularityScore = Math.min(100, likesCount * 2 + savesCount * 3 + (property.commentCount || 0) * 1.5);
+
+        const finalScore =
+          personalizationScore * FEED_SCORE_WEIGHTS.personalization +
+          commentScore * FEED_SCORE_WEIGHTS.comment +
+          recencyScore * FEED_SCORE_WEIGHTS.recency +
+          popularityScore * FEED_SCORE_WEIGHTS.popularity;
+
         return {
           ...property,
           personalizationScore,
           commentScore,
+          recencyScore,
+          popularityScore,
           finalScore
         };
       });
@@ -994,38 +1089,47 @@ class PersonalizationService {
 
       logger.info(`📈 [PERSONALIZED RECOMMENDATIONS] Top 5 properties before diversity filtering:`);
       scoredProperties.slice(0, 5).forEach((prop, idx) => {
-        logger.info(`   ${idx + 1}. ${prop.title || prop.propertyType} - FinalScore: ${prop.finalScore.toFixed(1)} (Property: ${prop.personalizationScore.toFixed(1)}, Comment: ${prop.commentScore.toFixed(1)})`);
+        logger.info(`   ${idx + 1}. ${prop.title || prop.propertyType} - FinalScore: ${prop.finalScore.toFixed(1)} (Property: ${prop.personalizationScore.toFixed(1)}, Comment: ${prop.commentScore.toFixed(1)}, Recency: ${prop.recencyScore.toFixed(1)}, Popularity: ${prop.popularityScore.toFixed(1)})`);
       });
 
-      // Add diversity: ensure we don't show too many similar properties
-      const diverseRecommendations = [];
-      const seenPropertyTypes = new Set();
-      const seenLocations = new Set();
-      const seenAuthors = new Set();
+      // Prefer posts the user hasn't already been shown recently; fall back to
+      // the full pool if excluding seen posts would leave too few candidates
+      // (small catalog, or the user has seen everything).
+      const unseenScored = scoredProperties.filter(p => !recentlySeenIds.has(String(p._id)));
+      const candidatePool = unseenScored.length >= limit ? unseenScored : scoredProperties;
 
-      for (const property of scoredProperties) {
+      // Add diversity: ensure we don't show too many similar properties.
+      // Counts are tracked in Maps (not Sets) since a Set can't hold repeat
+      // values — using one here previously meant these caps never triggered.
+      const diverseRecommendations = [];
+      const typeCounts = new Map();
+      const locationCounts = new Map();
+      const authorCounts = new Map();
+
+      for (const property of candidatePool) {
         if (diverseRecommendations.length >= limit) break;
 
         const propertyType = property.propertyType;
         const location = property.city || property.location;
         const authorId = String(property.author?._id);
 
-        // Skip if we've already shown too many of this type/location/author
-        const typeCount = Array.from(seenPropertyTypes).filter(t => t === propertyType).length;
-        const locationCount = Array.from(seenLocations).filter(l => l === location).length;
-        const authorCount = Array.from(seenAuthors).filter(a => a === authorId).length;
+        const typeCount = typeCounts.get(propertyType) || 0;
+        const locationCount = locationCounts.get(location) || 0;
+        const authorCount = authorCounts.get(authorId) || 0;
 
         if (typeCount < 3 && locationCount < 3 && authorCount < 2) {
           diverseRecommendations.push(property);
-          seenPropertyTypes.add(propertyType);
-          seenLocations.add(location);
-          seenAuthors.add(authorId);
+          typeCounts.set(propertyType, typeCount + 1);
+          locationCounts.set(location, locationCount + 1);
+          authorCounts.set(authorId, authorCount + 1);
         }
       }
 
       logger.info(`✅ [PERSONALIZED RECOMMENDATIONS] Returning ${diverseRecommendations.length} diverse recommendations for user ID: ${userId}`);
-      logger.info(`🎭 [PERSONALIZED RECOMMENDATIONS] Diversity breakdown - PropertyTypes: ${seenPropertyTypes.size}, Locations: ${seenLocations.size}, Authors: ${seenAuthors.size}`);
-      
+      logger.info(`🎭 [PERSONALIZED RECOMMENDATIONS] Diversity breakdown - PropertyTypes: ${typeCounts.size}, Locations: ${locationCounts.size}, Authors: ${authorCounts.size}`);
+
+      await this.markPostsAsSeen(userId, diverseRecommendations.map(p => p._id));
+
       return diverseRecommendations;
     } catch (error) {
       logger.error('Error getting personalized recommendations:', error);

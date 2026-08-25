@@ -142,7 +142,7 @@ export default function ProfileContent() {
                   </span>
                 )}
               </div>
-              <h2 className="text-base sm:text-xl font-extrabold text-slate-800 break-words">Update your public buyer-seller card</h2>
+              <h2 className="text-base sm:text-xl font-extrabold text-slate-800 break-words">Update your profile</h2>
             </div>
           </div>
         </div>

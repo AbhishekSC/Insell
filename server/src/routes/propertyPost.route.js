@@ -4,6 +4,7 @@ import {
   compareProperties,
   createPropertyPost,
   deletePropertyPost,
+  getLatestFeedPost,
   getPropertyAnalytics,
   getPropertyFeed,
   getPropertyPostById,
@@ -19,6 +20,7 @@ import { uploadPropertyMedia } from "../middlewares/upload.middleware.js";
 const router = new express.Router();
 
 router.get("/", verifyUser, requireVerified, getPropertyFeed);
+router.get("/latest", verifyUser, requireVerified, getLatestFeedPost);
 router.get("/:id", verifyUser, requireVerified, getPropertyPostById);
 router.get("/:id/analytics", verifyUser, requireVerified, getPropertyAnalytics);
 router.post("/", verifyUser, requireVerified, createPropertyPost);
