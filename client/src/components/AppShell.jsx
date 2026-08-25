@@ -30,6 +30,8 @@ import axiosInstance from "../lib/axios";
 import { clearAuthToken } from "../lib/authToken";
 import { useStreamContext } from "../context/StreamProvider";
 import { getFullLocationDetails } from "../utils/geolocation";
+import logoMobile from "../assets/brand/logo-mobile.png";
+import logoDesktop from "../assets/brand/logo-desktop.png";
 import UserAvatar from "./UserAvatar";
 import SearchFiltersModal from "./SearchFiltersModal";
 import PostModerationNotice from "./PostModerationNotice";
@@ -82,37 +84,23 @@ function isNavItemActive(item, location) {
 }
 
 function LogoSection({ isMarketplaceShell, showText = true }) {
+  if (isMarketplaceShell) {
+    return (
+      <Link to="/marketplace" className="min-w-0 flex shrink-0 items-center" aria-label="INSELL home">
+        <img src={logoDesktop} alt="INSELL" className="h-9 w-auto shrink-0" />
+      </Link>
+    );
+  }
+
   return (
     <Link to="/marketplace" className="min-w-0 flex shrink-0 items-center gap-3" aria-label="INSELL home">
-      <div
-        className={
-          isMarketplaceShell
-            ? "grid size-10 shrink-0 place-items-center rounded-lg bg-indigo-600 text-white"
-            : "grid size-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary/25 via-secondary/20 to-accent/25 text-primary shadow-inner ring-1 ring-primary/20"
-        }
-      >
-        {isMarketplaceShell ? <House className="size-5" /> : <MessageSquare className="size-5" />}
+      <div className="grid size-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary/25 via-secondary/20 to-accent/25 text-primary shadow-inner ring-1 ring-primary/20">
+        <MessageSquare className="size-5" />
       </div>
       {showText ? (
         <div className="min-w-0">
-          <p
-            className={
-              isMarketplaceShell
-                ? "truncate text-xl font-black leading-none tracking-tight text-slate-800 sm:text-3xl"
-                : "truncate text-lg font-extrabold tracking-tight"
-            }
-          >
-            INSELL
-          </p>
-          <p
-            className={
-              isMarketplaceShell
-                ? "hidden truncate text-xs text-slate-500 sm:block"
-                : "hidden truncate text-xs text-base-content/60 sm:block"
-            }
-          >
-            Social Real Estate Marketplace
-          </p>
+          <p className="truncate text-lg font-extrabold tracking-tight">INSELL</p>
+          <p className="hidden truncate text-xs text-base-content/60 sm:block">Social Real Estate Marketplace</p>
         </div>
       ) : null}
     </Link>
@@ -878,12 +866,10 @@ export default function AppShell({
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowMobileMenu(false)} />
           <div className="absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col bg-white shadow-2xl">
             <div className="flex items-center gap-3 border-b border-slate-100 p-4">
-              <div className="grid size-11 shrink-0 place-items-center rounded-lg bg-indigo-600 text-white">
-                <House className="size-5" />
-              </div>
+              <img src={logoMobile} alt="INSELL" className="size-11 shrink-0 object-contain" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-base font-bold text-slate-800">{authUser?.fullName || "INSELL User"}</p>
-                <p className="truncate text-xs text-slate-500">INSELL · Social Real Estate Marketplace</p>
+                <p className="truncate text-xs text-slate-500">NearBySpace - your world nearby</p>
               </div>
               <button
                 type="button"
