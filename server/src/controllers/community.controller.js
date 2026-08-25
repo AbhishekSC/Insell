@@ -19,6 +19,7 @@ export {
   respondToCommunityInvite,
   toggleReaction,
   transferCommunityOwnership,
+  updateCommunityDetails,
   updateCommunityPhoto,
   upsertPresence,
 } from "../services/CommunityServiceHandlers.js";
