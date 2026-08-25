@@ -5,6 +5,14 @@ import toast from "react-hot-toast";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
 
+// Mirrors the server-side check in AuthService.js — kept in sync manually
+// since this is plain client validation, not a shared package.
+const PASSWORD_RULES = [
+  { key: "length", label: "At least 6 characters", test: (pw) => pw.length >= 6 },
+  { key: "uppercase", label: "One uppercase letter", test: (pw) => /[A-Z]/.test(pw) },
+  { key: "special", label: "One special character", test: (pw) => /[!@#$%^&*(),.?":{}|<>_\-+=~`[\]\\/;']/.test(pw) },
+];
+
 export default function NewPasswordPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -26,14 +34,17 @@ export default function NewPasswordPage() {
     },
   });
 
+  const passwordChecks = PASSWORD_RULES.map((rule) => ({ ...rule, passed: rule.test(newPassword) }));
+  const isPasswordValid = passwordChecks.every((rule) => rule.passed);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!newPassword || !confirmPassword) {
       toast.error("Please fill in all fields");
       return;
     }
-    if (newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters long");
+    if (!isPasswordValid) {
+      toast.error("Password doesn't meet the requirements below");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -79,6 +90,19 @@ export default function NewPasswordPage() {
                 required
                 minLength={6}
               />
+              {newPassword.length > 0 && (
+                <ul className="mt-1.5 space-y-0.5">
+                  {passwordChecks.map((rule) => (
+                    <li
+                      key={rule.key}
+                      className={`flex items-center gap-1.5 text-xs ${rule.passed ? "text-success" : "opacity-60"}`}
+                    >
+                      <span>{rule.passed ? "✓" : "○"}</span>
+                      {rule.label}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div className="form-control w-full">
@@ -130,7 +154,7 @@ export default function NewPasswordPage() {
               Secure your account
             </h2>
             <p className="opacity-70">
-              Choose a strong password to protect your account. Make sure it's at least 6 characters long.
+              Choose a strong password to protect your account — at least 6 characters, with one uppercase letter and one special character.
             </p>
           </div>
         </div>
