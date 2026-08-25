@@ -781,7 +781,7 @@ export default function OnboardingPage() {
               <div className="mx-auto text-center sm:mx-0 sm:flex-1">
               <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                 <Sparkles className="size-4" />
-                Welcome to Insell
+                Welcome to NearMySpace
               </div>
               <h1 className="text-3xl font-black tracking-tight sm:text-4xl">What brings you here today?</h1>
               <p className="mt-2 text-sm text-base-content/70 sm:text-base">Choose your intent. We will personalize onboarding instantly.</p>

@@ -40,7 +40,7 @@ export default function ReportPostModal({ isOpen, isPending, isSubmitted, onCanc
           </div>
           <h3 className="mt-4 text-lg font-semibold text-slate-800">Thanks for reporting this post</h3>
           <p className="mt-1.5 text-sm text-slate-500">
-            Your feedback helps us keep Insell safe. We've hidden this post from your feed while our team reviews it.
+            Your feedback helps us keep NearMySpace safe. We've hidden this post from your feed while our team reviews it.
           </p>
           <button
             type="button"

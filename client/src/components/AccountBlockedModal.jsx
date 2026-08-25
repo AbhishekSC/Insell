@@ -23,7 +23,7 @@ export default function AccountBlockedModal({ onClose }) {
         </div>
         <h3 className="mt-4 text-center text-lg font-semibold text-slate-800">Account blocked</h3>
         <p className="mt-1.5 text-center text-sm text-slate-500">
-          Your account has been blocked from InSell. If you think this is a mistake, please contact our support
+          Your account has been blocked from NearMySpace. If you think this is a mistake, please contact our support
           team for help.
         </p>
 

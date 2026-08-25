@@ -54,7 +54,7 @@ function formatMoney(value) {
 function normalizeMedia(post) {
   return Array.isArray(post.mediaUrls) && post.mediaUrls.length
     ? post.mediaUrls
-    : ["https://placehold.co/1200x800?text=Insell+Listing"];
+    : ["https://placehold.co/1200x800?text=NearMySpace+Listing"];
 }
 
 function isVideoUrl(url) {
@@ -166,7 +166,7 @@ export default function HomePage() {
               <House className="size-5" />
             </div>
             <div>
-              <p className="text-2xl font-black tracking-tight text-slate-800">INSELL</p>
+              <p className="text-2xl font-black tracking-tight text-slate-800">NearMySpace</p>
               <p className="text-xs text-slate-500">Social Real Estate Marketplace</p>
             </div>
           </div>

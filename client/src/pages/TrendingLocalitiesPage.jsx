@@ -34,7 +34,7 @@ export default function TrendingLocalitiesPage() {
           </div>
           <div className="min-w-0">
             <p className="text-lg font-bold">What's trending right now</p>
-            <p className="text-sm text-white/80">Ranked by recent search and listing activity across INSELL</p>
+            <p className="text-sm text-white/80">Ranked by recent search and listing activity across NearMySpace</p>
           </div>
         </div>
 

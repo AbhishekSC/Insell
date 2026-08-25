@@ -175,12 +175,12 @@ function OutgoingRequestsCard({ requests, showAll, onViewAll }) {
 }
 
 function discoveryReason(user, authUser, type) {
-  if (type === "Featured Professionals") return user?.isVerified || user?.verified ? `Verified ${userRole(user)}` : "Top rated on INSELL";
+  if (type === "Featured Professionals") return user?.isVerified || user?.verified ? `Verified ${userRole(user)}` : "Top rated on NearMySpace";
   if (type === "Nearby Professionals") return `Based in ${userLocation(user)}`;
   if (type === "Trending Sellers") return "Trending listing activity this week";
-  if (type === "Recently Joined Members") return "New member on INSELL";
+  if (type === "Recently Joined Members") return "New member on NearMySpace";
   if (type === "Top Rated Professionals") return "Highly rated professional";
-  if (type === "Active This Week") return "Recently active on INSELL";
+  if (type === "Active This Week") return "Recently active on NearMySpace";
   if (user?.city && user.city === authUser?.city) return `You both live in ${user.city}`;
   return user?.isVerified || user?.verified ? `Verified ${userRole(user)}` : "Shared property interests";
 }
@@ -224,11 +224,11 @@ function DiscoveryExperience({ users, authUser, searchQuery, onSearchChange, fil
   const activeUsers = getUniqueUsers(matches.filter((user) => !featuredUsers.includes(user) && !peopleYouMayKnow.includes(user) && !nearbyUsers.includes(user) && !trendingUsers.includes(user) && !recentlyJoined.includes(user) && !topRated.includes(user)), 3);
   
   const sections = [
-    ["Featured Professionals", "Trusted, verified experts who are active on INSELL.", featuredUsers],
+    ["Featured Professionals", "Trusted, verified experts who are active on NearMySpace.", featuredUsers],
     ["People You May Know", "Relevant matches based on your location and property interests.", peopleYouMayKnow],
     ["Nearby Professionals", `Professionals within your ${currentRadius.toLowerCase()}.`, nearbyUsers],
     ["Trending Sellers", "Popular sellers receiving attention this week.", trendingUsers],
-    ["Recently Joined Members", "Welcome new people to the INSELL community.", recentlyJoined],
+    ["Recently Joined Members", "Welcome new people to the NearMySpace community.", recentlyJoined],
     ["Top Rated Professionals", "Professionals recognised for consistently great service.", topRated],
     ["Active This Week", "People who are posting and engaging right now.", activeUsers],
   ];
