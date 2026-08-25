@@ -63,7 +63,7 @@ function CustomAttachment(props) {
         )}
       </div>
       <div className="p-3">
-        <p className="text-[11px] font-semibold tracking-wide text-indigo-600">INSELL PROPERTY</p>
+        <p className="text-[11px] font-semibold tracking-wide text-indigo-600">NearMySpace PROPERTY</p>
         <p className="mt-0.5 line-clamp-2 text-sm font-medium text-slate-800">{propertyAttachment.title}</p>
       </div>
     </button>

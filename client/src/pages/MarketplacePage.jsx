@@ -224,7 +224,7 @@ function formatMoney(value) {
 function normalizeMedia(post) {
   return Array.isArray(post.mediaUrls) && post.mediaUrls.length
     ? post.mediaUrls
-    : ["https://placehold.co/1400x900?text=INSELL+Listing"];
+    : ["https://placehold.co/1400x900?text=NearMySpace+Listing"];
 }
 
 function isVideoUrl(url) {

@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { Compass } from "lucide-react";
 import toast from "react-hot-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
 import AccountBlockedModal from "../components/AccountBlockedModal";
 import { setAuthToken } from "../lib/authToken";
 import posthog, { isPostHogEnabled } from "../lib/posthog";
+import logoDesktop from "../assets/brand/logo-desktop.png";
 
 export default function LoginPage() {
   const queryClient = useQueryClient();
@@ -51,7 +51,7 @@ export default function LoginPage() {
     },
     onSuccess: (response) => {
       setAuthToken(response?.data?.token);
-      toast.success("Welcome back to InSell");
+      toast.success("Welcome back to NearMySpace");
       queryClient.setQueryData(["authUser"], {
         status: "success",
         data: {
@@ -88,18 +88,15 @@ export default function LoginPage() {
     >
       <div className="glass-wrap flex flex-col lg:flex-row w-full max-w-5xl mx-auto overflow-hidden">
         <div className="w-full lg:w-1/2 p-5 sm:p-8 flex flex-col justify-center">
-          <div className="mb-4 flex items-center gap-2">
-            <Compass className="size-9 text-primary" />
-            <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
-              InSell
-            </span>
+          <div className="mb-4 flex items-center">
+            <img src={logoDesktop} alt="NearMySpace" className="h-10 w-auto" />
           </div>
 
           <form onSubmit={handleLogin} className="w-full space-y-4">
             <div>
               <h2 className="text-xl font-semibold">Welcome Back</h2>
               <p className="text-sm opacity-70">
-                Log in and continue your InSell journey.
+                Log in and continue your NearMySpace journey.
               </p>
             </div>
 
@@ -182,7 +179,7 @@ export default function LoginPage() {
             </button>
 
             <div className="mt-4 text-center">
-              <p className="text-sm opacity-70 mb-2">New to InSell?</p>
+              <p className="text-sm opacity-70 mb-2">New to NearMySpace?</p>
               <Link to="/signup" className="btn btn-outline btn-primary w-full rounded-xl">
                 Create New Account
               </Link>
@@ -203,7 +200,7 @@ export default function LoginPage() {
               Where real estate meets real conversations.
             </h2>
             <p className="opacity-70">
-              Rejoin your network of buyers, sellers, and brokers on Insell.
+              Rejoin your network of buyers, sellers, and brokers on NearMySpace.
             </p>
           </div>
         </div>

@@ -86,20 +86,20 @@ function isNavItemActive(item, location) {
 function LogoSection({ isMarketplaceShell, showText = true }) {
   if (isMarketplaceShell) {
     return (
-      <Link to="/marketplace" className="min-w-0 flex shrink-0 items-center" aria-label="INSELL home">
-        <img src={logoDesktop} alt="INSELL" className="h-9 w-auto shrink-0" />
+      <Link to="/marketplace" className="min-w-0 flex shrink-0 items-center" aria-label="NearMySpace home">
+        <img src={logoDesktop} alt="NearMySpace" className="h-9 w-auto shrink-0" />
       </Link>
     );
   }
 
   return (
-    <Link to="/marketplace" className="min-w-0 flex shrink-0 items-center gap-3" aria-label="INSELL home">
+    <Link to="/marketplace" className="min-w-0 flex shrink-0 items-center gap-3" aria-label="NearMySpace home">
       <div className="grid size-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary/25 via-secondary/20 to-accent/25 text-primary shadow-inner ring-1 ring-primary/20">
         <MessageSquare className="size-5" />
       </div>
       {showText ? (
         <div className="min-w-0">
-          <p className="truncate text-lg font-extrabold tracking-tight">INSELL</p>
+          <p className="truncate text-lg font-extrabold tracking-tight">NearMySpace</p>
           <p className="hidden truncate text-xs text-base-content/60 sm:block">Social Real Estate Marketplace</p>
         </div>
       ) : null}
@@ -293,7 +293,7 @@ function UserMenu({ authUser, userRoleLabel, isPending, logout }) {
         >
           <UserAvatar src={authUser?.profilePic} name={authUser?.fullName || "User"} sizeClass="size-7" userId={authUser?._id} />
           <span className="min-w-0 text-left">
-            <span className="block truncate text-xs font-semibold text-slate-700">{authUser?.fullName || "INSELL User"}</span>
+            <span className="block truncate text-xs font-semibold text-slate-700">{authUser?.fullName || "NearMySpace User"}</span>
             <span className="block truncate text-[10px] text-slate-500">{userRoleLabel}</span>
           </span>
           <ChevronDown className={`ml-1 size-3.5 shrink-0 text-slate-500 transition ${isDropdownOpen ? "rotate-180" : ""}`} />
@@ -414,7 +414,7 @@ export default function AppShell({
 
   const userRoleLabel = authUser?.activeRole || authUser?.primaryRole || "Buyer";
   const userInitials = useMemo(() => {
-    const name = String(authUser?.fullName || "INSELL User").trim();
+    const name = String(authUser?.fullName || "NearMySpace User").trim();
     if (!name) return "IU";
     const parts = name.split(/\s+/).slice(0, 2);
     return parts.map((part) => part[0]?.toUpperCase() || "").join("");
@@ -753,7 +753,7 @@ export default function AppShell({
                   >
                     <UserAvatar src={authUser?.profilePic} name={authUser?.fullName || "User"} sizeClass="size-6" userId={authUser?._id} />
                     <span className="min-w-0 text-left">
-                      <span className="block truncate text-xs font-semibold text-slate-700">{authUser?.fullName || "INSELL User"}</span>
+                      <span className="block truncate text-xs font-semibold text-slate-700">{authUser?.fullName || "NearMySpace User"}</span>
                     </span>
                     <ChevronDown className={`ml-1 size-3 shrink-0 text-slate-500 transition ${mobileUserMenuOpen ? "rotate-180" : ""}`} />
                   </button>
@@ -866,10 +866,10 @@ export default function AppShell({
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowMobileMenu(false)} />
           <div className="absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col bg-white shadow-2xl">
             <div className="flex items-center gap-3 border-b border-slate-100 p-4">
-              <img src={logoMobile} alt="INSELL" className="size-11 shrink-0 object-contain" />
+              <img src={logoMobile} alt="NearMySpace" className="size-11 shrink-0 object-contain" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-base font-bold text-slate-800">{authUser?.fullName || "INSELL User"}</p>
-                <p className="truncate text-xs text-slate-500">NearBySpace - your world nearby</p>
+                <p className="truncate text-base font-bold text-slate-800">{authUser?.fullName || "NearMySpace User"}</p>
+                <p className="truncate text-xs text-slate-500">NearMySpace</p>
               </div>
               <button
                 type="button"

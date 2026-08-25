@@ -24,7 +24,7 @@ const PASSWORD_STRENGTH_MESSAGE =
 
 export { PASSWORD_STRENGTH_REGEX, PASSWORD_STRENGTH_MESSAGE };
 
-const WELCOME_MESSAGE = "🚀 New to Insell? Explore, connect, and discover what's waiting for you!";
+const WELCOME_MESSAGE = "🚀 New to NearMySpace? Explore, connect, and discover what's waiting for you!";
 const WELCOME_DELAY_MS = 15 * 1000;
 
 // Fired once per new account, ~15s after signup (which also logs the user
@@ -306,7 +306,7 @@ export default class AuthService extends BaseService {
       });
     }
 
-    const resolvedBio = String(bio || "").trim() || `${String(fullName).trim()} is active on Insell as ${resolvedPrimaryRole.toLowerCase()} in ${resolvedCity}.`;
+    const resolvedBio = String(bio || "").trim() || `${String(fullName).trim()} is active on NearMySpace as ${resolvedPrimaryRole.toLowerCase()} in ${resolvedCity}.`;
     const normalizedRoleProfiles = roleProfiles && typeof roleProfiles === "object" && !Array.isArray(roleProfiles)
       ? roleProfiles
       : {};

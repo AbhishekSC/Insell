@@ -21,6 +21,7 @@ import {
   Handshake,
   Sparkles,
   Award,
+  Pencil,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
@@ -706,6 +707,8 @@ function MyCommunityCard({ community, onChat, onLeave }) {
   const queryClient = useQueryClient();
   const authUser = queryClient.getQueryData(["authUser"])?.data?.user;
   const [showMenu, setShowMenu] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [nameInput, setNameInput] = useState(community.name || "");
   const fileInputRef = useRef(null);
 
   const isCreator = Boolean(authUser?._id) && String(community.creator?._id || community.creator) === String(authUser._id);
@@ -735,6 +738,35 @@ function MyCommunityCard({ community, onChat, onLeave }) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (file) updatePhotoMutation.mutate(file);
+  };
+
+  const updateNameMutation = useMutation({
+    mutationFn: async (name) => {
+      const res = await axiosInstance.patch(`/community/circles/${community._id}`, { name });
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      toast.success("Community name updated");
+      queryClient.invalidateQueries({ queryKey: ["communities"] });
+      setShowRenameModal(false);
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to update community name");
+    },
+  });
+
+  const handleRenameSubmit = (event) => {
+    event.preventDefault();
+    const trimmed = nameInput.trim();
+    if (!trimmed) {
+      toast.error("Community name cannot be empty");
+      return;
+    }
+    if (trimmed === community.name) {
+      setShowRenameModal(false);
+      return;
+    }
+    updateNameMutation.mutate(trimmed);
   };
 
   return (
@@ -777,6 +809,20 @@ function MyCommunityCard({ community, onChat, onLeave }) {
               >
                 <Camera size={13} className="shrink-0" />
                 Update profile
+              </button>
+            )}
+            {canManagePhoto && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMenu(false);
+                  setNameInput(community.name || "");
+                  setShowRenameModal(true);
+                }}
+                className="flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
+              >
+                <Pencil size={13} className="shrink-0" />
+                Rename community
               </button>
             )}
             {!isCreator && (
@@ -835,6 +881,53 @@ function MyCommunityCard({ community, onChat, onLeave }) {
           Chat Now
         </button>
       </div>
+
+      {showRenameModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-900">Rename community</h2>
+              <button
+                type="button"
+                onClick={() => setShowRenameModal(false)}
+                className="rounded-lg p-1 hover:bg-slate-100"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleRenameSubmit}>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor={`community-name-${community._id}`}>
+                Community name
+              </label>
+              <input
+                id={`community-name-${community._id}`}
+                type="text"
+                value={nameInput}
+                onChange={(event) => setNameInput(event.target.value)}
+                maxLength={120}
+                autoFocus
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none"
+              />
+              <div className="mt-5 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowRenameModal(false)}
+                  className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateNameMutation.isPending}
+                  className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                >
+                  {updateNameMutation.isPending ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

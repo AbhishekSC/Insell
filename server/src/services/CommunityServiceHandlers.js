@@ -562,6 +562,47 @@ export async function updateCommunityPhoto(req, res) {
   }
 }
 
+export async function updateCommunityDetails(req, res) {
+  try {
+    const currentUserId = req.user?._id;
+    const { id } = req.params;
+    const { name, topic } = req.body || {};
+
+    const trimmedName = name !== undefined ? String(name).trim() : undefined;
+    const trimmedTopic = topic !== undefined ? String(topic).trim() : undefined;
+
+    if (trimmedName !== undefined && !trimmedName) {
+      return sendErrorResponse(res, 400, "Community name cannot be empty");
+    }
+    if (trimmedName === undefined && trimmedTopic === undefined) {
+      return sendErrorResponse(res, 400, "Nothing to update");
+    }
+
+    const circle = await StudyCircle.findById(id);
+    if (!circle) {
+      return sendErrorResponse(res, 404, "Community not found");
+    }
+
+    const isCreator = String(circle.creator) === String(currentUserId);
+    const isModerator = (circle.moderators || []).some((m) => String(m) === String(currentUserId));
+    if (!isCreator && !isModerator) {
+      return sendErrorResponse(res, 403, "Only the community admin or a moderator can update these details");
+    }
+
+    if (trimmedName !== undefined) circle.name = trimmedName;
+    if (trimmedTopic !== undefined) circle.topic = trimmedTopic;
+    await circle.save();
+
+    return sendSuccessResponse(res, 200, "Community updated successfully", {
+      name: circle.name,
+      topic: circle.topic,
+    });
+  } catch (error) {
+    logger.error("Error updating community details:", { message: error.message, stack: error.stack });
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
 export async function leaveCommunity(req, res) {
   try {
     const currentUserId = req.user?._id;

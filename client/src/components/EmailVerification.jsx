@@ -112,7 +112,7 @@ export default function EmailVerification({ onClose, dismissible = true }) {
         toast.success("Email verified successfully!");
         refetchStatus();
       } else {
-        toast.success("Account created! Welcome to Insell.");
+        toast.success("Account created! Welcome to NearMySpace.");
         sessionStorage.removeItem(PENDING_SIGNUP_EMAIL_KEY);
         setAuthToken(data?.data?.token);
         // verify-signup just created the account and logged it in — seed
@@ -273,7 +273,7 @@ export default function EmailVerification({ onClose, dismissible = true }) {
           {isAuthenticatedMode
             ? dismissible
               ? "Get the verified badge by confirming your email address"
-              : "Confirm your email address to start using Insell — we've sent a 6-digit code to your inbox."
+              : "Confirm your email address to start using NearMySpace — we've sent a 6-digit code to your inbox."
             : `Enter the 6-digit code we sent to ${pendingEmail} to finish creating your account.`}
         </p>
 

@@ -100,7 +100,7 @@ const SignupPage = () => {
           <div className="mb-4 flex items-center gap-2">
             <Compass className="size-9 text-primary" />
             <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
-              InSell
+              NearMySpace
             </span>
           </div>
 
@@ -116,7 +116,7 @@ const SignupPage = () => {
             <div>
               <h2 className="text-xl font-semibold">Create an Account</h2>
               <p className="text-sm opacity-70">
-                Join Insell and connect with buyers, sellers, and brokers near you.
+                Join NearMySpace and connect with buyers, sellers, and brokers near you.
               </p>
             </div>
 

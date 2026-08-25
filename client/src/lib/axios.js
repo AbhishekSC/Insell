@@ -4,7 +4,7 @@ import { getAuthToken } from "./authToken";
 
 // In dev, VITE_API_URL is unset so this resolves to the relative "/api",
 // which vite.config.js proxies to localhost:5001. In production, set
-// VITE_API_URL to the deployed backend's origin (e.g. https://insell-api.onrender.com).
+// VITE_API_URL to the deployed backend's origin (e.g. https://nearmyspace-api.onrender.com).
 const axiosInstance = axios.create({
   baseURL: `${import.meta.env.VITE_API_URL || ""}/api`,
   withCredentials: true,

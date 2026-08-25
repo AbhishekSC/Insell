@@ -755,7 +755,7 @@ export async function createPropertyPost(req, res) {
       const locality = String(req.body?.locality || "").trim();
       const city = String(req.body?.city || "").trim();
       const locationHint = [locality, city].filter(Boolean).join(", ");
-      title = locationHint ? `Post for ${locationHint}` : "INSELL Post";
+      title = locationHint ? `Post for ${locationHint}` : "NearMySpace Post";
     }
 
     const status = String(req.body?.status || "PUBLISHED").trim().toUpperCase();
@@ -853,7 +853,7 @@ export async function updatePropertyPost(req, res) {
       const locality = String(req.body?.locality || post.locality || "").trim();
       const city = String(req.body?.city || post.city || "").trim();
       const locationHint = [locality, city].filter(Boolean).join(", ");
-      title = locationHint ? `Post for ${locationHint}` : "INSELL Post";
+      title = locationHint ? `Post for ${locationHint}` : "NearMySpace Post";
     }
 
     const status = String(req.body?.status || post.status || "PUBLISHED").trim().toUpperCase();

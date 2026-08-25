@@ -66,7 +66,7 @@ function normalizeMedia(post) {
     ? post.mediaUrls
     : Array.isArray(post.media) && post.media.length
     ? post.media
-    : ["https://placehold.co/1400x900?text=INSELL+Listing"];
+    : ["https://placehold.co/1400x900?text=NearMySpace+Listing"];
 }
 
 function getListingBadge(post) {

@@ -69,7 +69,7 @@ export default function AnnouncementNotice({ enabled }) {
         <h3 className="mt-3 text-lg font-semibold text-slate-800">
           {notices.length > 1 ? `${notices.length} announcements` : "Announcement"}
         </h3>
-        <p className="mt-1 text-sm text-slate-500">Platform updates from the Insell team.</p>
+        <p className="mt-1 text-sm text-slate-500">Platform updates from the NearMySpace team.</p>
 
         <div className="mt-4 max-h-52 space-y-2 overflow-y-auto">
           {notices.map((notice) => (

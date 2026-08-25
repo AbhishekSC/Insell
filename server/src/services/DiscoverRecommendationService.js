@@ -41,7 +41,7 @@ function reasonFor({ sameCity, mutualCount, verified, rating, activeToday, inter
   if (trending) return "Trending this week";
   if (activeToday) return "Recently active";
   if (interestMatch) return "Shared property interests";
-  if (recentlyJoined) return "New member on INSELL";
+  if (recentlyJoined) return "New member on NearMySpace";
   return "Recommended for your network";
 }
 
