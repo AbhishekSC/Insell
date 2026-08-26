@@ -5,7 +5,6 @@ import {
   Bell,
   BellOff,
   BellRing,
-  Check,
   ChevronDown,
   Command,
   Filter,
@@ -283,6 +282,54 @@ function HeaderActions({ onCreateProperty, unreadActivityCount, onShareLocation,
   );
 }
 
+function NotificationMenuItem({ pushUiState, onEnable, isEnabling, onDisable, isDisabling, onClose }) {
+  if (!isPushNotificationsConfigured) return null;
+
+  if (pushUiState === "blocked") {
+    return (
+      <div
+        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-400"
+        title="Blocked in your browser's site settings — this can only be re-enabled there, not from here"
+      >
+        <BellOff className="size-4" />
+        Notifications blocked
+      </div>
+    );
+  }
+
+  if (pushUiState === "enabled") {
+    return (
+      <button
+        type="button"
+        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+        onClick={() => {
+          onClose?.();
+          onDisable?.();
+        }}
+        disabled={isDisabling}
+      >
+        <BellRing className="size-4 text-indigo-600" />
+        {isDisabling ? "Turning off..." : "Notifications"}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+      onClick={() => {
+        onClose?.();
+        onEnable?.();
+      }}
+      disabled={isEnabling}
+    >
+      <Bell className="size-4 text-slate-500" />
+      {isEnabling ? "Turning on..." : "Notifications"}
+    </button>
+  );
+}
+
 function UserMenu({
   authUser,
   userRoleLabel,
@@ -326,43 +373,14 @@ function UserMenu({
               <UserCircle className="size-4 text-slate-500" />
               View Profile
             </button>
-            {isPushNotificationsConfigured && pushUiState === "blocked" && (
-              <div
-                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-400"
-                title="Blocked in your browser's site settings — this can only be re-enabled there, not from here"
-              >
-                <BellOff className="size-4" />
-                Notifications blocked
-              </div>
-            )}
-            {isPushNotificationsConfigured && pushUiState === "enabled" && (
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
-                onClick={() => {
-                  setIsDropdownOpen(false);
-                  onDisableNotifications?.();
-                }}
-                disabled={isDisablingNotifications}
-              >
-                <Check className="size-4 text-emerald-600" />
-                {isDisablingNotifications ? "Disabling..." : "Notifications enabled"}
-              </button>
-            )}
-            {isPushNotificationsConfigured && pushUiState === "off" && (
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
-                onClick={() => {
-                  setIsDropdownOpen(false);
-                  onEnableNotifications?.();
-                }}
-                disabled={isEnablingNotifications}
-              >
-                <BellRing className="size-4 text-slate-500" />
-                {isEnablingNotifications ? "Enabling..." : "Enable notifications"}
-              </button>
-            )}
+            <NotificationMenuItem
+              pushUiState={pushUiState}
+              onEnable={onEnableNotifications}
+              isEnabling={isEnablingNotifications}
+              onDisable={onDisableNotifications}
+              isDisabling={isDisablingNotifications}
+              onClose={() => setIsDropdownOpen(false)}
+            />
             <button
               type="button"
               className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
@@ -850,6 +868,14 @@ export default function AppShell({
                           <UserCircle className="size-4 text-slate-500" />
                           View Profile
                         </button>
+                        <NotificationMenuItem
+                          pushUiState={pushUiState}
+                          onEnable={enableNotifications}
+                          isEnabling={isEnablingNotifications}
+                          onDisable={disableNotifications}
+                          isDisabling={isDisablingNotifications}
+                          onClose={() => setMobileUserMenuOpen(false)}
+                        />
                         <button
                           type="button"
                           className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
@@ -925,6 +951,14 @@ export default function AppShell({
                         <UserCircle className="size-4 text-slate-500" />
                         View Profile
                       </button>
+                      <NotificationMenuItem
+                        pushUiState={pushUiState}
+                        onEnable={enableNotifications}
+                        isEnabling={isEnablingNotifications}
+                        onDisable={disableNotifications}
+                        isDisabling={isDisablingNotifications}
+                        onClose={() => setMobileUserMenuOpen(false)}
+                      />
                       <button
                         type="button"
                         className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"

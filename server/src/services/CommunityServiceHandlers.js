@@ -466,6 +466,27 @@ export async function respondToCommunityInvite(req, res) {
       logger.error("Failed to sync Stream members after invite response:", { message: error.message, stack: error.stack });
     }
 
+    if (action === "accept") {
+      const joiningUser = await User.findById(currentUserId).select("fullName").lean();
+      const recipientIds = [String(circle.creator), ...(circle.moderators || []).map((entry) => String(entry))].filter(
+        (id) => id !== String(currentUserId)
+      );
+
+      await Promise.allSettled(
+        recipientIds.map((recipientId) =>
+          NotificationService.send({
+            recipientId,
+            actorId: currentUserId,
+            type: "circle_member_joined",
+            title: "New member",
+            message: `${joiningUser?.fullName || "A user"} joined ${circle.name}`,
+            data: { circle: circle._id, url: `/marketplace?section=communities` },
+            channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
+          })
+        )
+      );
+    }
+
     notification.read = true;
     await notification.save();
 
@@ -644,6 +665,25 @@ export async function leaveCommunity(req, res) {
     } catch (error) {
       logger.error("Failed to sync Stream members after leaving community:", { message: error.message, stack: error.stack });
     }
+
+    const leavingUser = await User.findById(currentUserId).select("fullName").lean();
+    const recipientIds = [String(circle.creator), ...(circle.moderators || []).map((entry) => String(entry))].filter(
+      (recipientId) => recipientId !== String(currentUserId)
+    );
+
+    await Promise.allSettled(
+      recipientIds.map((recipientId) =>
+        NotificationService.send({
+          recipientId,
+          actorId: currentUserId,
+          type: "circle_member_left",
+          title: "Member left",
+          message: `${leavingUser?.fullName || "A member"} left ${circle.name}`,
+          data: { circle: circle._id, url: `/marketplace?section=communities` },
+          channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
+        })
+      )
+    );
 
     return sendSuccessResponse(res, 200, "You left the community successfully", { circleId: circle._id });
   } catch (error) {

@@ -69,9 +69,9 @@ export async function createComment(req, res) {
         recipientId: post.author._id,
         actorId: userId,
         type: "comment",
-        title: "New comment",
+        title: `${req.user.fullName} commented on your property: ${post.title}`,
         message: `${req.user.fullName} commented on your property: ${post.title}`,
-        pushBody: `${req.user.fullName}: ${content.trim()}`,
+        pushBody: content.trim(),
         data: { propertyPost: post._id, actualMessage: content.trim(), url: `/property/${post._id}` },
         channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
       });
