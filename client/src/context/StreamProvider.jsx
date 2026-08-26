@@ -91,6 +91,28 @@ export function StreamProvider({ children }) {
     activeVideoCallRef.current = activeVideoCall;
   }, [activeVideoCall]);
 
+  // Auto-mark presence "busy" while on a call, "ready" once it ends — lets
+  // other users see "in a call" status without needing a real cross-user
+  // call-membership lookup (which would need the Stream Video server SDK,
+  // not just the Chat SDK this app already has server-side). Best-effort:
+  // failures here shouldn't block/interrupt the actual call.
+  //
+  // Only fires on an actual busy<->ready transition, not on every render —
+  // otherwise mounting the app with no active call would PUT "ready" for
+  // everyone unconditionally, silently overwriting a manually-set status
+  // (e.g. "offline") just from opening the app.
+  const previousActiveCallRef = useRef(null);
+  useEffect(() => {
+    const wasActive = Boolean(previousActiveCallRef.current);
+    const isActive = Boolean(activeVideoCall);
+    previousActiveCallRef.current = activeVideoCall;
+    if (wasActive === isActive) return;
+
+    axiosInstance
+      .put("/community/presence", { status: isActive ? "busy" : "ready" }, { skipErrorToast: true })
+      .catch(() => {});
+  }, [activeVideoCall]);
+
   const { data: authData } = useQuery({
     queryKey: ["authUser"],
     queryFn: async () => {
@@ -188,6 +210,15 @@ export function StreamProvider({ children }) {
           // instant-refetch pattern as the moderation notice above.
           if (event.type === "admin_announcement") {
             queryClient.invalidateQueries({ queryKey: ["notifications", "announcement", "unread"] });
+          }
+
+          // Pushed via CommunityServiceHandlers.js's notifyCommunityCallStarted
+          // — refetch the Calls page's active-rooms list immediately instead
+          // of waiting out its 5s poll. The actual "you have a push" toast is
+          // handled by the FIREBASE channel's foreground listener, not here,
+          // so this only needs to trigger the refetch, not show its own toast.
+          if (event.type === "circle_call_started") {
+            queryClient.invalidateQueries({ queryKey: ["activeVideoCalls"] });
           }
         };
 
@@ -287,10 +318,35 @@ export function StreamProvider({ children }) {
       }
     });
 
+    // If the other side declines, the caller's own call stayed connected
+    // forever with no idea the other person left — nothing listened for
+    // rejection at all before this. Scoped to 1:1 calls only (their room id
+    // is a plain "userA-userB" pair, no "group-"/"community-" prefix) since
+    // one participant declining a multi-person call shouldn't end it for
+    // everyone else still on it.
+    const unsubscribeReject = client.on("call.rejected", async (event) => {
+      const active = activeVideoCallRef.current;
+      if (!active || event.call_cid !== active.cid) return;
+      if (event.user?.id === authUser._id) return;
+
+      const callId = active.id || "";
+      const isOneToOne = !callId.startsWith("group-") && !callId.startsWith("community-");
+      if (!isOneToOne) return;
+
+      try {
+        await active.leave();
+      } catch {
+        // already left/ended server-side, nothing to clean up
+      }
+      setActiveVideoCall(null);
+      toast(`${event.user?.name || "They"} declined the call`);
+    });
+
     setVideoClient(client);
 
     return () => {
       unsubscribeRing?.();
+      unsubscribeReject?.();
     };
   }, [authUser?._id, authUser?.fullName, authUser?.profilePic, streamToken]);
 
@@ -579,9 +635,15 @@ export function StreamProvider({ children }) {
     setVideoBusy(true);
     try {
       await incomingVideoCall.reject();
+    } catch (error) {
+      // Still clear the local banner even if the reject call itself failed
+      // (network hiccup, the call already ended on Stream's side, etc.) —
+      // previously an error here left the "Incoming call" banner stuck on
+      // screen forever with no feedback, since nothing below this line ran.
+      console.error("Failed to reject incoming call:", error);
+    } finally {
       setIncomingVideoCall(null);
       setIncomingCallerName("");
-    } finally {
       setVideoBusy(false);
     }
   };

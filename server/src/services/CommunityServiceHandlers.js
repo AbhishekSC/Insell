@@ -188,19 +188,92 @@ export async function upsertPresence(req, res) {
     const currentUserId = req.user?._id;
     const { status, note } = req.body || {};
 
+    // Partial update: only touch fields actually present in the request.
+    // Callers that just want to flip status (e.g. auto-marking "busy" when a
+    // call starts) shouldn't silently wipe out a note the user set manually.
+    const update = { user: currentUserId };
+    if (status !== undefined) {
+      update.status = ["ready", "busy", "offline"].includes(status) ? status : "ready";
+    }
+    if (note !== undefined) {
+      update.note = String(note || "").trim().slice(0, 180);
+    }
+
     const presence = await Presence.findOneAndUpdate(
       { user: currentUserId },
-      {
-        user: currentUserId,
-        status: ["ready", "busy", "offline"].includes(status) ? status : "ready",
-        note: String(note || "").trim().slice(0, 180),
-      },
+      { $set: update },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     ).lean();
 
     return sendSuccessResponse(res, 200, "Presence updated successfully", { presence });
   } catch (error) {
     logger.error("Error updating presence:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
+export async function getPresenceForUsers(req, res) {
+  try {
+    const rawIds = req.query.userIds || "";
+    const userIds = [...new Set(String(rawIds).split(",").map((id) => id.trim()).filter(Boolean))].slice(0, 100);
+
+    if (userIds.length === 0) {
+      return sendSuccessResponse(res, 200, "Presence retrieved successfully", { presence: {} });
+    }
+
+    const records = await Presence.find({ user: { $in: userIds } }).select("user status note").lean();
+    const presence = Object.fromEntries(
+      records.map((record) => [String(record.user), { status: record.status, note: record.note }])
+    );
+
+    return sendSuccessResponse(res, 200, "Presence retrieved successfully", { presence });
+  } catch (error) {
+    logger.error("Error fetching presence:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
+// Called by the client right after it successfully starts/joins the shared
+// `community-{circleId}` video call, so members who aren't currently
+// connected to the Stream Video client (and so never get the live `call.ring`
+// push) still find out — via the normal in-app/push notification channels.
+export async function notifyCommunityCallStarted(req, res) {
+  try {
+    const currentUserId = req.user?._id;
+    const { id } = req.params;
+
+    const circle = await StudyCircle.findById(id).select("name members").lean();
+    if (!circle) {
+      return sendErrorResponse(res, 404, "Community not found");
+    }
+
+    const isMember = (circle.members || []).some((memberId) => String(memberId) === String(currentUserId));
+    if (!isMember) {
+      return sendErrorResponse(res, 403, "Only community members can start a call for this community");
+    }
+
+    const caller = await User.findById(currentUserId).select("fullName").lean();
+    const recipientIds = (circle.members || [])
+      .map((memberId) => String(memberId))
+      .filter((memberId) => memberId !== String(currentUserId));
+
+    await Promise.allSettled(
+      recipientIds.map((recipientId) =>
+        NotificationService.send({
+          recipientId,
+          actorId: currentUserId,
+          type: "circle_call_started",
+          title: "Community call",
+          message: `${caller?.fullName || "A member"} started a call in ${circle.name}`,
+          data: { circle: circle._id, url: `/marketplace?section=communities` },
+          channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
+        })
+      )
+    );
+
+    return sendSuccessResponse(res, 200, "Members notified", { notifiedCount: recipientIds.length });
+  } catch (error) {
+    logger.error("Error notifying community of call start:", error);
     return sendErrorResponse(res, 500, "Internal Server Error");
   }
 }
@@ -466,6 +539,27 @@ export async function respondToCommunityInvite(req, res) {
       logger.error("Failed to sync Stream members after invite response:", { message: error.message, stack: error.stack });
     }
 
+    if (action === "accept") {
+      const joiningUser = await User.findById(currentUserId).select("fullName").lean();
+      const recipientIds = [String(circle.creator), ...(circle.moderators || []).map((entry) => String(entry))].filter(
+        (id) => id !== String(currentUserId)
+      );
+
+      await Promise.allSettled(
+        recipientIds.map((recipientId) =>
+          NotificationService.send({
+            recipientId,
+            actorId: currentUserId,
+            type: "circle_member_joined",
+            title: "New member",
+            message: `${joiningUser?.fullName || "A user"} joined ${circle.name}`,
+            data: { circle: circle._id, url: `/marketplace?section=communities` },
+            channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
+          })
+        )
+      );
+    }
+
     notification.read = true;
     await notification.save();
 
@@ -644,6 +738,25 @@ export async function leaveCommunity(req, res) {
     } catch (error) {
       logger.error("Failed to sync Stream members after leaving community:", { message: error.message, stack: error.stack });
     }
+
+    const leavingUser = await User.findById(currentUserId).select("fullName").lean();
+    const recipientIds = [String(circle.creator), ...(circle.moderators || []).map((entry) => String(entry))].filter(
+      (recipientId) => recipientId !== String(currentUserId)
+    );
+
+    await Promise.allSettled(
+      recipientIds.map((recipientId) =>
+        NotificationService.send({
+          recipientId,
+          actorId: currentUserId,
+          type: "circle_member_left",
+          title: "Member left",
+          message: `${leavingUser?.fullName || "A member"} left ${circle.name}`,
+          data: { circle: circle._id, url: `/marketplace?section=communities` },
+          channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
+        })
+      )
+    );
 
     return sendSuccessResponse(res, 200, "You left the community successfully", { circleId: circle._id });
   } catch (error) {

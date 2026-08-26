@@ -51,6 +51,18 @@ export default function CallPage() {
   });
 
   const friends = friendsData ?? EMPTY_FRIENDS;
+  const friendIds = useMemo(() => friends.map((friend) => friend._id), [friends]);
+
+  const { data: presenceData } = useQuery({
+    queryKey: ["friendsPresence", friendIds],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/community/presence", { params: { userIds: friendIds.join(",") } });
+      return response.data?.data?.presence || {};
+    },
+    enabled: friendIds.length > 0,
+    refetchInterval: 10000,
+  });
+  const presenceByFriendId = presenceData || {};
 
   const { data: activeCallsData = [], isFetching: activeCallsFetching, refetch: refetchActiveCalls } = useQuery({
     queryKey: ["activeVideoCalls", currentUserId],
@@ -83,6 +95,8 @@ export default function CallPage() {
               id: call.id,
               endedAt,
               liveParticipantsCount,
+              isCommunityCall: String(call.id || "").startsWith("community-"),
+              communityLabel: details?.call?.custom?.label || null,
               members: (call.state?.members || []).map((member) => ({
                 userId: member?.user_id || member?.user?.id,
                 name: member?.user?.name || member?.user?.id || member?.user_id || "Unknown",
@@ -228,7 +242,7 @@ export default function CallPage() {
 
   return (
     <AppShell
-      title="Calls"
+      title=""
       subtitle="Start a private travel planning call or join a room that is already live."
       lockPageScroll
       actions={
@@ -338,12 +352,12 @@ export default function CallPage() {
         <aside className="call-sidebar shell-panel xl:min-h-0 xl:overflow-y-auto">
           <div className="p-4 sm:p-5">
             <div className="call-sidebar__title"><div className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary"><Users className="size-4" /></div><div><h3>Start a call</h3><p>Pick one for a 1:1 call, or several for a group call</p></div></div>
-            {isLoading ? <div className="mt-4 h-28 animate-pulse rounded-2xl bg-base-200" /> : friends.length === 0 ? <div className="empty-box mt-4 text-sm">No friends available yet. Build your network from Requests.</div> : <div className="call-friend-list">{friends.map((friend) => { const isSelected = selectedFriendIds.includes(friend._id); return <button key={friend._id} type="button" className={`call-friend-row ${isSelected ? "call-friend-row--selected" : ""}`} onClick={() => toggleFriendSelection(friend._id)}><UserAvatar src={friend.profilePic} name={friend.fullName} sizeClass="size-10" /><span className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-semibold">{friend.fullName}</span><span className="block truncate text-xs text-base-content/55">{friend.travelStyle || friend.learningLanguage || "Travel partner"}</span></span>{isSelected ? <Check className="size-4 text-primary" /> : <ChevronRight className="size-4 text-base-content/35" />}</button>; })}</div>}
+            {isLoading ? <div className="mt-4 h-28 animate-pulse rounded-2xl bg-base-200" /> : friends.length === 0 ? <div className="empty-box mt-4 text-sm">No friends available yet. Build your network from Requests.</div> : <div className="call-friend-list">{friends.map((friend) => { const isSelected = selectedFriendIds.includes(friend._id); const inCall = presenceByFriendId[friend._id]?.status === "busy"; return <button key={friend._id} type="button" className={`call-friend-row ${isSelected ? "call-friend-row--selected" : ""}`} onClick={() => toggleFriendSelection(friend._id)}><span className="relative shrink-0"><UserAvatar src={friend.profilePic} name={friend.fullName} sizeClass="size-10" /><span className={`absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-base-100 ${inCall ? "bg-red-500" : "bg-emerald-500"}`} title={inCall ? "In a call" : "Not in a call"} /></span><span className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-semibold">{friend.fullName}</span><span className={`block truncate text-xs ${inCall ? "font-medium text-red-500" : "text-base-content/55"}`}>{inCall ? "In a call" : friend.travelStyle || friend.learningLanguage || "Travel partner"}</span></span>{isSelected ? <Check className="size-4 text-primary" /> : <ChevronRight className="size-4 text-base-content/35" />}</button>; })}</div>}
 
             <div className="call-privacy-note"><ShieldCheck className="size-4" /><span>Private rooms are only visible to invited members.</span></div>
 
             <div className="mt-6 flex items-center justify-between"><div><h3 className="text-sm font-bold">Active rooms</h3><p className="text-xs text-base-content/55">Join a conversation in progress</p></div><button type="button" className="btn btn-ghost btn-sm btn-circle" onClick={() => refetchActiveCalls()} disabled={activeCallsFetching} aria-label="Refresh active calls"><RefreshCw className={`size-4 ${activeCallsFetching ? "animate-spin" : ""}`} /></button></div>
-            {activeCallsData.length === 0 ? <div className="call-empty-rooms">No live rooms right now.</div> : <div className="mt-3 space-y-2">{activeCallsData.map((call) => <div key={call.cid} className="call-active-room"><div><span className="inline-flex items-center gap-1 text-xs font-semibold text-success"><span className="size-1.5 rounded-full bg-success" /> Live now</span><p className="mt-1 text-sm font-semibold">{call.liveParticipantsCount} participant{call.liveParticipantsCount === 1 ? "" : "s"}</p><p className="mt-0.5 truncate text-xs text-base-content/55">{call.members.map((member) => member.name).join(", ") || "Private room"}</p></div><button type="button" className="btn btn-primary btn-sm rounded-xl" onClick={() => joinFromList(call.cid)} disabled={videoBusy}>Join</button></div>)}</div>}
+            {activeCallsData.length === 0 ? <div className="call-empty-rooms">No live rooms right now.</div> : <div className="mt-3 space-y-2">{activeCallsData.map((call) => <div key={call.cid} className="call-active-room"><div><span className="inline-flex items-center gap-1 text-xs font-semibold text-success"><span className="size-1.5 rounded-full bg-success" /> Live now</span><p className="mt-1 text-sm font-semibold">{call.isCommunityCall ? `Join ${call.communityLabel || "community"} call` : `${call.liveParticipantsCount} participant${call.liveParticipantsCount === 1 ? "" : "s"}`}</p><p className="mt-0.5 truncate text-xs text-base-content/55">{call.members.map((member) => member.name).join(", ") || "Private room"}</p></div><button type="button" className="btn btn-primary btn-sm rounded-xl" onClick={() => joinFromList(call.cid)} disabled={videoBusy}>Join</button></div>)}</div>}
           </div>
         </aside>
       </div>

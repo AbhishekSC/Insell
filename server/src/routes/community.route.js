@@ -25,6 +25,8 @@ import {
   updateCommunityDetails,
   updateCommunityPhoto,
   upsertPresence,
+  getPresenceForUsers,
+  notifyCommunityCallStarted,
 } from "../controllers/community.controller.js";
 
 const router = new express.Router();
@@ -35,6 +37,8 @@ router.use(requireVerified);
 router.get("/", getCommunityData);
 router.get("/circles/:id", getCommunityCircleDetail);
 router.put("/presence", upsertPresence);
+router.get("/presence", getPresenceForUsers);
+router.post("/circles/:id/call-started", notifyCommunityCallStarted);
 router.post("/check-ins", createCheckIn);
 router.post("/circles", createStudyCircle);
 router.post("/circles/:id/leave", leaveCommunity);
