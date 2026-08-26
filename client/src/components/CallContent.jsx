@@ -27,6 +27,7 @@ export default function CallContent() {
   const [selectedFriendIds, setSelectedFriendIds] = useState([]);
   const [autoStartAttempted, setAutoStartAttempted] = useState(false);
   const {
+    streamClient,
     streamReady,
     streamConnecting,
     currentUserId,
@@ -62,6 +63,49 @@ export default function CallContent() {
     refetchInterval: 10000,
   });
   const presenceByFriendId = presenceData || {};
+
+  // Real online status — same mechanism as the Messages list (ChatContent.jsx):
+  // Stream only reports presence for users it's actively watching, so opt in
+  // via queryUsers({ presence: true }), then keep it live with
+  // user.presence.changed. Without this, every friend who simply isn't
+  // currently on a call showed as green regardless of whether they were
+  // actually online at all.
+  const [onlineFriendIds, setOnlineFriendIds] = useState(() => new Set());
+  useEffect(() => {
+    if (!streamClient || !currentUserId || friendIds.length === 0) {
+      setOnlineFriendIds(new Set());
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    streamClient
+      .queryUsers({ id: { $in: friendIds } }, {}, { presence: true })
+      .then((response) => {
+        if (cancelled) return;
+        const online = new Set((response.users || []).filter((u) => u.online).map((u) => u.id));
+        setOnlineFriendIds(online);
+      })
+      .catch(() => {});
+
+    const handlePresenceChanged = (event) => {
+      const userId = event.user?.id;
+      if (!userId || !friendIds.includes(userId)) return;
+      setOnlineFriendIds((prev) => {
+        const next = new Set(prev);
+        if (event.user.online) next.add(userId);
+        else next.delete(userId);
+        return next;
+      });
+    };
+
+    streamClient.on("user.presence.changed", handlePresenceChanged);
+
+    return () => {
+      cancelled = true;
+      streamClient.off("user.presence.changed", handlePresenceChanged);
+    };
+  }, [streamClient, currentUserId, friendIds]);
 
   const { data: activeCallsData = [], isFetching: activeCallsFetching, refetch: refetchActiveCalls } = useQuery({
     queryKey: ["activeVideoCalls", currentUserId],
@@ -363,14 +407,16 @@ export default function CallContent() {
                 const isSelected = selectedFriendIds.includes(friend._id);
                 const status = presenceByFriendId[friend._id]?.status;
                 const inCall = status === "busy";
+                const isOnline = onlineFriendIds.has(friend._id);
                 return (
                   <button key={friend._id} type="button" className={`flex w-full items-center gap-3 rounded-lg p-3 text-left transition-all ${isSelected ? "bg-indigo-50 border border-indigo-200" : "hover:bg-slate-50 border border-transparent"}`} onClick={() => toggleFriendSelection(friend._id)}>
                     <span className="relative shrink-0">
                       <UserAvatar src={friend.profilePic} name={friend.fullName} sizeClass="size-10" />
-                      <span
-                        className={`absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-white ${inCall ? "bg-red-500" : "bg-emerald-500"}`}
-                        title={inCall ? "In a call" : "Not in a call"}
-                      />
+                      {inCall ? (
+                        <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-white bg-red-500" title="In a call" />
+                      ) : isOnline ? (
+                        <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-white bg-emerald-500" title="Online" />
+                      ) : null}
                     </span>
                     <span className="min-w-0 flex-1 text-left">
                       <span className="block truncate text-sm font-semibold text-slate-800">{friend.fullName}</span>
