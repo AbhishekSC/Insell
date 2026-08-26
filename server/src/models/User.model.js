@@ -223,9 +223,15 @@ const userSchema = new mongoose.Schema(
     },
     // Updated (throttled, see verifyUser) on any authenticated request —
     // powers the admin-only "live users" count, not shown to regular users.
+    // default: null (not Date.now) is deliberate — Mongoose applies a
+    // schema default in-memory to any document missing this field, even
+    // ones that existed before this field was added. A Date.now default
+    // made every pre-existing user's lastActiveAt silently look "already
+    // fresh" on every fetch, so the throttled write in verifyUser never
+    // actually fired for anyone — the count query always found nothing.
     lastActiveAt: {
       type: Date,
-      default: Date.now,
+      default: null,
       index: true,
     },
     isBlocked: {
