@@ -24,6 +24,10 @@ export const NotificationChannel = {
  * @param {string} input.message - shown in-app; also the default push/email body
  * @param {Object} [input.data] - extra Notification fields (propertyPost, circle, etc.)
  * @param {string} [input.title] - push notification title (defaults to message)
+ * @param {string} [input.pushBody] - push/foreground-toast body override —
+ *   use when the in-app `message` (generic, e.g. "X commented on your
+ *   property: Y") shouldn't be what shows in the actual push, e.g. showing
+ *   the real comment text instead. Defaults to `message`.
  * @param {string} [input.emailSubject]
  * @param {string} [input.emailHtml]
  * @param {string} [input.realtimeEventType] - GetStream custom event type for
@@ -42,6 +46,7 @@ export async function send({
   message,
   data = {},
   title,
+  pushBody,
   emailSubject,
   emailHtml,
   realtimeEventType,
@@ -68,7 +73,7 @@ export async function send({
 
       case NotificationChannel.FIREBASE:
         if (!recipient?.fcmTokens?.length) return Promise.resolve(null);
-        return sendPushNotification(recipient.fcmTokens, { title: title || message, body: message, data }).then(
+        return sendPushNotification(recipient.fcmTokens, { title: title || message, body: pushBody || message, data }).then(
           async ({ staleTokens }) => {
             if (staleTokens.length > 0) {
               await User.updateOne({ _id: recipientId }, { $pullAll: { fcmTokens: staleTokens } });

@@ -3,7 +3,9 @@ import { Link, useLocation, useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
+  BellOff,
   BellRing,
+  Check,
   ChevronDown,
   Command,
   Filter,
@@ -31,7 +33,7 @@ import axiosInstance from "../lib/axios";
 import { clearAuthToken } from "../lib/authToken";
 import { useStreamContext } from "../context/StreamProvider";
 import { getFullLocationDetails } from "../utils/geolocation";
-import { enablePushNotifications, isPushNotificationsConfigured, listenForForegroundMessages } from "../lib/firebase";
+import { enablePushNotifications, disablePushNotifications, getNotificationPermissionState, hasRegisteredPushToken, isPushNotificationsConfigured, listenForForegroundMessages } from "../lib/firebase";
 import logoMobile from "../assets/brand/logo-mobile.png";
 import logoDesktop from "../assets/brand/logo-desktop.png";
 import UserAvatar from "./UserAvatar";
@@ -281,7 +283,17 @@ function HeaderActions({ onCreateProperty, unreadActivityCount, onShareLocation,
   );
 }
 
-function UserMenu({ authUser, userRoleLabel, isPending, logout, onEnableNotifications, isEnablingNotifications }) {
+function UserMenu({
+  authUser,
+  userRoleLabel,
+  isPending,
+  logout,
+  onEnableNotifications,
+  isEnablingNotifications,
+  onDisableNotifications,
+  isDisablingNotifications,
+  pushUiState,
+}) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -314,7 +326,30 @@ function UserMenu({ authUser, userRoleLabel, isPending, logout, onEnableNotifica
               <UserCircle className="size-4 text-slate-500" />
               View Profile
             </button>
-            {isPushNotificationsConfigured && (
+            {isPushNotificationsConfigured && pushUiState === "blocked" && (
+              <div
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-400"
+                title="Blocked in your browser's site settings — this can only be re-enabled there, not from here"
+              >
+                <BellOff className="size-4" />
+                Notifications blocked
+              </div>
+            )}
+            {isPushNotificationsConfigured && pushUiState === "enabled" && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                onClick={() => {
+                  setIsDropdownOpen(false);
+                  onDisableNotifications?.();
+                }}
+                disabled={isDisablingNotifications}
+              >
+                <Check className="size-4 text-emerald-600" />
+                {isDisablingNotifications ? "Disabling..." : "Notifications enabled"}
+              </button>
+            )}
+            {isPushNotificationsConfigured && pushUiState === "off" && (
               <button
                 type="button"
                 className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
@@ -385,17 +420,45 @@ export default function AppShell({
   const previousRequestCountRef = useRef(0);
   const { unreadCount, streamClient, currentUserId } = useStreamContext();
 
+  // Drives the menu item: "blocked" (permission denied — only fixable in
+  // browser settings), "enabled" (permission granted AND we have a token
+  // registered), or "off" (anything else — default/never-asked, or granted
+  // but no token registered yet).
+  const [pushUiState, setPushUiState] = useState(() => {
+    const permission = getNotificationPermissionState();
+    if (permission === "denied") return "blocked";
+    if (permission === "granted" && hasRegisteredPushToken()) return "enabled";
+    return "off";
+  });
+
   const { mutate: enableNotifications, isPending: isEnablingNotifications } = useMutation({
     mutationFn: enablePushNotifications,
     onSuccess: (granted) => {
       if (granted) {
+        setPushUiState("enabled");
         toast.success("Notifications enabled");
       } else {
+        setPushUiState(getNotificationPermissionState() === "denied" ? "blocked" : "off");
         toast.error("Notifications weren't enabled — check your browser's permission settings");
       }
     },
     onError: () => {
       toast.error("Couldn't enable notifications, please try again");
+    },
+  });
+
+  const { mutate: disableNotifications, isPending: isDisablingNotifications } = useMutation({
+    mutationFn: disablePushNotifications,
+    onSuccess: (success) => {
+      if (success) {
+        setPushUiState("off");
+        toast.success("Notifications disabled");
+      } else {
+        toast.error("Couldn't disable notifications, please try again");
+      }
+    },
+    onError: () => {
+      toast.error("Couldn't disable notifications, please try again");
     },
   });
 
@@ -479,25 +542,36 @@ export default function AppShell({
     listenForForegroundMessages((payload) => {
       const { title, body } = payload.notification || {};
       const url = payload.data?.url;
-      const text = body || title || "You have a new notification";
+      const heading = title || "New notification";
+      const text = body || "";
 
-      if (!url) {
-        toast(text, { icon: "🔔" });
-      } else {
-        toast.custom((t) => (
+      toast.custom((t) => (
+        <div
+          role={url ? "button" : undefined}
+          tabIndex={url ? 0 : undefined}
+          onClick={url ? () => { toast.dismiss(t.id); navigate(url); } : undefined}
+          className={`flex w-80 max-w-[90vw] items-start gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-xl transition-all duration-200 ${url ? "cursor-pointer hover:border-indigo-200 hover:shadow-2xl" : ""} ${t.visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"}`}
+        >
+          <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full bg-indigo-50 text-indigo-600">
+            <BellRing className="size-4.5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-slate-900">{heading}</p>
+            {text && <p className="mt-0.5 line-clamp-2 text-sm text-slate-600">{text}</p>}
+          </div>
           <button
             type="button"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               toast.dismiss(t.id);
-              navigate(url);
             }}
-            className={`flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-700 shadow-lg transition-opacity hover:bg-slate-50 ${t.visible ? "opacity-100" : "opacity-0"}`}
+            aria-label="Dismiss"
+            className="shrink-0 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
           >
-            <span>🔔</span>
-            {text}
+            <X className="size-3.5" />
           </button>
-        ));
-      }
+        </div>
+      ));
 
       queryClient.invalidateQueries({ queryKey: ["activityNotifications"] });
     }).then((unsub) => {
@@ -702,6 +776,9 @@ export default function AppShell({
                   logout={logout}
                   onEnableNotifications={enableNotifications}
                   isEnablingNotifications={isEnablingNotifications}
+                  onDisableNotifications={disableNotifications}
+                  isDisablingNotifications={isDisablingNotifications}
+                  pushUiState={pushUiState}
                 />
               </div>
 
