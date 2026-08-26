@@ -25,7 +25,9 @@ export async function sendVerificationEmail(email, code, userName) {
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
           <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-              <h1 style="color: white; margin: 0; font-size: 28px;">NearMySpace</h1>
+              <div style="background: white; display: inline-block; padding: 10px 18px; border-radius: 8px;">
+                <img src="https://insell-fe.vercel.app/logo-email.png" alt="NearMySpace" style="height: 32px; display: block;" />
+              </div>
               <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Email Verification</p>
             </div>
             <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
@@ -99,7 +101,9 @@ export async function sendWelcomeEmail(email, userName) {
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
           <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-              <h1 style="color: white; margin: 0; font-size: 28px;">NearMySpace</h1>
+              <div style="background: white; display: inline-block; padding: 10px 18px; border-radius: 8px;">
+                <img src="https://insell-fe.vercel.app/logo-email.png" alt="NearMySpace" style="height: 32px; display: block;" />
+              </div>
               <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Welcome Aboard! 🎉</p>
             </div>
             <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">

@@ -566,6 +566,42 @@ export async function updateUserLocation(req, res) {
   }
 }
 
+export async function registerFcmToken(req, res) {
+  try {
+    const currentUserId = req.user._id;
+    const { token } = req.body || {};
+
+    if (!token || !String(token).trim()) {
+      return sendErrorResponse(res, 400, "A device token is required");
+    }
+
+    await User.updateOne({ _id: currentUserId }, { $addToSet: { fcmTokens: String(token).trim() } });
+
+    return sendSuccessResponse(res, 200, "Device registered for push notifications", {});
+  } catch (error) {
+    logger.error("Error registering FCM token:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
+export async function unregisterFcmToken(req, res) {
+  try {
+    const currentUserId = req.user._id;
+    const { token } = req.body || {};
+
+    if (!token || !String(token).trim()) {
+      return sendErrorResponse(res, 400, "A device token is required");
+    }
+
+    await User.updateOne({ _id: currentUserId }, { $pull: { fcmTokens: String(token).trim() } });
+
+    return sendSuccessResponse(res, 200, "Device unregistered from push notifications", {});
+  } catch (error) {
+    logger.error("Error unregistering FCM token:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
 export async function getUserFriendsList(req, res) {
   try {
     const { id: userId } = req.params;

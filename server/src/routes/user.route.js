@@ -13,6 +13,8 @@ import {
   getUserPublicProfile,
   getUserFriendsList,
   updateUserLocation,
+  registerFcmToken,
+  unregisterFcmToken,
   getUserActivity,
 } from "../controllers/user.controller.js";
 import { uploadProfileImage } from "../middlewares/upload.middleware.js";
@@ -32,6 +34,8 @@ router.get("/:id/friends", getUserFriendsList);
 router.patch("/profile", uploadProfileImage.single("profileImage"), updateMyProfile);
 router.patch("/account", uploadProfileImage.single("profileImage"), updateMyProfile);
 router.patch("/location", updateUserLocation);
+router.post("/fcm-token", registerFcmToken);
+router.delete("/fcm-token", unregisterFcmToken);
 
 // Friend Request Routes
 router.post("/friend-request/:id", sendFriendRequest);

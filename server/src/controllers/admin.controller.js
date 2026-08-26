@@ -6,6 +6,8 @@ import Announcement from "../models/Announcement.model.js";
 import { logger } from "../utils/logger.js";
 import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler.js";
 import { pushRealtimeNotification } from "../services/stream.service.js";
+import * as NotificationService from "../services/NotificationService.js";
+import { NotificationChannel } from "../services/NotificationService.js";
 
 // Roles treated as "verified" — same rule the marketplace's Verified filter
 // already uses (there's no dedicated verified-broker flag yet, just role).
@@ -210,13 +212,15 @@ export const blockPost = async (req, res) => {
     logger.info(`Post ${postId} blocked by admin ${adminId} (reason: ${reasonCode})`);
 
     try {
-      await Notification.create({
-        recipient: post.author,
-        actor: adminId,
+      await NotificationService.send({
+        recipientId: post.author,
+        actorId: adminId,
         type: "post_blocked",
+        realtimeEventType: "post_moderation_notice",
+        title: "Post blocked",
         message: `Your post "${post.title}" was blocked by our moderation team`,
-        actualMessage: post.blockNote || undefined,
-        propertyPost: post._id,
+        data: { propertyPost: post._id, actualMessage: post.blockNote || undefined, url: `/property/${post._id}` },
+        channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
       });
     } catch (error) {
       logger.error("Failed to notify user of post block (non-fatal):", { message: error.message });
@@ -225,20 +229,22 @@ export const blockPost = async (req, res) => {
     // Let everyone who reported this post know it was acted on — closes the
     // loop without naming the other reporters or the owner to each other.
     try {
-      await Notification.insertMany(
-        pendingReports.map((report) => ({
-          recipient: report.reporter,
-          type: "post_report_resolved",
-          message: `The post you reported ("${post.title}") was blocked by our moderation team. Thanks for the report.`,
-          propertyPost: post._id,
-        }))
+      await Promise.allSettled(
+        pendingReports.map((report) =>
+          NotificationService.send({
+            recipientId: report.reporter,
+            type: "post_report_resolved",
+            realtimeEventType: "post_moderation_notice",
+            title: "Report resolved",
+            message: `The post you reported ("${post.title}") was blocked by our moderation team. Thanks for the report.`,
+            data: { propertyPost: post._id, url: `/property/${post._id}` },
+            channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
+          })
+        )
       );
     } catch (error) {
       logger.error("Failed to notify reporters of post block (non-fatal):", { message: error.message });
     }
-
-    pushRealtimeNotification(post.author, "post_moderation_notice");
-    pendingReports.forEach((report) => pushRealtimeNotification(report.reporter, "post_moderation_notice"));
 
     return sendSuccessResponse(res, 200, "Post blocked successfully", {
       postId: post._id,
@@ -279,12 +285,15 @@ export const unblockPost = async (req, res) => {
     logger.info(`Post ${postId} unblocked by admin ${adminId}`);
 
     try {
-      await Notification.create({
-        recipient: post.author,
-        actor: adminId,
+      await NotificationService.send({
+        recipientId: post.author,
+        actorId: adminId,
         type: "post_unblocked",
+        realtimeEventType: "post_moderation_notice",
+        title: "Post restored",
         message: `Your post "${post.title}" is visible again`,
-        propertyPost: post._id,
+        data: { propertyPost: post._id, url: `/property/${post._id}` },
+        channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
       });
     } catch (error) {
       logger.error("Failed to notify user of post unblock (non-fatal):", { message: error.message });

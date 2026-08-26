@@ -16,7 +16,8 @@ import path from "path";
 import { invalidateDiscoverCache } from "../services/DiscoverRecommendationService.js";
 import { invalidateActivityCache } from "../services/UserServiceHandlers.js";
 import PersonalizationService from "../services/PersonalizationService.js";
-import { pushRealtimeNotification } from "../services/stream.service.js";
+import * as NotificationService from "../services/NotificationService.js";
+import { NotificationChannel } from "../services/NotificationService.js";
 
 function normalizeMediaUrls(raw) {
   if (Array.isArray(raw)) {
@@ -955,16 +956,16 @@ export async function togglePropertyPostLike(req, res) {
       
       // Create notification for post author (if not self-like)
       if (String(post.author._id) !== userIdString) {
-        console.log("Creating like notification for recipient:", post.author._id, "from actor:", userId);
-        const notification = await Notification.create({
-          recipient: post.author._id,
-          actor: userId,
+        await NotificationService.send({
+          recipientId: post.author._id,
+          actorId: userId,
           type: "property_like",
+          title: "New like",
           message: `${req.user.fullName} liked your property: ${post.title}`,
-          propertyPostId: post._id,
+          data: { propertyPost: post._id, url: `/property/${post._id}` },
+          channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
         });
-        console.log("Like notification created:", notification._id);
-        logger.info("Like notification created for post:", post._id);
+        logger.info("Like notification sent for post:", post._id);
       }
     }
 
@@ -1021,14 +1022,16 @@ export async function togglePropertyPostSave(req, res) {
       
       // Create notification for post author (if not self-save)
       if (String(post.author._id) !== userIdString) {
-        await Notification.create({
-          recipient: post.author._id,
-          actor: userId,
+        await NotificationService.send({
+          recipientId: post.author._id,
+          actorId: userId,
           type: "property_save",
+          title: "New save",
           message: `${req.user.fullName} saved your property: ${post.title}`,
-          propertyPostId: post._id,
+          data: { propertyPost: post._id, url: `/property/${post._id}` },
+          channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
         });
-        logger.info("Save notification created for post:", post._id);
+        logger.info("Save notification sent for post:", post._id);
       }
     }
 
@@ -1253,16 +1256,18 @@ export async function reportPost(req, res) {
     // Let the owner know, without naming the reporter — the report modal
     // promises the reporter anonymity, so no `actor` is set here.
     try {
-      await Notification.create({
-        recipient: post.author,
+      await NotificationService.send({
+        recipientId: post.author,
         type: "post_reported",
+        realtimeEventType: "post_moderation_notice",
+        title: "Post reported",
         message: `Your post "${post.title}" was reported and is under review by our team`,
-        propertyPost: post._id,
+        data: { propertyPost: post._id, url: `/property/${post._id}` },
+        channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
       });
     } catch (error) {
       logger.error("Failed to notify owner of post report (non-fatal):", { message: error.message });
     }
-    pushRealtimeNotification(post.author, "post_moderation_notice");
 
     return sendSuccessResponse(res, 201, "Thanks for the report. Our team will review it.");
   } catch (error) {

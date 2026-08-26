@@ -214,14 +214,21 @@ export async function requestPasswordReset(req, res) {
       return sendErrorResponse(res, 400, "Email is required");
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select("+password");
     if (!user) {
       // Don't reveal if user exists or not for security
       logger.info(`Password reset requested for non-existent email: ${email}`);
-      return sendSuccessResponse(res, 200, "If an account exists with this email, you will receive an OTP");
+      return sendSuccessResponse(res, 200, "If an account exists with this email, you will receive an OTP", {
+        cooldownSeconds: req.rateLimitInfo?.cooldownSeconds,
+        remainingAttempts: req.rateLimitInfo?.remainingAttempts,
+      });
     }
 
-    // Check if user has a password (not OAuth user)
+    // Check if user has a password (not OAuth user) — `password` is
+    // select: false on the schema, so it must be explicitly selected above,
+    // otherwise `user.password` is always undefined here and this check
+    // would incorrectly block every Google-linked account, even ones that
+    // also have a real password from signing up with email/password first.
     if (user.provider === 'google' && !user.password) {
       return sendErrorResponse(res, 400, "Google OAuth users cannot reset password. Please use Google login.");
     }
@@ -243,7 +250,10 @@ export async function requestPasswordReset(req, res) {
     }
 
     logger.info(`Password reset OTP sent to: ${email}`);
-    return sendSuccessResponse(res, 200, "OTP sent successfully to your email");
+    return sendSuccessResponse(res, 200, "OTP sent successfully to your email", {
+      cooldownSeconds: req.rateLimitInfo?.cooldownSeconds,
+      remainingAttempts: req.rateLimitInfo?.remainingAttempts,
+    });
   } catch (error) {
     logger.error("Error in requestPasswordReset:", error);
     return sendErrorResponse(res, 500, "Failed to process password reset request");
@@ -270,9 +280,12 @@ export async function verifyResetOTP(req, res) {
       return sendErrorResponse(res, 400, "Invalid or expired OTP");
     }
 
-    // Clear OTP after successful verification
+    // Clear OTP after successful verification, and open a short window
+    // during which resetPassword will accept a new password for this user —
+    // otherwise resetPassword has no way to confirm this step ever happened.
     user.resetOTP = undefined;
     user.resetOTPExpires = undefined;
+    user.resetVerifiedExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
     logger.info(`OTP verified for: ${email}`);
@@ -296,13 +309,18 @@ export async function resetPassword(req, res) {
       return sendErrorResponse(res, 400, PASSWORD_STRENGTH_MESSAGE);
     }
 
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select('+password +resetVerifiedExpires');
     if (!user) {
       return sendErrorResponse(res, 404, "User not found");
     }
 
+    if (!user.resetVerifiedExpires || user.resetVerifiedExpires < new Date()) {
+      return sendErrorResponse(res, 400, "Please verify your OTP before resetting your password");
+    }
+
     // Update password
     user.password = newPassword;
+    user.resetVerifiedExpires = undefined;
     await user.save();
 
     logger.info(`Password reset successful for: ${email}`);

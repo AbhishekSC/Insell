@@ -49,6 +49,14 @@ const userSchema = new mongoose.Schema(
       type: Date,
       select: false,
     },
+    // Set once verifyResetOTP succeeds, consumed by resetPassword — without
+    // this, resetPassword had no way to confirm an OTP was ever verified for
+    // this user, letting anyone reset any account's password knowing only
+    // their email.
+    resetVerifiedExpires: {
+      type: Date,
+      select: false,
+    },
     password: {
       type: String,
       required: function() {
@@ -193,6 +201,12 @@ const userSchema = new mongoose.Schema(
         formattedAddress: String,
       },
       default: null,
+    },
+    // FCM device tokens for push notifications — an array since one user can
+    // have multiple open browser sessions/devices at once.
+    fcmTokens: {
+      type: [String],
+      default: [],
     },
     isOnboarded: {
       type: Boolean,

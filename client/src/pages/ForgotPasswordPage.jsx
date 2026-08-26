@@ -1,13 +1,24 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
-import { Compass } from "lucide-react";
 import toast from "react-hot-toast";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
+import logoDesktop from "../assets/brand/logo-desktop.png";
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+  const [remainingAttempts, setRemainingAttempts] = useState(null);
+
+  // Cooldown timer — same pattern as the signup-verification resend cooldown.
+  useEffect(() => {
+    if (cooldownRemaining <= 0) return undefined;
+    const timer = setInterval(() => {
+      setCooldownRemaining((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownRemaining]);
 
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
@@ -16,11 +27,15 @@ export default function ForgotPasswordPage() {
     },
     onSuccess: (response) => {
       toast.success(response.message || "OTP sent to your email");
+      if (response?.data?.cooldownSeconds) setCooldownRemaining(response.data.cooldownSeconds);
+      if (typeof response?.data?.remainingAttempts === "number") setRemainingAttempts(response.data.remainingAttempts);
       // Navigate to OTP verification page with email
       navigate("/verify-otp", { state: { email } });
     },
     onError: (err) => {
       toast.error(err?.response?.data?.message || "Failed to send OTP");
+      if (err?.response?.data?.cooldownRemaining) setCooldownRemaining(err.response.data.cooldownRemaining);
+      if (typeof err?.response?.data?.remainingAttempts === "number") setRemainingAttempts(err.response.data.remainingAttempts);
     },
   });
 
@@ -30,6 +45,7 @@ export default function ForgotPasswordPage() {
       toast.error("Please enter your email");
       return;
     }
+    if (cooldownRemaining > 0) return;
     mutate();
   };
 
@@ -39,11 +55,8 @@ export default function ForgotPasswordPage() {
     >
       <div className="glass-wrap flex flex-col lg:flex-row w-full max-w-5xl mx-auto overflow-hidden">
         <div className="w-full lg:w-1/2 p-5 sm:p-8 flex flex-col justify-center">
-          <div className="mb-4 flex items-center gap-2">
-            <Compass className="size-9 text-primary" />
-            <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
-              NearMySpace
-            </span>
+          <div className="mb-4 flex items-center">
+            <img src={logoDesktop} alt="NearMySpace" className="h-10 w-auto" />
           </div>
 
           <form onSubmit={handleSubmit} className="w-full space-y-4">
@@ -70,16 +83,26 @@ export default function ForgotPasswordPage() {
               />
             </div>
 
-            <button className="btn btn-primary w-full rounded-xl" type="submit" disabled={isPending}>
+            <button className="btn btn-primary w-full rounded-xl" type="submit" disabled={isPending || cooldownRemaining > 0}>
               {isPending ? (
                 <>
                   <span className="loading loading-spinner loading-xs"></span>
                   Sending OTP...
                 </>
+              ) : cooldownRemaining > 0 ? (
+                `Resend in ${cooldownRemaining}s`
               ) : (
                 "Send OTP"
               )}
             </button>
+
+            {remainingAttempts !== null && (
+              <p className="text-center text-xs opacity-60">
+                {remainingAttempts > 0
+                  ? `${remainingAttempts} request${remainingAttempts === 1 ? "" : "s"} left in the next 2 days`
+                  : "No requests left — try again in up to 2 days"}
+              </p>
+            )}
 
             <div className="text-center mt-4">
               <p className="text-sm">
