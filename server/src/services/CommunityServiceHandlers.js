@@ -9,6 +9,8 @@ import StudyCircle from "../models/StudyCircle.model.js";
 import User from "../models/User.model.js";
 import CommunityJoinRequestService from "../services/CommunityJoinRequestService.js";
 import { notifyCommunityDestroyed, syncCommunityChannelMembers } from "../services/stream.service.js";
+import * as NotificationService from "./NotificationService.js";
+import { NotificationChannel } from "./NotificationService.js";
 import { logger } from "../utils/logger.js";
 import { sendErrorResponse, sendSuccessResponse } from "../utils/responseHandler.js";
 
@@ -265,14 +267,18 @@ export async function createStudyCircle(req, res) {
 
     if (normalizedMemberIds.length > 0) {
       const creator = await User.findById(currentUserId).select("fullName").lean();
-      await Notification.insertMany(
-        normalizedMemberIds.map((memberId) => ({
-          recipient: memberId,
-          actor: currentUserId,
-          type: "circle_invite",
-          message: `${creator?.fullName || "A friend"} added you to ${String(name).trim()}`,
-          circle: circle._id,
-        }))
+      await Promise.allSettled(
+        normalizedMemberIds.map((memberId) =>
+          NotificationService.send({
+            recipientId: memberId,
+            actorId: currentUserId,
+            type: "circle_invite",
+            title: "Community invite",
+            message: `${creator?.fullName || "A friend"} added you to ${String(name).trim()}`,
+            data: { circle: circle._id, url: `/marketplace?section=communities` },
+            channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
+          })
+        )
       );
     }
 
@@ -380,13 +386,17 @@ export async function destroyCommunity(req, res) {
 
       // No `circle` ref here on purpose: the circle is about to be deleted, and
       // deleteCommunityById() below wipes any notification tied to it.
-      await Notification.insertMany(
-        memberIdsToNotify.map((memberId) => ({
-          recipient: memberId,
-          actor: currentUserId,
-          type: "circle_deleted",
-          message: `${adminName} deleted the community "${circle.name}"`,
-        }))
+      await Promise.allSettled(
+        memberIdsToNotify.map((memberId) =>
+          NotificationService.send({
+            recipientId: memberId,
+            actorId: currentUserId,
+            type: "circle_deleted",
+            title: "Community deleted",
+            message: `${adminName} deleted the community "${circle.name}"`,
+            channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
+          })
+        )
       );
     }
 
@@ -797,14 +807,18 @@ export async function inviteMembersToCommunity(req, res) {
     );
     await circle.save();
 
-    await Notification.insertMany(
-      normalizedMemberIds.map((memberId) => ({
-        recipient: memberId,
-        actor: currentUserId,
-        type: "circle_invite",
-        message: `${currentUser?.fullName || "A friend"} invited you to ${circle.name}`,
-        circle: circle._id,
-      }))
+    await Promise.allSettled(
+      normalizedMemberIds.map((memberId) =>
+        NotificationService.send({
+          recipientId: memberId,
+          actorId: currentUserId,
+          type: "circle_invite",
+          title: "Community invite",
+          message: `${currentUser?.fullName || "A friend"} invited you to ${circle.name}`,
+          data: { circle: circle._id, url: `/marketplace?section=communities` },
+          channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
+        })
+      )
     );
 
     return sendSuccessResponse(res, 200, "Community invites sent successfully", { invitedCount: normalizedMemberIds.length });
@@ -866,14 +880,18 @@ export async function requestAddMemberToCommunity(req, res) {
 
     const reviewerIds = [String(circle.creator), ...(circle.moderators || []).map((entry) => String(entry))];
 
-    await Notification.insertMany(
-      reviewerIds.map((reviewerId) => ({
-        recipient: reviewerId,
-        actor: currentUserId,
-        type: "circle_member_add_request",
-        message: `${currentUser?.fullName || "A member"} wants to add ${normalizedMemberIds.length} member(s) to ${circle.name}`,
-        circle: circle._id,
-      }))
+    await Promise.allSettled(
+      reviewerIds.map((reviewerId) =>
+        NotificationService.send({
+          recipientId: reviewerId,
+          actorId: currentUserId,
+          type: "circle_member_add_request",
+          title: "Member request",
+          message: `${currentUser?.fullName || "A member"} wants to add ${normalizedMemberIds.length} member(s) to ${circle.name}`,
+          data: { circle: circle._id, url: `/marketplace?section=communities` },
+          channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
+        })
+      )
     );
 
     return sendSuccessResponse(res, 200, "Request sent to admin for approval", {
@@ -925,27 +943,31 @@ export async function respondMemberAddRequest(req, res) {
         circle.pendingInvites = [...(circle.pendingInvites || []).map((item) => String(item)), String(targetUserId)];
 
         const requester = await User.findById(request.requestedBy).select("fullName").lean();
-        await Notification.create({
-          recipient: targetUserId,
-          actor: currentUserId,
+        await NotificationService.send({
+          recipientId: targetUserId,
+          actorId: currentUserId,
           type: "circle_invite",
+          title: "Community invite",
           message: `${requester?.fullName || "A friend"} invited you to ${circle.name}`,
-          circle: circle._id,
+          data: { circle: circle._id, url: `/marketplace?section=communities` },
+          channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
         });
       }
     }
 
     await circle.save();
 
-    await Notification.create({
-      recipient: request.requestedBy,
-      actor: currentUserId,
+    await NotificationService.send({
+      recipientId: request.requestedBy,
+      actorId: currentUserId,
       type: "circle_member_add_request_result",
+      title: action === "accept" ? "Request approved" : "Request declined",
       message:
         action === "accept"
           ? `Your request to add a member to ${circle.name} was approved`
           : `Your request to add a member to ${circle.name} was declined`,
-      circle: circle._id,
+      data: { circle: circle._id, url: `/marketplace?section=communities` },
+      channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
     });
 
     return sendSuccessResponse(res, 200, "Member add request processed", {

@@ -1,8 +1,9 @@
 import AppError from "../exceptions/AppError.js";
 import StudyCircle from "../models/StudyCircle.model.js";
-import Notification from "../models/Notification.model.js";
 import User from "../models/User.model.js";
 import { syncCommunityChannelMembers } from "./stream.service.js";
+import * as NotificationService from "./NotificationService.js";
+import { NotificationChannel } from "./NotificationService.js";
 import { logger } from "../utils/logger.js";
 
 export default class CommunityJoinRequestService {
@@ -35,12 +36,14 @@ export default class CommunityJoinRequestService {
     await circle.save();
 
     const requester = await User.findById(currentUserId).select("fullName").lean();
-    await Notification.create({
-      recipient: circle.creator,
-      actor: currentUserId,
+    await NotificationService.send({
+      recipientId: circle.creator,
+      actorId: currentUserId,
       type: "circle_join_request",
+      title: "Join request",
       message: `${requester?.fullName || "A user"} requested to join ${circle.name}`,
-      circle: circle._id,
+      data: { circle: circle._id, url: `/marketplace?section=communities` },
+      channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
     });
 
     return { circleId: circle._id };
@@ -104,15 +107,17 @@ export default class CommunityJoinRequestService {
       logger.error("Failed to sync Stream members after join request response:", { message: error.message, stack: error.stack });
     }
 
-    await Notification.create({
-      recipient: targetUserId,
-      actor: currentUserId,
+    await NotificationService.send({
+      recipientId: targetUserId,
+      actorId: currentUserId,
       type: "circle_join_request_result",
+      title: String(action) === "accept" ? "Request accepted" : "Request declined",
       message:
         String(action) === "accept"
           ? `Your request to join ${circle.name} was accepted`
           : `Your request to join ${circle.name} was declined`,
-      circle: circle._id,
+      data: { circle: circle._id, url: `/marketplace?section=communities` },
+      channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
     });
 
     return {

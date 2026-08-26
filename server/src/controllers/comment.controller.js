@@ -1,11 +1,12 @@
 import Comment from "../models/Comment.model.js";
 import PropertyPost from "../models/PropertyPost.model.js";
-import Notification from "../models/Notification.model.js";
 import User from "../models/User.model.js";
 import { sendErrorResponse, sendSuccessResponse } from "../utils/responseHandler.js";
 import { logger } from "../utils/logger.js";
 import commentAnalysisService from "../services/CommentAnalysisService.js";
 import PersonalizationService from "../services/PersonalizationService.js";
+import * as NotificationService from "../services/NotificationService.js";
+import { NotificationChannel } from "../services/NotificationService.js";
 
 export async function createComment(req, res) {
   try {
@@ -64,17 +65,16 @@ export async function createComment(req, res) {
 
     // Create notification for post author (if not self-comment)
     if (String(post.author._id) !== String(userId)) {
-      console.log("Creating comment notification for recipient:", post.author._id, "from actor:", userId);
-      const notification = await Notification.create({
-        recipient: post.author._id,
-        actor: userId,
+      await NotificationService.send({
+        recipientId: post.author._id,
+        actorId: userId,
         type: "comment",
+        title: "New comment",
         message: `${req.user.fullName} commented on your property: ${post.title}`,
-        actualMessage: content.trim(),
-        propertyPostId: post._id,
+        data: { propertyPost: post._id, actualMessage: content.trim(), url: `/property/${post._id}` },
+        channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
       });
-      console.log("Comment notification created:", notification._id, "with actualMessage:", notification.actualMessage);
-      logger.info("Comment notification created for post:", post._id);
+      logger.info("Comment notification sent for post:", post._id);
     }
 
     // Populate author details

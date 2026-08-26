@@ -11,5 +11,7 @@ export {
   getUserPublicProfile,
   getUserFriendsList,
   updateUserLocation,
+  registerFcmToken,
+  unregisterFcmToken,
   getUserActivity,
 } from "../services/UserServiceHandlers.js";

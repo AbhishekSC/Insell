@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
+  BellRing,
   ChevronDown,
   Command,
   Filter,
@@ -30,6 +31,7 @@ import axiosInstance from "../lib/axios";
 import { clearAuthToken } from "../lib/authToken";
 import { useStreamContext } from "../context/StreamProvider";
 import { getFullLocationDetails } from "../utils/geolocation";
+import { enablePushNotifications, isPushNotificationsConfigured, listenForForegroundMessages } from "../lib/firebase";
 import logoMobile from "../assets/brand/logo-mobile.png";
 import logoDesktop from "../assets/brand/logo-desktop.png";
 import UserAvatar from "./UserAvatar";
@@ -279,7 +281,7 @@ function HeaderActions({ onCreateProperty, unreadActivityCount, onShareLocation,
   );
 }
 
-function UserMenu({ authUser, userRoleLabel, isPending, logout }) {
+function UserMenu({ authUser, userRoleLabel, isPending, logout, onEnableNotifications, isEnablingNotifications }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -312,6 +314,20 @@ function UserMenu({ authUser, userRoleLabel, isPending, logout }) {
               <UserCircle className="size-4 text-slate-500" />
               View Profile
             </button>
+            {isPushNotificationsConfigured && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                onClick={() => {
+                  setIsDropdownOpen(false);
+                  onEnableNotifications?.();
+                }}
+                disabled={isEnablingNotifications}
+              >
+                <BellRing className="size-4 text-slate-500" />
+                {isEnablingNotifications ? "Enabling..." : "Enable notifications"}
+              </button>
+            )}
             <button
               type="button"
               className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
@@ -368,6 +384,20 @@ export default function AppShell({
   const queryClient = useQueryClient();
   const previousRequestCountRef = useRef(0);
   const { unreadCount, streamClient, currentUserId } = useStreamContext();
+
+  const { mutate: enableNotifications, isPending: isEnablingNotifications } = useMutation({
+    mutationFn: enablePushNotifications,
+    onSuccess: (granted) => {
+      if (granted) {
+        toast.success("Notifications enabled");
+      } else {
+        toast.error("Notifications weren't enabled — check your browser's permission settings");
+      }
+    },
+    onError: () => {
+      toast.error("Couldn't enable notifications, please try again");
+    },
+  });
 
   const { mutate: shareLocation, isPending: isSharingLocation } = useMutation({
     mutationFn: async () => {
@@ -436,6 +466,46 @@ export default function AppShell({
         });
     }
   }, [authUser?._id]);
+
+  // Foreground push notifications: onBackgroundMessage (the service worker)
+  // only fires when this tab isn't the visible/focused one for this origin.
+  // If it IS visible — including "open in another window but not actively
+  // clicked into," which Firebase still counts as foreground — pushes route
+  // here instead, so without this listener they'd silently go nowhere.
+  useEffect(() => {
+    if (!authUser?._id) return undefined;
+
+    let unsubscribe;
+    listenForForegroundMessages((payload) => {
+      const { title, body } = payload.notification || {};
+      const url = payload.data?.url;
+      const text = body || title || "You have a new notification";
+
+      if (!url) {
+        toast(text, { icon: "🔔" });
+      } else {
+        toast.custom((t) => (
+          <button
+            type="button"
+            onClick={() => {
+              toast.dismiss(t.id);
+              navigate(url);
+            }}
+            className={`flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-700 shadow-lg transition-opacity hover:bg-slate-50 ${t.visible ? "opacity-100" : "opacity-0"}`}
+          >
+            <span>🔔</span>
+            {text}
+          </button>
+        ));
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["activityNotifications"] });
+    }).then((unsub) => {
+      unsubscribe = unsub;
+    });
+
+    return () => unsubscribe?.();
+  }, [authUser?._id, queryClient]);
 
   // Fetch search suggestions with debounce
   useEffect(() => {
@@ -625,7 +695,14 @@ export default function AppShell({
                   onShareLocation={shareLocation}
                   isSharingLocation={isSharingLocation}
                 />
-                <UserMenu authUser={authUser} userRoleLabel={userRoleLabel} isPending={isPending} logout={logout} />
+                <UserMenu
+                  authUser={authUser}
+                  userRoleLabel={userRoleLabel}
+                  isPending={isPending}
+                  logout={logout}
+                  onEnableNotifications={enableNotifications}
+                  isEnablingNotifications={isEnablingNotifications}
+                />
               </div>
 
               <div className="flex items-center justify-between gap-3 lg:hidden">
