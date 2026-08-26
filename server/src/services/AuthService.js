@@ -1,9 +1,11 @@
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import BaseService from "./BaseService.js";
 import AppError from "../exceptions/AppError.js";
 import { sanitizeUserData } from "../utils/sanitizeUser.js";
 import { SCHEMA_CONSTANTS } from "../utils/constants.js";
 import PendingSignup from "../models/PendingSignup.model.js";
+import User from "../models/User.model.js";
 import { generateVerificationCode, VERIFICATION_CODE_EXPIRY_MINUTES } from "./VerificationService.js";
 import { sendVerificationEmail, sendWelcomeEmail } from "./EmailService.js";
 import { logger } from "../utils/logger.js";
@@ -219,6 +221,20 @@ export default class AuthService extends BaseService {
 
   async logout({ token, res }) {
     const { tokenBlacklistService } = this.dependencies;
+
+    // Best-effort — drops the user from the admin "live users" count
+    // immediately on an explicit logout, instead of waiting out the full
+    // 5-minute window. Decoded before blacklisting since it's still a
+    // valid token at this point; failures here must never block logout.
+    try {
+      const jwtSecret = process.env.JWT_SECRET || process.env.JWT_SECRET_KEY;
+      const decoded = jwt.verify(token, jwtSecret);
+      if (decoded?.id) {
+        await User.updateOne({ _id: decoded.id }, { $set: { lastActiveAt: null } });
+      }
+    } catch (error) {
+      logger.warn("Failed to clear lastActiveAt on logout (non-fatal):", { message: error.message });
+    }
 
     await tokenBlacklistService(res, token);
 
