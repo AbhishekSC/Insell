@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { Compass } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import toast from "react-hot-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
 import { setAuthToken } from "../lib/authToken";
+import logoDesktop from "../assets/brand/logo-desktop.png";
 
 // Mirrors the server-side check in AuthService.js — kept in sync manually
 // since this is plain client validation, not a shared package.
@@ -97,11 +97,8 @@ const SignupPage = () => {
         {/* LEFT SIDE FORM */}
         <div className="w-full lg:w-1/2 p-5 sm:p-8 flex flex-col">
           {/* Logo */}
-          <div className="mb-4 flex items-center gap-2">
-            <Compass className="size-9 text-primary" />
-            <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
-              NearMySpace
-            </span>
+          <div className="mb-4 flex items-center">
+            <img src={logoDesktop} alt="NearMySpace" className="h-10 w-auto" />
           </div>
 
           {/* Error message */}

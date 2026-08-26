@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
-import { Compass } from "lucide-react";
 import toast from "react-hot-toast";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
+import logoDesktop from "../assets/brand/logo-desktop.png";
 
 // Mirrors the server-side check in AuthService.js — kept in sync manually
 // since this is plain client validation, not a shared package.
@@ -60,11 +60,8 @@ export default function NewPasswordPage() {
     >
       <div className="glass-wrap flex flex-col lg:flex-row w-full max-w-5xl mx-auto overflow-hidden">
         <div className="w-full lg:w-1/2 p-5 sm:p-8 flex flex-col justify-center">
-          <div className="mb-4 flex items-center gap-2">
-            <Compass className="size-9 text-primary" />
-            <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
-              NearMySpace
-            </span>
+          <div className="mb-4 flex items-center">
+            <img src={logoDesktop} alt="NearMySpace" className="h-10 w-auto" />
           </div>
 
           <form onSubmit={handleSubmit} className="w-full space-y-4">
