@@ -26,4 +26,15 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  {
+    // Runs as a classic (non-module) service worker outside Vite's bundle —
+    // importScripts/clients/self are service-worker globals, and `firebase`
+    // comes from the CDN script loaded via importScripts, not an import.
+    files: ['public/firebase-messaging-sw.js'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      sourceType: 'script',
+      globals: { ...globals.serviceworker, firebase: 'readonly' },
+    },
+  },
 ])
