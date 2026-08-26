@@ -21,18 +21,34 @@ const messaging = firebase.messaging();
 // firebase.js's listenForForegroundMessages, not here.
 messaging.onBackgroundMessage((payload) => {
   const { title, body } = payload.notification || {};
+  const data = payload.data || {};
+
+  // Group repeat notifications about the same target (post/circle) instead
+  // of stacking a growing pile in the OS tray — a second notification with
+  // the same tag replaces the first. renotify makes the replacement still
+  // alert the user rather than silently swapping the content underneath them.
+  const tag = data.propertyPost || data.circle || data.type || undefined;
+
   self.registration.showNotification(title || "NearMySpace", {
     body: body || "",
     icon: "/favicon.png",
-    data: payload.data || {},
+    badge: "/favicon.png",
+    tag,
+    renotify: Boolean(tag),
+    vibrate: [200, 100, 200],
+    data,
+    actions: data.url ? [{ action: "open", title: "View" }] : [],
   });
 });
 
 // Focuses an already-open tab on that URL if one exists, otherwise opens a
 // new one — standard pattern since a service worker has no direct window
-// reference of its own.
+// reference of its own. Fires for both the "View" action button and a plain
+// click anywhere else on the notification body (event.action is "" then).
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  if (event.action && event.action !== "open") return;
+
   const targetUrl = event.notification.data?.url || "/";
 
   event.waitUntil(
