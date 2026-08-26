@@ -1,4 +1,4 @@
-# INSELL
+# NearMySpace
 
 Social real estate marketplace — post, discover, and chat about property listings, with communities, video calls, and role-based feeds (Buyer, Seller, Tenant, Broker, Builder, Investor).
 
