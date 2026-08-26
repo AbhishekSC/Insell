@@ -16,9 +16,11 @@ import {
   Building2,
   Loader2,
   MessageCircleHeart,
+  PhoneCall,
   Radio,
   Search,
   Users,
+  Video,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import UserAvatar from "./UserAvatar";
@@ -96,7 +98,8 @@ export default function ChatContent({ deepLinkUserId } = {}) {
   const [activeChannel, setActiveChannel] = useState(null);
   const [directChatUser, setDirectChatUser] = useState(null);
   const processedDirectChatIds = useRef(new Set());
-  const { streamClient: chatClient, streamReady, streamConnecting, currentUserId } = useStreamContext();
+  const { streamClient: chatClient, streamReady, streamConnecting, currentUserId, videoClient, startVideoCallWithUser, videoBusy } = useStreamContext();
+  const navigateToCall = useNavigate();
 
   const { data: authData } = useQuery({
     queryKey: ["authUser"],
@@ -118,6 +121,22 @@ export default function ChatContent({ deepLinkUserId } = {}) {
   });
 
   const friends = friendsData ?? EMPTY_FRIENDS;
+  const friendIds = useMemo(() => friends.map((friend) => friend._id), [friends]);
+
+  // "In a call" red dot — same Presence-based approximation used on the
+  // Calls page (see StreamProvider.jsx's busy/ready auto-update on call
+  // start/end). Distinct from the green online dot below, which is Stream's
+  // own chat presence, not this.
+  const { data: callPresenceData } = useQuery({
+    queryKey: ["friendsPresence", friendIds],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/community/presence", { params: { userIds: friendIds.join(",") } });
+      return response.data?.data?.presence || {};
+    },
+    enabled: friendIds.length > 0,
+    refetchInterval: 10000,
+  });
+  const presenceByFriendId = callPresenceData || {};
 
   const [onlineFriendIds, setOnlineFriendIds] = useState(() => new Set());
 
@@ -295,6 +314,36 @@ export default function ChatContent({ deepLinkUserId } = {}) {
   const showConversation = isConversationOpenMobile;
   const hasActiveConversation = Boolean(activeChannel);
 
+  const oneToOneCallRoomId =
+    currentUserId && selectedFriend?._id ? [currentUserId, selectedFriend._id].sort().join("-") : null;
+
+  // Same predictable-id "is there already a live call here" check used for
+  // community calls — lets the header button show "Join call" instead of
+  // "Call" when the other person already started one.
+  const { data: isOneToOneCallActive = false } = useQuery({
+    queryKey: ["oneToOneCallActive", oneToOneCallRoomId],
+    queryFn: async () => {
+      const call = videoClient.call("default", oneToOneCallRoomId);
+      const details = await call.get();
+      const liveParticipants = details?.call?.session?.participants?.length || 0;
+      return liveParticipants > 0 && !details?.call?.ended_at;
+    },
+    enabled: Boolean(videoClient && oneToOneCallRoomId),
+    refetchInterval: 5000,
+    retry: false,
+  });
+
+  const startCallWithSelectedFriend = async () => {
+    if (!selectedFriend?._id) return;
+    try {
+      await startVideoCallWithUser(selectedFriend._id);
+      toast.success(isOneToOneCallActive ? `Joined call with ${selectedFriend.fullName}` : `Connected with ${selectedFriend.fullName}`);
+      navigateToCall("/call/live");
+    } catch (error) {
+      toast.error(error?.message || "Unable to start call right now");
+    }
+  };
+
   return (
     <div className="telegram-chat-layout h-full xl:h-[calc(100dvh-7.1rem)] xl:min-h-0 overflow-hidden">
       <section className={`telegram-sidebar min-h-0 overflow-hidden ${showSidebar ? "" : "hidden sm:block"}`}>
@@ -368,9 +417,14 @@ export default function ChatContent({ deepLinkUserId } = {}) {
                           sizeClass="size-12"
                           userId={friend._id}
                         />
-                        {isOnline && (
+                        {presenceByFriendId[friend._id]?.status === "busy" ? (
+                          <span
+                            className="absolute bottom-0 right-0 grid size-3.5 place-items-center rounded-full border-2 border-white bg-red-500"
+                            title="In a call"
+                          ></span>
+                        ) : isOnline ? (
                           <span className="absolute bottom-0 right-0 grid size-3.5 place-items-center rounded-full border-2 border-white bg-emerald-500"></span>
-                        )}
+                        ) : null}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
@@ -399,16 +453,39 @@ export default function ChatContent({ deepLinkUserId } = {}) {
           </div>
         ) : (
           <div className="flex flex-1 min-h-0 h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
-            <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2 sm:hidden">
+            <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
               <button
                 type="button"
-                className="btn btn-ghost btn-xs gap-1"
+                className="btn btn-ghost btn-xs gap-1 sm:hidden"
                 onClick={() => setIsConversationOpenMobile(false)}
               >
                 <ArrowLeft className="size-4" />
                 Back
               </button>
-              <p className="truncate text-sm font-semibold">{selectedFriend?.fullName || "Conversation"}</p>
+              {selectedFriend?._id && (
+                <UserAvatar src={selectedFriend.profilePic} name={selectedFriend.fullName} sizeClass="size-7" userId={selectedFriend._id} />
+              )}
+              <p className="min-w-0 flex-1 truncate text-sm font-semibold">{selectedFriend?.fullName || "Conversation"}</p>
+              {selectedFriend?._id && videoClient && (
+                <button
+                  type="button"
+                  className={`btn btn-ghost btn-xs gap-1 ${
+                    isOneToOneCallActive ? "text-emerald-600 hover:bg-emerald-50" : "text-indigo-600 hover:bg-indigo-50"
+                  }`}
+                  onClick={startCallWithSelectedFriend}
+                  disabled={videoBusy || !serviceReady}
+                  title={isOneToOneCallActive ? "Join the ongoing call" : "Start a video call"}
+                >
+                  {videoBusy ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : isOneToOneCallActive ? (
+                    <PhoneCall className="size-4" />
+                  ) : (
+                    <Video className="size-4" />
+                  )}
+                  <span className="hidden sm:inline">{isOneToOneCallActive ? "Join call" : "Call"}</span>
+                </button>
+              )}
             </div>
             <div className="flex-1 min-h-0 overflow-hidden pb-6">
               <Chat client={chatClient}>

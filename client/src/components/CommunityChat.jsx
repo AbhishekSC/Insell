@@ -1,8 +1,9 @@
 import { Component, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Channel, Chat, MessageComposer, MessageList, Thread, Window } from "stream-chat-react";
-import { ArrowLeft, Calendar, Camera, Check, Crown, LogOut, Menu, Shield, Trash2, UserPlus, Users, X } from "lucide-react";
+import { ArrowLeft, Calendar, Camera, Check, Crown, LogOut, Loader2, Menu, PhoneCall, Shield, Trash2, UserPlus, Users, Video, X } from "lucide-react";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router";
 import axiosInstance from "../lib/axios";
 import { useStreamContext } from "../context/StreamProvider";
 
@@ -31,6 +32,7 @@ class CommunityChatErrorBoundary extends Component {
 
 export default function CommunityChat({ community, onBack }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [showMembers, setShowMembers] = useState(false);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -39,7 +41,7 @@ export default function CommunityChat({ community, onBack }) {
   const [showPhotoPreview, setShowPhotoPreview] = useState(false);
   const [selectedFriendIds, setSelectedFriendIds] = useState([]);
   const [communityChannel, setCommunityChannel] = useState(null);
-  const { streamClient, streamReady } = useStreamContext();
+  const { streamClient, streamReady, videoClient, startGroupVideoCall, videoBusy } = useStreamContext();
   const authUser = queryClient.getQueryData(["authUser"])?.data?.user;
   const photoInputRef = useRef(null);
 
@@ -57,6 +59,41 @@ export default function CommunityChat({ community, onBack }) {
   const circle = communityDetail?.circle || community;
   const memberIds = (circle?.members || []).map((member) => String(member._id || member));
   const memberIdsKey = memberIds.join(",");
+  const communityCallRoomId = circle?._id ? `community-${circle._id}` : null;
+
+  // Predictable room id (not a random one) is what makes this discoverable —
+  // any member can independently check/join the same call by id, rather than
+  // needing to have been online when it was first started.
+  const { data: isCommunityCallActive = false } = useQuery({
+    queryKey: ["communityCallActive", communityCallRoomId],
+    queryFn: async () => {
+      const call = videoClient.call("default", communityCallRoomId);
+      const details = await call.get();
+      const liveParticipants = details?.call?.session?.participants?.length || 0;
+      return liveParticipants > 0 && !details?.call?.ended_at;
+    },
+    enabled: Boolean(videoClient && communityCallRoomId),
+    refetchInterval: 8000,
+    retry: false,
+  });
+
+  const startOrJoinCommunityCall = async () => {
+    if (!circle?._id) return;
+    try {
+      await startGroupVideoCall({
+        roomId: communityCallRoomId,
+        memberIds,
+        label: circle.name,
+      });
+      if (!isCommunityCallActive) {
+        axiosInstance.post(`/community/circles/${circle._id}/call-started`).catch(() => {});
+      }
+      toast.success(isCommunityCallActive ? "Joined community call" : "Community call started");
+      navigate("/call/live");
+    } catch (error) {
+      toast.error(error?.message || "Unable to start community call right now");
+    }
+  };
   const isCreator = Boolean(authUser?._id) && String(circle?.creator?._id || circle?.creator) === String(authUser._id);
   const isModerator = Boolean(authUser?._id) && (circle?.moderators || []).some((m) => String(m?._id || m) === String(authUser._id));
   const isMember = memberIds.includes(String(authUser?._id));
@@ -305,14 +342,35 @@ export default function CommunityChat({ community, onBack }) {
             </p>
           </div>
         </div>
-        <div className="relative">
-          <button
-            onClick={() => setShowActionsMenu((prev) => !prev)}
-            className="rounded-lg p-2 hover:bg-slate-100 transition-colors"
-            title="Community options"
-          >
-            <Menu size={20} />
-          </button>
+        <div className="flex items-center gap-1">
+          {isMember && videoClient && (
+            <button
+              type="button"
+              onClick={startOrJoinCommunityCall}
+              disabled={videoBusy}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors disabled:opacity-60 ${
+                isCommunityCallActive ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100" : "text-slate-600 hover:bg-slate-100"
+              }`}
+              title={isCommunityCallActive ? "Join the ongoing community call" : "Start a community call"}
+            >
+              {videoBusy ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : isCommunityCallActive ? (
+                <PhoneCall size={18} />
+              ) : (
+                <Video size={18} />
+              )}
+              <span className="hidden sm:inline">{isCommunityCallActive ? "Join call" : "Start call"}</span>
+            </button>
+          )}
+          <div className="relative">
+            <button
+              onClick={() => setShowActionsMenu((prev) => !prev)}
+              className="rounded-lg p-2 hover:bg-slate-100 transition-colors"
+              title="Community options"
+            >
+              <Menu size={20} />
+            </button>
 
           {showActionsMenu && (
             <>
@@ -386,6 +444,7 @@ export default function CommunityChat({ community, onBack }) {
             className="hidden"
             onChange={handlePhotoChange}
           />
+          </div>
         </div>
       </div>
 

@@ -50,6 +50,18 @@ export default function CallContent() {
   });
 
   const friends = friendsData ?? EMPTY_FRIENDS;
+  const friendIds = useMemo(() => friends.map((friend) => friend._id), [friends]);
+
+  const { data: presenceData } = useQuery({
+    queryKey: ["friendsPresence", friendIds],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/community/presence", { params: { userIds: friendIds.join(",") } });
+      return response.data?.data?.presence || {};
+    },
+    enabled: friendIds.length > 0,
+    refetchInterval: 10000,
+  });
+  const presenceByFriendId = presenceData || {};
 
   const { data: activeCallsData = [], isFetching: activeCallsFetching, refetch: refetchActiveCalls } = useQuery({
     queryKey: ["activeVideoCalls", currentUserId],
@@ -82,6 +94,12 @@ export default function CallContent() {
               id: call.id,
               endedAt,
               liveParticipantsCount,
+              // Community calls use a predictable "community-{circleId}" id
+              // and carry the community's name in custom.label (set at
+              // creation in CommunityChat.jsx) — lets the list show "Join
+              // {name} community call" instead of a generic member-name list.
+              isCommunityCall: String(call.id || "").startsWith("community-"),
+              communityLabel: details?.call?.custom?.label || null,
               members: (call.state?.members || []).map((member) => ({
                 userId: member?.user_id || member?.user?.id,
                 name: member?.user?.name || member?.user?.id || member?.user_id || "Unknown",
@@ -227,8 +245,7 @@ export default function CallContent() {
 
   return (
     <div className="xl:h-full xl:min-h-0">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-slate-800">Calls</h2>
+      <div className="mb-4 flex items-center justify-end">
         <div className="flex items-center gap-2">
           <button
             className="btn btn-sm rounded-xl bg-indigo-600 text-white hover:bg-indigo-500"
@@ -344,12 +361,22 @@ export default function CallContent() {
             <div className="space-y-1">
               {friends.map((friend) => {
                 const isSelected = selectedFriendIds.includes(friend._id);
+                const status = presenceByFriendId[friend._id]?.status;
+                const inCall = status === "busy";
                 return (
                   <button key={friend._id} type="button" className={`flex w-full items-center gap-3 rounded-lg p-3 text-left transition-all ${isSelected ? "bg-indigo-50 border border-indigo-200" : "hover:bg-slate-50 border border-transparent"}`} onClick={() => toggleFriendSelection(friend._id)}>
-                    <UserAvatar src={friend.profilePic} name={friend.fullName} sizeClass="size-10" />
+                    <span className="relative shrink-0">
+                      <UserAvatar src={friend.profilePic} name={friend.fullName} sizeClass="size-10" />
+                      <span
+                        className={`absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-white ${inCall ? "bg-red-500" : "bg-emerald-500"}`}
+                        title={inCall ? "In a call" : "Not in a call"}
+                      />
+                    </span>
                     <span className="min-w-0 flex-1 text-left">
                       <span className="block truncate text-sm font-semibold text-slate-800">{friend.fullName}</span>
-                      <span className="block truncate text-xs text-slate-500">{friend.travelStyle || friend.learningLanguage || "Travel partner"}</span>
+                      <span className={`block truncate text-xs ${inCall ? "font-medium text-red-500" : "text-slate-500"}`}>
+                        {inCall ? "In a call" : friend.travelStyle || friend.learningLanguage || "Travel partner"}
+                      </span>
                     </span>
                     {isSelected ? <Check className="size-4 text-indigo-600" /> : <ChevronRight className="size-4 text-slate-400" />}
                   </button>
@@ -380,7 +407,11 @@ export default function CallContent() {
                 <div key={call.cid} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3">
                   <div>
                     <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600"><span className="size-1.5 rounded-full bg-emerald-600" /> Live now</span>
-                    <p className="mt-1 text-sm font-semibold text-slate-800">{call.liveParticipantsCount} participant{call.liveParticipantsCount === 1 ? "" : "s"}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {call.isCommunityCall
+                        ? `Join ${call.communityLabel || "community"} call`
+                        : `${call.liveParticipantsCount} participant${call.liveParticipantsCount === 1 ? "" : "s"}`}
+                    </p>
                     <p className="mt-0.5 truncate text-xs text-slate-500">{call.members.map((member) => member.name).join(", ") || "Private room"}</p>
                   </div>
                   <button type="button" className="btn btn-sm rounded-xl bg-indigo-600 text-white hover:bg-indigo-500" onClick={() => joinFromList(call.cid)} disabled={videoBusy}>Join</button>

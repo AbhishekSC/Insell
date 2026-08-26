@@ -34,6 +34,7 @@ const notificationSchema = new mongoose.Schema(
         "circle_member_add_request_result",
         "circle_member_joined",
         "circle_member_left",
+        "circle_call_started",
         "post_blocked",
         "post_unblocked",
         "post_reported",
