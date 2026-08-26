@@ -17,7 +17,7 @@ import {
   signupValidation,
 } from "../middlewares/authValidation.middleware.js";
 import { verifyUser } from "../middlewares/auth.middleware.js";
-import { signupCodeRateLimiter } from "../middleware/rateLimiter.js";
+import { signupCodeRateLimiter, passwordResetRateLimiter } from "../middleware/rateLimiter.js";
 import { sendSuccessResponse } from "../utils/responseHandler.js";
 
 const router = express.Router();
@@ -42,7 +42,7 @@ router.get("/google", googleAuth);
 router.get("/google/callback", googleAuthCallback);
 
 // Password Reset routes
-router.post("/password-reset/request", requestPasswordReset);
+router.post("/password-reset/request", passwordResetRateLimiter, requestPasswordReset);
 router.post("/password-reset/verify-otp", verifyResetOTP);
 router.post("/password-reset/reset", resetPassword);
 

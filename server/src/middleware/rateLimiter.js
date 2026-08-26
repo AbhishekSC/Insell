@@ -3,15 +3,23 @@ import { logger } from "../utils/logger.js";
 // Simple in-memory rate limiter (in production, use Redis)
 const verificationRateLimit = new Map();
 const signupCodeRateLimit = new Map();
+const passwordResetRateLimit = new Map();
 
 const ONE_DAY = 24 * 60 * 60 * 1000;
+const TWO_DAYS = 2 * ONE_DAY;
 const COOLDOWN_MS = 60 * 1000; // 60 seconds cooldown
-const MAX_REQUESTS = 3;
 
-// Shared 3-per-day / 60s-cooldown limiter, parameterized by how the caller
-// is identified — a logged-in user's id for the authenticated verification
-// flow, an email address for the public (pre-account) signup-code flow.
-function createRateLimiter(store, resolveKey, unauthorizedMessage) {
+// Tracks every store's own window so cleanupRateLimiter can purge each one
+// correctly instead of assuming they all share the same window.
+const registeredStores = [];
+
+// Generic count-per-window / cooldown-between-requests limiter, parameterized
+// by how the caller is identified (logged-in user id vs. a public email) and
+// by the window/count/cooldown, so different flows (signup OTP, password
+// reset) can share this logic with different limits.
+function createRateLimiter(store, resolveKey, unauthorizedMessage, { windowMs = ONE_DAY, maxRequests = 3, cooldownMs = COOLDOWN_MS } = {}) {
+  registeredStores.push({ store, windowMs });
+
   return function rateLimiter(req, res, next) {
     const key = resolveKey(req);
     if (!key) {
@@ -21,41 +29,45 @@ function createRateLimiter(store, resolveKey, unauthorizedMessage) {
     const now = Date.now();
     const requests = store.get(key);
 
-    if (!requests) {
-      store.set(key, { count: 1, firstRequest: now, lastRequest: now });
-      return next();
-    }
+    const proceed = (count, firstRequest) => {
+      store.set(key, { count, firstRequest, lastRequest: now });
+      // Exposed so the controller can include it in a successful response —
+      // lets the client show a real countdown instead of just a static message.
+      req.rateLimitInfo = {
+        remainingAttempts: maxRequests - count,
+        cooldownSeconds: Math.ceil(cooldownMs / 1000),
+        windowResetAt: new Date(firstRequest + windowMs).toISOString(),
+      };
+      next();
+    };
 
-    if (now - requests.firstRequest > ONE_DAY) {
-      store.set(key, { count: 1, firstRequest: now, lastRequest: now });
-      return next();
+    if (!requests || now - requests.firstRequest > windowMs) {
+      return proceed(1, now);
     }
 
     const timeSinceLastRequest = now - requests.lastRequest;
-    if (timeSinceLastRequest < COOLDOWN_MS) {
-      const cooldownRemaining = Math.ceil((COOLDOWN_MS - timeSinceLastRequest) / 1000);
+    if (timeSinceLastRequest < cooldownMs) {
+      const cooldownRemaining = Math.ceil((cooldownMs - timeSinceLastRequest) / 1000);
       return res.status(429).json({
         success: false,
         message: `Please wait ${cooldownRemaining} seconds before requesting another code.`,
         cooldownRemaining,
-        remainingAttempts: MAX_REQUESTS - requests.count,
+        remainingAttempts: maxRequests - requests.count,
       });
     }
 
-    if (requests.count >= MAX_REQUESTS) {
-      const remainingHours = Math.ceil((requests.firstRequest + ONE_DAY - now) / 1000 / 60 / 60);
+    if (requests.count >= maxRequests) {
+      const windowLabel = windowMs >= ONE_DAY ? `${Math.round(windowMs / ONE_DAY)} day(s)` : `${Math.ceil(windowMs / 1000 / 60 / 60)} hour(s)`;
+      const remainingMs = requests.firstRequest + windowMs - now;
       return res.status(429).json({
         success: false,
-        message: `Too many verification code requests. Please try again in ${remainingHours} hours.`,
-        cooldownRemaining: remainingHours * 3600,
+        message: `Too many requests. Please try again in ${windowLabel}.`,
+        cooldownRemaining: Math.ceil(remainingMs / 1000),
         remainingAttempts: 0,
       });
     }
 
-    requests.count += 1;
-    requests.lastRequest = now;
-    store.set(key, requests);
-    next();
+    proceed(requests.count + 1, requests.firstRequest);
   };
 }
 
@@ -81,14 +93,26 @@ export const signupCodeRateLimiter = createRateLimiter(
 );
 
 /**
+ * Password-reset OTP requests: 2 per 2 days per email, 60s cooldown between
+ * requests — tighter than signup verification since a reset email going to
+ * the wrong inbox repeatedly is a bigger deal than a signup code.
+ */
+export const passwordResetRateLimiter = createRateLimiter(
+  passwordResetRateLimit,
+  (req) => String(req.body?.email || "").trim().toLowerCase(),
+  "Email is required",
+  { windowMs: TWO_DAYS, maxRequests: 2, cooldownMs: COOLDOWN_MS }
+);
+
+/**
  * Clean up expired rate limit entries (run periodically)
  */
 export function cleanupRateLimiter() {
   const now = Date.now();
 
-  for (const store of [verificationRateLimit, signupCodeRateLimit]) {
+  for (const { store, windowMs } of registeredStores) {
     for (const [key, data] of store.entries()) {
-      if (now - data.firstRequest > ONE_DAY) {
+      if (now - data.firstRequest > windowMs) {
         store.delete(key);
       }
     }
