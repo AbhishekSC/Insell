@@ -558,3 +558,19 @@ export const getAnnouncements = async (req, res) => {
     return sendErrorResponse(res, 500, "Internal Server Error");
   }
 };
+
+const LIVE_USERS_WINDOW_MINUTES = 5;
+
+// Count of users active in the last few minutes, based on lastActiveAt
+// (throttled-updated on every authenticated request — see verifyUser).
+// Admin-only navbar badge, not exposed to regular users.
+export const getLiveUsersCount = async (req, res) => {
+  try {
+    const cutoff = new Date(Date.now() - LIVE_USERS_WINDOW_MINUTES * 60 * 1000);
+    const count = await User.countDocuments({ lastActiveAt: { $gte: cutoff } });
+    return sendSuccessResponse(res, 200, "Live users count fetched successfully", { count });
+  } catch (error) {
+    logger.error("Error fetching live users count:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+};

@@ -240,7 +240,7 @@ function GlobalSearch({
   );
 }
 
-function HeaderActions({ onCreateProperty, unreadActivityCount, onShareLocation, isSharingLocation }) {
+function HeaderActions({ onCreateProperty, unreadActivityCount, onShareLocation, isSharingLocation, isAdmin, liveUsersCount }) {
   return (
     <div className="hidden shrink-0 items-center gap-3 lg:flex">
       <button
@@ -251,6 +251,15 @@ function HeaderActions({ onCreateProperty, unreadActivityCount, onShareLocation,
         <Plus className="size-4" />
         Create Post
       </button>
+      {isAdmin && typeof liveUsersCount === "number" && (
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700"
+          title="Users active in the last 5 minutes — visible to admins only"
+        >
+          <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-emerald-500" />
+          {liveUsersCount.toLocaleString()} live
+        </span>
+      )}
       <button
         type="button"
         className="btn btn-ghost btn-sm btn-circle border border-slate-200 text-slate-600 hover:bg-slate-100"
@@ -523,6 +532,16 @@ export default function AppShell({
     (item) => !MOBILE_PRIMARY_NAV_TOS.has(item.to) && item.section !== "activity"
   );
 
+  const { data: liveUsersCount } = useQuery({
+    queryKey: ["adminLiveUsersCount"],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/admin/live-users-count");
+      return response.data?.data?.count ?? null;
+    },
+    enabled: Boolean(authUser?.isAdmin),
+    refetchInterval: 30000,
+  });
+
   const userRoleLabel = authUser?.activeRole || authUser?.primaryRole || "Buyer";
   const userInitials = useMemo(() => {
     const name = String(authUser?.fullName || "NearMySpace User").trim();
@@ -786,6 +805,8 @@ export default function AppShell({
                   unreadActivityCount={activityNotifications}
                   onShareLocation={shareLocation}
                   isSharingLocation={isSharingLocation}
+                  isAdmin={Boolean(authUser?.isAdmin)}
+                  liveUsersCount={liveUsersCount}
                 />
                 <UserMenu
                   authUser={authUser}

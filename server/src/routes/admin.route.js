@@ -13,6 +13,7 @@ import {
   createAnnouncement,
   getAnnouncements,
   uploadAnnouncementImageController,
+  getLiveUsersCount,
 } from "../controllers/admin.controller.js";
 
 const router = new express.Router();
@@ -31,6 +32,8 @@ router.post("/posts/:id/unblock", unblockPost);
 router.get("/reports", getAdminReports);
 router.get("/reports/:postId", getAdminReportDetail);
 router.post("/reports/:postId/dismiss", dismissPostReports);
+
+router.get("/live-users-count", getLiveUsersCount);
 
 router.get("/announcements", getAnnouncements);
 router.post("/announcements", createAnnouncement);
