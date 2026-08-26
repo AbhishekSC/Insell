@@ -221,6 +221,13 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Updated (throttled, see verifyUser) on any authenticated request —
+    // powers the admin-only "live users" count, not shown to regular users.
+    lastActiveAt: {
+      type: Date,
+      default: Date.now,
+      index: true,
+    },
     isBlocked: {
       type: Boolean,
       default: false,

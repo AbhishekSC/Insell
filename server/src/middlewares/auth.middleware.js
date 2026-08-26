@@ -60,6 +60,15 @@ export const verifyUser = async (req, res, next) => {
     const sanitizedUser = sanitizeUserData(user);
 
     req.user = sanitizedUser;
+
+    // Throttled, fire-and-forget — powers the admin "live users" count.
+    // Only writes once a minute per user regardless of request volume, and
+    // never blocks/fails the actual request if it errors.
+    const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+    if (!user.lastActiveAt || user.lastActiveAt < oneMinuteAgo) {
+      User.updateOne({ _id: user._id }, { $set: { lastActiveAt: new Date() } }).catch(() => {});
+    }
+
     next();
   } catch (error) {
     logger.error("Auth middleware: Token verification failed", { requestId: req.id, error: error.message });
