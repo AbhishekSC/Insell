@@ -38,6 +38,7 @@ import logoDesktop from "../assets/brand/logo-desktop.png";
 import UserAvatar from "./UserAvatar";
 import SearchFiltersModal from "./SearchFiltersModal";
 import PostModerationNotice from "./PostModerationNotice";
+import MobileBottomNav from "./MobileBottomNav";
 import AnnouncementNotice from "./AnnouncementNotice";
 import PriceDropNotice from "./PriceDropNotice";
 import NotificationPanel from "./NotificationPanel";
@@ -530,7 +531,6 @@ export default function AppShell({
   const authData = queryClient.getQueryData(["authUser"]);
   const authUser = authData?.data?.user || authData?.data || null;
   const visibleNavItems = authUser?.isAdmin ? [...navItems, ADMIN_NAV_ITEM] : navItems;
-  const mobileBottomNavItems = visibleNavItems.filter((item) => MOBILE_PRIMARY_NAV_TOS.has(item.to));
   const mobileOverflowNavItems = visibleNavItems.filter(
     (item) => !MOBILE_PRIMARY_NAV_TOS.has(item.to) && item.section !== "activity"
   );
@@ -1024,50 +1024,11 @@ export default function AppShell({
       </main>
 
       {!hideBottomNav && (
-        <nav
-          className={`fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t backdrop-blur xl:hidden ${
-            isMarketplaceShell ? "border-slate-200 bg-white/95" : "border-base-300/80 bg-base-100/95"
-          }`}
-        >
-          {mobileBottomNavItems.map((item) => {
-            const Icon = item.icon;
-            const active = isNavItemActive(item, location);
-            let badgeCount = 0;
-            let badgeColor = "bg-red-500";
-            if (item.to === "/connections") badgeCount = incomingRequests.length;
-            else if (item.to === "/chat") badgeCount = unreadCount;
-            else if (item.to === "/marketplace") {
-              badgeCount = marketplaceUnreadCount;
-              badgeColor = "bg-amber-500";
-            }
-
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`flex min-w-0 flex-col items-center gap-0.5 px-1 py-2 text-[10px] font-medium ${
-                  active
-                    ? isMarketplaceShell
-                      ? "text-indigo-600"
-                      : "text-primary"
-                    : isMarketplaceShell
-                      ? "text-slate-500"
-                      : "text-base-content/60"
-                }`}
-              >
-                <div className="relative">
-                  <Icon className="size-5" />
-                  {badgeCount > 0 ? (
-                    <span className={`absolute -right-2 -top-1 flex size-4 items-center justify-center rounded-full text-[9px] font-bold text-white ${badgeColor}`}>
-                      {badgeCount > 9 ? "9+" : badgeCount}
-                    </span>
-                  ) : null}
-                </div>
-                <span className="truncate">{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        <MobileBottomNav
+          isMarketplaceShell={isMarketplaceShell}
+          connectionsCount={incomingRequests.length}
+          chatUnreadCount={unreadCount}
+        />
       )}
 
       {/* Mobile hamburger menu — houses the nav items that don't fit as one
