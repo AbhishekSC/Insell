@@ -6,19 +6,22 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useQuery } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
+import { useStreamContext } from "../context/StreamProvider";
+import MobileBottomNav from "../components/MobileBottomNav";
 
-// Custom marker icon
-const createCustomIcon = (price) => {
+// Custom marker icon — selected property gets a distinct color so it's
+// obvious which pin the open popup/card belongs to among many markers.
+const createCustomIcon = (price, isSelected = false) => {
   const formattedPrice = new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 0,
   }).format(price).replace("₹", "").replace(",", "");
-  
+
   return L.divIcon({
     className: "custom-marker",
     html: `
-      <div class="bg-indigo-600 text-white px-3 py-2 rounded-full shadow-lg text-xs font-bold whitespace-nowrap">
+      <div class="${isSelected ? "bg-amber-500" : "bg-indigo-600"} text-white px-3 py-2 rounded-full shadow-lg text-xs font-bold whitespace-nowrap${isSelected ? " ring-2 ring-white" : ""}">
         ₹${formattedPrice}
       </div>
     `,
@@ -81,6 +84,17 @@ function MapViewUpdater({ center, zoom }) {
 
 export default function PropertyMapView() {
   const navigate = useNavigate();
+  const { unreadCount } = useStreamContext();
+  const { data: incomingRequests = [] } = useQuery({
+    // Same query key AppShell uses for the same data — shares its cache
+    // instead of firing a second, identical network request.
+    queryKey: ["incomingRequests"],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/users/friend-requests");
+      return response.data?.data?.incomingRequests || [];
+    },
+    staleTime: 10000,
+  });
   const [searchParams] = useSearchParams();
   const focusPropertyId = searchParams.get("propertyId");
   const hasAppliedFocusRef = useRef(false);
@@ -355,7 +369,7 @@ export default function PropertyMapView() {
       </div>
 
       {/* Map Container */}
-      <div className="relative h-[calc(100dvh-56px)]">
+      <div className="relative h-[calc(100dvh-56px-4rem)] xl:h-[calc(100dvh-56px)]">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -406,7 +420,7 @@ export default function PropertyMapView() {
               <Marker
                 key={property._id}
                 position={[property.latitude, property.longitude]}
-                icon={createCustomIcon(property.price)}
+                icon={createCustomIcon(property.price, selectedProperty?._id === property._id)}
                 eventHandlers={{
                   click: () => handleMarkerClick(property),
                 }}
@@ -926,6 +940,11 @@ export default function PropertyMapView() {
           )}
         </div>
       </div>
+
+      <MobileBottomNav
+        connectionsCount={incomingRequests.length}
+        chatUnreadCount={unreadCount}
+      />
     </div>
   );
 }

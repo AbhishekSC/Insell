@@ -787,11 +787,24 @@ export default function MarketplacePage() {
     staleTime: 0,
   });
 
+  // Was comparing `posts[0]` (the currently-displayed feed's first post)
+  // against the true chronologically-latest post platform-wide — that only
+  // makes sense for a strictly recency-sorted feed. "For You" (the default
+  // tab) is personalization-ranked, so the newest post is almost never
+  // actually first; the banner ended up permanently stuck on for anyone
+  // whose top-ranked post wasn't also the newest, and re-fetching the same
+  // ranked query never "fixed" the mismatch, so clicking it visibly did
+  // nothing. Comparing against when THIS feed was last loaded, instead of
+  // against feed position, works regardless of sort order.
+  const [feedLoadedAt, setFeedLoadedAt] = useState(null);
+  useEffect(() => {
+    if (data) setFeedLoadedAt(new Date());
+  }, [data]);
+
   const hasNewPosts = Boolean(
-    latestFeedPost?.latestPostId &&
-    posts[0]?.createdAt &&
-    posts[0]?._id !== String(latestFeedPost.latestPostId) &&
-    new Date(latestFeedPost.latestCreatedAt).getTime() > new Date(posts[0].createdAt).getTime()
+    latestFeedPost?.latestCreatedAt &&
+    feedLoadedAt &&
+    new Date(latestFeedPost.latestCreatedAt).getTime() > feedLoadedAt.getTime()
   );
 
   const handleShowNewPosts = () => {
