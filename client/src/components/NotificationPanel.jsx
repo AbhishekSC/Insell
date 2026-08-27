@@ -139,7 +139,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
       case "follow":
         return "Follow";
       case "price_drop":
-        return "Price Drop";
+        return "Price Update";
       case "offer_received":
         return "New Offer";
       case "offer_countered":

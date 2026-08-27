@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
-import { IndianRupee, X } from "lucide-react";
+import { ArrowDown, ArrowUp, IndianRupee, X } from "lucide-react";
 import axiosInstance from "../lib/axios";
 
 function relativeDate(dateString) {
@@ -11,6 +11,11 @@ function relativeDate(dateString) {
   if (hours < 1) return "Just now";
   if (hours < 24) return `${hours}h ago`;
   return `${Math.floor(hours / 24)}d ago`;
+}
+
+function formatMoney(amount) {
+  const num = Number(amount) || 0;
+  return `₹${num.toLocaleString("en-IN")}`;
 }
 
 // Same must-dismiss pattern as AnnouncementNotice/PostModerationNotice —
@@ -63,32 +68,44 @@ export default function PriceDropNotice({ enabled }) {
         </div>
 
         <h3 className="mt-3 text-lg font-semibold text-slate-800">
-          {notices.length > 1 ? `${notices.length} price drops` : "Price drop"}
+          {notices.length > 1 ? `${notices.length} price updates` : "Price update"}
         </h3>
-        <p className="mt-1 text-sm text-slate-500">A property you liked or saved just got cheaper.</p>
+        <p className="mt-1 text-sm text-slate-500">The price changed on a property you liked or saved.</p>
 
         <div className="mt-4 max-h-64 space-y-2 overflow-y-auto">
-          {notices.map((notice) => (
-            <Link
-              key={notice._id}
-              to={notice.propertyPost?._id ? `/property/${notice.propertyPost._id}` : "#"}
-              onClick={() => dismissAll()}
-              className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 hover:bg-slate-100"
-            >
-              {notice.propertyPost?.mediaUrls?.[0] && (
-                <img
-                  src={notice.propertyPost.mediaUrls[0]}
-                  alt=""
-                  className="size-12 shrink-0 rounded-lg object-cover"
-                />
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-slate-800">{notice.propertyPost?.title || "Property"}</p>
-                <p className="mt-0.5 text-xs text-emerald-600">{notice.message}</p>
-                <p className="mt-1 text-xs text-slate-400">{relativeDate(notice.createdAt)}</p>
-              </div>
-            </Link>
-          ))}
+          {notices.map((notice) => {
+            const hasPrices = Number.isFinite(notice.priceBefore) && Number.isFinite(notice.priceAfter);
+            const isDrop = hasPrices && notice.priceAfter < notice.priceBefore;
+            return (
+              <Link
+                key={notice._id}
+                to={notice.propertyPost?._id ? `/property/${notice.propertyPost._id}` : "#"}
+                onClick={() => dismissAll()}
+                className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 hover:bg-slate-100"
+              >
+                {notice.propertyPost?.mediaUrls?.[0] && (
+                  <img
+                    src={notice.propertyPost.mediaUrls[0]}
+                    alt=""
+                    className="size-12 shrink-0 rounded-lg object-cover"
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-slate-800">{notice.propertyPost?.title || "Property"}</p>
+                  {hasPrices ? (
+                    <p className={`mt-0.5 flex items-center gap-1 text-xs font-semibold ${isDrop ? "text-emerald-600" : "text-red-500"}`}>
+                      {isDrop ? <ArrowDown className="size-3" /> : <ArrowUp className="size-3" />}
+                      <span className="line-through text-slate-400 font-normal">{formatMoney(notice.priceBefore)}</span>
+                      <span>→ {formatMoney(notice.priceAfter)}</span>
+                    </p>
+                  ) : (
+                    <p className="mt-0.5 text-xs text-slate-600">{notice.message}</p>
+                  )}
+                  <p className="mt-1 text-xs text-slate-400">{relativeDate(notice.createdAt)}</p>
+                </div>
+              </Link>
+            );
+          })}
         </div>
 
         <button

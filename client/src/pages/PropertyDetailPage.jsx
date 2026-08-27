@@ -30,6 +30,7 @@ import {
   ShieldCheck,
   Star,
   TrendingUp,
+  UserRoundPlus,
   Users,
   Volume2,
   VolumeX,
@@ -191,6 +192,36 @@ export default function PropertyDetailPage() {
       return res.data?.data?.post;
     },
     enabled: !!id,
+  });
+
+  const sellerId = postData?.author?._id;
+  const isOwnerOfPost = Boolean(authUser?._id && sellerId && String(authUser._id) === String(sellerId));
+
+  // Same source the general Profile page uses for its Connect/Message
+  // button — the property page's "Chat" needs to gate on the same
+  // friendship state, not offer a shortcut around it.
+  const { data: sellerRelationship } = useQuery({
+    queryKey: ["userRelationship", sellerId],
+    queryFn: async () => {
+      const res = await axiosInstance.get(`/users/${sellerId}/profile`);
+      return res.data?.data?.relationship || { connectionStatus: "none" };
+    },
+    enabled: Boolean(sellerId && authUser?._id && !isOwnerOfPost),
+  });
+  const connectionStatus = sellerRelationship?.connectionStatus || "none";
+
+  const { mutate: sendConnectionRequest, isPending: isConnecting } = useMutation({
+    mutationFn: async () => {
+      const response = await axiosInstance.post(`/users/connection-request/${sellerId}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Connection request sent");
+      queryClient.invalidateQueries({ queryKey: ["userRelationship", sellerId] });
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Could not send connection request");
+    },
   });
 
   const latitude = postData?.latitude || postData?.postMeta?.latitude;
@@ -1017,13 +1048,42 @@ export default function PropertyDetailPage() {
                         </a>
                       </>
                     )}
-                    <Link
-                      to={`/marketplace?section=chat&userId=${postData.author?._id}`}
-                      className="w-full py-3 px-4 bg-white border-2 border-indigo-600 text-indigo-600 font-semibold rounded-xl hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <MessageCircle className="size-5" />
-                      Chat
-                    </Link>
+                    {!isOwner && (
+                      connectionStatus === "friends" ? (
+                        <Link
+                          to={`/marketplace?section=chat&userId=${postData.author?._id}`}
+                          className="w-full py-3 px-4 bg-white border-2 border-indigo-600 text-indigo-600 font-semibold rounded-xl hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <MessageCircle className="size-5" />
+                          Chat
+                        </Link>
+                      ) : connectionStatus === "pending_sent" ? (
+                        <button
+                          type="button"
+                          disabled
+                          className="w-full py-3 px-4 bg-slate-50 text-slate-500 font-semibold rounded-xl flex items-center justify-center gap-2 cursor-not-allowed"
+                        >
+                          Request Sent
+                        </button>
+                      ) : connectionStatus === "pending_received" ? (
+                        <Link
+                          to="/connections"
+                          className="w-full py-3 px-4 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                        >
+                          Respond to Request
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => sendConnectionRequest()}
+                          disabled={isConnecting}
+                          className="w-full py-3 px-4 bg-white border-2 border-indigo-600 text-indigo-600 font-semibold rounded-xl hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                        >
+                          <UserRoundPlus className="size-5" />
+                          {isConnecting ? "Connecting..." : "Connect"}
+                        </button>
+                      )
+                    )}
                     <Link
                       to={`/users/${postData.author?._id}`}
                       className="w-full py-3 px-4 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"

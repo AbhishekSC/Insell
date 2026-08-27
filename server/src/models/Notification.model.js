@@ -65,6 +65,15 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    // Structured before/after numbers for price_drop notifications — lets
+    // the client render a clear "₹X → ₹Y" line instead of having to parse
+    // the human-readable message sentence for the two figures.
+    priceBefore: {
+      type: Number,
+    },
+    priceAfter: {
+      type: Number,
+    },
     session: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Session",
