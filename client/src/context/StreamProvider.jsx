@@ -212,6 +212,12 @@ export function StreamProvider({ children }) {
             queryClient.invalidateQueries({ queryKey: ["notifications", "announcement", "unread"] });
           }
 
+          // Pushed via propertyPost.controller.js's notifyPriceDrop — same
+          // must-dismiss-modal pattern as the announcement notice above.
+          if (event.type === "price_drop") {
+            queryClient.invalidateQueries({ queryKey: ["notifications", "priceDrop", "unread"] });
+          }
+
           // Pushed via CommunityServiceHandlers.js's notifyCommunityCallStarted
           // — refetch the Calls page's active-rooms list immediately instead
           // of waiting out its 5s poll. The actual "you have a push" toast is

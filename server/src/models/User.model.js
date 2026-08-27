@@ -255,6 +255,20 @@ const userSchema = new mongoose.Schema(
       min: 0,
       max: 100,
     },
+    // Aggregated from Review documents (see ReviewService) after every new
+    // review — denormalized here so profile/listing cards can show it
+    // without an extra aggregation query on every render.
+    ratingAvg: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    ratingCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     friends: [
       {
         type: mongoose.Schema.Types.ObjectId,

@@ -1,18 +1,20 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
-import { Bell, X, Check, XCircle, User, Building2, IndianRupee, MapPin, MessageCircle, Calendar, Trash2 } from "lucide-react";
+import { Bell, X, Check, XCircle, User, Building2, IndianRupee, MapPin, MessageCircle, Calendar, Trash2, Heart, Bookmark, TrendingUp, Star } from "lucide-react";
 import { toast } from "react-hot-toast";
+import ReviewModal from "./ReviewModal";
 
 export default function NotificationPanel({ isOpen, onClose }) {
   const queryClient = useQueryClient();
   const [filterType, setFilterType] = useState("all");
+  const [reviewModal, setReviewModal] = useState(null); // { offerId, revieweeName }
 
   const { data: notificationsData, isLoading } = useQuery({
     queryKey: ["notifications", filterType],
     queryFn: async () => {
       const params = filterType !== "all" ? { type: filterType } : {};
-      const res = await axiosInstance.get("/api/notifications", { params });
+      const res = await axiosInstance.get("/notifications", { params });
       return res.data.data;
     },
     enabled: isOpen,
@@ -23,7 +25,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
 
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId) => {
-      await axiosInstance.patch(`/api/notifications/${notificationId}/read`);
+      await axiosInstance.patch(`/notifications/${notificationId}/read`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries(["notifications"]);
@@ -32,7 +34,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
 
   const handleRequestMutation = useMutation({
     mutationFn: async ({ notificationId, action }) => {
-      await axiosInstance.patch(`/api/notifications/${notificationId}/handle-request`, { action });
+      await axiosInstance.patch(`/notifications/${notificationId}/handle-request`, { action });
     },
     onSuccess: () => {
       queryClient.invalidateQueries(["notifications"]);
@@ -43,9 +45,41 @@ export default function NotificationPanel({ isOpen, onClose }) {
     },
   });
 
+  const respondOfferMutation = useMutation({
+    mutationFn: async ({ offerId, action }) => {
+      await axiosInstance.patch(`/offers/${offerId}`, { action, requestId: crypto.randomUUID() });
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries(["notifications"]);
+      toast.success(variables.action === "accept" ? "Offer accepted!" : "Offer declined");
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to respond to offer");
+    },
+  });
+
+  const submitReviewMutation = useMutation({
+    mutationFn: async ({ offerId, rating, comment }) => {
+      await axiosInstance.post(`/reviews/offers/${offerId}/reviews`, { rating, comment });
+    },
+    onSuccess: () => {
+      toast.success("Review submitted — thanks!");
+      setReviewModal(null);
+      queryClient.invalidateQueries(["notifications"]);
+    },
+    onError: (error) => {
+      if (error?.response?.status === 409) {
+        setReviewModal(null);
+        queryClient.invalidateQueries(["notifications"]);
+        return;
+      }
+      toast.error(error?.response?.data?.message || "Failed to submit review");
+    },
+  });
+
   const deleteNotificationMutation = useMutation({
     mutationFn: async (notificationId) => {
-      await axiosInstance.delete(`/api/notifications/${notificationId}`);
+      await axiosInstance.delete(`/notifications/${notificationId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries(["notifications"]);
@@ -54,7 +88,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
 
   const markAllAsRead = async () => {
     try {
-      await axiosInstance.patch("/api/notifications/read-all");
+      await axiosInstance.patch("/notifications/read-all");
       queryClient.invalidateQueries(["notifications"]);
     } catch {
       toast.error("Failed to mark all as read");
@@ -74,6 +108,17 @@ export default function NotificationPanel({ isOpen, onClose }) {
         return <MessageCircle className="size-5 text-slate-600" />;
       case "follow":
         return <User className="size-5 text-emerald-600" />;
+      case "price_drop":
+        return <IndianRupee className="size-5 text-emerald-600" />;
+      case "offer_received":
+      case "offer_countered":
+        return <TrendingUp className="size-5 text-indigo-600" />;
+      case "offer_accepted":
+        return <Check className="size-5 text-emerald-600" />;
+      case "offer_declined":
+        return <XCircle className="size-5 text-red-500" />;
+      case "review_received":
+        return <Star className="size-5 text-amber-500" />;
       default:
         return <Bell className="size-5 text-slate-600" />;
     }
@@ -93,6 +138,18 @@ export default function NotificationPanel({ isOpen, onClose }) {
         return "Comment";
       case "follow":
         return "Follow";
+      case "price_drop":
+        return "Price Drop";
+      case "offer_received":
+        return "New Offer";
+      case "offer_countered":
+        return "Counter-Offer";
+      case "offer_accepted":
+        return "Offer Accepted";
+      case "offer_declined":
+        return "Offer Declined";
+      case "review_received":
+        return "Review";
       default:
         return "Notification";
     }
@@ -101,6 +158,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
+    <>
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
       <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex h-full flex-col">
@@ -243,6 +301,48 @@ export default function NotificationPanel({ isOpen, onClose }) {
                           </div>
                         )}
 
+                        {/* Offer Received/Countered Actions — gated on the
+                            offer's actual current status (not just this
+                            notification's fixed type), since accepting or
+                            declining doesn't retroactively change the type
+                            of the notification that announced it. Without
+                            this check, these buttons would stay clickable
+                            forever on an already-closed offer, and a second
+                            click would just 400. */}
+                        {(notification.type === "offer_received" || notification.type === "offer_countered") &&
+                          ["pending", "countered"].includes(notification.offer?.status) && (
+                          <div className="mt-3 flex gap-2">
+                            <button
+                              type="button"
+                              className="btn btn-xs border-none bg-emerald-600 text-white hover:bg-emerald-500"
+                              onClick={() => respondOfferMutation.mutate({ offerId: notification.offer._id, action: "accept" })}
+                            >
+                              <Check className="size-3" />
+                              Accept
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-xs border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                              onClick={() => respondOfferMutation.mutate({ offerId: notification.offer._id, action: "decline" })}
+                            >
+                              <XCircle className="size-3" />
+                              Decline
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Offer Accepted — review prompt */}
+                        {notification.type === "offer_accepted" && notification.offer?.status === "accepted" && !notification.offer?.reviewedByMe && (
+                          <button
+                            type="button"
+                            className="mt-3 btn btn-xs border-none bg-indigo-600 text-white hover:bg-indigo-500"
+                            onClick={() => setReviewModal({ offerId: notification.offer._id, revieweeName: notification.actor?.fullName })}
+                          >
+                            <Star className="size-3" />
+                            Leave a review
+                          </button>
+                        )}
+
                         {/* Request Status */}
                         {notification.type === "message_request" && notification.requestStatus !== "pending" && (
                           <div className="mt-2">
@@ -274,5 +374,14 @@ export default function NotificationPanel({ isOpen, onClose }) {
         </div>
       </div>
     </div>
+
+      <ReviewModal
+        isOpen={Boolean(reviewModal)}
+        revieweeName={reviewModal?.revieweeName}
+        isPending={submitReviewMutation.isPending}
+        onCancel={() => setReviewModal(null)}
+        onSubmit={({ rating, comment }) => submitReviewMutation.mutate({ offerId: reviewModal.offerId, rating, comment })}
+      />
+    </>
   );
 }

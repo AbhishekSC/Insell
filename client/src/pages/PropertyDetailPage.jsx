@@ -28,6 +28,7 @@ import {
   Ruler,
   Share2,
   ShieldCheck,
+  Star,
   TrendingUp,
   Users,
   Volume2,
@@ -38,6 +39,10 @@ import {
 import toast from "react-hot-toast";
 import ShareModal from "../components/ShareModal";
 import ReportPostModal from "../components/ReportPostModal";
+import OfferModal from "../components/OfferModal";
+import OfferHistoryTimeline from "../components/OfferHistoryTimeline";
+import PriceHistoryChart from "../components/PriceHistoryChart";
+import ReviewModal from "../components/ReviewModal";
 import { getCustomBadgeClasses } from "../lib/badgeColors";
 import axiosInstance from "../lib/axios";
 import AppShell from "../components/AppShell";
@@ -97,6 +102,13 @@ function titleCase(value) {
 }
 
 function getListingBadge(post) {
+  // Takes priority over customBadge — once a deal is closed, that's more
+  // important and more accurate than whatever badge text was set while the
+  // listing was still active.
+  if (post?.offerStatus === "ACCEPTED") {
+    const listingType = post?.listingType?.toLowerCase();
+    return listingType === "rent" || listingType === "lease" ? "Rented" : "Sold";
+  }
   if (post?.customBadge) return post.customBadge;
   const listingType = post?.listingType?.toLowerCase();
   if (listingType === "rent") return "For Rent";
@@ -157,6 +169,9 @@ export default function PropertyDetailPage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [offerModal, setOfferModal] = useState(null); // { mode: "offer" | "counter", offerId? }
+  const [reviewModal, setReviewModal] = useState(null); // { offerId, revieweeName }
+  const [reviewedOfferIds, setReviewedOfferIds] = useState([]);
 
   const { data: authData } = useQuery({
     queryKey: ["authUser"],
@@ -225,6 +240,86 @@ export default function PropertyDetailPage() {
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || "Failed to submit report");
+    },
+  });
+
+  const isOwnerForQueries = Boolean(
+    authUser?._id && postData?.author?._id && String(authUser._id) === String(postData.author._id)
+  );
+
+  // Buyer's own offer thread on this post, if any.
+  const { data: myOffer } = useQuery({
+    queryKey: ["myOffer", id],
+    queryFn: async () => {
+      const res = await axiosInstance.get(`/offers/posts/${id}/offers/mine`);
+      return res.data?.data?.offer || null;
+    },
+    enabled: Boolean(id && authUser?._id && postData && !isOwnerForQueries),
+  });
+
+  // Owner's incoming offers on this post.
+  const { data: postOffers = [] } = useQuery({
+    queryKey: ["postOffers", id],
+    queryFn: async () => {
+      const res = await axiosInstance.get(`/offers/posts/${id}/offers`);
+      return res.data?.data?.offers || [];
+    },
+    enabled: Boolean(id && isOwnerForQueries),
+  });
+
+  const invalidateOfferQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ["myOffer", id] });
+    queryClient.invalidateQueries({ queryKey: ["postOffers", id] });
+  };
+
+  const { mutate: submitOffer, isPending: isOfferPending } = useMutation({
+    mutationFn: async ({ price, message }) => {
+      const response = await axiosInstance.post(`/offers/posts/${id}/offers`, { price, message, requestId: crypto.randomUUID() });
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Offer sent!");
+      setOfferModal(null);
+      invalidateOfferQueries();
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to send offer");
+    },
+  });
+
+  const { mutate: respondToOffer, isPending: isRespondPending } = useMutation({
+    mutationFn: async ({ offerId, action, price, message }) => {
+      const response = await axiosInstance.patch(`/offers/${offerId}`, { action, price, message, requestId: crypto.randomUUID() });
+      return response.data;
+    },
+    onSuccess: (_data, variables) => {
+      const labels = { accept: "Offer accepted!", counter: "Counter-offer sent", decline: "Offer declined" };
+      toast.success(labels[variables.action] || "Done");
+      setOfferModal(null);
+      invalidateOfferQueries();
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to respond to offer");
+    },
+  });
+
+  const { mutate: submitReview, isPending: isReviewPending } = useMutation({
+    mutationFn: async ({ offerId, rating, comment }) => {
+      const response = await axiosInstance.post(`/reviews/offers/${offerId}/reviews`, { rating, comment });
+      return response.data;
+    },
+    onSuccess: (_data, variables) => {
+      toast.success("Review submitted — thanks!");
+      setReviewedOfferIds((prev) => [...prev, variables.offerId]);
+      setReviewModal(null);
+    },
+    onError: (error, variables) => {
+      if (error?.response?.status === 409) {
+        setReviewedOfferIds((prev) => [...prev, variables.offerId]);
+        setReviewModal(null);
+        return;
+      }
+      toast.error(error?.response?.data?.message || "Failed to submit review");
     },
   });
 
@@ -414,7 +509,11 @@ export default function PropertyDetailPage() {
               )}
               <span
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  postData.customBadge ? getCustomBadgeClasses(postData.customBadge) : "bg-indigo-600 text-white"
+                  postData.offerStatus === "ACCEPTED"
+                    ? "bg-slate-900 text-white"
+                    : postData.customBadge
+                      ? getCustomBadgeClasses(postData.customBadge)
+                      : "bg-indigo-600 text-white"
                 }`}
               >
                 {getListingBadge(postData)}
@@ -578,6 +677,89 @@ export default function PropertyDetailPage() {
                 )}
               </Section>
 
+              {/* Offers Received — owner only */}
+              {isOwner && postOffers.length > 0 && (
+                <Section title="Offers Received" icon={TrendingUp}>
+                  <div className="space-y-3">
+                    {postOffers.map((offer) => {
+                      const isActionable = ["pending", "countered"].includes(offer.status) &&
+                        String(offer.lastActionBy) !== String(authUser?._id);
+                      const statusStyles = {
+                        pending: "bg-amber-50 text-amber-700",
+                        countered: "bg-amber-50 text-amber-700",
+                        accepted: "bg-emerald-50 text-emerald-700",
+                        declined: "bg-red-50 text-red-600",
+                        withdrawn: "bg-slate-100 text-slate-500",
+                      };
+                      return (
+                        <div key={offer._id} className="rounded-xl border border-slate-200 p-4">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-semibold text-slate-900 truncate">{offer.buyer?.fullName || "Buyer"}</span>
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${statusStyles[offer.status] || "bg-slate-100 text-slate-600"}`}>
+                                {titleCase(offer.status)}
+                              </span>
+                            </div>
+                            <span className="text-lg font-bold text-indigo-600">{formatMoney(offer.currentPrice)}</span>
+                          </div>
+                          {offer.history?.length > 0 && (
+                            <div className="mt-3 border-t border-slate-100 pt-3">
+                              <OfferHistoryTimeline
+                                history={offer.history}
+                                buyerName={offer.buyer?.fullName}
+                                ownerName={postData.author?.fullName}
+                                buyerId={offer.buyer?._id}
+                                currentUserId={authUser?._id}
+                              />
+                            </div>
+                          )}
+                          {offer.status === "accepted" && (
+                            <Link
+                              to={`/marketplace?section=chat&userId=${offer.buyer?._id}`}
+                              className="mt-3 block text-center text-xs font-medium text-emerald-700 underline hover:text-emerald-800"
+                            >
+                              Chat with {offer.buyer?.fullName || "buyer"} to connect and continue
+                            </Link>
+                          )}
+                          {offer.status === "accepted" && !offer.reviewedByMe && !reviewedOfferIds.includes(offer._id) && (
+                            <button
+                              className="mt-3 w-full rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500"
+                              onClick={() => setReviewModal({ offerId: offer._id, revieweeName: offer.buyer?.fullName })}
+                            >
+                              Leave a review
+                            </button>
+                          )}
+                          {isActionable && (
+                            <div className="mt-3 flex gap-2">
+                              <button
+                                className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500"
+                                onClick={() => respondToOffer({ offerId: offer._id, action: "accept" })}
+                                disabled={isRespondPending}
+                              >
+                                Accept
+                              </button>
+                              <button
+                                className="flex-1 rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                                onClick={() => setOfferModal({ mode: "counter", offerId: offer._id })}
+                              >
+                                Counter
+                              </button>
+                              <button
+                                className="flex-1 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"
+                                onClick={() => respondToOffer({ offerId: offer._id, action: "decline" })}
+                                disabled={isRespondPending}
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Section>
+              )}
+
               {/* Specifications */}
               {specs.length > 0 && (
                 <Section title="Property Specifications">
@@ -663,6 +845,26 @@ export default function PropertyDetailPage() {
                     <InfoRow label="Maintenance charges" value={maintenanceCharges ? `₹${Number(maintenanceCharges).toLocaleString("en-IN")}/month` : null} />
                     <InfoRow label="Booking amount" value={bookingAmount ? formatMoney(bookingAmount) : null} />
                   </div>
+                </Section>
+              )}
+
+              {/* Negotiation History — buyer's own offer thread on this post */}
+              {!isOwner && myOffer?.history?.length > 0 && (
+                <Section title="Your Negotiation" icon={TrendingUp}>
+                  <OfferHistoryTimeline
+                    history={myOffer.history}
+                    buyerName={authUser?.fullName}
+                    ownerName={postData.author?.fullName}
+                    buyerId={authUser?._id}
+                    currentUserId={authUser?._id}
+                  />
+                </Section>
+              )}
+
+              {/* Price History */}
+              {postData.priceHistory?.length > 1 && (
+                <Section title="Price History" icon={TrendingUp}>
+                  <PriceHistoryChart history={postData.priceHistory} />
                 </Section>
               )}
 
@@ -863,6 +1065,86 @@ export default function PropertyDetailPage() {
                     <Share2 className="size-5" />
                     Share
                   </button>
+
+                  {!isOwner && !myOffer && (
+                    <button
+                      className="w-full py-3 px-4 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-500 transition-colors flex items-center justify-center gap-2"
+                      onClick={() => setOfferModal({ mode: "offer" })}
+                    >
+                      <TrendingUp className="size-5" />
+                      Make an Offer
+                    </button>
+                  )}
+
+                  {!isOwner && myOffer && ["pending", "countered"].includes(myOffer.status) && (
+                    <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+                      <p className="text-sm font-semibold text-indigo-700">
+                        Your offer: {formatMoney(myOffer.currentPrice)}
+                      </p>
+                      <p className="mt-0.5 text-xs text-indigo-500">
+                        {String(myOffer.lastActionBy) === String(authUser?._id)
+                          ? "Waiting for the owner to respond"
+                          : "The owner sent you a counter — respond below"}
+                      </p>
+                      {String(myOffer.lastActionBy) !== String(authUser?._id) && (
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500"
+                            onClick={() => respondToOffer({ offerId: myOffer._id, action: "accept" })}
+                            disabled={isRespondPending}
+                          >
+                            Accept {formatMoney(myOffer.currentPrice)}
+                          </button>
+                          <button
+                            className="flex-1 rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                            onClick={() => setOfferModal({ mode: "counter", offerId: myOffer._id })}
+                          >
+                            Counter
+                          </button>
+                        </div>
+                      )}
+                      <button
+                        className="mt-2 w-full text-center text-xs font-medium text-red-500 hover:text-red-600"
+                        onClick={() => respondToOffer({ offerId: myOffer._id, action: "decline" })}
+                        disabled={isRespondPending}
+                      >
+                        Withdraw offer
+                      </button>
+                    </div>
+                  )}
+
+                  {!isOwner && myOffer?.status === "accepted" && (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                      <p className="text-sm font-semibold text-emerald-700">
+                        Offer accepted at {formatMoney(myOffer.currentPrice)}!
+                      </p>
+                      <Link
+                        to={`/marketplace?section=chat&userId=${postData.author?._id}`}
+                        className="mt-0.5 block text-xs font-medium text-emerald-700 underline hover:text-emerald-800"
+                      >
+                        Check your Messages to connect and continue.
+                      </Link>
+                      {!myOffer.reviewedByMe && !reviewedOfferIds.includes(myOffer._id) && (
+                        <button
+                          className="mt-3 w-full rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500"
+                          onClick={() => setReviewModal({ offerId: myOffer._id, revieweeName: postData.author?.fullName })}
+                        >
+                          Leave a review
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {!isOwner && myOffer && ["declined", "withdrawn"].includes(myOffer.status) && (
+                    <button
+                      className="w-full py-3 px-4 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-500 transition-colors flex items-center justify-center gap-2"
+                      onClick={() => setOfferModal({ mode: "offer" })}
+                    >
+                      <TrendingUp className="size-5" />
+                      Make a New Offer
+                    </button>
+                  )}
+
                   {!isOwner && (
                     <button
                       className="w-full py-3 px-4 bg-white text-red-600 border border-slate-200 font-semibold rounded-xl hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
@@ -899,6 +1181,30 @@ export default function PropertyDetailPage() {
           setShowReportModal(false);
           setReportSubmitted(false);
         }}
+      />
+
+      <OfferModal
+        isOpen={Boolean(offerModal)}
+        mode={offerModal?.mode}
+        listedPrice={postData.price}
+        currentPrice={offerModal?.mode === "counter" ? myOffer?.currentPrice || postData.price : ""}
+        isPending={isOfferPending || isRespondPending}
+        onCancel={() => setOfferModal(null)}
+        onSubmit={({ price, message }) => {
+          if (offerModal?.mode === "counter") {
+            respondToOffer({ offerId: offerModal.offerId, action: "counter", price, message });
+          } else {
+            submitOffer({ price, message });
+          }
+        }}
+      />
+
+      <ReviewModal
+        isOpen={Boolean(reviewModal)}
+        revieweeName={reviewModal?.revieweeName}
+        isPending={isReviewPending}
+        onCancel={() => setReviewModal(null)}
+        onSubmit={({ rating, comment }) => submitReview({ offerId: reviewModal.offerId, rating, comment })}
       />
     </AppShell>
   );

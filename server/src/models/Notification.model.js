@@ -40,6 +40,13 @@ const notificationSchema = new mongoose.Schema(
         "post_reported",
         "post_report_resolved",
         "admin_announcement",
+        "price_drop",
+        "offer_price_changed",
+        "offer_received",
+        "offer_countered",
+        "offer_accepted",
+        "offer_declined",
+        "review_received",
       ],
     },
     message: {
@@ -70,6 +77,10 @@ const notificationSchema = new mongoose.Schema(
     propertyPost: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "PropertyPost",
+    },
+    offer: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Offer",
     },
     // Message request fields
     messageRequest: {

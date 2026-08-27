@@ -18,6 +18,8 @@ import { invalidateActivityCache } from "../services/UserServiceHandlers.js";
 import PersonalizationService from "../services/PersonalizationService.js";
 import * as NotificationService from "../services/NotificationService.js";
 import { NotificationChannel } from "../services/NotificationService.js";
+import Offer from "../models/Offer.model.js";
+import { closeActiveOffersForPost } from "./offer.controller.js";
 
 function normalizeMediaUrls(raw) {
   if (Array.isArray(raw)) {
@@ -778,6 +780,7 @@ export async function createPropertyPost(req, res) {
       city: String(req.body?.city || "").trim(),
       locality: String(req.body?.locality || "").trim(),
       price: Number(req.body?.price || 0),
+      priceHistory: [{ price: Number(req.body?.price || 0), changedAt: new Date() }],
       bedrooms: Number(req.body?.bedrooms || 0),
       bathrooms: Number(req.body?.bathrooms || 0),
       areaSqft: Number(req.body?.areaSqft || 0),
@@ -817,6 +820,61 @@ export async function createPropertyPost(req, res) {
     logger.error("Error creating property post:", error);
     return sendErrorResponse(res, 500, "Internal Server Error");
   }
+}
+
+// Fire-and-forget fan-out to everyone who liked/saved a post when its price
+// drops — both lists already live directly on the post document, so this
+// needs no extra query against the User collection.
+async function notifyPriceDrop(post, oldPrice) {
+  const interestedIds = [...new Set(
+    [...(post.likedBy || []), ...(post.savedBy || [])].map((id) => String(id))
+  )].filter((id) => id !== String(post.author));
+
+  if (interestedIds.length === 0) return;
+
+  const oldFormatted = `₹${Number(oldPrice).toLocaleString("en-IN")}`;
+  const newFormatted = `₹${Number(post.price).toLocaleString("en-IN")}`;
+
+  await Promise.allSettled(
+    interestedIds.map((recipientId) =>
+      NotificationService.send({
+        recipientId,
+        actorId: post.author,
+        type: "price_drop",
+        title: `Price drop on a property you saved`,
+        message: `Price dropped from ${oldFormatted} to ${newFormatted} on "${post.title}"`,
+        data: { propertyPost: post._id, url: `/property/${post._id}` },
+        channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
+      })
+    )
+  );
+}
+
+// Existing offers stay valid across a price edit — an offer is a
+// negotiation between two specific people, independent of what the listing
+// currently advertises. But the buyer should still know the number they're
+// negotiating against just changed underneath their offer.
+async function notifyActiveOfferBuyersOfPriceChange(post, oldPrice) {
+  const activeOffers = await Offer.find({ post: post._id, status: { $in: ["pending", "countered"] } }).select("buyer currentPrice").lean();
+  if (activeOffers.length === 0) return;
+
+  const oldFormatted = `₹${Number(oldPrice).toLocaleString("en-IN")}`;
+  const newFormatted = `₹${Number(post.price).toLocaleString("en-IN")}`;
+
+  await Promise.allSettled(
+    activeOffers.map((offer) => {
+      const offerFormatted = `₹${Number(offer.currentPrice).toLocaleString("en-IN")}`;
+      return NotificationService.send({
+        recipientId: offer.buyer,
+        actorId: post.author,
+        type: "offer_price_changed",
+        title: `Listed price changed on "${post.title}"`,
+        message: `The listed price on "${post.title}" changed from ${oldFormatted} to ${newFormatted} — your open offer of ${offerFormatted} is unaffected and still active`,
+        data: { propertyPost: post._id, url: `/property/${post._id}` },
+        channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
+      });
+    })
+  );
 }
 
 export async function updatePropertyPost(req, res) {
@@ -861,6 +919,8 @@ export async function updatePropertyPost(req, res) {
     const visibility = String(req.body?.visibility || post.visibility || "PUBLIC").trim().toUpperCase();
     const safeStatus = ["DRAFT", "PUBLISHED", "ARCHIVED"].includes(status) ? status : "PUBLISHED";
     const safeVisibility = ["PUBLIC", "PRIVATE"].includes(visibility) ? visibility : "PUBLIC";
+    const wasPublished = post.status === "PUBLISHED";
+    const isBeingUnpublished = wasPublished && safeStatus !== "PUBLISHED";
 
     // Update post fields
     post.postType = effectivePostType;
@@ -874,7 +934,16 @@ export async function updatePropertyPost(req, res) {
     post.caption = String(req.body?.caption || post.caption).trim();
     post.city = String(req.body?.city || post.city).trim();
     post.locality = String(req.body?.locality || post.locality).trim();
+    const oldPrice = post.price;
     post.price = Number(req.body?.price ?? post.price);
+    if (post.price !== oldPrice) {
+      if (!post.priceHistory || post.priceHistory.length === 0) {
+        // Older posts created before priceHistory existed have none yet —
+        // backfill the pre-edit price so the chart doesn't start mid-story.
+        post.priceHistory = [{ price: oldPrice, changedAt: post.createdAt || new Date() }];
+      }
+      post.priceHistory.push({ price: post.price, changedAt: new Date() });
+    }
     post.bedrooms = Number(req.body?.bedrooms ?? post.bedrooms);
     post.bathrooms = Number(req.body?.bathrooms ?? post.bathrooms);
     post.areaSqft = Number(req.body?.areaSqft ?? post.areaSqft);
@@ -896,6 +965,24 @@ export async function updatePropertyPost(req, res) {
     }
 
     await post.save();
+
+    if (oldPrice > 0 && post.price > 0 && post.price < oldPrice) {
+      notifyPriceDrop(post, oldPrice).catch((error) => {
+        logger.error("Failed to send price-drop notifications (non-fatal):", error);
+      });
+    }
+
+    if (post.price !== oldPrice) {
+      notifyActiveOfferBuyersOfPriceChange(post, oldPrice).catch((error) => {
+        logger.error("Failed to notify offer buyers of price change (non-fatal):", error);
+      });
+    }
+
+    if (isBeingUnpublished) {
+      closeActiveOffersForPost(post._id, userId).catch((error) => {
+        logger.error("Failed to close active offers on unpublished post (non-fatal):", error);
+      });
+    }
 
     const populated = await PropertyPost.findById(post._id)
       .populate("author", "fullName profilePic activeRole primaryRole city isVerified")
@@ -1198,6 +1285,12 @@ export async function deletePropertyPost(req, res) {
     post.deletedAt = new Date();
     post.deletedBy = userId;
     await post.save();
+
+    // Open negotiations on a post that no longer exists shouldn't just sit
+    // there forever — decline them and tell the buyers why.
+    await closeActiveOffersForPost(postId, userId).catch((error) => {
+      logger.error("Failed to close active offers on deleted post (non-fatal):", error);
+    });
 
     // Invalidate caches
     await invalidateDiscoverCache();

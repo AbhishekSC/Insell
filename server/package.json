@@ -7,7 +7,8 @@
     "dev": "nodemon --exec \"node --import ./src/instrument.js\" src/server.js",
     "seed:users": "node scripts/seedUsers.js",
     "migrate:users:travel": "node scripts/migrateUsersToTravel.js",
-    "migrate:users:real-estate": "node scripts/migrateUsersToMarketplace.js"
+    "migrate:users:real-estate": "node scripts/migrateUsersToMarketplace.js",
+    "test": "vitest run"
   },
   "nodemonConfig": {
     "ignore": [
@@ -48,6 +49,7 @@
     "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "nodemon": "^3.1.9",
+    "vitest": "^4.1.11"
   }
 }

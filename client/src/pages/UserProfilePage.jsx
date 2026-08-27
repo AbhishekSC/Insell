@@ -170,6 +170,16 @@ export default function UserProfilePage() {
 
   const connectionsForbidden = isConnectionsError && connectionsError?.response?.status === 403;
 
+  const { data: reviewsData, isLoading: isReviewsLoading } = useQuery({
+    queryKey: ["userReviews", userId],
+    enabled: Boolean(userId) && activeTab === "reviews",
+    queryFn: async () => {
+      const response = await axiosInstance.get(`/reviews/users/${userId}/reviews`);
+      return response.data?.data || { reviews: [], ratingAvg: 0, ratingCount: 0 };
+    },
+  });
+  const userReviews = reviewsData?.reviews || [];
+
   const profileUser = profileData?.user || null;
   const stats = profileData?.stats || { postsCount: 0 };
   const relationship = profileData?.relationship || { isSelf: false, connectionStatus: "none" };
@@ -576,6 +586,13 @@ export default function UserProfilePage() {
                 {profileUser.fullName || "Unknown User"}
                 {verified ? <BadgeCheck className="size-4 text-emerald-600" /> : null}
               </h1>
+              {profileUser.ratingCount > 0 && (
+                <p className="flex items-center gap-1 text-xs font-medium text-amber-600">
+                  <Star className="size-3.5 fill-current" />
+                  {profileUser.ratingAvg?.toFixed(1)}
+                  <span className="text-slate-400 font-normal">({profileUser.ratingCount})</span>
+                </p>
+              )}
               <p className="flex items-center gap-1 text-xs text-slate-500">
                 <MapPin className="size-3.5" />
                 {cityLabel}
@@ -617,6 +634,13 @@ export default function UserProfilePage() {
                   </h1>
                   {verified ? <BadgeCheck className="size-5 text-emerald-600" /> : null}
                 </div>
+                {profileUser.ratingCount > 0 && (
+                  <p className="mt-1 flex items-center justify-center gap-1 text-sm font-medium text-amber-600 sm:justify-start">
+                    <Star className="size-4 fill-current" />
+                    {profileUser.ratingAvg?.toFixed(1)}
+                    <span className="text-slate-400 font-normal">({profileUser.ratingCount} review{profileUser.ratingCount === 1 ? "" : "s"})</span>
+                  </p>
+                )}
                 <p className="mt-1 flex items-center justify-center gap-1 text-sm text-slate-500 sm:justify-start">
                   <MapPin className="size-4" />
                   {cityLabel}
@@ -674,10 +698,10 @@ export default function UserProfilePage() {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[3fr_1fr]">
             {/* Left Column */}
             <div className="flex flex-col gap-6">
-              {/* Navigation Tabs — desktop/tablet: full labeled set. About and
-                  Reviews move out of the mobile tab bar (About becomes a
-                  header button, see above; Reviews isn't part of the
-                  simplified mobile view at all). */}
+              {/* Navigation Tabs — desktop/tablet: full labeled set. About
+                  moves out of the mobile tab bar (becomes a header button,
+                  see above); Reviews stays in both — see the mobile row
+                  below. */}
               <div className="hidden border-b border-slate-200 sm:block">
                 <div className="flex items-center gap-1 overflow-x-auto">
                   {(() => {
@@ -716,9 +740,9 @@ export default function UserProfilePage() {
                 </div>
               </div>
 
-              {/* Navigation Tabs — mobile: Instagram-style icon-only row,
-                  limited to Posts (+ Saved / Recently Viewed on your own
-                  profile, since those are private to you). */}
+              {/* Navigation Tabs — mobile: Instagram-style icon-only row.
+                  Posts + Reviews for everyone; Saved / Recently Viewed only
+                  on your own profile, since those are private to you. */}
               <div className="border-b border-slate-200 sm:hidden">
                 <div className="flex items-center justify-around">
                   {(() => {
@@ -726,9 +750,13 @@ export default function UserProfilePage() {
                       ? [
                           { id: "posts", icon: Grid3x3, label: "Posts" },
                           { id: "bookmarks", icon: Save, label: "Saved" },
+                          { id: "reviews", icon: Star, label: "Reviews" },
                           { id: "activity", icon: Clock, label: "Recently Viewed" },
                         ]
-                      : [{ id: "posts", icon: Grid3x3, label: "Posts" }];
+                      : [
+                          { id: "posts", icon: Grid3x3, label: "Posts" },
+                          { id: "reviews", icon: Star, label: "Reviews" },
+                        ];
                     return tabs.map((tab) => {
                       const Icon = tab.icon;
                       return (
@@ -1317,6 +1345,87 @@ export default function UserProfilePage() {
                     </div>
                   </section>
                 </>
+              ) : activeTab === "reviews" ? (
+                <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                      <Star className="size-4 text-amber-500" />
+                      Reviews
+                    </h3>
+                    {reviewsData?.ratingCount > 0 && (
+                      <span className="flex items-center gap-1 text-sm font-medium text-amber-600">
+                        <Star className="size-4 fill-current" />
+                        {reviewsData.ratingAvg?.toFixed(1)}
+                        <span className="text-slate-400 font-normal">({reviewsData.ratingCount})</span>
+                      </span>
+                    )}
+                  </div>
+                  {isReviewsLoading ? (
+                    <p className="text-sm text-slate-500">Loading reviews...</p>
+                  ) : userReviews.length === 0 ? (
+                    <p className="text-sm text-slate-500">No reviews yet — reviews appear here once a deal is closed and either side rates it.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {userReviews.map((review) => (
+                        <div key={review._id} className="flex gap-3 border-b border-slate-100 pb-4 last:border-0 last:pb-0">
+                          <UserAvatar
+                            src={review.reviewer?.profilePic}
+                            name={review.reviewer?.fullName || "User"}
+                            sizeClass="size-9"
+                            userId={review.reviewer?._id}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-semibold text-slate-800">{review.reviewer?.fullName || "Anonymous"}</p>
+                              <span className="text-xs text-slate-400">
+                                {review.createdAt ? new Date(review.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}
+                              </span>
+                            </div>
+                            <div className="mt-0.5 flex items-center gap-0.5">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  className={`size-3.5 ${star <= review.rating ? "fill-amber-400 text-amber-400" : "text-slate-200"}`}
+                                />
+                              ))}
+                            </div>
+                            {review.comment && (
+                              <p className="mt-1.5 text-sm text-slate-600">{review.comment}</p>
+                            )}
+                            {review.post?._id && (
+                              <Link
+                                to={`/property/${review.post._id}`}
+                                className="mt-2 flex items-center gap-2 rounded-lg bg-slate-50 p-2 hover:bg-slate-100 transition"
+                              >
+                                {review.post.mediaUrls?.[0] && (
+                                  <img
+                                    src={review.post.mediaUrls[0]}
+                                    alt=""
+                                    className="size-10 shrink-0 rounded-lg object-cover"
+                                  />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-xs font-semibold text-slate-800">{review.post.title || "Property"}</p>
+                                  <div className="flex items-center gap-1 text-xs text-slate-500">
+                                    <IndianRupee className="size-3" />
+                                    <span>{review.post.price?.toLocaleString()}</span>
+                                    {review.post.city && (
+                                      <>
+                                        <span className="mx-0.5">·</span>
+                                        <MapPin className="size-3" />
+                                        <span>{review.post.city}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </Link>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
               ) : (
                 <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
                   <Grid3x3 className="mx-auto size-8 text-slate-300" />
@@ -1501,6 +1610,7 @@ export default function UserProfilePage() {
                 const formData = new FormData(e.target);
                 const postData = {
                   title: formData.get('title'),
+                  price: Number(formData.get('price')),
                   caption: formData.get('caption'),
                   customBadge: formData.get('customBadge'),
                   mediaUrls: Array.isArray(postToEdit.mediaUrls) ? postToEdit.mediaUrls : [],
@@ -1607,6 +1717,21 @@ export default function UserProfilePage() {
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
                   required
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Price</label>
+                <div className="relative">
+                  <IndianRupee className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="number"
+                    name="price"
+                    min="0"
+                    defaultValue={postToEdit.price ?? ""}
+                    className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm focus:border-indigo-500 focus:outline-none"
+                    required
+                  />
+                </div>
               </div>
 
               <div>

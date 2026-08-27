@@ -106,6 +106,28 @@ const propertyPostSchema = new mongoose.Schema(
       default: 0,
       index: true,
     },
+    // Every distinct price the post has ever had, oldest first — seeded
+    // with the listing price at creation, appended to whenever price
+    // actually changes on an edit. Powers the "Price History" chart on the
+    // property page.
+    priceHistory: [
+      {
+        price: { type: Number, required: true, min: 0 },
+        changedAt: { type: Date, default: Date.now },
+      },
+    ],
+    // The source of truth for "can a new offer be opened on this post" —
+    // flipped to ACCEPTED inside the same transaction that accepts an
+    // Offer, so a concurrent createOffer reading this field mid-transaction
+    // sees either the pre- or post-accept state consistently, never a torn
+    // read. Querying "does an accepted Offer document exist for this post"
+    // instead would leave a race window between that query and the write.
+    offerStatus: {
+      type: String,
+      enum: ["OPEN", "ACCEPTED"],
+      default: "OPEN",
+      index: true,
+    },
     bedrooms: {
       type: Number,
       min: 0,

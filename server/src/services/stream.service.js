@@ -197,6 +197,37 @@ export const pushRealtimeNotification = async (userId, eventType) => {
 };
 
 /**
+ * Open (or reuse) the 1:1 messaging channel between two users and drop a
+ * system message into it — used when an offer is accepted so the buyer and
+ * owner land in the exact same conversation thread the Messages tab would
+ * open for them (same distinct-channel-by-members convention the client
+ * uses in ChatContent.jsx's openFriendChat, i.e. no explicit channel id).
+ * @param {string} userIdA
+ * @param {string} userIdB
+ * @param {string} text
+ */
+export const sendSystemMessageToDirectChannel = async (userIdA, userIdB, text) => {
+  if (!userIdA || !userIdB || !text) return;
+  try {
+    const channel = getStreamClient().channel("messaging", {
+      members: [String(userIdA), String(userIdB)],
+      created_by_id: String(userIdA),
+    });
+    await channel.create();
+    await channel.sendMessage({
+      text,
+      user_id: String(userIdA),
+    });
+  } catch (error) {
+    logger.error("Failed to send system message to direct channel (non-fatal):", {
+      userIdA: String(userIdA),
+      userIdB: String(userIdB),
+      message: error.message,
+    });
+  }
+};
+
+/**
  * Push a real-time signal into a community's Stream channel so any member
  * currently watching it (e.g. actively chatting) is notified immediately,
  * rather than waiting for the next notifications poll.

@@ -647,7 +647,7 @@ export async function getUserPublicProfile(req, res) {
 
     const user = await User.findById(targetUserId)
       .select(
-        "fullName bio profilePic city primaryRole activeRole userRoles preferredLocalities propertyTypePreferences listingIntent budgetMin budgetMax createdAt isVerified"
+        "fullName bio profilePic city primaryRole activeRole userRoles preferredLocalities propertyTypePreferences listingIntent budgetMin budgetMax createdAt isVerified ratingAvg ratingCount"
       )
       .lean();
 
