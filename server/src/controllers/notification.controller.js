@@ -1,4 +1,5 @@
 import Notification from "../models/Notification.model.js";
+import Review from "../models/Review.model.js";
 import { logger } from "../utils/logger.js";
 
 // Create a notification
@@ -69,8 +70,34 @@ export const getNotifications = async (req, res) => {
     const notifications = await Notification.find(filter)
       .populate("actor", "fullName profilePic isVerified activeRole primaryRole")
       .populate("propertyPost", "title price city listingType mediaUrls")
+      // Offer status, not just the id — an "offer_received"/"offer_countered"
+      // notification's `type` never changes once you act on it, so without
+      // this the Accept/Decline buttons would stay up forever on the same
+      // notification even after the offer is already closed, and a second
+      // click would just 400 ("already closed") looking like a broken button.
+      .populate("offer", "status")
       .sort({ createdAt: -1 })
-      .limit(50);
+      .limit(50)
+      .lean();
+
+    // Same reasoning as the offer status above — an "offer_accepted"
+    // notification never changes once you've reviewed it, so a "Leave a
+    // review" button gated only on notification type would stay clickable
+    // forever, and a second submit would just 409.
+    const acceptedOfferIds = notifications
+      .filter((n) => n.type === "offer_accepted" && n.offer?._id)
+      .map((n) => n.offer._id);
+    const reviewedOfferIds = acceptedOfferIds.length
+      ? new Set(
+          (await Review.find({ offer: { $in: acceptedOfferIds }, reviewer: userId }).select("offer").lean())
+            .map((r) => String(r.offer))
+        )
+      : new Set();
+    notifications.forEach((n) => {
+      if (n.offer?._id) {
+        n.offer.reviewedByMe = reviewedOfferIds.has(String(n.offer._id));
+      }
+    });
 
     // Count unread notifications based on the filter
     const unreadCount = await Notification.countDocuments({

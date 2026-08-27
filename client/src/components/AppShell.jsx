@@ -39,6 +39,8 @@ import UserAvatar from "./UserAvatar";
 import SearchFiltersModal from "./SearchFiltersModal";
 import PostModerationNotice from "./PostModerationNotice";
 import AnnouncementNotice from "./AnnouncementNotice";
+import PriceDropNotice from "./PriceDropNotice";
+import NotificationPanel from "./NotificationPanel";
 
 function notifyBrowser(title, body) {
   if (typeof window === "undefined" || !("Notification" in window)) return;
@@ -521,6 +523,7 @@ export default function AppShell({
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [isFiltersModalOpen, setIsFiltersModalOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState(null);
+  const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const searchInputRef = useRef(null);
   const searchDebounceRef = useRef(null);
 
@@ -852,11 +855,12 @@ export default function AppShell({
                       <LocateFixed className="size-4" />
                     )}
                   </button>
-                  <Link
-                    to="/marketplace?section=activity"
+                  <button
+                    type="button"
+                    onClick={() => setShowNotificationPanel(true)}
                     className="btn btn-ghost btn-sm btn-circle relative border border-slate-200 text-slate-600 hover:bg-slate-100"
-                    aria-label="Activity"
-                    title="Activity"
+                    aria-label="Notifications"
+                    title="Notifications"
                   >
                     <Bell className="size-4" />
                     {totalNotificationCount > 0 ? (
@@ -864,7 +868,7 @@ export default function AppShell({
                         {totalNotificationCount > 9 ? "9+" : totalNotificationCount}
                       </span>
                     ) : null}
-                  </Link>
+                  </button>
 
                   <div className="relative">
                     <button
@@ -1165,6 +1169,11 @@ export default function AppShell({
         currentFilters={activeFilters}
       />
 
+      <NotificationPanel
+        isOpen={showNotificationPanel}
+        onClose={() => setShowNotificationPanel(false)}
+      />
+
       {/* Mobile Search Modal */}
       {searchFocused && (
         <div className="fixed inset-0 z-50 bg-white lg:hidden">
@@ -1284,6 +1293,7 @@ export default function AppShell({
 
       <PostModerationNotice enabled={Boolean(authUser?._id)} />
       <AnnouncementNotice enabled={Boolean(authUser?._id)} />
+      <PriceDropNotice enabled={Boolean(authUser?._id)} />
     </div>
   );
 }

@@ -233,6 +233,12 @@ function isVideoUrl(url) {
 }
 
 function getListingBadge(post) {
+  // Takes priority over everything else — once a deal is closed, that's
+  // more important and more accurate than any other badge text.
+  if (post.offerStatus === "ACCEPTED") {
+    const postType = String(post.postType || "").toUpperCase();
+    return postType === "PROPERTY_RENT" || post.listingType?.toLowerCase() === "rent" ? "Rented" : "Sold";
+  }
   if (post.customBadge) return post.customBadge;
   const postType = String(post.postType || "").toUpperCase();
   if (postType === "PROPERTY_SALE") return "For Sale";
@@ -861,6 +867,15 @@ export default function MarketplacePage() {
     setComposerStep(1);
   };
 
+  // Same underlying flow as resuming a draft — the composer always PUTs to
+  // the existing post when editingDraftId is set, and submitting normally
+  // (not "Save as Draft") re-sends status: "PUBLISHED", so this can't
+  // accidentally unpublish a live listing.
+  const handleEditPost = (post) => {
+    resumeDraft(post);
+    setIsComposerOpen(true);
+  };
+
   const { mutate: deleteDraft, isPending: deletingDraft } = useMutation({
     mutationFn: async (postId) => {
       await axiosInstance.delete(`/posts/${postId}`);
@@ -1398,7 +1413,6 @@ export default function MarketplacePage() {
                   const postType = String(post.postType || "").toUpperCase();
                   const isRequirement = postType.startsWith("REQUIREMENT_");
                   const requirementTitle = post.title || (postType === "REQUIREMENT_RENT" ? "Looking for Rental Property" : "Looking to Buy Property");
-                  const isOwnPost = Boolean(authUser?._id) && String(authUser._id) === String(post.author?._id);
 
                   const handlePrevImage = (e) => {
                     e.stopPropagation();
@@ -1437,29 +1451,33 @@ export default function MarketplacePage() {
                       onNextImage={handleNextImage}
                       onDoubleClickMedia={handleDoubleClickMedia}
                       badge={badge}
-                      badgeClassName={post.customBadge ? getCustomBadgeClasses(post.customBadge) : undefined}
+                      badgeClassName={
+                        post.offerStatus === "ACCEPTED"
+                          ? "bg-slate-900 text-white"
+                          : post.customBadge
+                            ? getCustomBadgeClasses(post.customBadge)
+                            : undefined
+                      }
                       menu={
-                        !isOwnPost ? (
-                          <button
-                            type="button"
-                            className="grid size-6 place-items-center rounded-full text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              if (postMenuAnchor?.post._id === post._id) {
-                                setPostMenuAnchor(null);
-                                return;
-                              }
-                              const rect = event.currentTarget.getBoundingClientRect();
-                              setPostMenuAnchor({
-                                post,
-                                top: rect.bottom + 4,
-                                left: Math.max(8, rect.right - 144),
-                              });
-                            }}
-                          >
-                            <MoreVertical className="size-3.5" />
-                          </button>
-                        ) : null
+                        <button
+                          type="button"
+                          className="grid size-6 place-items-center rounded-full text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (postMenuAnchor?.post._id === post._id) {
+                              setPostMenuAnchor(null);
+                              return;
+                            }
+                            const rect = event.currentTarget.getBoundingClientRect();
+                            setPostMenuAnchor({
+                              post,
+                              top: rect.bottom + 4,
+                              left: Math.max(8, rect.right - 144),
+                            });
+                          }}
+                        >
+                          <MoreVertical className="size-3.5" />
+                        </button>
                       }
                       requirementBlock={
                         post.media.length === 0 && isRequirement ? (
@@ -2595,17 +2613,31 @@ export default function MarketplacePage() {
               className="fixed z-50 w-36 rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
               style={{ top: postMenuAnchor.top, left: postMenuAnchor.left }}
             >
-              <button
-                type="button"
-                onClick={() => {
-                  setReportTargetPost(postMenuAnchor.post);
-                  setPostMenuAnchor(null);
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-              >
-                <Flag className="size-3.5" />
-                Report
-              </button>
+              {String(authUser?._id) === String(postMenuAnchor.post.author?._id) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleEditPost(postMenuAnchor.post);
+                    setPostMenuAnchor(null);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <Edit3 className="size-3.5" />
+                  Edit
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReportTargetPost(postMenuAnchor.post);
+                    setPostMenuAnchor(null);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                >
+                  <Flag className="size-3.5" />
+                  Report
+                </button>
+              )}
             </div>
           </>,
           document.body
