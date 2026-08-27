@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BadgeCheck,
@@ -162,6 +162,7 @@ function InfoRow({ label, value }) {
 
 export default function PropertyDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [expandedAbout, setExpandedAbout] = useState(false);
@@ -635,10 +636,14 @@ export default function PropertyDetailPage() {
                         {[postData.locality, postData.city].filter(Boolean).join(", ") || "Location not specified"}
                       </span>
                       {latitude && longitude && (
-                        <span className="flex items-center gap-1 text-indigo-600 text-sm">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/map-view?propertyId=${postData._id}`)}
+                          className="flex items-center gap-1 text-indigo-600 text-sm hover:underline"
+                        >
                           <span className="size-2 rounded-full bg-indigo-600"></span>
                           <span>Live Location</span>
-                        </span>
+                        </button>
                       )}
                     </div>
                     <div className="flex items-center gap-2 mt-3 flex-wrap">
