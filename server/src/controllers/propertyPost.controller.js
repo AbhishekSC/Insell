@@ -822,16 +822,17 @@ export async function createPropertyPost(req, res) {
   }
 }
 
-// Fire-and-forget fan-out to everyone who liked/saved a post when its price
-// drops — both lists already live directly on the post document, so this
-// needs no extra query against the User collection.
-async function notifyPriceDrop(post, oldPrice) {
+// Fire-and-forget fan-out to everyone who liked/saved a post on ANY price
+// change, not just drops — both lists already live directly on the post
+// document, so this needs no extra query against the User collection.
+async function notifyPriceChange(post, oldPrice) {
   const interestedIds = [...new Set(
     [...(post.likedBy || []), ...(post.savedBy || [])].map((id) => String(id))
   )].filter((id) => id !== String(post.author));
 
   if (interestedIds.length === 0) return;
 
+  const isDrop = post.price < oldPrice;
   const oldFormatted = `₹${Number(oldPrice).toLocaleString("en-IN")}`;
   const newFormatted = `₹${Number(post.price).toLocaleString("en-IN")}`;
 
@@ -841,9 +842,14 @@ async function notifyPriceDrop(post, oldPrice) {
         recipientId,
         actorId: post.author,
         type: "price_drop",
-        title: `Price drop on a property you saved`,
-        message: `Price dropped from ${oldFormatted} to ${newFormatted} on "${post.title}"`,
-        data: { propertyPost: post._id, url: `/property/${post._id}` },
+        title: isDrop ? "Price drop on a property you saved" : "Price update on a property you saved",
+        message: `Price ${isDrop ? "dropped" : "increased"} from ${oldFormatted} to ${newFormatted} on "${post.title}"`,
+        data: {
+          propertyPost: post._id,
+          url: `/property/${post._id}`,
+          priceBefore: oldPrice,
+          priceAfter: post.price,
+        },
         channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
       })
     )
@@ -966,9 +972,9 @@ export async function updatePropertyPost(req, res) {
 
     await post.save();
 
-    if (oldPrice > 0 && post.price > 0 && post.price < oldPrice) {
-      notifyPriceDrop(post, oldPrice).catch((error) => {
-        logger.error("Failed to send price-drop notifications (non-fatal):", error);
+    if (oldPrice > 0 && post.price > 0 && post.price !== oldPrice) {
+      notifyPriceChange(post, oldPrice).catch((error) => {
+        logger.error("Failed to send price-change notifications (non-fatal):", error);
       });
     }
 
