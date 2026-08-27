@@ -6,7 +6,6 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useQuery } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
-import { useStreamContext } from "../context/StreamProvider";
 import MobileBottomNav from "../components/MobileBottomNav";
 
 // Custom marker icon — selected property gets a distinct color so it's
@@ -84,7 +83,6 @@ function MapViewUpdater({ center, zoom }) {
 
 export default function PropertyMapView() {
   const navigate = useNavigate();
-  const { unreadCount } = useStreamContext();
   const { data: incomingRequests = [] } = useQuery({
     // Same query key AppShell uses for the same data — shares its cache
     // instead of firing a second, identical network request.
@@ -941,10 +939,7 @@ export default function PropertyMapView() {
         </div>
       </div>
 
-      <MobileBottomNav
-        connectionsCount={incomingRequests.length}
-        chatUnreadCount={unreadCount}
-      />
+      <MobileBottomNav connectionsCount={incomingRequests.length} />
     </div>
   );
 }
