@@ -1027,7 +1027,6 @@ export default function AppShell({
         <MobileBottomNav
           isMarketplaceShell={isMarketplaceShell}
           connectionsCount={incomingRequests.length}
-          chatUnreadCount={unreadCount}
         />
       )}
 

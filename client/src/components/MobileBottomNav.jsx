@@ -27,7 +27,6 @@ function isItemActive(item, location) {
 export default function MobileBottomNav({
   isMarketplaceShell = true,
   connectionsCount = 0,
-  chatUnreadCount = 0,
 }) {
   const location = useLocation();
 
@@ -43,7 +42,6 @@ export default function MobileBottomNav({
         let badgeCount = 0;
         const badgeColor = "bg-red-500";
         if (item.to === "/marketplace?section=connections") badgeCount = connectionsCount;
-        else if (item.to === "/marketplace?section=chat") badgeCount = chatUnreadCount;
 
         return (
           <Link

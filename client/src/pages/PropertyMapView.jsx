@@ -1,12 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet";
-import { MapPin, IndianRupee, Bed, Bath, Square, Building2, Home, Filter, X, SlidersHorizontal, GraduationCap, Hospital, Train, ShoppingBag, ChevronDown } from "lucide-react";
+import { MapPin, Bed, Bath, Square, Building2, Home, Filter, X, SlidersHorizontal, GraduationCap, Hospital, Train, ShoppingBag, ChevronDown } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useQuery } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
-import { useStreamContext } from "../context/StreamProvider";
 import MobileBottomNav from "../components/MobileBottomNav";
 
 // Custom marker icon — selected property gets a distinct color so it's
@@ -84,7 +83,6 @@ function MapViewUpdater({ center, zoom }) {
 
 export default function PropertyMapView() {
   const navigate = useNavigate();
-  const { unreadCount } = useStreamContext();
   const { data: incomingRequests = [] } = useQuery({
     // Same query key AppShell uses for the same data — shares its cache
     // instead of firing a second, identical network request.
@@ -442,7 +440,6 @@ export default function PropertyMapView() {
                         {property.title || "Property"}
                       </h3>
                       <p className="text-sm font-bold text-indigo-600 mb-1.5">
-                        <IndianRupee className="size-3 inline" />
                         {formatPrice(property.price)}
                       </p>
                       <div className="flex items-center gap-1 text-[11px] text-slate-600 mb-1.5">
@@ -629,9 +626,11 @@ export default function PropertyMapView() {
             </button>
           </div>
 
-          {/* Selected Property Badge */}
+          {/* Selected Property Badge — the marker's own Popup already shows
+              image/title/price/View Details on mobile, so this richer
+              amenities panel is desktop-only to avoid a redundant second card */}
           {selectedProperty && (
-            <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2 sm:px-4 sm:py-3 border border-slate-200 w-full sm:max-w-xs">
+            <div className="hidden sm:block bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2 sm:px-4 sm:py-3 border border-slate-200 w-full sm:max-w-xs">
               <div className="flex items-start gap-2 sm:gap-3">
                 {selectedProperty.mediaUrls?.[0] && (
                   <img
@@ -941,10 +940,7 @@ export default function PropertyMapView() {
         </div>
       </div>
 
-      <MobileBottomNav
-        connectionsCount={incomingRequests.length}
-        chatUnreadCount={unreadCount}
-      />
+      <MobileBottomNav connectionsCount={incomingRequests.length} />
     </div>
   );
 }
