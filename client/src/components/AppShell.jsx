@@ -412,6 +412,17 @@ function UserMenu({
               className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
               onClick={() => {
                 setIsDropdownOpen(false);
+                navigate("/help");
+              }}
+            >
+              <HelpCircle className="size-4 text-slate-500" />
+              How to use this app
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+              onClick={() => {
+                setIsDropdownOpen(false);
                 logout();
               }}
               disabled={isPending}
@@ -1037,6 +1048,17 @@ export default function AppShell({
                         className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
                         onClick={() => {
                           setMobileUserMenuOpen(false);
+                          navigate("/help");
+                        }}
+                      >
+                        <HelpCircle className="size-4 text-slate-500" />
+                        How to use this app
+                      </button>
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                        onClick={() => {
+                          setMobileUserMenuOpen(false);
                           logout();
                         }}
                         disabled={isPending}
@@ -1163,16 +1185,14 @@ export default function AppShell({
                 <Flag className="size-5" />
                 Report Issue
               </button>
-              <button
-                type="button"
-                disabled
-                aria-disabled="true"
-                className="flex w-full cursor-not-allowed items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400"
+              <Link
+                to="/help"
+                onClick={() => setShowMobileMenu(false)}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
               >
                 <HelpCircle className="size-5" />
-                Help &amp; Support
-                <span className="ml-auto text-[10px] font-semibold text-slate-400">(Coming soon)</span>
-              </button>
+                How to use this app
+              </Link>
             </div>
           </div>
         </div>
