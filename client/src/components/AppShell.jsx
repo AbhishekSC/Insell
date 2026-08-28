@@ -554,6 +554,15 @@ export default function AppShell({
   const searchInputRef = useRef(null);
   const searchDebounceRef = useRef(null);
 
+  // The notification panel is an overlay, not a route — navigating to a
+  // different marketplace section (Chat/Connections/etc. via the bottom nav)
+  // only changes the ?section= query param on the same /marketplace route,
+  // so AppShell never remounts and the panel would otherwise stay stuck open
+  // on top of whatever section the user just switched to.
+  useEffect(() => {
+    setShowNotificationPanel(false);
+  }, [location.pathname, location.search]);
+
   const authData = queryClient.getQueryData(["authUser"]);
   const authUser = authData?.data?.user || authData?.data || null;
   const visibleNavItems = authUser?.isAdmin ? [...navItems, ADMIN_NAV_ITEM] : navItems;
