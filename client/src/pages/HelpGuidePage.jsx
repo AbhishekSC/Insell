@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Home, PlusCircle, HandCoins, MessageCircle, Map, Bell, Flag } from "lucide-react";
+import { X, Home, PlusCircle, HandCoins, MessageCircle, Map, Bell, Flag, Smartphone, Monitor } from "lucide-react";
 import AppShell from "../components/AppShell";
 import helpMarketplace from "../assets/help/help-marketplace.jpg";
 import helpCreatePost from "../assets/help/help-create-post.jpg";
@@ -7,6 +7,12 @@ import helpPropertyDetail from "../assets/help/help-property-detail.jpg";
 import helpChat from "../assets/help/help-chat.jpg";
 import helpMapView from "../assets/help/help-map-view.jpg";
 import helpNotifications from "../assets/help/help-notifications.jpg";
+import mHelpMarketplace from "../assets/help/mobile/marketplace.jpg";
+import mHelpCreatePost from "../assets/help/mobile/create-post.jpg";
+import mHelpPropertyDetail from "../assets/help/mobile/property-detail.jpg";
+import mHelpChat from "../assets/help/mobile/chat.jpg";
+import mHelpMapView from "../assets/help/mobile/map-view.jpg";
+import mHelpNotifications from "../assets/help/mobile/notifications.jpg";
 
 const SECTIONS = [
   {
@@ -19,19 +25,19 @@ const SECTIONS = [
       "Tap Filters to narrow results by price, property type, and location.",
       "Tap any listing card to open its full details.",
     ],
-    screenshot: helpMarketplace,
+    screenshot: { desktop: helpMarketplace, mobile: mHelpMarketplace },
   },
   {
     icon: PlusCircle,
     title: "Post a Property",
     summary: "List a property for sale or rent, or post what you're looking for.",
     steps: [
-      'Tap the "Create Post" button in the header.',
+      'Tap the "Create Post" button in the header (or the + button on mobile).',
       "Choose the post type — sale, rent, requirement, commercial, and more.",
       "Fill in photos, price, and location across the guided steps.",
       "Submit — your post appears in the marketplace feed instantly.",
     ],
-    screenshot: helpCreatePost,
+    screenshot: { desktop: helpCreatePost, mobile: mHelpCreatePost },
   },
   {
     icon: HandCoins,
@@ -43,7 +49,7 @@ const SECTIONS = [
       "The owner can accept, decline, or counter your offer.",
       "Once accepted, you can leave a review for each other and the listing is marked Sold/Rented.",
     ],
-    screenshot: helpPropertyDetail,
+    screenshot: { desktop: helpPropertyDetail, mobile: mHelpPropertyDetail },
   },
   {
     icon: MessageCircle,
@@ -54,7 +60,7 @@ const SECTIONS = [
       "Once accepted, open Messages to start chatting in real time.",
       "Accepting an offer automatically connects buyer and owner as friends.",
     ],
-    screenshot: helpChat,
+    screenshot: { desktop: helpChat, mobile: mHelpChat },
   },
   {
     icon: Map,
@@ -65,7 +71,7 @@ const SECTIONS = [
       "Tap a price pin to preview that listing — the selected pin highlights.",
       "On desktop, see nearby schools, hospitals, and transit for the selected property.",
     ],
-    screenshot: helpMapView,
+    screenshot: { desktop: helpMapView, mobile: mHelpMapView },
   },
   {
     icon: Bell,
@@ -76,7 +82,7 @@ const SECTIONS = [
       "Accept/decline offers or leave a review directly from a notification.",
       "Tap any notification to jump straight to the related property or user.",
     ],
-    screenshot: helpNotifications,
+    screenshot: { desktop: helpNotifications, mobile: mHelpNotifications },
   },
   {
     icon: Flag,
@@ -105,6 +111,9 @@ function ScreenshotLightbox({ src, onClose }) {
 
 export default function HelpGuidePage() {
   const [lightbox, setLightbox] = useState(null);
+  const [device, setDevice] = useState(() =>
+    typeof window !== "undefined" && window.innerWidth >= 1024 ? "desktop" : "mobile"
+  );
 
   return (
     <AppShell hideHero title="How to use NearMySpace" subtitle="A quick walkthrough of everything you can do in the app">
@@ -119,9 +128,35 @@ export default function HelpGuidePage() {
           </div>
         </div>
 
+        <div className="mb-5 flex items-center justify-center">
+          <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setDevice("mobile")}
+              className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                device === "mobile" ? "bg-indigo-600 text-white" : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              <Smartphone className="size-4" />
+              Mobile
+            </button>
+            <button
+              type="button"
+              onClick={() => setDevice("desktop")}
+              className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                device === "desktop" ? "bg-indigo-600 text-white" : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              <Monitor className="size-4" />
+              Desktop
+            </button>
+          </div>
+        </div>
+
         <div className="space-y-4">
           {SECTIONS.map((section) => {
             const Icon = section.icon;
+            const screenshotSrc = section.screenshot?.[device];
             return (
               <div key={section.title} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex items-start gap-3 p-5">
@@ -141,16 +176,16 @@ export default function HelpGuidePage() {
                     </ol>
                   </div>
                 </div>
-                {section.screenshot && (
+                {screenshotSrc && (
                   <button
                     type="button"
-                    onClick={() => setLightbox(section.screenshot)}
+                    onClick={() => setLightbox(screenshotSrc)}
                     className="block w-full border-t border-slate-100 bg-slate-50 px-5 py-4"
                   >
                     <img
-                      src={section.screenshot}
-                      alt={`${section.title} screenshot`}
-                      className="mx-auto max-h-56 rounded-lg border border-slate-200 object-contain shadow-sm hover:opacity-90"
+                      src={screenshotSrc}
+                      alt={`${section.title} screenshot (${device})`}
+                      className="mx-auto max-h-72 rounded-lg border border-slate-200 object-contain shadow-sm hover:opacity-90"
                     />
                   </button>
                 )}
