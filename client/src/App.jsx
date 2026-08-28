@@ -27,6 +27,7 @@ import NewPasswordPage from "./pages/NewPasswordPage";
 import PropertyComparisonPage from "./pages/PropertyComparisonPage";
 import PropertyMapView from "./pages/PropertyMapView";
 import AdminPage from "./pages/AdminPage";
+import HelpGuidePage from "./pages/HelpGuidePage";
 import AccountBlockedModal from "./components/AccountBlockedModal";
 import { Toaster } from "react-hot-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -267,6 +268,10 @@ function App() {
         <Route
           path="/admin"
           element={guardAdmin(<AdminPage />)}
+        />
+        <Route
+          path="/help"
+          element={guard(<HelpGuidePage />)}
         />
       </Routes>
 
