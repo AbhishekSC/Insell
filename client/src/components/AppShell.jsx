@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Command,
   Filter,
+  Flag,
   HelpCircle,
   Home,
   House,
@@ -42,6 +43,7 @@ import MobileBottomNav from "./MobileBottomNav";
 import AnnouncementNotice from "./AnnouncementNotice";
 import PriceDropNotice from "./PriceDropNotice";
 import NotificationPanel from "./NotificationPanel";
+import ReportIssueModal from "./ReportIssueModal";
 
 function notifyBrowser(title, body) {
   if (typeof window === "undefined" || !("Notification" in window)) return;
@@ -352,6 +354,7 @@ function UserMenu({
   onDisableNotifications,
   isDisablingNotifications,
   pushUiState,
+  onReportIssue,
 }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const navigate = useNavigate();
@@ -393,6 +396,17 @@ function UserMenu({
               isDisabling={isDisablingNotifications}
               onClose={() => setIsDropdownOpen(false)}
             />
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+              onClick={() => {
+                setIsDropdownOpen(false);
+                onReportIssue?.();
+              }}
+            >
+              <Flag className="size-4 text-slate-500" />
+              Report Issue
+            </button>
             <button
               type="button"
               className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
@@ -525,6 +539,7 @@ export default function AppShell({
   const [isFiltersModalOpen, setIsFiltersModalOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState(null);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
+  const [showReportIssueModal, setShowReportIssueModal] = useState(false);
   const searchInputRef = useRef(null);
   const searchDebounceRef = useRef(null);
 
@@ -763,6 +778,27 @@ export default function AppShell({
     },
   });
 
+  const { mutate: submitFeedback, isPending: isSubmittingFeedback } = useMutation({
+    mutationFn: async ({ message, screenshot }) => {
+      const payload = new FormData();
+      payload.append("message", message);
+      payload.append("page", location.pathname + location.search);
+      if (screenshot) payload.append("screenshot", screenshot);
+
+      const response = await axiosInstance.post("/feedback", payload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Thanks — we've received your feedback");
+      setShowReportIssueModal(false);
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Failed to send feedback");
+    },
+  });
+
   return (
     <div
       className={
@@ -821,6 +857,7 @@ export default function AppShell({
                   onDisableNotifications={disableNotifications}
                   isDisablingNotifications={isDisablingNotifications}
                   pushUiState={pushUiState}
+                  onReportIssue={() => setShowReportIssueModal(true)}
                 />
               </div>
 
@@ -1106,6 +1143,17 @@ export default function AppShell({
             <div className="border-t border-slate-100 p-2">
               <button
                 type="button"
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  setShowReportIssueModal(true);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <Flag className="size-5" />
+                Report Issue
+              </button>
+              <button
+                type="button"
                 disabled
                 aria-disabled="true"
                 className="flex w-full cursor-not-allowed items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400"
@@ -1132,6 +1180,13 @@ export default function AppShell({
       <NotificationPanel
         isOpen={showNotificationPanel}
         onClose={() => setShowNotificationPanel(false)}
+      />
+
+      <ReportIssueModal
+        isOpen={showReportIssueModal}
+        isPending={isSubmittingFeedback}
+        onCancel={() => setShowReportIssueModal(false)}
+        onSubmit={(data) => submitFeedback(data)}
       />
 
       {/* Mobile Search Modal */}

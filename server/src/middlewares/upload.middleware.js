@@ -106,6 +106,30 @@ export const uploadAnnouncementImage = multer({
   },
 });
 
+const feedbackScreenshotStorage = createCloudinaryStorage("feedback-screenshots", ["jpg", "jpeg", "png", "webp"], {
+  maxWidth: 1600,
+  maxHeight: 1600,
+  quality: 'auto:good',
+  resourceType: 'image'
+});
+
+function feedbackScreenshotFileFilter(_req, file, cb) {
+  const allowedMimeTypes = ["image/png", "image/jpeg", "image/webp"];
+  if (!allowedMimeTypes.includes(file.mimetype)) {
+    cb(new Error("Unsupported image file type"));
+    return;
+  }
+  cb(null, true);
+}
+
+export const uploadFeedbackScreenshot = multer({
+  storage: feedbackScreenshotStorage,
+  fileFilter: feedbackScreenshotFileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+});
+
 const communityPhotoStorage = createCloudinaryStorage("community-photos", ["jpg", "jpeg", "png", "webp"], {
   maxWidth: 800,
   maxHeight: 800,

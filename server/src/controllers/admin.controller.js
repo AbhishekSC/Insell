@@ -3,6 +3,7 @@ import PropertyPost, { BLOCK_REASON_CODES } from "../models/PropertyPost.model.j
 import PostReport from "../models/PostReport.model.js";
 import Notification from "../models/Notification.model.js";
 import Announcement from "../models/Announcement.model.js";
+import Feedback from "../models/Feedback.model.js";
 import { logger } from "../utils/logger.js";
 import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler.js";
 import { pushRealtimeNotification } from "../services/stream.service.js";
@@ -445,6 +446,69 @@ export const dismissPostReports = async (req, res) => {
     return sendSuccessResponse(res, 200, "Reports dismissed successfully");
   } catch (error) {
     logger.error("Error dismissing reports:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+};
+
+// List "Report Issue" submissions (the in-app feedback form, not post reports)
+// for the admin dashboard — newest first, filterable by status.
+export const getAdminFeedback = async (req, res) => {
+  try {
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
+    const skip = (page - 1) * limit;
+    const status = String(req.query.status || "all"); // OPEN | RESOLVED | all
+
+    const filter = {};
+    if (status === "OPEN" || status === "RESOLVED") {
+      filter.status = status;
+    }
+
+    const [items, total] = await Promise.all([
+      Feedback.find(filter)
+        .populate("reporter", "fullName email profilePic")
+        .populate("resolvedBy", "fullName")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Feedback.countDocuments(filter),
+    ]);
+
+    return sendSuccessResponse(res, 200, "Feedback fetched successfully", {
+      items,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    });
+  } catch (error) {
+    logger.error("Error fetching admin feedback:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+};
+
+// Mark a feedback submission resolved once the admin has actioned/reviewed it.
+export const resolveFeedback = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const adminId = req.user._id;
+
+    const feedback = await Feedback.findByIdAndUpdate(
+      id,
+      { $set: { status: "RESOLVED", resolvedAt: new Date(), resolvedBy: adminId } },
+      { new: true }
+    );
+
+    if (!feedback) {
+      return sendErrorResponse(res, 404, "Feedback not found");
+    }
+
+    return sendSuccessResponse(res, 200, "Feedback marked resolved", { feedback });
+  } catch (error) {
+    logger.error("Error resolving feedback:", error);
     return sendErrorResponse(res, 500, "Internal Server Error");
   }
 };

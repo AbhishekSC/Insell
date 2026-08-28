@@ -10,6 +10,7 @@ import {
   Image as ImageIcon,
   Loader2,
   Megaphone,
+  MessageSquareWarning,
   MoreVertical,
   Search,
   ShieldAlert,
@@ -1139,6 +1140,182 @@ function ReportsPanel() {
   );
 }
 
+function FeedbackPanel() {
+  const queryClient = useQueryClient();
+  const [status, setStatus] = useState("OPEN");
+  const [page, setPage] = useState(1);
+  const [preview, setPreview] = useState(null);
+
+  useEffect(() => {
+    setPage(1);
+  }, [status]);
+
+  const { data, isLoading, isFetching, isError } = useQuery({
+    queryKey: ["adminFeedback", page, status],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/admin/feedback", {
+        params: { page, limit: 20, status },
+      });
+      return response.data?.data;
+    },
+    placeholderData: keepPreviousData,
+  });
+
+  const items = data?.items || [];
+  const pagination = data?.pagination || { page: 1, totalPages: 1, total: 0 };
+
+  const { mutate: resolveFeedback, isPending: isResolving } = useMutation({
+    mutationFn: async (id) => {
+      const response = await axiosInstance.post(`/admin/feedback/${id}/resolve`);
+      return response.data?.data;
+    },
+    onSuccess: () => {
+      toast.success("Marked resolved");
+      queryClient.invalidateQueries({ queryKey: ["adminFeedback"] });
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to update feedback");
+    },
+  });
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div className="flex items-center gap-2">
+          <div className="grid size-9 place-items-center rounded-xl bg-indigo-100 text-indigo-600">
+            <MessageSquareWarning className="size-4" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-slate-800">Reported issues</h2>
+            <p className="text-xs text-slate-500">{pagination.total} total</p>
+          </div>
+        </div>
+
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+        >
+          <option value="OPEN">Open</option>
+          <option value="RESOLVED">Resolved</option>
+          <option value="all">All</option>
+        </select>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
+          <thead>
+            <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <th className="px-4 py-3 sm:px-5">Reporter</th>
+              <th className="px-4 py-3">Message</th>
+              <th className="px-4 py-3">Page</th>
+              <th className="px-4 py-3">Submitted</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right sm:pr-5">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {isLoading ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-10 text-center text-slate-400">
+                  <Loader2 className="mx-auto size-6 animate-spin" />
+                </td>
+              </tr>
+            ) : isError ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-10 text-center text-sm text-red-500">
+                  Failed to load feedback.
+                </td>
+              </tr>
+            ) : items.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-10 text-center text-sm text-slate-500">
+                  No feedback matches these filters.
+                </td>
+              </tr>
+            ) : (
+              items.map((item) => (
+                <tr key={item._id} className="hover:bg-slate-50/70">
+                  <td className="px-4 py-3 sm:px-5">
+                    <div className="flex items-center gap-2">
+                      <UserAvatar src={item.reporter?.profilePic} name={item.reporter?.fullName || "User"} sizeClass="size-7" />
+                      <span className="max-w-[140px] truncate text-sm font-medium text-slate-800">{item.reporter?.fullName || "Unknown"}</span>
+                    </div>
+                  </td>
+                  <td className="max-w-[280px] px-4 py-3 text-slate-600">
+                    <p className="line-clamp-2">{item.message}</p>
+                    {item.screenshotUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setPreview(item.screenshotUrl)}
+                        className="mt-1 text-xs font-semibold text-indigo-600 hover:underline"
+                      >
+                        View screenshot
+                      </button>
+                    )}
+                  </td>
+                  <td className="max-w-[160px] truncate px-4 py-3 text-xs text-slate-500">{item.page || "—"}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatDate(item.createdAt)}</td>
+                  <td className="px-4 py-3">
+                    {item.status === "RESOLVED" ? (
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">Resolved</span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-600">Open</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right sm:pr-5">
+                    {item.status !== "RESOLVED" && (
+                      <button
+                        type="button"
+                        onClick={() => resolveFeedback(item._id)}
+                        disabled={isResolving}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        Mark resolved
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 sm:px-5">
+        <p className="text-xs text-slate-500">
+          Page {pagination.page} of {pagination.totalPages}
+          {isFetching ? " · updating..." : ""}
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+          >
+            <ChevronLeft className="size-3.5" /> Prev
+          </button>
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+            disabled={page >= pagination.totalPages}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+          >
+            Next <ChevronRight className="size-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {preview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setPreview(null)}>
+          <img src={preview} alt="Feedback screenshot" className="max-h-[85vh] max-w-full rounded-lg object-contain" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AnnouncementsPanel() {
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
@@ -1407,6 +1584,15 @@ export default function AdminPage() {
         >
           Announcements
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("feedback")}
+          className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+            activeTab === "feedback" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          Feedback
+        </button>
       </div>
 
       {activeTab === "users" ? (
@@ -1415,6 +1601,8 @@ export default function AdminPage() {
         <PostsPanel />
       ) : activeTab === "reports" ? (
         <ReportsPanel />
+      ) : activeTab === "feedback" ? (
+        <FeedbackPanel />
       ) : (
         <AnnouncementsPanel />
       )}

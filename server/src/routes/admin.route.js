@@ -14,6 +14,8 @@ import {
   getAnnouncements,
   uploadAnnouncementImageController,
   getLiveUsersCount,
+  getAdminFeedback,
+  resolveFeedback,
 } from "../controllers/admin.controller.js";
 
 const router = new express.Router();
@@ -34,6 +36,9 @@ router.get("/reports/:postId", getAdminReportDetail);
 router.post("/reports/:postId/dismiss", dismissPostReports);
 
 router.get("/live-users-count", getLiveUsersCount);
+
+router.get("/feedback", getAdminFeedback);
+router.post("/feedback/:id/resolve", resolveFeedback);
 
 router.get("/announcements", getAnnouncements);
 router.post("/announcements", createAnnouncement);
