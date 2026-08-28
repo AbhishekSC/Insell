@@ -1026,6 +1026,17 @@ export default function AppShell({
                         className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
                         onClick={() => {
                           setMobileUserMenuOpen(false);
+                          setShowReportIssueModal(true);
+                        }}
+                      >
+                        <Flag className="size-4 text-slate-500" />
+                        Report Issue
+                      </button>
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                        onClick={() => {
+                          setMobileUserMenuOpen(false);
                           logout();
                         }}
                         disabled={isPending}
