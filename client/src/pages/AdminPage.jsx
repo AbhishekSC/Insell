@@ -1145,6 +1145,7 @@ function FeedbackPanel() {
   const [status, setStatus] = useState("OPEN");
   const [page, setPage] = useState(1);
   const [preview, setPreview] = useState(null);
+  const [selectedFeedback, setSelectedFeedback] = useState(null);
 
   useEffect(() => {
     setPage(1);
@@ -1235,7 +1236,7 @@ function FeedbackPanel() {
               </tr>
             ) : (
               items.map((item) => (
-                <tr key={item._id} className="hover:bg-slate-50/70">
+                <tr key={item._id} className="cursor-pointer hover:bg-slate-50/70" onClick={() => setSelectedFeedback(item)}>
                   <td className="px-4 py-3 sm:px-5">
                     <div className="flex items-center gap-2">
                       <UserAvatar src={item.reporter?.profilePic} name={item.reporter?.fullName || "User"} sizeClass="size-7" />
@@ -1247,7 +1248,7 @@ function FeedbackPanel() {
                     {item.screenshotUrl && (
                       <button
                         type="button"
-                        onClick={() => setPreview(item.screenshotUrl)}
+                        onClick={(e) => { e.stopPropagation(); setPreview(item.screenshotUrl); }}
                         className="mt-1 text-xs font-semibold text-indigo-600 hover:underline"
                       >
                         View screenshot
@@ -1267,7 +1268,7 @@ function FeedbackPanel() {
                     {item.status !== "RESOLVED" && (
                       <button
                         type="button"
-                        onClick={() => resolveFeedback(item._id)}
+                        onClick={(e) => { e.stopPropagation(); resolveFeedback(item._id); }}
                         disabled={isResolving}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                       >
@@ -1312,6 +1313,108 @@ function FeedbackPanel() {
           <img src={preview} alt="Feedback screenshot" className="max-h-[85vh] max-w-full rounded-lg object-contain" />
         </div>
       )}
+
+      <FeedbackDetailModal
+        feedback={selectedFeedback}
+        isResolving={isResolving}
+        onClose={() => setSelectedFeedback(null)}
+        onResolve={(id) => resolveFeedback(id, { onSuccess: () => setSelectedFeedback(null) })}
+        onPreviewScreenshot={(url) => setPreview(url)}
+      />
+    </div>
+  );
+}
+
+function FeedbackDetailModal({ feedback, isResolving, onClose, onResolve, onPreviewScreenshot }) {
+  if (!feedback) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4" onClick={onClose}>
+      <div
+        className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-6 shadow-xl sm:max-w-lg sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between">
+          <h3 className="text-lg font-semibold text-slate-800">Reported issue</h3>
+          <button type="button" onClick={onClose} className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+            <X className="size-5" />
+          </button>
+        </div>
+
+        <div className="mt-4 flex items-center gap-3">
+          <UserAvatar src={feedback.reporter?.profilePic} name={feedback.reporter?.fullName || "User"} sizeClass="size-10" />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-slate-800">{feedback.reporter?.fullName || "Unknown"}</p>
+            <p className="truncate text-xs text-slate-500">{feedback.reporter?.email || "—"}</p>
+          </div>
+          {feedback.status === "RESOLVED" ? (
+            <span className="ml-auto shrink-0 inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">Resolved</span>
+          ) : (
+            <span className="ml-auto shrink-0 inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-600">Open</span>
+          )}
+        </div>
+
+        <div className="mt-5 space-y-3 text-sm">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Message</p>
+            <p className="mt-1 whitespace-pre-wrap text-slate-700">{feedback.message}</p>
+          </div>
+          <div className="flex gap-6">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Page</p>
+              <p className="mt-1 text-slate-700">{feedback.page || "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Submitted</p>
+              <p className="mt-1 text-slate-700">{formatDate(feedback.createdAt)}</p>
+            </div>
+          </div>
+          {feedback.status === "RESOLVED" && (
+            <div className="flex gap-6">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Resolved by</p>
+                <p className="mt-1 text-slate-700">{feedback.resolvedBy?.fullName || "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Resolved at</p>
+                <p className="mt-1 text-slate-700">{formatDate(feedback.resolvedAt)}</p>
+              </div>
+            </div>
+          )}
+          {feedback.screenshotUrl && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Screenshot</p>
+              <button type="button" onClick={() => onPreviewScreenshot(feedback.screenshotUrl)} className="mt-1.5 block">
+                <img
+                  src={feedback.screenshotUrl}
+                  alt="Feedback screenshot"
+                  className="max-h-48 rounded-lg border border-slate-200 object-contain hover:opacity-90"
+                />
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Close
+          </button>
+          {feedback.status !== "RESOLVED" && (
+            <button
+              type="button"
+              onClick={() => onResolve(feedback._id)}
+              disabled={isResolving}
+              className="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 disabled:opacity-60"
+            >
+              {isResolving ? <Loader2 className="mx-auto size-4 animate-spin" /> : "Mark resolved"}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
