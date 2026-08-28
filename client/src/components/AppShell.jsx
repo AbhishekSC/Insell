@@ -469,6 +469,7 @@ export default function AppShell({
     location.pathname.startsWith("/toolkit") ||
     location.pathname.startsWith("/property-tools") ||
     location.pathname.startsWith("/friends/") ||
+    location.pathname.startsWith("/help") ||
     location.pathname.startsWith("/admin");
 
   const queryClient = useQueryClient();
