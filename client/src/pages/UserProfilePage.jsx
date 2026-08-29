@@ -49,6 +49,7 @@ import { toggleCompareSelection } from "../lib/compareSelection";
 import PostAuthorLink from "../components/PostAuthorLink";
 import EmailVerification from "../components/EmailVerification";
 import axiosInstance from "../lib/axios";
+import { uploadPropertyMedia } from "../lib/cloudinaryUpload";
 import { useStreamContext } from "../context/StreamProvider";
 
 function formatMoney(value) {
@@ -380,18 +381,7 @@ export default function UserProfilePage() {
       
       // If there are new files to upload, upload them first
       if (files && files.length > 0) {
-        const formData = new FormData();
-        files.forEach((file) => {
-          formData.append('media', file);
-        });
-        
-        const uploadResponse = await axiosInstance.post('/posts/upload-media', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-        
-        const uploadedUrls = uploadResponse.data?.data?.mediaUrls || [];
+        const uploadedUrls = await uploadPropertyMedia(files);
         mediaUrls = [...mediaUrls, ...uploadedUrls];
       }
       

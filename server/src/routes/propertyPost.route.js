@@ -7,6 +7,7 @@ import {
   getLatestFeedPost,
   getPropertyAnalytics,
   getPropertyFeed,
+  getPropertyMediaUploadSignature,
   getPropertyPostById,
   incrementViewCount,
   reportPost,
@@ -28,6 +29,7 @@ router.post("/compare", verifyUser, requireVerified, compareProperties);
 router.put("/:id", verifyUser, requireVerified, updatePropertyPost);
 router.delete("/:id", verifyUser, requireVerified, deletePropertyPost);
 router.post("/upload-media", verifyUser, requireVerified, uploadPropertyMedia.array("media", 5), uploadPropertyMediaController);
+router.get("/upload-media/signature", verifyUser, requireVerified, getPropertyMediaUploadSignature);
 router.post("/:id/like", verifyUser, requireVerified, togglePropertyPostLike);
 router.post("/:id/save", verifyUser, requireVerified, togglePropertyPostSave);
 router.post("/:id/view", verifyUser, requireVerified, incrementViewCount);
