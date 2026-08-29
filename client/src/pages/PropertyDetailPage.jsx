@@ -196,7 +196,7 @@ export default function PropertyDetailPage() {
       return res.data?.data?.post;
     },
     enabled: !!id,
-    refetchInterval: 15000,
+    refetchInterval: 6000,
   });
 
   const sellerId = postData?.author?._id;
@@ -291,7 +291,7 @@ export default function PropertyDetailPage() {
       return res.data?.data?.offer || null;
     },
     enabled: Boolean(id && authUser?._id && postData && !isOwnerForQueries),
-    refetchInterval: 15000,
+    refetchInterval: 6000,
   });
 
   // Owner's incoming offers on this post.
@@ -302,7 +302,7 @@ export default function PropertyDetailPage() {
       return res.data?.data?.offers || [];
     },
     enabled: Boolean(id && isOwnerForQueries),
-    refetchInterval: 15000,
+    refetchInterval: 6000,
   });
 
   const invalidateOfferQueries = () => {
