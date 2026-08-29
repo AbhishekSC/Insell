@@ -186,6 +186,9 @@ export default function PropertyDetailPage() {
   });
   const authUser = authData?.data?.user || authData?.data || null;
 
+  // Short polling so a price change, offer, or accept from the other side
+  // of a negotiation shows up without a manual reload — scoped to just this
+  // page (pauses automatically while the tab is in the background).
   const { data: postData, isLoading } = useQuery({
     queryKey: ["propertyPost", id],
     queryFn: async () => {
@@ -193,6 +196,7 @@ export default function PropertyDetailPage() {
       return res.data?.data?.post;
     },
     enabled: !!id,
+    refetchInterval: 6000,
   });
 
   const sellerId = postData?.author?._id;
@@ -287,6 +291,7 @@ export default function PropertyDetailPage() {
       return res.data?.data?.offer || null;
     },
     enabled: Boolean(id && authUser?._id && postData && !isOwnerForQueries),
+    refetchInterval: 6000,
   });
 
   // Owner's incoming offers on this post.
@@ -297,6 +302,7 @@ export default function PropertyDetailPage() {
       return res.data?.data?.offers || [];
     },
     enabled: Boolean(id && isOwnerForQueries),
+    refetchInterval: 6000,
   });
 
   const invalidateOfferQueries = () => {
