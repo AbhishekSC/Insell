@@ -19,6 +19,7 @@ import {
   Heart,
   Home,
   IndianRupee,
+  Loader2,
   Map,
   MapPin,
   Maximize,
@@ -1013,7 +1014,9 @@ export default function MarketplacePage() {
     },
   });
 
-  const { mutate: uploadMedia } = useMutation({
+  const [mediaUploadProgress, setMediaUploadProgress] = useState(0);
+
+  const { mutate: uploadMedia, isPending: isUploadingMedia } = useMutation({
     mutationFn: async (files) => {
       const formData = new FormData();
       files.forEach((file) => formData.append("media", file));
@@ -1021,8 +1024,15 @@ export default function MarketplacePage() {
         headers: {
           "Content-Type": "multipart/form-data",
         },
+        onUploadProgress: (event) => {
+          if (!event.total) return;
+          setMediaUploadProgress(Math.round((event.loaded / event.total) * 100));
+        },
       });
       return response.data?.data;
+    },
+    onMutate: () => {
+      setMediaUploadProgress(0);
     },
     onSuccess: (data) => {
       const newUrls = data.mediaUrls || [];
@@ -1034,6 +1044,9 @@ export default function MarketplacePage() {
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || "Failed to upload media");
+    },
+    onSettled: () => {
+      setMediaUploadProgress(0);
     },
   });
 
@@ -1979,10 +1992,13 @@ export default function MarketplacePage() {
                 <div>
                   <p className="text-sm font-semibold text-slate-600">Upload media (Max 5 files)</p>
                   <div
-                    className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center transition hover:border-indigo-400 hover:bg-indigo-50/30"
+                    className={`mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center transition ${
+                      isUploadingMedia ? "" : "hover:border-indigo-400 hover:bg-indigo-50/30"
+                    }`}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => {
                       e.preventDefault();
+                      if (isUploadingMedia) return;
                       const files = Array.from(e.dataTransfer.files);
                       const validFiles = files.filter((file) => {
                         const isImage = file.type.startsWith("image/");
@@ -2000,33 +2016,48 @@ export default function MarketplacePage() {
                       }
                     }}
                   >
-                    <Upload className="mx-auto size-8 text-slate-400" />
-                    <p className="mt-2 text-sm text-slate-600">Drag photos/videos here or click to browse</p>
-                    <p className="mt-1 text-xs text-slate-500">Supports: PNG, JPEG, WEBP, GIF, MP4, WEBM, MOV (Max 50MB per file)</p>
-                    {String(draft.postType || "").startsWith("REQUIREMENT_") ? (
-                      <p className="mt-1 text-xs text-slate-500">Media is optional for requirement posts.</p>
-                    ) : null}
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*,video/*"
-                      className="hidden"
-                      id="media-upload"
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files || []);
-                        const currentCount = composerMedia.length;
-                        const remainingSlots = 5 - currentCount;
-                        const filesToUpload = files.slice(0, remainingSlots);
-                        if (filesToUpload.length < files.length) {
-                          toast.error(`Can only upload ${remainingSlots} more files (max 5 total)`);
-                        }
-                        uploadMedia(filesToUpload);
-                        e.target.value = "";
-                      }}
-                    />
-                    <label htmlFor="media-upload" className="btn btn-sm btn-primary mt-3">
-                      Browse Files
-                    </label>
+                    {isUploadingMedia ? (
+                      <>
+                        <Loader2 className="mx-auto size-8 animate-spin text-indigo-600" />
+                        <p className="mt-2 text-sm font-semibold text-slate-700">Uploading… {mediaUploadProgress}%</p>
+                        <div className="mx-auto mt-3 h-2 w-full max-w-xs overflow-hidden rounded-full bg-slate-200">
+                          <div
+                            className="h-full rounded-full bg-indigo-600 transition-all"
+                            style={{ width: `${mediaUploadProgress}%` }}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mx-auto size-8 text-slate-400" />
+                        <p className="mt-2 text-sm text-slate-600">Drag photos/videos here or click to browse</p>
+                        <p className="mt-1 text-xs text-slate-500">Supports: PNG, JPEG, WEBP, GIF, MP4, WEBM, MOV (Max 50MB per file)</p>
+                        {String(draft.postType || "").startsWith("REQUIREMENT_") ? (
+                          <p className="mt-1 text-xs text-slate-500">Media is optional for requirement posts.</p>
+                        ) : null}
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*,video/*"
+                          className="hidden"
+                          id="media-upload"
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            const currentCount = composerMedia.length;
+                            const remainingSlots = 5 - currentCount;
+                            const filesToUpload = files.slice(0, remainingSlots);
+                            if (filesToUpload.length < files.length) {
+                              toast.error(`Can only upload ${remainingSlots} more files (max 5 total)`);
+                            }
+                            uploadMedia(filesToUpload);
+                            e.target.value = "";
+                          }}
+                        />
+                        <label htmlFor="media-upload" className="btn btn-sm btn-primary mt-3">
+                          Browse Files
+                        </label>
+                      </>
+                    )}
                   </div>
 
                   <div className="mt-3">
