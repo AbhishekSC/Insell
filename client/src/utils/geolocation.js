@@ -59,6 +59,7 @@ export const reverseGeocode = async (latitude, longitude) => {
       country: address.country || '',
       countryCode: address.country_code || '',
       city: address.city || address.town || address.village || address.county || '',
+      locality: address.suburb || address.neighbourhood || address.city_district || '',
       state: address.state || address.region || '',
       address: address.road ? `${address.road}${address.house_number ? ` ${address.house_number}` : ''}` : '',
       formattedAddress: data.display_name || '',

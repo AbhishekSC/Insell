@@ -20,6 +20,10 @@ import * as NotificationService from "../services/NotificationService.js";
 import { NotificationChannel } from "../services/NotificationService.js";
 import Offer from "../models/Offer.model.js";
 import { closeActiveOffersForPost } from "./offer.controller.js";
+import { cloudinaryInstance } from "../config/cloudinary.js";
+
+const PROPERTY_MEDIA_FOLDER = "property-media";
+const PROPERTY_MEDIA_ALLOWED_FORMATS = "jpg,jpeg,png,webp,gif,mp4,webm,mov";
 
 function normalizeMediaUrls(raw) {
   if (Array.isArray(raw)) {
@@ -1245,6 +1249,39 @@ export async function incrementViewCount(req, res) {
     });
   } catch (error) {
     logger.error("Error incrementing view count:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
+// Signed direct-to-Cloudinary upload — the client uploads the file bytes
+// straight to Cloudinary using this signature, so property photos/videos
+// (up to 50MB video) never pass through our own server's memory/bandwidth.
+// Only the params listed here are covered by the signature; the client
+// must send back exactly these same values or Cloudinary rejects the
+// upload, which is what stops a client from e.g. uploading to a different
+// folder than the one we authorized.
+export async function getPropertyMediaUploadSignature(req, res) {
+  try {
+    const timestamp = Math.round(Date.now() / 1000);
+    const paramsToSign = {
+      timestamp,
+      folder: PROPERTY_MEDIA_FOLDER,
+      allowed_formats: PROPERTY_MEDIA_ALLOWED_FORMATS,
+    };
+
+    const signature = cloudinaryInstance.utils.api_sign_request(
+      paramsToSign,
+      cloudinaryInstance.config().api_secret
+    );
+
+    return sendSuccessResponse(res, 200, "Upload signature generated", {
+      ...paramsToSign,
+      signature,
+      apiKey: cloudinaryInstance.config().api_key,
+      cloudName: cloudinaryInstance.config().cloud_name,
+    });
+  } catch (error) {
+    logger.error("Error generating property media upload signature:", error);
     return sendErrorResponse(res, 500, "Internal Server Error");
   }
 }

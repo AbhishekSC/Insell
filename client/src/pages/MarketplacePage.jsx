@@ -69,7 +69,8 @@ import RoleBasedFilters from "../components/RoleBasedFilters";
 import StoriesBar from "../components/StoriesBar";
 import RoleBasedDashboard from "../components/RoleBasedDashboard";
 import axiosInstance from "../lib/axios";
-import { getAutoDetectedCity } from "../utils/geolocation";
+import { uploadPropertyMedia } from "../lib/cloudinaryUpload";
+import { getAutoDetectedCity, reverseGeocode } from "../utils/geolocation";
 import posthog, { isPostHogEnabled } from "../lib/posthog";
 
 const DEFAULT_MAP_CENTER = [20.5937, 78.9629]; // geographic center of India, used until a location is picked
@@ -1018,18 +1019,8 @@ export default function MarketplacePage() {
 
   const { mutate: uploadMedia, isPending: isUploadingMedia } = useMutation({
     mutationFn: async (files) => {
-      const formData = new FormData();
-      files.forEach((file) => formData.append("media", file));
-      const response = await axiosInstance.post("/posts/upload-media", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-        onUploadProgress: (event) => {
-          if (!event.total) return;
-          setMediaUploadProgress(Math.round((event.loaded / event.total) * 100));
-        },
-      });
-      return response.data?.data;
+      const newUrls = await uploadPropertyMedia(files, setMediaUploadProgress);
+      return { mediaUrls: newUrls, count: newUrls.length };
     },
     onMutate: () => {
       setMediaUploadProgress(0);
@@ -1043,7 +1034,7 @@ export default function MarketplacePage() {
       toast.success(`Successfully uploaded ${data.count} file(s)`);
     },
     onError: (error) => {
-      toast.error(error?.response?.data?.message || "Failed to upload media");
+      toast.error(error?.response?.data?.error?.message || error?.message || "Failed to upload media");
     },
     onSettled: () => {
       setMediaUploadProgress(0);
@@ -2109,38 +2100,32 @@ export default function MarketplacePage() {
                           type="button"
                           className="btn btn-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                           onClick={() => {
-                            if (navigator.geolocation) {
-                              navigator.geolocation.getCurrentPosition(
-                                (position) => {
-                                  const { latitude, longitude } = position.coords;
-                                  // Reverse geocode to get city/locality using CORS proxy
-                                  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`)}`;
-                                  fetch(proxyUrl)
-                                    .then(res => res.json())
-                                    .then(data => {
-                                      const city = data.address.city || data.address.town || data.address.village || "";
-                                      const locality = data.address.suburb || data.address.neighbourhood || "";
-                                      setDraft(prev => ({
-                                        ...prev,
-                                        city: city || prev.city, // Always update city if we get one
-                                        locality: locality || prev.locality,
-                                        latitude,
-                                        longitude,
-                                      }));
-                                      toast.success("Location captured successfully");
-                                    })
-                                    .catch(() => {
-                                      setDraft(prev => ({ ...prev, latitude, longitude }));
-                                      toast.success("Coordinates captured (city/locality not found)");
-                                    });
-                                },
-                                () => {
-                                  toast.error("Failed to get location. Please allow location access.");
-                                }
-                              );
-                            } else {
+                            if (!navigator.geolocation) {
                               toast.error("Geolocation is not supported by your browser");
+                              return;
                             }
+                            navigator.geolocation.getCurrentPosition(
+                              async (position) => {
+                                const { latitude, longitude } = position.coords;
+                                try {
+                                  const { city, locality } = await reverseGeocode(latitude, longitude);
+                                  setDraft(prev => ({
+                                    ...prev,
+                                    city: city || prev.city,
+                                    locality: locality || prev.locality,
+                                    latitude,
+                                    longitude,
+                                  }));
+                                  toast.success("Location captured successfully");
+                                } catch {
+                                  setDraft(prev => ({ ...prev, latitude, longitude }));
+                                  toast.success("Coordinates captured (city/locality not found)");
+                                }
+                              },
+                              () => {
+                                toast.error("Failed to get location. Please allow location access.");
+                              }
+                            );
                           }}
                         >
                           <MapPin className="size-4" />
@@ -2174,9 +2159,13 @@ export default function MarketplacePage() {
                                 setLoadingSuggestions(true);
                                 // Add debounce to prevent rate limiting
                                 geocodeTimeoutRef.current = setTimeout(() => {
-                                  // Try using a CORS proxy
-                                  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`)}`;
-                                  fetch(proxyUrl)
+                                  // Nominatim sends Access-Control-Allow-Origin: *, so this
+                                  // can be called directly from the browser — no CORS proxy
+                                  // needed (a prior version routed through corsproxy.io,
+                                  // which is no longer functional).
+                                  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`, {
+                                    headers: { "Accept-Language": "en" },
+                                  })
                                     .then(res => {
                                       if (!res.ok) throw new Error('Rate limited');
                                       return res.json();
