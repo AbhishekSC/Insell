@@ -309,12 +309,52 @@ export default function UserProfilePage() {
     },
   });
 
+  // Optimistically flips the post in-place across every loaded page of both
+  // grids (a post can appear in userPosts and userBookmarks at once), so the
+  // button reacts instantly instead of waiting on a round-trip + refetch.
+  const applyOptimisticToggle = (postId, field, countField) => {
+    const updatePage = (old) => {
+      if (!old?.pages) return old;
+      return {
+        ...old,
+        pages: old.pages.map((page) => ({
+          ...page,
+          posts: (page.posts || []).map((post) => {
+            if (post._id !== postId) return post;
+            const newState = !post[field];
+            return {
+              ...post,
+              [field]: newState,
+              [countField]: newState ? (post[countField] || 0) + 1 : Math.max(0, (post[countField] || 0) - 1),
+            };
+          }),
+        })),
+      };
+    };
+    const previousUserPosts = queryClient.getQueriesData({ queryKey: ["userPosts", userId] });
+    const previousUserBookmarks = queryClient.getQueriesData({ queryKey: ["userBookmarks", userId] });
+    queryClient.setQueriesData({ queryKey: ["userPosts", userId] }, updatePage);
+    queryClient.setQueriesData({ queryKey: ["userBookmarks", userId] }, updatePage);
+    return { previousUserPosts, previousUserBookmarks };
+  };
+
+  const rollbackOptimisticToggle = (context) => {
+    context?.previousUserPosts?.forEach(([key, data]) => queryClient.setQueryData(key, data));
+    context?.previousUserBookmarks?.forEach(([key, data]) => queryClient.setQueryData(key, data));
+  };
+
   const { mutate: toggleSave } = useMutation({
     mutationFn: async (postId) => {
       const response = await axiosInstance.post(`/posts/${postId}/save`);
       return response.data?.data;
     },
-    onSuccess: () => {
+    onMutate: async (postId) => {
+      await queryClient.cancelQueries({ queryKey: ["userPosts", userId] });
+      await queryClient.cancelQueries({ queryKey: ["userBookmarks", userId] });
+      return applyOptimisticToggle(postId, "isSavedByMe", "savesCount");
+    },
+    onError: (err, postId, context) => rollbackOptimisticToggle(context),
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["userBookmarks", userId] });
       queryClient.invalidateQueries({ queryKey: ["userProfile", userId] });
       queryClient.invalidateQueries({ queryKey: ["userPosts", userId] });
@@ -326,7 +366,13 @@ export default function UserProfilePage() {
       const response = await axiosInstance.post(`/posts/${postId}/like`);
       return response.data?.data;
     },
-    onSuccess: () => {
+    onMutate: async (postId) => {
+      await queryClient.cancelQueries({ queryKey: ["userPosts", userId] });
+      await queryClient.cancelQueries({ queryKey: ["userBookmarks", userId] });
+      return applyOptimisticToggle(postId, "isLikedByMe", "likesCount");
+    },
+    onError: (err, postId, context) => rollbackOptimisticToggle(context),
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["userPosts", userId] });
       queryClient.invalidateQueries({ queryKey: ["userBookmarks", userId] });
     },

@@ -249,7 +249,26 @@ export default function PropertyDetailPage() {
       const response = await axiosInstance.post(`/posts/${postId}/save`);
       return response.data?.data;
     },
-    onSuccess: () => {
+    onMutate: async (postId) => {
+      await queryClient.cancelQueries({ queryKey: ["propertyPost", id] });
+      const previousPost = queryClient.getQueryData(["propertyPost", id]);
+
+      queryClient.setQueryData(["propertyPost", id], (old) => {
+        if (!old || old._id !== postId) return old;
+        const newSavedState = !old.isSavedByMe;
+        return {
+          ...old,
+          isSavedByMe: newSavedState,
+          savesCount: newSavedState ? (old.savesCount || 0) + 1 : Math.max(0, (old.savesCount || 0) - 1),
+        };
+      });
+
+      return { previousPost };
+    },
+    onError: (err, postId, context) => {
+      queryClient.setQueryData(["propertyPost", id], context.previousPost);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["propertyPost", id] });
       queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
     },
@@ -260,7 +279,26 @@ export default function PropertyDetailPage() {
       const response = await axiosInstance.post(`/posts/${postId}/like`);
       return response.data?.data;
     },
-    onSuccess: () => {
+    onMutate: async (postId) => {
+      await queryClient.cancelQueries({ queryKey: ["propertyPost", id] });
+      const previousPost = queryClient.getQueryData(["propertyPost", id]);
+
+      queryClient.setQueryData(["propertyPost", id], (old) => {
+        if (!old || old._id !== postId) return old;
+        const newLikedState = !old.isLikedByMe;
+        return {
+          ...old,
+          isLikedByMe: newLikedState,
+          likesCount: newLikedState ? (old.likesCount || 0) + 1 : Math.max(0, (old.likesCount || 0) - 1),
+        };
+      });
+
+      return { previousPost };
+    },
+    onError: (err, postId, context) => {
+      queryClient.setQueryData(["propertyPost", id], context.previousPost);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["propertyPost", id] });
       queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
     },
