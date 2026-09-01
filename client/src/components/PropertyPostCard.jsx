@@ -88,7 +88,7 @@ export default function PropertyPostCard({
 
   return (
     <article
-      className={`group overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:shadow-md ${className}`}
+      className={`group overflow-hidden rounded-2xl border bg-base-100 shadow-sm transition hover:shadow-md ${className}`}
       onClick={onOpenPost}
     >
       <div className="relative overflow-hidden">
@@ -159,7 +159,7 @@ export default function PropertyPostCard({
             </>
           )
         ) : (
-          <div className={`flex ${mediaHeightClass} w-full items-center justify-center bg-slate-100 text-slate-300`}>
+          <div className={`flex ${mediaHeightClass} w-full items-center justify-center bg-base-200 text-base-content/40`}>
             <Building2 className="size-10" />
           </div>
         )}
@@ -236,29 +236,29 @@ export default function PropertyPostCard({
         {priceBlock}
         {description}
 
-        <div className="flex items-center justify-between border-t border-slate-100 pt-2">
+        <div className="flex items-center justify-between border-t border-base-200 pt-2">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                className="btn btn-ghost btn-xs btn-circle text-slate-500 hover:bg-slate-100"
+                className="btn btn-ghost btn-xs btn-circle text-base-content/60 hover:bg-base-200"
                 onClick={(event) => {
                   event.stopPropagation();
                   onLike?.();
                 }}
               >
-                <Heart className={`size-4 ${isLiked ? "fill-red-500 text-red-500" : ""}`} />
+                <Heart className={`size-4 ${isLiked ? "fill-error text-error" : ""}`} />
               </button>
-              <span className="text-[11px] text-slate-500">{likesCount}</span>
+              <span className="text-[11px] text-base-content/60">{likesCount}</span>
             </div>
             <div className="flex items-center gap-1">
-              <Eye className="size-4 text-slate-400" />
-              <span className="text-[11px] text-slate-500">{viewsCount}</span>
+              <Eye className="size-4 text-base-content/50" />
+              <span className="text-[11px] text-base-content/60">{viewsCount}</span>
             </div>
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                className="btn btn-ghost btn-xs btn-circle text-slate-500 hover:bg-slate-100"
+                className="btn btn-ghost btn-xs btn-circle text-base-content/60 hover:bg-base-200"
                 onClick={(event) => {
                   event.stopPropagation();
                   onComment?.();
@@ -266,28 +266,28 @@ export default function PropertyPostCard({
               >
                 <MessageCircle className="size-4" />
               </button>
-              <span className="text-[11px] text-slate-500">{commentsCount}</span>
+              <span className="text-[11px] text-base-content/60">{commentsCount}</span>
             </div>
             {onSave && (
               <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  className="btn btn-ghost btn-xs btn-circle text-slate-500 hover:bg-slate-100"
+                  className="btn btn-ghost btn-xs btn-circle text-base-content/60 hover:bg-base-200"
                   onClick={(event) => {
                     event.stopPropagation();
                     onSave();
                   }}
                 >
-                  <Bookmark className={`size-4 ${isSaved ? "fill-indigo-600 text-indigo-600" : ""}`} />
+                  <Bookmark className={`size-4 ${isSaved ? "fill-primary text-primary" : ""}`} />
                 </button>
-                <span className="text-[11px] text-slate-500">{savesCount}</span>
+                <span className="text-[11px] text-base-content/60">{savesCount}</span>
               </div>
             )}
           </div>
           {onContact && (
             <button
               type="button"
-              className="btn btn-ghost btn-xs btn-circle text-slate-600 hover:bg-slate-100"
+              className="btn btn-ghost btn-xs btn-circle text-base-content/70 hover:bg-base-200"
               onClick={(event) => {
                 event.stopPropagation();
                 onContact();

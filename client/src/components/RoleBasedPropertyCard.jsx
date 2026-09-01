@@ -40,12 +40,12 @@ const ROLE_CARD_CONFIGS = {
 };
 
 const ACCENT_COLORS = {
-  emerald: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", badge: "bg-emerald-100 text-emerald-800" },
-  blue: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200", badge: "bg-blue-100 text-blue-800" },
-  violet: { bg: "bg-violet-50", text: "text-violet-700", border: "border-violet-200", badge: "bg-violet-100 text-violet-800" },
-  amber: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200", badge: "bg-amber-100 text-amber-800" },
-  indigo: { bg: "bg-indigo-50", text: "text-indigo-700", border: "border-indigo-200", badge: "bg-indigo-100 text-indigo-800" },
-  rose: { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200", badge: "bg-rose-100 text-rose-800" }
+  emerald: { bg: "bg-success/10", text: "text-success", border: "border-success/30", badge: "bg-success/15 text-success" },
+  blue: { bg: "bg-info/10", text: "text-info", border: "border-info/30", badge: "bg-info/15 text-info" },
+  violet: { bg: "bg-secondary/10", text: "text-secondary", border: "border-secondary/30", badge: "bg-secondary/15 text-secondary" },
+  amber: { bg: "bg-warning/10", text: "text-warning", border: "border-warning/30", badge: "bg-warning/15 text-warning" },
+  indigo: { bg: "bg-primary/10", text: "text-primary", border: "border-primary/30", badge: "bg-primary/15 text-primary" },
+  rose: { bg: "bg-error/10", text: "text-error", border: "border-error/30", badge: "bg-error/15 text-error" }
 };
 
 function formatMoney(value) {
@@ -172,7 +172,7 @@ export default function RoleBasedPropertyCard({ post, userRole, onLike, onSave, 
 
   return (
     <article
-      className="group overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition hover:shadow-md"
+      className="group overflow-hidden rounded-2xl border border-base-200 bg-base-100 shadow-sm transition hover:shadow-md"
       onClick={onClick}
     >
       {/* Image Section */}
@@ -191,8 +191,8 @@ export default function RoleBasedPropertyCard({ post, userRole, onLike, onSave, 
 
         {/* Verified Badge */}
         {post.author?.isVerified && (
-          <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-700 backdrop-blur">
-            <BadgeCheck className="size-3 text-emerald-600" />
+          <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-base-content backdrop-blur">
+            <BadgeCheck className="size-3 text-success" />
             Verified
           </div>
         )}
@@ -201,7 +201,7 @@ export default function RoleBasedPropertyCard({ post, userRole, onLike, onSave, 
         <div className="absolute right-3 bottom-3 flex gap-2">
           <button
             type="button"
-            className={`flex size-8 items-center justify-center rounded-full bg-white/90 text-slate-600 backdrop-blur transition hover:bg-white hover:text-red-500 ${isLiked ? "text-red-500" : ""}`}
+            className={`flex size-8 items-center justify-center rounded-full bg-white/90 text-base-content/70 backdrop-blur transition hover:bg-base-100 hover:text-error ${isLiked ? "text-error" : ""}`}
             onClick={(e) => {
               e.stopPropagation();
               onLike?.(post._id);
@@ -211,7 +211,7 @@ export default function RoleBasedPropertyCard({ post, userRole, onLike, onSave, 
           </button>
           <button
             type="button"
-            className={`flex size-8 items-center justify-center rounded-full bg-white/90 text-slate-600 backdrop-blur transition hover:bg-white hover:text-indigo-500 ${isSaved ? "text-indigo-500" : ""}`}
+            className={`flex size-8 items-center justify-center rounded-full bg-white/90 text-base-content/70 backdrop-blur transition hover:bg-base-100 hover:text-primary ${isSaved ? "text-primary" : ""}`}
             onClick={(e) => {
               e.stopPropagation();
               onSave?.(post._id);
@@ -226,22 +226,22 @@ export default function RoleBasedPropertyCard({ post, userRole, onLike, onSave, 
       <div className="p-4">
         {/* Price */}
         <div className="mb-2">
-          <span className="text-lg font-bold text-slate-800">
+          <span className="text-lg font-bold text-base-content">
             {formatMoney(price)}
           </span>
           {post.postType === "PROPERTY_RENT" && (
-            <span className="text-sm text-slate-500">/month</span>
+            <span className="text-sm text-base-content/60">/month</span>
           )}
         </div>
 
         {/* Title */}
-        <h3 className="mb-2 line-clamp-2 text-sm font-semibold text-slate-800">
+        <h3 className="mb-2 line-clamp-2 text-sm font-semibold text-base-content">
           {post.title || "Property Listing"}
         </h3>
 
         {/* Location */}
         {post.city && (
-          <div className="mb-2 flex items-center gap-1 text-xs text-slate-500">
+          <div className="mb-2 flex items-center gap-1 text-xs text-base-content/60">
             <MapPin className="size-3" />
             <span className="line-clamp-1">{post.city}</span>
             {post.locality && <span>, {post.locality}</span>}
@@ -250,12 +250,12 @@ export default function RoleBasedPropertyCard({ post, userRole, onLike, onSave, 
 
         {/* Author with verified badge */}
         <div className="mb-3 flex items-center gap-2">
-          <User className="size-3 text-slate-400" />
-          <span className="text-xs font-medium text-slate-700">
+          <User className="size-3 text-base-content/50" />
+          <span className="text-xs font-medium text-base-content">
             {post.author?.fullName || post.author?.name || "Unknown"}
           </span>
           {post.author?.isVerified && (
-            <BadgeCheck className="size-3 text-emerald-600" />
+            <BadgeCheck className="size-3 text-success" />
           )}
         </div>
 
@@ -276,7 +276,7 @@ export default function RoleBasedPropertyCard({ post, userRole, onLike, onSave, 
         </div>
 
         {/* Engagement Stats */}
-        <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500">
+        <div className="flex items-center justify-between border-t border-base-200 pt-3 text-xs text-base-content/60">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1">
               <Eye className="size-3" />
@@ -293,7 +293,7 @@ export default function RoleBasedPropertyCard({ post, userRole, onLike, onSave, 
           </div>
           <button
             type="button"
-            className="flex items-center gap-1 text-slate-400 transition hover:text-slate-600"
+            className="flex items-center gap-1 text-base-content/50 transition hover:text-base-content/70"
             onClick={(e) => {
               e.stopPropagation();
               onShare?.(post._id);
@@ -304,13 +304,13 @@ export default function RoleBasedPropertyCard({ post, userRole, onLike, onSave, 
         </div>
 
         {/* Dynamic Contact Button */}
-        <div className="mt-3 pt-3 border-t border-slate-100">
+        <div className="mt-3 pt-3 border-t border-base-200">
           <button
             type="button"
             className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition flex items-center justify-center gap-2 ${
               isOwnPost
-                ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                : "bg-indigo-600 text-white hover:bg-indigo-700"
+                ? "bg-base-200 text-base-content hover:bg-base-300"
+                : "bg-primary text-white hover:bg-primary"
             }`}
             onClick={(e) => {
               e.stopPropagation();

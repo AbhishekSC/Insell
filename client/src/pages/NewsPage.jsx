@@ -245,10 +245,10 @@ export default function NewsPage() {
         {/* Page Header */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+            <h1 className="text-3xl font-bold tracking-tight text-base-content">
               Property News
             </h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-base-content/60">
               Market trends, infrastructure updates, and housing policy in one place.
             </p>
           </div>
@@ -256,7 +256,7 @@ export default function NewsPage() {
           <div className="flex flex-wrap items-center gap-2.5">
             {weather && (
               <div
-                className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm"
+                className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-base-300 bg-base-100 px-3.5 py-2 text-sm font-medium text-base-content shadow-sm"
                 title={`${weather.condition} in ${weather.city} · ${weather.humidity}% humidity · ${weather.windSpeedKmh} km/h wind`}
               >
                 <span className="text-base leading-none">{weather.icon}</span>
@@ -267,16 +267,16 @@ export default function NewsPage() {
               type="button"
               onClick={handleDetectLocation}
               disabled={isLocating}
-              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition disabled:opacity-50"
+              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-base-300 bg-base-100 px-3.5 py-2 text-sm font-medium text-base-content shadow-sm hover:bg-base-200 transition disabled:opacity-50"
             >
-              <MapPin className={`size-4 text-slate-600 ${isLocating ? "animate-spin text-indigo-600" : ""}`} />
+              <MapPin className={`size-4 text-base-content/70 ${isLocating ? "animate-spin text-primary" : ""}`} />
               {isLocating ? "Locating..." : "Near Me"}
             </button>
           </div>
         </div>
 
         {/* Filter Controls Bar */}
-        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="mb-6 rounded-2xl border border-base-300 bg-base-100 p-3 shadow-sm">
           <div className="flex flex-col gap-3 md:flex-row md:items-center">
             {/* City Dropdown */}
             <div className="relative" ref={cityDropdownRef}>
@@ -286,17 +286,17 @@ export default function NewsPage() {
                   setIsCityDropdownOpen((prev) => !prev);
                   setIsCategoryDropdownOpen(false);
                 }}
-                className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 focus:outline-none md:w-auto md:min-w-[130px]"
+                className="flex w-full items-center justify-between gap-2 rounded-xl border border-base-300 bg-base-100 px-3.5 py-2 text-sm font-medium text-base-content hover:bg-base-200 focus:outline-none md:w-auto md:min-w-[130px]"
               >
                 <span className="flex items-center gap-1.5 truncate">
-                  <MapPin className="size-4 text-slate-500" />
+                  <MapPin className="size-4 text-base-content/60" />
                   {currentCityLabel}
                 </span>
-                <ChevronDown className="size-4 text-slate-400" />
+                <ChevronDown className="size-4 text-base-content/50" />
               </button>
 
               {isCityDropdownOpen && (
-                <div className="absolute left-0 top-full z-30 mt-1 max-h-60 w-52 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                <div className="absolute left-0 top-full z-30 mt-1 max-h-60 w-52 overflow-y-auto rounded-xl border border-base-300 bg-base-100 p-1.5 shadow-xl">
                   {POPULAR_CITIES.map((city) => (
                     <button
                       key={city.id}
@@ -304,11 +304,11 @@ export default function NewsPage() {
                       onClick={() => handleCitySelect(city.id)}
                       className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium transition ${
                         selectedCity.toLowerCase() === city.id.toLowerCase()
-                          ? "bg-indigo-50 font-semibold text-indigo-600"
-                          : "text-slate-700 hover:bg-slate-100"
+                          ? "bg-primary/10 font-semibold text-primary"
+                          : "text-base-content hover:bg-base-200"
                       }`}
                     >
-                      <MapPin className="size-3.5 text-slate-400" />
+                      <MapPin className="size-3.5 text-base-content/50" />
                       {city.label}
                     </button>
                   ))}
@@ -324,17 +324,17 @@ export default function NewsPage() {
                   setIsCategoryDropdownOpen((prev) => !prev);
                   setIsCityDropdownOpen(false);
                 }}
-                className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 focus:outline-none md:w-auto md:min-w-[135px]"
+                className="flex w-full items-center justify-between gap-2 rounded-xl border border-base-300 bg-base-100 px-3.5 py-2 text-sm font-medium text-base-content hover:bg-base-200 focus:outline-none md:w-auto md:min-w-[135px]"
               >
                 <span className="flex items-center gap-1.5 truncate">
-                  <SlidersHorizontal className="size-4 text-slate-500" />
+                  <SlidersHorizontal className="size-4 text-base-content/60" />
                   {currentCategoryLabel}
                 </span>
-                <ChevronDown className="size-4 text-slate-400" />
+                <ChevronDown className="size-4 text-base-content/50" />
               </button>
 
               {isCategoryDropdownOpen && (
-                <div className="absolute left-0 top-full z-30 mt-1 max-h-60 w-56 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                <div className="absolute left-0 top-full z-30 mt-1 max-h-60 w-56 overflow-y-auto rounded-xl border border-base-300 bg-base-100 p-1.5 shadow-xl">
                   {NEWS_CATEGORIES.map((cat) => (
                     <button
                       key={cat.id}
@@ -342,8 +342,8 @@ export default function NewsPage() {
                       onClick={() => handleCategorySelect(cat.id)}
                       className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium transition ${
                         selectedCategory === cat.id
-                          ? "bg-indigo-50 font-semibold text-indigo-600"
-                          : "text-slate-700 hover:bg-slate-100"
+                          ? "bg-primary/10 font-semibold text-primary"
+                          : "text-base-content hover:bg-base-200"
                       }`}
                     >
                       {cat.label}
@@ -360,7 +360,7 @@ export default function NewsPage() {
                 placeholder="Search any city or region..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-xl border border-base-300 bg-base-100 px-3.5 py-2 text-sm text-base-content placeholder-slate-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </form>
 
@@ -369,7 +369,7 @@ export default function NewsPage() {
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="shrink-0 text-xs font-medium text-indigo-600 hover:underline px-1"
+                className="shrink-0 text-xs font-medium text-primary hover:underline px-1"
               >
                 Reset filters
               </button>
@@ -379,8 +379,8 @@ export default function NewsPage() {
 
         {/* Fallback Notice Banner */}
         {isFallback && selectedCity && selectedCity !== "all" && !isLoading && (
-          <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-xs text-slate-700">
-            <Info className="size-4 shrink-0 text-blue-500" />
+          <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-info/30 bg-info/10 px-4 py-3 text-xs text-base-content">
+            <Info className="size-4 shrink-0 text-info" />
             <span>
               Direct live articles for <strong>{selectedCity}</strong> are currently limited — showing the latest national and metropolitan real estate updates.
             </span>
@@ -391,41 +391,41 @@ export default function NewsPage() {
         {isLoading ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-                <div className="w-full h-52 bg-slate-200 animate-pulse" />
+              <div key={i} className="rounded-2xl border border-base-300 bg-base-100 overflow-hidden shadow-sm">
+                <div className="w-full h-52 bg-base-300 animate-pulse" />
                 <div className="p-5 space-y-3">
                   <div className="flex justify-between">
-                    <div className="h-3 bg-slate-200 rounded animate-pulse w-24" />
-                    <div className="h-3 bg-slate-200 rounded animate-pulse w-12" />
+                    <div className="h-3 bg-base-300 rounded animate-pulse w-24" />
+                    <div className="h-3 bg-base-300 rounded animate-pulse w-12" />
                   </div>
-                  <div className="h-4 bg-slate-200 rounded animate-pulse w-3/4" />
-                  <div className="h-3 bg-slate-200 rounded animate-pulse w-full" />
-                  <div className="h-3 bg-slate-200 rounded animate-pulse w-2/3" />
+                  <div className="h-4 bg-base-300 rounded animate-pulse w-3/4" />
+                  <div className="h-3 bg-base-300 rounded animate-pulse w-full" />
+                  <div className="h-3 bg-base-300 rounded animate-pulse w-2/3" />
                 </div>
               </div>
             ))}
           </div>
         ) : error ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-            <p className="text-lg font-semibold text-slate-800">Failed to load news updates</p>
-            <p className="mt-2 text-sm text-slate-500">Please try again in a few moments</p>
+          <div className="rounded-2xl border border-base-300 bg-base-100 p-8 text-center shadow-sm">
+            <p className="text-lg font-semibold text-base-content">Failed to load news updates</p>
+            <p className="mt-2 text-sm text-base-content/60">Please try again in a few moments</p>
             <button
               type="button"
-              className="btn btn-sm mt-4 border-none bg-indigo-600 text-white hover:bg-indigo-500"
+              className="btn btn-sm mt-4 border-none bg-primary text-white hover:bg-primary"
               onClick={() => refetch()}
             >
               Retry
             </button>
           </div>
         ) : newsArticles.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-            <Building2 className="mx-auto size-12 text-slate-300 mb-3" />
-            <p className="text-lg font-semibold text-slate-800">No news found for this selection</p>
-            <p className="mt-2 text-sm text-slate-500">Try selecting "All India" or a different category</p>
+          <div className="rounded-2xl border border-base-300 bg-base-100 p-8 text-center shadow-sm">
+            <Building2 className="mx-auto size-12 text-base-content/40 mb-3" />
+            <p className="text-lg font-semibold text-base-content">No news found for this selection</p>
+            <p className="mt-2 text-sm text-base-content/60">Try selecting "All India" or a different category</p>
             <button
               type="button"
               onClick={handleResetFilters}
-              className="btn btn-sm mt-4 border-none bg-indigo-600 text-white hover:bg-indigo-500"
+              className="btn btn-sm mt-4 border-none bg-primary text-white hover:bg-primary"
             >
               View All India News
             </button>
@@ -442,9 +442,9 @@ export default function NewsPage() {
                   href={news.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex flex-col rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-all duration-200"
+                  className="group flex flex-col rounded-2xl border border-base-300 bg-base-100 overflow-hidden shadow-sm hover:shadow-md transition-all duration-200"
                 >
-                  <div className="relative overflow-hidden aspect-[16/10] bg-slate-100">
+                  <div className="relative overflow-hidden aspect-[16/10] bg-base-200">
                     <img
                       src={news.image}
                       alt={news.title}
@@ -458,7 +458,7 @@ export default function NewsPage() {
                     {/* Top Left: City Badge */}
                     <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
                       {displayCity && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-900/80 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-neutral/80 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur">
                           <MapPin className="size-2.5 text-white" />
                           {displayCity}
                         </span>
@@ -470,7 +470,7 @@ export default function NewsPage() {
                       {badges.map((badge, index) => (
                         <span
                           key={index}
-                          className="inline-flex items-center rounded-full bg-indigo-600/90 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur shadow-sm"
+                          className="inline-flex items-center rounded-full bg-primary/90 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur shadow-sm"
                         >
                           {badge}
                         </span>
@@ -481,30 +481,30 @@ export default function NewsPage() {
                   <div className="flex flex-1 flex-col p-5">
                     {/* Source & Date Row */}
                     <div className="mb-2.5 flex items-center justify-between text-xs">
-                      <span className="font-semibold text-indigo-600">
+                      <span className="font-semibold text-primary">
                         {news.source?.name || news.source || "Real Estate News"}
                       </span>
                       {news.publishedAt && (
-                        <span className="text-slate-400">
+                        <span className="text-base-content/50">
                           {formatNewsDate(news.publishedAt)}
                         </span>
                       )}
                     </div>
 
                     {/* Title */}
-                    <h3 className="mb-2 text-base font-bold text-slate-900 line-clamp-2 leading-snug group-hover:text-indigo-600 transition">
+                    <h3 className="mb-2 text-base font-bold text-base-content line-clamp-2 leading-snug group-hover:text-primary transition">
                       {news.title}
                     </h3>
 
                     {/* Description */}
                     {news.description && (
-                      <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed mb-4">
+                      <p className="text-xs text-base-content/70 line-clamp-3 leading-relaxed mb-4">
                         {news.description}
                       </p>
                     )}
 
                     {/* Read Full Article */}
-                    <div className="mt-auto flex items-center gap-1 pt-2 text-xs font-semibold text-indigo-600 group-hover:underline">
+                    <div className="mt-auto flex items-center gap-1 pt-2 text-xs font-semibold text-primary group-hover:underline">
                       Read full article
                       <ExternalLink className="size-3.5" />
                     </div>

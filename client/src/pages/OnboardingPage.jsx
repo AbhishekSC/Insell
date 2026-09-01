@@ -695,7 +695,7 @@ export default function OnboardingPage() {
               <img src={formData.profilePic} alt="Preview" className="size-16 rounded-lg object-cover" />
               <button
                 type="button"
-                className="btn btn-xs btn-ghost text-red-500"
+                className="btn btn-xs btn-ghost text-error"
                 onClick={() => setFormData(prev => ({ ...prev, profilePic: "", profilePicFile: null }))}
               >
                 <X className="size-4" />
@@ -713,7 +713,7 @@ export default function OnboardingPage() {
           <div className="flex gap-2">
             <button
               type="button"
-              className="btn btn-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              className="btn btn-sm border border-base-300 bg-base-100 text-base-content hover:bg-base-200"
               onClick={handleLocationCapture}
             >
               <MapPin className="size-4" />
@@ -721,12 +721,12 @@ export default function OnboardingPage() {
             </button>
           </div>
           {formData.latitude && formData.longitude && (
-            <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+            <div className="mt-2 flex items-center gap-2 text-xs text-base-content/60">
               <MapPin className="size-3" />
               <span>Coordinates: {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}</span>
               <button
                 type="button"
-                className="text-red-500 hover:text-red-700"
+                className="text-error hover:text-error"
                 onClick={clearLocation}
               >
                 Clear

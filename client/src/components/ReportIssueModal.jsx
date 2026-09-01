@@ -3,7 +3,7 @@ import { Loader2, Paperclip, X } from "lucide-react";
 
 const OVERLAY_CLASSES = "fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4";
 const CARD_CLASSES =
-  "max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-6 shadow-xl sm:max-w-md sm:rounded-2xl";
+  "max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-base-100 p-6 shadow-xl sm:max-w-md sm:rounded-2xl";
 
 export default function ReportIssueModal({ isOpen, isPending, onCancel, onSubmit }) {
   const [message, setMessage] = useState("");
@@ -24,10 +24,10 @@ export default function ReportIssueModal({ isOpen, isPending, onCancel, onSubmit
       <div className={CARD_CLASSES} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-slate-800">Report an issue</h3>
-            <p className="mt-1 text-sm text-slate-500">Tell us how we can improve NearMySpace.</p>
+            <h3 className="text-lg font-semibold text-base-content">Report an issue</h3>
+            <p className="mt-1 text-sm text-base-content/60">Tell us how we can improve NearMySpace.</p>
           </div>
-          <button type="button" onClick={onCancel} className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+          <button type="button" onClick={onCancel} className="rounded-full p-1 text-base-content/50 hover:bg-base-200 hover:text-base-content/70">
             <X className="size-5" />
           </button>
         </div>
@@ -40,7 +40,7 @@ export default function ReportIssueModal({ isOpen, isPending, onCancel, onSubmit
             rows={4}
             maxLength={2000}
             autoFocus
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+            className="w-full rounded-lg border border-base-300 px-3 py-2 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20"
           />
         </div>
 
@@ -53,9 +53,9 @@ export default function ReportIssueModal({ isOpen, isPending, onCancel, onSubmit
             onChange={(e) => setScreenshot(e.target.files?.[0] || null)}
           />
           {screenshot ? (
-            <div className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm">
-              <span className="truncate text-slate-700">{screenshot.name}</span>
-              <button type="button" onClick={() => setScreenshot(null)} className="shrink-0 text-slate-400 hover:text-red-500">
+            <div className="flex items-center justify-between rounded-lg border border-base-300 px-3 py-2 text-sm">
+              <span className="truncate text-base-content">{screenshot.name}</span>
+              <button type="button" onClick={() => setScreenshot(null)} className="shrink-0 text-base-content/50 hover:text-error">
                 <X className="size-4" />
               </button>
             </div>
@@ -63,7 +63,7 @@ export default function ReportIssueModal({ isOpen, isPending, onCancel, onSubmit
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-700"
+              className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary"
             >
               <Paperclip className="size-4" />
               Attach a screenshot (optional)
@@ -75,7 +75,7 @@ export default function ReportIssueModal({ isOpen, isPending, onCancel, onSubmit
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="flex-1 rounded-xl border border-base-300 px-4 py-2.5 text-sm font-semibold text-base-content hover:bg-base-200"
           >
             Cancel
           </button>
@@ -83,7 +83,7 @@ export default function ReportIssueModal({ isOpen, isPending, onCancel, onSubmit
             type="button"
             onClick={() => onSubmit({ message: message.trim(), screenshot })}
             disabled={isPending || !message.trim()}
-            className="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 disabled:opacity-60"
+            className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary disabled:opacity-60"
           >
             {isPending ? <Loader2 className="mx-auto size-4 animate-spin" /> : "Send feedback"}
           </button>

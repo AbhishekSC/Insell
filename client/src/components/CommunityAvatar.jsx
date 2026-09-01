@@ -1,7 +1,7 @@
 export default function CommunityAvatar({ name, photo, uploading }) {
   const initial = (name || "?").trim().charAt(0).toUpperCase() || "?";
   return (
-    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-white bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg sm:h-20 sm:w-20 sm:border-4">
+    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-white bg-gradient-to-br from-primary to-secondary shadow-lg sm:h-20 sm:w-20 sm:border-4">
       {photo ? (
         <img src={photo} alt={name} className="h-full w-full object-cover" />
       ) : (

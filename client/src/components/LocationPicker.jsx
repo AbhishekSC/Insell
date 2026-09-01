@@ -83,14 +83,14 @@ export default function LocationPicker({ onLocationChange, initialPosition }) {
           type="button"
           onClick={handleGetCurrentLocation}
           disabled={loading}
-          className="btn btn-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="btn btn-sm border border-base-300 bg-base-100 text-base-content hover:bg-base-200 disabled:opacity-50"
         >
           <Navigation className={`size-4 ${loading ? "animate-spin" : ""}`} />
           {loading ? "Getting location..." : "Use my current location"}
         </button>
       </div>
 
-      <div className="relative h-[300px] w-full rounded-xl border border-slate-200 overflow-hidden">
+      <div className="relative h-[300px] w-full rounded-xl border border-base-300 overflow-hidden">
         <MapContainer
           center={position || [20.5937, 78.9629]} // Default to India center
           zoom={position ? 13 : 5}
@@ -109,14 +109,14 @@ export default function LocationPicker({ onLocationChange, initialPosition }) {
       </div>
 
       {address && (
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-slate-50 border border-slate-200">
-          <MapPin className="size-4 text-slate-500 mt-0.5 shrink-0" />
-          <p className="text-sm text-slate-700">{address}</p>
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-base-200 border border-base-300">
+          <MapPin className="size-4 text-base-content/60 mt-0.5 shrink-0" />
+          <p className="text-sm text-base-content">{address}</p>
         </div>
       )}
 
       {position && (
-        <div className="text-xs text-slate-500">
+        <div className="text-xs text-base-content/60">
           Selected: {position.lat.toFixed(6)}, {position.lng.toFixed(6)}
         </div>
       )}

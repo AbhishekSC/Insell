@@ -12,11 +12,11 @@ function formatDateTime(dateString) {
 }
 
 const ACTION_META = {
-  offer: { icon: IndianRupee, verb: "offered", tone: "bg-indigo-50 text-indigo-600" },
-  counter: { icon: RefreshCw, verb: "countered with", tone: "bg-amber-50 text-amber-600" },
-  accept: { icon: Check, verb: "accepted", tone: "bg-emerald-50 text-emerald-600" },
-  decline: { icon: X, verb: "declined at", tone: "bg-red-50 text-red-600" },
-  withdraw: { icon: X, verb: "withdrew at", tone: "bg-slate-100 text-slate-500" },
+  offer: { icon: IndianRupee, verb: "offered", tone: "bg-primary/10 text-primary" },
+  counter: { icon: RefreshCw, verb: "countered with", tone: "bg-warning/10 text-warning" },
+  accept: { icon: Check, verb: "accepted", tone: "bg-success/10 text-success" },
+  decline: { icon: X, verb: "declined at", tone: "bg-error/10 text-error" },
+  withdraw: { icon: X, verb: "withdrew at", tone: "bg-base-200 text-base-content/60" },
 };
 
 // `history` is Offer.history straight from the API — every offer/counter/
@@ -42,12 +42,12 @@ export default function OfferHistoryTimeline({ history, buyerName, ownerName, bu
               <Icon className="size-4" />
             </div>
             <div className="min-w-0 flex-1 pb-1">
-              <p className="text-sm text-slate-700">
-                <span className="font-semibold text-slate-900">{nameFor(entry.by)}</span> {meta.verb}{" "}
-                <span className="font-semibold text-slate-900">{formatMoney(entry.price)}</span>
+              <p className="text-sm text-base-content">
+                <span className="font-semibold text-base-content">{nameFor(entry.by)}</span> {meta.verb}{" "}
+                <span className="font-semibold text-base-content">{formatMoney(entry.price)}</span>
               </p>
-              {entry.message && <p className="mt-0.5 text-xs italic text-slate-500">"{entry.message}"</p>}
-              <p className="mt-0.5 text-xs text-slate-400">{formatDateTime(entry.at)}</p>
+              {entry.message && <p className="mt-0.5 text-xs italic text-base-content/60">"{entry.message}"</p>}
+              <p className="mt-0.5 text-xs text-base-content/50">{formatDateTime(entry.at)}</p>
             </div>
           </div>
         );

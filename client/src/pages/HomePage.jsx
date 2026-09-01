@@ -158,21 +158,21 @@ export default function HomePage() {
   });
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#f7f8fc_0%,#f3f5fb_100%)] text-slate-900">
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f7f8fc_0%,#f3f5fb_100%)] text-base-content">
+      <header className="sticky top-0 z-40 border-b border-base-300 bg-base-100/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1440px] items-center gap-3 px-4 py-3 lg:px-6">
           <div className="flex min-w-[180px] items-center gap-2">
-            <div className="grid size-10 place-items-center rounded-xl bg-indigo-600 text-white shadow-sm">
+            <div className="grid size-10 place-items-center rounded-xl bg-primary text-white shadow-sm">
               <House className="size-5" />
             </div>
             <div>
-              <p className="text-2xl font-black tracking-tight text-slate-800">NearMySpace</p>
-              <p className="text-xs text-slate-500">Social Real Estate Marketplace</p>
+              <p className="text-2xl font-black tracking-tight text-base-content">NearMySpace</p>
+              <p className="text-xs text-base-content/60">Social Real Estate Marketplace</p>
             </div>
           </div>
 
-          <label className="input input-bordered hidden h-11 flex-1 max-w-xl rounded-xl border-slate-200 bg-slate-50 lg:flex">
-            <Search className="size-4 text-slate-400" />
+          <label className="input input-bordered hidden h-11 flex-1 max-w-xl rounded-xl border-base-300 bg-base-200 lg:flex">
+            <Search className="size-4 text-base-content/50" />
             <input
               type="text"
               placeholder="Search city, locality, property or builder"
@@ -188,11 +188,11 @@ export default function HomePage() {
             </button>
             <button type="button" className="btn btn-ghost btn-circle"><MessageCircle className="size-4" /></button>
             <button type="button" className="btn btn-ghost btn-circle"><Bell className="size-4" /></button>
-            <div className="hidden items-center gap-2 rounded-xl border border-slate-200 px-2 py-1.5 sm:flex">
+            <div className="hidden items-center gap-2 rounded-xl border border-base-300 px-2 py-1.5 sm:flex">
               <UserAvatar src={authUser?.profilePic} name={authUser?.fullName || "User"} sizeClass="size-8" userId={authUser?._id} />
               <div>
                 <p className="text-xs font-semibold leading-tight">{authUser?.fullName || "User"}</p>
-                <p className="text-[11px] text-slate-500">{authUser?.activeRole || authUser?.primaryRole || "Buyer"}</p>
+                <p className="text-[11px] text-base-content/60">{authUser?.activeRole || authUser?.primaryRole || "Buyer"}</p>
               </div>
             </div>
             <button type="button" className="btn btn-ghost btn-circle lg:hidden"><Menu className="size-5" /></button>
@@ -201,7 +201,7 @@ export default function HomePage() {
       </header>
 
       <main className="mx-auto grid max-w-[1440px] gap-4 p-4 pb-8 lg:p-6 lg:pb-8 xl:grid-cols-[220px_minmax(0,1fr)_320px]">
-        <aside className="hidden rounded-2xl border border-slate-200 bg-white p-4 pb-6 shadow-sm xl:flex xl:flex-col xl:min-h-[calc(100vh-8rem)]">
+        <aside className="hidden rounded-2xl border border-base-300 bg-base-100 p-4 pb-6 shadow-sm xl:flex xl:flex-col xl:min-h-[calc(100vh-8rem)]">
           <div className="space-y-1">
             {LEFT_MENU.map((item, index) => (
               <button key={item} type="button" className={`btn btn-sm h-10 w-full justify-start rounded-lg ${index === 0 ? "btn-primary" : "btn-ghost"}`}>
@@ -210,7 +210,7 @@ export default function HomePage() {
             ))}
           </div>
 
-          <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-slate-500">Posts</p>
+          <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-base-content/60">Posts</p>
           <div className="mt-2 space-y-1">
             {POST_MENU.map((item) => (
               <button key={item} type="button" className="btn btn-sm h-10 w-full justify-start rounded-lg btn-ghost">
@@ -219,7 +219,7 @@ export default function HomePage() {
             ))}
           </div>
 
-          <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-slate-500">More</p>
+          <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-base-content/60">More</p>
           <div className="mt-2 grid gap-1">
             <button type="button" className="btn btn-sm h-10 justify-start rounded-lg btn-ghost">Dashboard</button>
             <button type="button" className="btn btn-sm h-10 justify-start rounded-lg btn-ghost">Transactions</button>
@@ -231,27 +231,27 @@ export default function HomePage() {
             </button>
           </div>
 
-          <div className="mt-auto rounded-xl bg-indigo-50 p-3 text-xs text-slate-700">
-            <p className="font-semibold text-indigo-600">Go Premium</p>
+          <div className="mt-auto rounded-xl bg-primary/10 p-3 text-xs text-base-content">
+            <p className="font-semibold text-primary">Go Premium</p>
             <p className="mt-1">Get more visibility and reach serious buyers faster.</p>
             <button type="button" className="btn btn-primary btn-sm mt-3 w-full rounded-lg">Upgrade Now</button>
           </div>
         </aside>
 
         <section className="space-y-4 pb-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:p-4">
+          <div className="rounded-2xl border border-base-300 bg-base-100 p-3 shadow-sm lg:p-4">
             <div className="flex items-center gap-4 overflow-x-auto pb-2">
               {STORY_ITEMS.map((item, idx) => (
                 <button key={item} type="button" className="min-w-[5rem] text-center">
-                  <span className="mx-auto grid size-14 place-items-center rounded-full bg-gradient-to-br from-indigo-600 to-blue-500 p-[2px]">
-                    <span className="grid size-full place-items-center rounded-full bg-white text-[10px] font-bold text-indigo-600">{idx + 1}</span>
+                  <span className="mx-auto grid size-14 place-items-center rounded-full bg-gradient-to-br from-primary to-info p-[2px]">
+                    <span className="grid size-full place-items-center rounded-full bg-base-100 text-[10px] font-bold text-primary">{idx + 1}</span>
                   </span>
-                  <span className="mt-1 block truncate text-[11px] font-semibold text-slate-700">{item}</span>
+                  <span className="mt-1 block truncate text-[11px] font-semibold text-base-content">{item}</span>
                 </button>
               ))}
             </div>
 
-            <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-200 pt-3">
+            <div className="mt-3 flex items-center justify-between gap-2 border-t border-base-300 pt-3">
               <div className="flex items-center gap-1 overflow-x-auto">
                 {FEED_TABS.map((tab) => (
                   <button
@@ -264,7 +264,7 @@ export default function HomePage() {
                   </button>
                 ))}
               </div>
-              <button type="button" className="btn btn-sm btn-outline rounded-full border-slate-200">
+              <button type="button" className="btn btn-sm btn-outline rounded-full border-base-300">
                 Latest
                 <ChevronDown className="size-3.5" />
               </button>
@@ -274,11 +274,11 @@ export default function HomePage() {
           {isLoading ? (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {[1, 2, 3, 4, 5, 6].map((item) => (
-                <div key={item} className="h-72 animate-pulse rounded-2xl bg-slate-200" />
+                <div key={item} className="h-72 animate-pulse rounded-2xl bg-base-300" />
               ))}
             </div>
           ) : posts.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">No listings found for current filters.</div>
+            <div className="rounded-2xl border border-base-300 bg-base-100 p-10 text-center text-sm text-base-content/60">No listings found for current filters.</div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {posts.map((post) => {
@@ -287,7 +287,7 @@ export default function HomePage() {
                 const verified = ["Broker", "Seller", "Landlord"].includes(post.author?.activeRole || post.author?.primaryRole);
 
                 return (
-                  <article key={post._id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" onClick={() => console.log("Article clicked")}>
+                  <article key={post._id} className="overflow-hidden rounded-2xl border border-base-300 bg-base-100 shadow-sm" onClick={() => console.log("Article clicked")}>
                     <div className="relative">
                       {post.media.length > 0 ? (
                         isVideoUrl(image) ? (
@@ -307,20 +307,20 @@ export default function HomePage() {
                     </div>
 
                     <div className="p-3">
-                      <p className="inline-flex items-center gap-0.5 text-xl font-black text-slate-900"><IndianRupee className="size-4 text-indigo-600" />{formatMoney(post.price).replace("₹", "")}</p>
-                      <p className="mt-0.5 line-clamp-1 text-sm font-semibold text-slate-800">{post.title || "Property listing"}</p>
-                      <p className="mt-1 inline-flex items-center gap-1 text-xs text-slate-500"><MapPin className="size-3" />{post.locality || post.city || "Location"}</p>
-                      <p className="mt-1 text-xs text-slate-600">{post.bedrooms || 0} Beds · {post.bathrooms || 0} Baths · {Number(post.areaSqft || 0)} sqft</p>
+                      <p className="inline-flex items-center gap-0.5 text-xl font-black text-base-content"><IndianRupee className="size-4 text-primary" />{formatMoney(post.price).replace("₹", "")}</p>
+                      <p className="mt-0.5 line-clamp-1 text-sm font-semibold text-base-content">{post.title || "Property listing"}</p>
+                      <p className="mt-1 inline-flex items-center gap-1 text-xs text-base-content/60"><MapPin className="size-3" />{post.locality || post.city || "Location"}</p>
+                      <p className="mt-1 text-xs text-base-content/70">{post.bedrooms || 0} Beds · {post.bathrooms || 0} Baths · {Number(post.areaSqft || 0)} sqft</p>
                       
                       {post.caption ? (
                         <div className="mt-2">
-                          <p className={`text-xs text-slate-600 ${expandedPostIds[post._id] ? "" : "line-clamp-2"}`}>
+                          <p className={`text-xs text-base-content/70 ${expandedPostIds[post._id] ? "" : "line-clamp-2"}`}>
                             {post.caption}
                           </p>
                           {post.caption.length > 100 && (
                             <button
                               type="button"
-                              className="mt-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                              className="mt-1 text-xs text-primary hover:text-primary font-medium"
                               onClick={() => setExpandedPostIds((prev) => ({ ...prev, [post._id]: !prev[post._id] }))}
                             >
                               {expandedPostIds[post._id] ? "Show less" : "Read more"}
@@ -331,17 +331,17 @@ export default function HomePage() {
 
                       <div className="mt-3 flex items-center gap-4">
                         <div className="flex items-center gap-1">
-                          <button type="button" className="btn btn-ghost btn-xs btn-circle" onClick={() => toggleLike(post._id)}><Heart className={`size-4 ${post.isLikedByMe ? "fill-red-500 text-red-500" : ""}`} /></button>
-                          <span className="text-[11px] text-slate-500">{post.likesCount}</span>
+                          <button type="button" className="btn btn-ghost btn-xs btn-circle" onClick={() => toggleLike(post._id)}><Heart className={`size-4 ${post.isLikedByMe ? "fill-error text-error" : ""}`} /></button>
+                          <span className="text-[11px] text-base-content/60">{post.likesCount}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <button type="button" className="btn btn-ghost btn-xs btn-circle !z-50 !relative" onClick={() => { console.log("Comment button clicked, post:", post); setSelectedPostForComments(post); }}><MessageCircle className="size-4" /></button>
-                          <span className="text-[11px] text-slate-500">{post.commentCount || 0}</span>
+                          <span className="text-[11px] text-base-content/60">{post.commentCount || 0}</span>
                         </div>
                         <button type="button" className="btn btn-ghost btn-xs btn-circle"><Share2 className="size-4" /></button>
                         <div className="flex items-center gap-1">
-                          <button type="button" className="btn btn-ghost btn-xs btn-circle" onClick={() => toggleSave(post._id)}><Bookmark className={`size-4 ${post.isSavedByMe ? "fill-indigo-600 text-indigo-600" : ""}`} /></button>
-                          <span className="text-[11px] text-slate-500">{post.savesCount || 0}</span>
+                          <button type="button" className="btn btn-ghost btn-xs btn-circle" onClick={() => toggleSave(post._id)}><Bookmark className={`size-4 ${post.isSavedByMe ? "fill-primary text-primary" : ""}`} /></button>
+                          <span className="text-[11px] text-base-content/60">{post.savesCount || 0}</span>
                         </div>
                       </div>
 
@@ -349,11 +349,11 @@ export default function HomePage() {
                         <div className="flex min-w-0 items-center gap-2">
                           <UserAvatar src={post.author?.profilePic} name={post.author?.fullName || "User"} sizeClass="size-7" userId={post.author?._id} />
                           <div className="min-w-0">
-                            <p className="truncate text-xs font-semibold text-slate-700">{post.author?.fullName || "Unknown"}</p>
-                            <p className="truncate text-[11px] text-slate-500">{post.author?.activeRole || post.author?.primaryRole || "User"}</p>
+                            <p className="truncate text-xs font-semibold text-base-content">{post.author?.fullName || "Unknown"}</p>
+                            <p className="truncate text-[11px] text-base-content/60">{post.author?.activeRole || post.author?.primaryRole || "User"}</p>
                           </div>
                         </div>
-                        {verified ? <BadgeCheck className="size-4 text-indigo-600" /> : null}
+                        {verified ? <BadgeCheck className="size-4 text-primary" /> : null}
                       </div>
                     </div>
                   </article>
@@ -363,67 +363,67 @@ export default function HomePage() {
           )}
 
           {hasNextPage ? (
-            <button type="button" className="btn btn-outline w-full rounded-xl border-slate-200 bg-white" disabled={isFetchingNextPage} onClick={() => fetchNextPage()}>
+            <button type="button" className="btn btn-outline w-full rounded-xl border-base-300 bg-base-100" disabled={isFetchingNextPage} onClick={() => fetchNextPage()}>
               {isFetchingNextPage ? "Loading..." : "Load More"}
             </button>
           ) : null}
         </section>
 
         <aside className="hidden gap-4 xl:flex xl:flex-col pb-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border border-base-300 bg-base-100 p-4 shadow-sm">
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-bold text-slate-800">Stories & Highlights</p>
-              <button type="button" className="btn btn-ghost btn-xs text-indigo-600">View all</button>
+              <p className="text-sm font-bold text-base-content">Stories & Highlights</p>
+              <button type="button" className="btn btn-ghost btn-xs text-primary">View all</button>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {["Premium Projects", "Hot Deals", "New Launches", "Top Brokers"].map((item, idx) => (
-                <div key={item} className="rounded-xl border border-slate-200 p-2">
+                <div key={item} className="rounded-xl border border-base-300 p-2">
                   <img src={`https://placehold.co/320x220?text=${idx + 1}`} alt={item} className="h-16 w-full rounded-lg object-cover" />
-                  <p className="mt-1 text-[11px] font-semibold text-slate-700">{item}</p>
+                  <p className="mt-1 text-[11px] font-semibold text-base-content">{item}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border border-base-300 bg-base-100 p-4 shadow-sm">
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-bold text-slate-800">Smart Filters</p>
-              <SlidersHorizontal className="size-4 text-slate-500" />
+              <p className="text-sm font-bold text-base-content">Smart Filters</p>
+              <SlidersHorizontal className="size-4 text-base-content/60" />
             </div>
 
             <div className="grid gap-2">
               <label className="form-control">
-                <span className="label-text text-xs text-slate-600">Transaction Type</span>
-                <select className="select select-bordered select-sm border-slate-200" value={filters.transactionType} onChange={(event) => setFilters((prev) => ({ ...prev, transactionType: event.target.value }))}>
+                <span className="label-text text-xs text-base-content/70">Transaction Type</span>
+                <select className="select select-bordered select-sm border-base-300" value={filters.transactionType} onChange={(event) => setFilters((prev) => ({ ...prev, transactionType: event.target.value }))}>
                   {LISTING_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
                 </select>
               </label>
 
               <label className="form-control">
-                <span className="label-text text-xs text-slate-600">Property Type</span>
-                <select className="select select-bordered select-sm border-slate-200" value={filters.propertyType} onChange={(event) => setFilters((prev) => ({ ...prev, propertyType: event.target.value }))}>
+                <span className="label-text text-xs text-base-content/70">Property Type</span>
+                <select className="select select-bordered select-sm border-base-300" value={filters.propertyType} onChange={(event) => setFilters((prev) => ({ ...prev, propertyType: event.target.value }))}>
                   {PROPERTY_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
                 </select>
               </label>
 
               <label className="form-control">
-                <span className="label-text text-xs text-slate-600">City</span>
-                <input className="input input-bordered input-sm border-slate-200" value={filters.city} onChange={(event) => setFilters((prev) => ({ ...prev, city: event.target.value }))} />
+                <span className="label-text text-xs text-base-content/70">City</span>
+                <input className="input input-bordered input-sm border-base-300" value={filters.city} onChange={(event) => setFilters((prev) => ({ ...prev, city: event.target.value }))} />
               </label>
 
               <label className="form-control">
-                <span className="label-text text-xs text-slate-600">Locality</span>
-                <input className="input input-bordered input-sm border-slate-200" value={filters.locality} onChange={(event) => setFilters((prev) => ({ ...prev, locality: event.target.value }))} />
+                <span className="label-text text-xs text-base-content/70">Locality</span>
+                <input className="input input-bordered input-sm border-base-300" value={filters.locality} onChange={(event) => setFilters((prev) => ({ ...prev, locality: event.target.value }))} />
               </label>
 
               <label className="form-control">
-                <span className="label-text text-xs text-slate-600">Budget Min</span>
-                <input className="input input-bordered input-sm border-slate-200" type="number" min="0" value={filters.budgetMin} onChange={(event) => setFilters((prev) => ({ ...prev, budgetMin: Number(event.target.value || 0) }))} />
+                <span className="label-text text-xs text-base-content/70">Budget Min</span>
+                <input className="input input-bordered input-sm border-base-300" type="number" min="0" value={filters.budgetMin} onChange={(event) => setFilters((prev) => ({ ...prev, budgetMin: Number(event.target.value || 0) }))} />
               </label>
 
               <label className="form-control">
-                <span className="label-text text-xs text-slate-600">Budget Max</span>
-                <input className="input input-bordered input-sm border-slate-200" type="number" min="0" value={filters.budgetMax} onChange={(event) => setFilters((prev) => ({ ...prev, budgetMax: Number(event.target.value || 0) }))} />
+                <span className="label-text text-xs text-base-content/70">Budget Max</span>
+                <input className="input input-bordered input-sm border-base-300" type="number" min="0" value={filters.budgetMax} onChange={(event) => setFilters((prev) => ({ ...prev, budgetMax: Number(event.target.value || 0) }))} />
               </label>
             </div>
 
@@ -432,18 +432,18 @@ export default function HomePage() {
             </button>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border border-base-300 bg-base-100 p-4 shadow-sm">
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-bold text-slate-800">Recommended for You</p>
-              <button type="button" className="btn btn-ghost btn-xs text-indigo-600">View all</button>
+              <p className="text-sm font-bold text-base-content">Recommended for You</p>
+              <button type="button" className="btn btn-ghost btn-xs text-primary">View all</button>
             </div>
             <div className="space-y-2">
               {posts.slice(0, 3).map((post) => (
-                <Link key={`rec-${post._id}`} to="/marketplace" className="flex items-center gap-2 rounded-lg border border-slate-200 p-2 hover:bg-slate-50">
+                <Link key={`rec-${post._id}`} to="/marketplace" className="flex items-center gap-2 rounded-lg border border-base-300 p-2 hover:bg-base-200">
                   <img src={post.media[0]} alt={post.title || "Recommendation"} className="h-12 w-16 rounded-md object-cover" />
                   <div className="min-w-0">
-                    <p className="truncate text-xs font-semibold text-slate-700">{post.title || "Property"}</p>
-                    <p className="truncate text-[11px] text-slate-500">{formatMoney(post.price)} · {post.city || "India"}</p>
+                    <p className="truncate text-xs font-semibold text-base-content">{post.title || "Property"}</p>
+                    <p className="truncate text-[11px] text-base-content/60">{formatMoney(post.price)} · {post.city || "India"}</p>
                   </div>
                 </Link>
               ))}

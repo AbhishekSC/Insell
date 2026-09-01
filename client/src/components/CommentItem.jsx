@@ -73,7 +73,7 @@ function CommentItem({
       connectors.push(
         <div
           key={i}
-          className="absolute w-px bg-slate-200"
+          className="absolute w-px bg-base-300"
           style={{
             left: `${leftPos}px`,
             top: '32px',
@@ -98,23 +98,23 @@ function CommentItem({
           userId={comment.author?._id}
         />
         <div className="flex-1 min-w-0">
-          <div className="rounded-2xl bg-slate-50 px-4 py-2 min-w-0">
-            <p className="text-xs font-semibold text-slate-900 truncate">
+          <div className="rounded-2xl bg-base-200 px-4 py-2 min-w-0">
+            <p className="text-xs font-semibold text-base-content truncate">
               {comment.author?.fullName || "User"}
             </p>
-            <p className="mt-1 text-sm text-slate-700 break-words">
+            <p className="mt-1 text-sm text-base-content break-words">
               {comment.content}
             </p>
           </div>
           <div className="mt-1 flex items-center gap-4 px-2">
-            <span className="text-[10px] text-slate-500 shrink-0">
+            <span className="text-[10px] text-base-content/60 shrink-0">
               {formatRelativeTime(comment.createdAt)}
             </span>
             <button
               type="button"
               onClick={handleLikeClick}
-              className={`flex items-center gap-1 text-[10px] hover:text-slate-700 transition-colors shrink-0 ${
-                comment.likedBy?.length > 0 ? "text-red-500" : "text-slate-500"
+              className={`flex items-center gap-1 text-[10px] hover:text-base-content transition-colors shrink-0 ${
+                comment.likedBy?.length > 0 ? "text-error" : "text-base-content/60"
               }`}
             >
               <Heart className={`size-3 ${comment.likedBy?.length > 0 ? "fill-current" : ""}`} />
@@ -123,7 +123,7 @@ function CommentItem({
             <button
               type="button"
               onClick={handleReplyClick}
-              className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-700 transition-colors shrink-0"
+              className="flex items-center gap-1 text-[10px] text-base-content/60 hover:text-base-content transition-colors shrink-0"
             >
               <MessageSquareReply className="size-3" />
               Reply
@@ -146,7 +146,7 @@ function CommentItem({
               <button
                 type="button"
                 onClick={handleToggleReplies}
-                className="text-xs text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
+                className="text-xs text-primary hover:text-primary font-medium transition-colors"
               >
                 {showReplies ? `Hide ${comment.repliesCount} replies` : `View ${comment.repliesCount} replies`}
               </button>

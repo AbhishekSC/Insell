@@ -124,36 +124,36 @@ export default function PropertyComparisonPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-base-200">
       <ComparisonHeader propertyCount={properties.length} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Best Property Banner */}
         {bestProperty && (
-          <div className="mb-8 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6">
+          <div className="mb-8 bg-gradient-to-r from-warning to-warning border border-warning/30 rounded-2xl p-6">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="bg-amber-500 text-white p-2 rounded-full">
+                <div className="bg-warning text-white p-2 rounded-full">
                   <Trophy className="size-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-amber-900">Best Property Choice</h2>
-                  <p className="text-sm text-amber-700">{bestProperty.reason}</p>
+                  <h2 className="text-lg font-bold text-warning">Best Property Choice</h2>
+                  <p className="text-sm text-warning">{bestProperty.reason}</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowPreferences(!showPreferences)}
-                className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-amber-200 hover:bg-amber-50 transition-colors"
+                className="flex items-center gap-2 px-3 py-2 bg-base-100 rounded-lg border border-warning/30 hover:bg-warning/10 transition-colors"
               >
-                <SlidersHorizontal className="size-4 text-amber-600" />
-                <span className="text-sm font-medium text-amber-900">Customize</span>
+                <SlidersHorizontal className="size-4 text-warning" />
+                <span className="text-sm font-medium text-warning">Customize</span>
               </button>
             </div>
 
             {/* Preference Selector */}
             {showPreferences && (
-              <div className="bg-white rounded-xl p-4 border border-amber-100 mb-4">
-                <h3 className="font-semibold text-slate-900 mb-3">Choose your priority</h3>
+              <div className="bg-base-100 rounded-xl p-4 border border-warning/30 mb-4">
+                <h3 className="font-semibold text-base-content mb-3">Choose your priority</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {criteriaOptions.map((option) => (
                     <button
@@ -161,21 +161,21 @@ export default function PropertyComparisonPage() {
                       onClick={() => setPreferenceCriteria(option.value)}
                       className={`p-3 rounded-lg border-2 transition-all ${
                         preferenceCriteria === option.value
-                          ? 'border-indigo-500 bg-indigo-50'
-                          : 'border-slate-200 hover:border-slate-300'
+                          ? 'border-primary bg-primary/10'
+                          : 'border-base-300 hover:border-base-300'
                       }`}
                     >
-                      <div className="font-medium text-slate-900 text-sm">{option.label}</div>
-                      <div className="text-xs text-slate-500 mt-1">{option.description}</div>
+                      <div className="font-medium text-base-content text-sm">{option.label}</div>
+                      <div className="text-xs text-base-content/60 mt-1">{option.description}</div>
                     </button>
                   ))}
                 </div>
               </div>
             )}
 
-            <div className="bg-white rounded-xl p-4 border border-amber-100">
-              <p className="font-semibold text-slate-900">{bestProperty.title}</p>
-              <p className="text-sm text-slate-600 mt-1">
+            <div className="bg-base-100 rounded-xl p-4 border border-warning/30">
+              <p className="font-semibold text-base-content">{bestProperty.title}</p>
+              <p className="text-sm text-base-content/70 mt-1">
                 Based on {criteriaOptions.find(c => c.value === preferenceCriteria)?.label.toLowerCase() || 'balanced'} criteria
               </p>
             </div>

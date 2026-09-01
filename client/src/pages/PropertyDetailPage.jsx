@@ -128,10 +128,10 @@ const AMENITY_TYPE_META = {
 
 function Section({ title, icon: Icon, children }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
+    <div className="bg-base-100 rounded-2xl shadow-sm border border-base-300 p-6 md:p-8">
       {title ? (
-        <h2 className="text-xl font-semibold text-slate-900 mb-6 flex items-center gap-2">
-          {Icon ? <Icon className="size-5 text-indigo-600" /> : null}
+        <h2 className="text-xl font-semibold text-base-content mb-6 flex items-center gap-2">
+          {Icon ? <Icon className="size-5 text-primary" /> : null}
           {title}
         </h2>
       ) : null}
@@ -144,8 +144,8 @@ function SpecCard({ icon: Icon, value, label, tone }) {
   return (
     <div className={`rounded-xl p-5 text-center transition-colors ${tone}`}>
       {Icon ? <Icon className="size-6 mx-auto mb-2" /> : null}
-      <p className="text-sm font-bold text-slate-900 truncate">{value}</p>
-      <p className="text-xs text-slate-600">{label}</p>
+      <p className="text-sm font-bold text-base-content truncate">{value}</p>
+      <p className="text-xs text-base-content/70">{label}</p>
     </div>
   );
 }
@@ -153,9 +153,9 @@ function SpecCard({ icon: Icon, value, label, tone }) {
 function InfoRow({ label, value }) {
   if (value === null || value === undefined || value === "") return null;
   return (
-    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-      <span className="text-slate-600">{label}</span>
-      <span className="font-medium text-slate-900 text-right">{value}</span>
+    <div className="flex items-center justify-between p-4 bg-base-200 rounded-xl">
+      <span className="text-base-content/70">{label}</span>
+      <span className="font-medium text-base-content text-right">{value}</span>
     </div>
   );
 }
@@ -428,7 +428,7 @@ export default function PropertyDetailPage() {
     return (
       <AppShell>
         <div className="flex items-center justify-center min-h-[50vh]">
-          <p className="text-slate-500">Property not found</p>
+          <p className="text-base-content/60">Property not found</p>
         </div>
       </AppShell>
     );
@@ -478,16 +478,16 @@ export default function PropertyDetailPage() {
   const bookingAmount = flatMeta.bookingAmount;
 
   const specs = [
-    postData.bedrooms ? { icon: Bed, value: postData.bedrooms, label: "Bedrooms", tone: "bg-indigo-50 text-indigo-600" } : null,
-    postData.bathrooms ? { icon: Bath, value: postData.bathrooms, label: "Bathrooms", tone: "bg-blue-50 text-blue-600" } : null,
-    postData.areaSqft ? { icon: Ruler, value: `${Number(postData.areaSqft).toLocaleString("en-IN")} sq.ft`, label: "Area", tone: "bg-emerald-50 text-emerald-600" } : null,
-    postData.propertyType ? { icon: Building2, value: postData.propertyType, label: "Type", tone: "bg-amber-50 text-amber-600" } : null,
-    furnishing ? { icon: Home, value: titleCase(furnishing), label: "Furnishing", tone: "bg-purple-50 text-purple-600" } : null,
-    hasParking ? { icon: Car, value: "Available", label: "Parking", tone: "bg-green-50 text-green-600" } : null,
-    possession ? { icon: Clock, value: possession, label: "Possession", tone: "bg-rose-50 text-rose-600" } : null,
-    facing ? { icon: Compass, value: facing, label: "Facing", tone: "bg-slate-100 text-slate-600" } : null,
-    floorNumber ? { icon: Layers, value: totalFloors ? `${floorNumber} of ${totalFloors}` : `Floor ${floorNumber}`, label: "Floor", tone: "bg-cyan-50 text-cyan-600" } : null,
-    ageOfProperty ? { icon: Calendar, value: ageOfProperty, label: "Age", tone: "bg-orange-50 text-orange-600" } : null,
+    postData.bedrooms ? { icon: Bed, value: postData.bedrooms, label: "Bedrooms", tone: "bg-primary/10 text-primary" } : null,
+    postData.bathrooms ? { icon: Bath, value: postData.bathrooms, label: "Bathrooms", tone: "bg-info/10 text-info" } : null,
+    postData.areaSqft ? { icon: Ruler, value: `${Number(postData.areaSqft).toLocaleString("en-IN")} sq.ft`, label: "Area", tone: "bg-success/10 text-success" } : null,
+    postData.propertyType ? { icon: Building2, value: postData.propertyType, label: "Type", tone: "bg-warning/10 text-warning" } : null,
+    furnishing ? { icon: Home, value: titleCase(furnishing), label: "Furnishing", tone: "bg-secondary/10 text-secondary" } : null,
+    hasParking ? { icon: Car, value: "Available", label: "Parking", tone: "bg-success/10 text-success" } : null,
+    possession ? { icon: Clock, value: possession, label: "Possession", tone: "bg-error/10 text-error" } : null,
+    facing ? { icon: Compass, value: facing, label: "Facing", tone: "bg-base-200 text-base-content/70" } : null,
+    floorNumber ? { icon: Layers, value: totalFloors ? `${floorNumber} of ${totalFloors}` : `Floor ${floorNumber}`, label: "Floor", tone: "bg-info/10 text-info" } : null,
+    ageOfProperty ? { icon: Calendar, value: ageOfProperty, label: "Age", tone: "bg-warning/10 text-warning" } : null,
   ].filter(Boolean);
 
   const amenitiesData = amenitiesResult?.items || [];
@@ -500,7 +500,7 @@ export default function PropertyDetailPage() {
 
   return (
     <AppShell hideHero>
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-base-200">
         {/* Fullscreen Image Modal */}
         {isFullscreen && (
           <div
@@ -531,9 +531,9 @@ export default function PropertyDetailPage() {
         )}
 
         {/* Hero Image Section */}
-        <div className="relative group w-full aspect-video bg-slate-100">
+        <div className="relative group w-full aspect-video bg-base-200">
           {media.length === 0 ? (
-            <div className="flex h-full w-full items-center justify-center text-slate-400">
+            <div className="flex h-full w-full items-center justify-center text-base-content/50">
               <Home className="size-16" />
             </div>
           ) : isVideo ? (
@@ -586,10 +586,10 @@ export default function PropertyDetailPage() {
               <span
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${
                   postData.offerStatus === "ACCEPTED"
-                    ? "bg-slate-900 text-white"
+                    ? "bg-neutral text-white"
                     : postData.customBadge
                       ? getCustomBadgeClasses(postData.customBadge)
-                      : "bg-indigo-600 text-white"
+                      : "bg-primary text-white"
                 }`}
               >
                 {getListingBadge(postData)}
@@ -612,7 +612,7 @@ export default function PropertyDetailPage() {
                 <Share2 className="size-5" />
               </button>
               <button
-                className={`size-10 rounded-full flex items-center justify-center transition-colors ${postData.isSavedByMe ? 'bg-indigo-600 text-white' : 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75'}`}
+                className={`size-10 rounded-full flex items-center justify-center transition-colors ${postData.isSavedByMe ? 'bg-primary text-white' : 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75'}`}
                 onClick={() => toggleSave(postData._id)}
               >
                 {postData.isSavedByMe ? <BookmarkCheck className="size-5" /> : <Bookmark className="size-5" />}
@@ -640,13 +640,13 @@ export default function PropertyDetailPage() {
 
         {/* Thumbnail Gallery */}
         {media.length > 1 && (
-          <div className="bg-white border-b border-slate-200 py-3 px-4 overflow-x-auto">
+          <div className="bg-base-100 border-b border-base-300 py-3 px-4 overflow-x-auto">
             <div className="flex gap-2">
               {media.map((img, idx) => (
                 <button
                   key={idx}
                   className={`flex-shrink-0 w-20 h-14 rounded-lg overflow-hidden border-2 transition-all ${
-                    idx === carouselIndex ? 'border-indigo-600' : 'border-transparent hover:border-slate-300'
+                    idx === carouselIndex ? 'border-primary' : 'border-transparent hover:border-base-300'
                   }`}
                   onClick={() => setCarouselIndex(idx)}
                 >
@@ -666,16 +666,16 @@ export default function PropertyDetailPage() {
                 <div className="flex items-start justify-between flex-wrap gap-4">
                   <div className="flex-1 min-w-[240px]">
                     <div className="flex items-center gap-3 mb-3 flex-wrap">
-                      <h1 className="text-3xl md:text-4xl font-bold text-slate-900">{postData.title || "Property Listing"}</h1>
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${postData.status === "PUBLISHED" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                      <h1 className="text-3xl md:text-4xl font-bold text-base-content">{postData.title || "Property Listing"}</h1>
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${postData.status === "PUBLISHED" ? "bg-success/15 text-success" : "bg-base-200 text-base-content/70"}`}>
                         {titleCase(postData.status) || "Active"}
                       </span>
                       {postData.visibility === "PRIVATE" && (
-                        <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-white">Private</span>
+                        <span className="rounded-full bg-neutral px-3 py-1 text-xs font-semibold text-white">Private</span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-slate-600 flex-wrap">
-                      <MapPin className="size-5 text-indigo-600" />
+                    <div className="flex items-center gap-3 text-base-content/70 flex-wrap">
+                      <MapPin className="size-5 text-primary" />
                       <span className="text-lg">
                         {[postData.locality, postData.city].filter(Boolean).join(", ") || "Location not specified"}
                       </span>
@@ -683,57 +683,57 @@ export default function PropertyDetailPage() {
                         <button
                           type="button"
                           onClick={() => navigate(`/map-view?propertyId=${postData._id}`)}
-                          className="flex items-center gap-1 text-indigo-600 text-sm hover:underline"
+                          className="flex items-center gap-1 text-primary text-sm hover:underline"
                         >
-                          <span className="size-2 rounded-full bg-indigo-600"></span>
+                          <span className="size-2 rounded-full bg-primary"></span>
                           <span>Live Location</span>
                         </button>
                       )}
                     </div>
                     <div className="flex items-center gap-2 mt-3 flex-wrap">
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                      <span className="rounded-full bg-base-200 px-2.5 py-1 text-xs font-medium text-base-content/70">
                         {titleCase(postData.postType)}
                       </span>
                       {isOwner && (
-                        <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-600">
+                        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
                           Your listing
                         </span>
                       )}
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-3xl md:text-4xl font-bold text-indigo-600">{formatMoney(postData.price)}</p>
-                    <p className="text-sm text-slate-500 mt-1">Posted {relativeDate(postData.createdAt)}</p>
-                    {wasEdited && <p className="text-xs text-slate-400">Edited {relativeDate(postData.updatedAt)}</p>}
+                    <p className="text-3xl md:text-4xl font-bold text-primary">{formatMoney(postData.price)}</p>
+                    <p className="text-sm text-base-content/60 mt-1">Posted {relativeDate(postData.createdAt)}</p>
+                    {wasEdited && <p className="text-xs text-base-content/50">Edited {relativeDate(postData.updatedAt)}</p>}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap mt-6">
                   <button
                     className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                      postData.isLikedByMe ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      postData.isLikedByMe ? 'bg-error/10 text-error' : 'bg-base-200 text-base-content/70 hover:bg-base-300'
                     }`}
                     onClick={() => toggleLike(postData._id)}
                   >
                     <Heart className={`size-4 ${postData.isLikedByMe ? 'fill-current' : ''}`} />
                     {postData.likesCount || 0} Likes
                   </button>
-                  <span className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-medium">
+                  <span className="flex items-center gap-2 px-4 py-2 rounded-full bg-base-200 text-base-content/70 text-sm font-medium">
                     <MessageCircle className="size-4" />
                     {postData.commentCount || 0} Comments
                   </span>
-                  <span className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-medium">
+                  <span className="flex items-center gap-2 px-4 py-2 rounded-full bg-base-200 text-base-content/70 text-sm font-medium">
                     <Eye className="size-4" />
                     {postData.viewCount || 0} Views
                   </span>
                   {postData.shareCount > 0 && (
-                    <span className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-medium">
+                    <span className="flex items-center gap-2 px-4 py-2 rounded-full bg-base-200 text-base-content/70 text-sm font-medium">
                       <Share2 className="size-4" />
                       {postData.shareCount} Shares
                     </span>
                   )}
                   {postData.savesCount > 0 && (
-                    <span className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-medium">
+                    <span className="flex items-center gap-2 px-4 py-2 rounded-full bg-base-200 text-base-content/70 text-sm font-medium">
                       <Bookmark className="size-4" />
                       {postData.savesCount} Saves
                     </span>
@@ -742,13 +742,13 @@ export default function PropertyDetailPage() {
 
                 {description && (
                   <div className="mt-6">
-                    <p className={`text-slate-600 leading-relaxed text-lg ${!expandedAbout && shouldShowReadMore ? 'line-clamp-3' : ''}`}>
+                    <p className={`text-base-content/70 leading-relaxed text-lg ${!expandedAbout && shouldShowReadMore ? 'line-clamp-3' : ''}`}>
                       {description}
                     </p>
                     {shouldShowReadMore && (
                       <button
                         onClick={() => setExpandedAbout(!expandedAbout)}
-                        className="text-indigo-600 font-medium hover:text-indigo-700 text-sm mt-2"
+                        className="text-primary font-medium hover:text-primary text-sm mt-2"
                       >
                         {expandedAbout ? 'Show less' : 'Read more'}
                       </button>
@@ -765,25 +765,25 @@ export default function PropertyDetailPage() {
                       const isActionable = ["pending", "countered"].includes(offer.status) &&
                         String(offer.lastActionBy) !== String(authUser?._id);
                       const statusStyles = {
-                        pending: "bg-amber-50 text-amber-700",
-                        countered: "bg-amber-50 text-amber-700",
-                        accepted: "bg-emerald-50 text-emerald-700",
-                        declined: "bg-red-50 text-red-600",
-                        withdrawn: "bg-slate-100 text-slate-500",
+                        pending: "bg-warning/10 text-warning",
+                        countered: "bg-warning/10 text-warning",
+                        accepted: "bg-success/10 text-success",
+                        declined: "bg-error/10 text-error",
+                        withdrawn: "bg-base-200 text-base-content/60",
                       };
                       return (
-                        <div key={offer._id} className="rounded-xl border border-slate-200 p-4">
+                        <div key={offer._id} className="rounded-xl border border-base-300 p-4">
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
-                              <span className="font-semibold text-slate-900 truncate">{offer.buyer?.fullName || "Buyer"}</span>
-                              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${statusStyles[offer.status] || "bg-slate-100 text-slate-600"}`}>
+                              <span className="font-semibold text-base-content truncate">{offer.buyer?.fullName || "Buyer"}</span>
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${statusStyles[offer.status] || "bg-base-200 text-base-content/70"}`}>
                                 {titleCase(offer.status)}
                               </span>
                             </div>
-                            <span className="text-lg font-bold text-indigo-600">{formatMoney(offer.currentPrice)}</span>
+                            <span className="text-lg font-bold text-primary">{formatMoney(offer.currentPrice)}</span>
                           </div>
                           {offer.history?.length > 0 && (
-                            <div className="mt-3 border-t border-slate-100 pt-3">
+                            <div className="mt-3 border-t border-base-200 pt-3">
                               <OfferHistoryTimeline
                                 history={offer.history}
                                 buyerName={offer.buyer?.fullName}
@@ -796,14 +796,14 @@ export default function PropertyDetailPage() {
                           {offer.status === "accepted" && (
                             <Link
                               to={`/marketplace?section=chat&userId=${offer.buyer?._id}`}
-                              className="mt-3 block text-center text-xs font-medium text-emerald-700 underline hover:text-emerald-800"
+                              className="mt-3 block text-center text-xs font-medium text-success underline hover:text-success"
                             >
                               Chat with {offer.buyer?.fullName || "buyer"} to connect and continue
                             </Link>
                           )}
                           {offer.status === "accepted" && !offer.reviewedByMe && !reviewedOfferIds.includes(offer._id) && (
                             <button
-                              className="mt-3 w-full rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500"
+                              className="mt-3 w-full rounded-lg bg-success px-3 py-2 text-xs font-semibold text-white hover:bg-success"
                               onClick={() => setReviewModal({ offerId: offer._id, revieweeName: offer.buyer?.fullName })}
                             >
                               Leave a review
@@ -812,20 +812,20 @@ export default function PropertyDetailPage() {
                           {isActionable && (
                             <div className="mt-3 flex gap-2">
                               <button
-                                className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500"
+                                className="flex-1 rounded-lg bg-success px-3 py-2 text-xs font-semibold text-white hover:bg-success"
                                 onClick={() => respondToOffer({ offerId: offer._id, action: "accept" })}
                                 disabled={isRespondPending}
                               >
                                 Accept
                               </button>
                               <button
-                                className="flex-1 rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                                className="flex-1 rounded-lg border border-primary/30 bg-base-100 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10"
                                 onClick={() => setOfferModal({ mode: "counter", offerId: offer._id })}
                               >
                                 Counter
                               </button>
                               <button
-                                className="flex-1 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"
+                                className="flex-1 rounded-lg border border-error/30 bg-base-100 px-3 py-2 text-xs font-semibold text-error hover:bg-error/10"
                                 onClick={() => respondToOffer({ offerId: offer._id, action: "decline" })}
                                 disabled={isRespondPending}
                               >
@@ -856,8 +856,8 @@ export default function PropertyDetailPage() {
                 <Section title="Amenities">
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     {amenitiesList.map((amenity, idx) => (
-                      <div key={idx} className="flex items-center gap-3 bg-slate-50 hover:bg-slate-100 px-4 py-3 rounded-xl text-sm text-slate-700 transition-colors">
-                        <span className="w-2 h-2 rounded-full bg-indigo-600 flex-shrink-0"></span>
+                      <div key={idx} className="flex items-center gap-3 bg-base-200 hover:bg-base-200 px-4 py-3 rounded-xl text-sm text-base-content transition-colors">
+                        <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0"></span>
                         {amenity}
                       </div>
                     ))}
@@ -901,7 +901,7 @@ export default function PropertyDetailPage() {
                       href={project.brochureUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="mt-4 inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium text-sm"
+                      className="mt-4 inline-flex items-center gap-2 text-primary hover:text-primary font-medium text-sm"
                     >
                       <ExternalLink className="size-4" />
                       View project brochure
@@ -913,7 +913,7 @@ export default function PropertyDetailPage() {
               {/* Investment thesis — for INVESTMENT_OPPORTUNITY posts */}
               {hasInvestmentData && (
                 <Section title="Investment Thesis" icon={TrendingUp}>
-                  <p className="text-slate-600 leading-relaxed">{investment.thesis}</p>
+                  <p className="text-base-content/70 leading-relaxed">{investment.thesis}</p>
                 </Section>
               )}
 
@@ -951,7 +951,7 @@ export default function PropertyDetailPage() {
               {/* Location Section */}
               {latitude && longitude && (
                 <Section title="Location & Neighborhood" icon={MapPin}>
-                  <div className="h-80 rounded-xl overflow-hidden bg-slate-100 mb-6">
+                  <div className="h-80 rounded-xl overflow-hidden bg-base-200 mb-6">
                     <iframe
                       width="100%"
                       height="100%"
@@ -964,24 +964,24 @@ export default function PropertyDetailPage() {
                     />
                   </div>
 
-                  <h3 className="text-lg font-semibold text-slate-900 mb-4">Nearby Amenities</h3>
+                  <h3 className="text-lg font-semibold text-base-content mb-4">Nearby Amenities</h3>
                   {amenitiesLoading && (
-                    <p className="text-sm text-slate-500">Loading nearby amenities...</p>
+                    <p className="text-sm text-base-content/60">Loading nearby amenities...</p>
                   )}
                   {!amenitiesLoading && amenitiesError && (
-                    <p className="text-sm text-red-500">Couldn't load nearby amenities. Try again in a moment.</p>
+                    <p className="text-sm text-error">Couldn't load nearby amenities. Try again in a moment.</p>
                   )}
                   {!amenitiesLoading && !amenitiesError && amenitiesData.length === 0 && (
-                    <p className="text-sm text-slate-400">No amenities found within {amenitiesRadiusKm}km.</p>
+                    <p className="text-sm text-base-content/50">No amenities found within {amenitiesRadiusKm}km.</p>
                   )}
                   {!amenitiesLoading && !amenitiesError && amenitiesData.length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {amenitiesData.slice(0, 8).map((amenity) => (
-                        <div key={amenity.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                        <div key={amenity.id} className="flex items-center gap-3 p-3 bg-base-200 rounded-lg">
                           <span className="text-lg">{AMENITY_TYPE_META[amenity.type]?.emoji || "📍"}</span>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-slate-900 truncate">{amenity.name}</p>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-sm font-medium text-base-content truncate">{amenity.name}</p>
+                            <p className="text-xs text-base-content/60">
                               {AMENITY_TYPE_META[amenity.type]?.label || "Nearby"} · {amenity.distance}m away
                             </p>
                           </div>
@@ -997,9 +997,9 @@ export default function PropertyDetailPage() {
                 <Section title="Legal & Ownership Details" icon={ShieldCheck}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {reraVerified && (
-                      <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-xl">
-                        <span className="text-slate-600">RERA Verified</span>
-                        <span className="font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full text-sm">✓ Verified</span>
+                      <div className="flex items-center justify-between p-4 bg-success/10 rounded-xl">
+                        <span className="text-base-content/70">RERA Verified</span>
+                        <span className="font-bold text-success bg-success/15 px-3 py-1 rounded-full text-sm">✓ Verified</span>
                       </div>
                     )}
                     <InfoRow label="RERA Number" value={reraNumber} />
@@ -1012,27 +1012,27 @@ export default function PropertyDetailPage() {
               {/* Post Information */}
               <Section title="Post Information">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="p-4 bg-slate-50 rounded-xl">
-                    <p className="text-xs text-slate-500 mb-1">Posted</p>
-                    <p className="font-medium text-slate-900">{formatDate(postData.createdAt)}</p>
+                  <div className="p-4 bg-base-200 rounded-xl">
+                    <p className="text-xs text-base-content/60 mb-1">Posted</p>
+                    <p className="font-medium text-base-content">{formatDate(postData.createdAt)}</p>
                   </div>
                   {publishedDiffersFromCreated && (
-                    <div className="p-4 bg-slate-50 rounded-xl">
-                      <p className="text-xs text-slate-500 mb-1">Published</p>
-                      <p className="font-medium text-slate-900">{formatDate(postData.publishedAt)}</p>
+                    <div className="p-4 bg-base-200 rounded-xl">
+                      <p className="text-xs text-base-content/60 mb-1">Published</p>
+                      <p className="font-medium text-base-content">{formatDate(postData.publishedAt)}</p>
                     </div>
                   )}
-                  <div className="p-4 bg-slate-50 rounded-xl">
-                    <p className="text-xs text-slate-500 mb-1">Post Type</p>
-                    <p className="font-medium text-slate-900">{titleCase(postData.postType) || "Property"}</p>
+                  <div className="p-4 bg-base-200 rounded-xl">
+                    <p className="text-xs text-base-content/60 mb-1">Post Type</p>
+                    <p className="font-medium text-base-content">{titleCase(postData.postType) || "Property"}</p>
                   </div>
-                  <div className="p-4 bg-slate-50 rounded-xl">
-                    <p className="text-xs text-slate-500 mb-1">Listing Type</p>
-                    <p className="font-medium text-slate-900">{postData.listingType || "Sale"}</p>
+                  <div className="p-4 bg-base-200 rounded-xl">
+                    <p className="text-xs text-base-content/60 mb-1">Listing Type</p>
+                    <p className="font-medium text-base-content">{postData.listingType || "Sale"}</p>
                   </div>
-                  <div className="p-4 bg-slate-50 rounded-xl">
-                    <p className="text-xs text-slate-500 mb-1">Visibility</p>
-                    <p className="font-medium text-slate-900">{titleCase(postData.visibility) || "Public"}</p>
+                  <div className="p-4 bg-base-200 rounded-xl">
+                    <p className="text-xs text-base-content/60 mb-1">Visibility</p>
+                    <p className="font-medium text-base-content">{titleCase(postData.visibility) || "Public"}</p>
                   </div>
                 </div>
               </Section>
@@ -1042,33 +1042,33 @@ export default function PropertyDetailPage() {
             <div className="lg:col-span-1">
               <div className="lg:sticky lg:top-24 space-y-6">
                 {/* Seller Profile Card */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <div className="bg-base-100 rounded-2xl shadow-sm border border-base-300 p-6">
                   <Link to={`/users/${postData.author?._id}`} className="flex items-center gap-4 mb-6 group">
-                    <div className="size-20 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 p-0.5">
-                      <div className="size-full rounded-full bg-white p-0.5">
+                    <div className="size-20 rounded-full bg-gradient-to-br from-primary to-secondary p-0.5">
+                      <div className="size-full rounded-full bg-base-100 p-0.5">
                         {postData.author?.profilePic ? (
                           <img src={postData.author.profilePic} alt={postData.author.fullName} className="w-full h-full rounded-full object-cover" />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center bg-slate-100 rounded-full">
-                            <span className="text-2xl font-bold text-slate-600">{postData.author?.fullName?.charAt(0) || "U"}</span>
+                          <div className="flex h-full w-full items-center justify-center bg-base-200 rounded-full">
+                            <span className="text-2xl font-bold text-base-content/70">{postData.author?.fullName?.charAt(0) || "U"}</span>
                           </div>
                         )}
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-xl font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">
+                        <p className="text-xl font-bold text-base-content truncate group-hover:text-primary transition-colors">
                           {postData.author?.fullName || "Unknown"}
                         </p>
                         {postData.author?.isVerified && (
-                          <BadgeCheck className="size-5 text-indigo-600 flex-shrink-0" />
+                          <BadgeCheck className="size-5 text-primary flex-shrink-0" />
                         )}
                       </div>
-                      <p className="text-sm text-slate-600">
+                      <p className="text-sm text-base-content/70">
                         {titleCase(postData.author?.activeRole || postData.author?.primaryRole || postData.authorRole) || "Property Owner"}
                       </p>
                       {postData.author?.city && (
-                        <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                        <p className="text-xs text-base-content/50 mt-0.5 flex items-center gap-1">
                           <MapPin className="size-3" />
                           {postData.author.city}
                         </p>
@@ -1081,7 +1081,7 @@ export default function PropertyDetailPage() {
                       <>
                         <a
                           href={`tel:${postData.author.mobileNumber}`}
-                          className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+                          className="w-full py-3 px-4 bg-primary hover:bg-primary text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
                         >
                           <Phone className="size-5" />
                           {postData.author.mobileNumber}
@@ -1090,7 +1090,7 @@ export default function PropertyDetailPage() {
                           href={`https://wa.me/${postData.author.mobileNumber.replace(/\D/g, "")}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+                          className="w-full py-3 px-4 bg-success hover:bg-success text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
                         >
                           <MessageCircle className="size-5" />
                           WhatsApp
@@ -1101,7 +1101,7 @@ export default function PropertyDetailPage() {
                       connectionStatus === "friends" ? (
                         <Link
                           to={`/marketplace?section=chat&userId=${postData.author?._id}`}
-                          className="w-full py-3 px-4 bg-white border-2 border-indigo-600 text-indigo-600 font-semibold rounded-xl hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2"
+                          className="w-full py-3 px-4 bg-base-100 border-2 border-primary text-primary font-semibold rounded-xl hover:bg-primary/10 transition-colors flex items-center justify-center gap-2"
                         >
                           <MessageCircle className="size-5" />
                           Chat
@@ -1110,14 +1110,14 @@ export default function PropertyDetailPage() {
                         <button
                           type="button"
                           disabled
-                          className="w-full py-3 px-4 bg-slate-50 text-slate-500 font-semibold rounded-xl flex items-center justify-center gap-2 cursor-not-allowed"
+                          className="w-full py-3 px-4 bg-base-200 text-base-content/60 font-semibold rounded-xl flex items-center justify-center gap-2 cursor-not-allowed"
                         >
                           Request Sent
                         </button>
                       ) : connectionStatus === "pending_received" ? (
                         <Link
                           to="/connections"
-                          className="w-full py-3 px-4 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                          className="w-full py-3 px-4 bg-primary text-white font-semibold rounded-xl hover:bg-primary transition-colors flex items-center justify-center gap-2"
                         >
                           Respond to Request
                         </Link>
@@ -1126,7 +1126,7 @@ export default function PropertyDetailPage() {
                           type="button"
                           onClick={() => sendConnectionRequest()}
                           disabled={isConnecting}
-                          className="w-full py-3 px-4 bg-white border-2 border-indigo-600 text-indigo-600 font-semibold rounded-xl hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                          className="w-full py-3 px-4 bg-base-100 border-2 border-primary text-primary font-semibold rounded-xl hover:bg-primary/10 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
                         >
                           <UserRoundPlus className="size-5" />
                           {isConnecting ? "Connecting..." : "Connect"}
@@ -1135,7 +1135,7 @@ export default function PropertyDetailPage() {
                     )}
                     <Link
                       to={`/users/${postData.author?._id}`}
-                      className="w-full py-3 px-4 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                      className="w-full py-3 px-4 bg-base-100 border border-base-300 text-base-content font-semibold rounded-xl hover:bg-base-200 transition-colors flex items-center justify-center gap-2"
                     >
                       <Users className="size-5" />
                       View Profile
@@ -1144,12 +1144,12 @@ export default function PropertyDetailPage() {
                 </div>
 
                 {/* Quick Actions */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-3">
+                <div className="bg-base-100 rounded-2xl shadow-sm border border-base-300 p-6 space-y-3">
                   <button
                     className={`w-full py-3 px-4 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 ${
                       postData.isLikedByMe
-                        ? 'bg-red-50 text-red-600 border border-red-200'
-                        : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                        ? 'bg-error/10 text-error border border-error/30'
+                        : 'bg-base-100 text-base-content border border-base-300 hover:bg-base-200'
                     }`}
                     onClick={() => toggleLike(postData._id)}
                   >
@@ -1159,8 +1159,8 @@ export default function PropertyDetailPage() {
                   <button
                     className={`w-full py-3 px-4 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 ${
                       postData.isSavedByMe
-                        ? 'bg-indigo-50 text-indigo-600 border border-indigo-200'
-                        : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                        ? 'bg-primary/10 text-primary border border-primary/30'
+                        : 'bg-base-100 text-base-content border border-base-300 hover:bg-base-200'
                     }`}
                     onClick={() => toggleSave(postData._id)}
                   >
@@ -1168,7 +1168,7 @@ export default function PropertyDetailPage() {
                     {postData.isSavedByMe ? 'Saved' : 'Save'}
                   </button>
                   <button
-                    className="w-full py-3 px-4 bg-white text-slate-700 border border-slate-200 font-semibold rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-3 px-4 bg-base-100 text-base-content border border-base-300 font-semibold rounded-xl hover:bg-base-200 transition-colors flex items-center justify-center gap-2"
                     onClick={() => setShowShareModal(true)}
                   >
                     <Share2 className="size-5" />
@@ -1177,7 +1177,7 @@ export default function PropertyDetailPage() {
 
                   {!isOwner && !myOffer && (
                     <button
-                      className="w-full py-3 px-4 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-500 transition-colors flex items-center justify-center gap-2"
+                      className="w-full py-3 px-4 bg-primary text-white font-semibold rounded-xl hover:bg-primary transition-colors flex items-center justify-center gap-2"
                       onClick={() => setOfferModal({ mode: "offer" })}
                     >
                       <TrendingUp className="size-5" />
@@ -1186,11 +1186,11 @@ export default function PropertyDetailPage() {
                   )}
 
                   {!isOwner && myOffer && ["pending", "countered"].includes(myOffer.status) && (
-                    <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
-                      <p className="text-sm font-semibold text-indigo-700">
+                    <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
+                      <p className="text-sm font-semibold text-primary">
                         Your offer: {formatMoney(myOffer.currentPrice)}
                       </p>
-                      <p className="mt-0.5 text-xs text-indigo-500">
+                      <p className="mt-0.5 text-xs text-primary">
                         {String(myOffer.lastActionBy) === String(authUser?._id)
                           ? "Waiting for the owner to respond"
                           : "The owner sent you a counter — respond below"}
@@ -1198,14 +1198,14 @@ export default function PropertyDetailPage() {
                       {String(myOffer.lastActionBy) !== String(authUser?._id) && (
                         <div className="mt-3 flex gap-2">
                           <button
-                            className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500"
+                            className="flex-1 rounded-lg bg-success px-3 py-2 text-xs font-semibold text-white hover:bg-success"
                             onClick={() => respondToOffer({ offerId: myOffer._id, action: "accept" })}
                             disabled={isRespondPending}
                           >
                             Accept {formatMoney(myOffer.currentPrice)}
                           </button>
                           <button
-                            className="flex-1 rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                            className="flex-1 rounded-lg border border-primary/30 bg-base-100 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10"
                             onClick={() => setOfferModal({ mode: "counter", offerId: myOffer._id })}
                           >
                             Counter
@@ -1213,7 +1213,7 @@ export default function PropertyDetailPage() {
                         </div>
                       )}
                       <button
-                        className="mt-2 w-full text-center text-xs font-medium text-red-500 hover:text-red-600"
+                        className="mt-2 w-full text-center text-xs font-medium text-error hover:text-error"
                         onClick={() => respondToOffer({ offerId: myOffer._id, action: "decline" })}
                         disabled={isRespondPending}
                       >
@@ -1223,19 +1223,19 @@ export default function PropertyDetailPage() {
                   )}
 
                   {!isOwner && myOffer?.status === "accepted" && (
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                      <p className="text-sm font-semibold text-emerald-700">
+                    <div className="rounded-xl border border-success/30 bg-success/10 p-4">
+                      <p className="text-sm font-semibold text-success">
                         Offer accepted at {formatMoney(myOffer.currentPrice)}!
                       </p>
                       <Link
                         to={`/marketplace?section=chat&userId=${postData.author?._id}`}
-                        className="mt-0.5 block text-xs font-medium text-emerald-700 underline hover:text-emerald-800"
+                        className="mt-0.5 block text-xs font-medium text-success underline hover:text-success"
                       >
                         Check your Messages to connect and continue.
                       </Link>
                       {!myOffer.reviewedByMe && !reviewedOfferIds.includes(myOffer._id) && (
                         <button
-                          className="mt-3 w-full rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500"
+                          className="mt-3 w-full rounded-lg bg-success px-3 py-2 text-xs font-semibold text-white hover:bg-success"
                           onClick={() => setReviewModal({ offerId: myOffer._id, revieweeName: postData.author?.fullName })}
                         >
                           Leave a review
@@ -1246,7 +1246,7 @@ export default function PropertyDetailPage() {
 
                   {!isOwner && myOffer && ["declined", "withdrawn"].includes(myOffer.status) && (
                     <button
-                      className="w-full py-3 px-4 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-500 transition-colors flex items-center justify-center gap-2"
+                      className="w-full py-3 px-4 bg-primary text-white font-semibold rounded-xl hover:bg-primary transition-colors flex items-center justify-center gap-2"
                       onClick={() => setOfferModal({ mode: "offer" })}
                     >
                       <TrendingUp className="size-5" />
@@ -1256,7 +1256,7 @@ export default function PropertyDetailPage() {
 
                   {!isOwner && (
                     <button
-                      className="w-full py-3 px-4 bg-white text-red-600 border border-slate-200 font-semibold rounded-xl hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                      className="w-full py-3 px-4 bg-base-100 text-error border border-base-300 font-semibold rounded-xl hover:bg-error/10 transition-colors flex items-center justify-center gap-2"
                       onClick={() => setShowReportModal(true)}
                     >
                       <Flag className="size-5" />

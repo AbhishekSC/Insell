@@ -47,15 +47,15 @@ export default function PriceHistoryChart({ history }) {
     <div>
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <p className="text-sm text-slate-500">Since {formatShortDate(points[0].changedAt)}</p>
-          <p className={`mt-0.5 flex items-center gap-1 text-lg font-bold ${netChange < 0 ? "text-emerald-600" : netChange > 0 ? "text-red-500" : "text-slate-700"}`}>
+          <p className="text-sm text-base-content/60">Since {formatShortDate(points[0].changedAt)}</p>
+          <p className={`mt-0.5 flex items-center gap-1 text-lg font-bold ${netChange < 0 ? "text-success" : netChange > 0 ? "text-error" : "text-base-content"}`}>
             {netChange !== 0 ? (netChange < 0 ? <ArrowDown className="size-4" /> : <ArrowUp className="size-4" />) : null}
             {netChange === 0 ? "No change" : `${formatMoney(Math.abs(netChange))} (${Math.abs(netChangePct).toFixed(1)}%)`}
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-slate-500">Current price</p>
-          <p className="text-lg font-bold text-indigo-600">{formatMoney(lastPrice)}</p>
+          <p className="text-xs text-base-content/60">Current price</p>
+          <p className="text-lg font-bold text-primary">{formatMoney(lastPrice)}</p>
         </div>
       </div>
 
@@ -78,16 +78,16 @@ export default function PriceHistoryChart({ history }) {
           const prevPrice = arr[i + 1]?.price;
           const delta = prevPrice !== undefined ? p.price - prevPrice : 0;
           return (
-            <div key={i} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
-              <span className="text-slate-500">{formatShortDate(p.changedAt)}</span>
+            <div key={i} className="flex items-center justify-between rounded-lg bg-base-200 px-3 py-2 text-sm">
+              <span className="text-base-content/60">{formatShortDate(p.changedAt)}</span>
               <div className="flex items-center gap-2">
                 {delta !== 0 && (
-                  <span className={`flex items-center gap-0.5 text-xs font-medium ${delta < 0 ? "text-emerald-600" : "text-red-500"}`}>
+                  <span className={`flex items-center gap-0.5 text-xs font-medium ${delta < 0 ? "text-success" : "text-error"}`}>
                     {delta < 0 ? <ArrowDown className="size-3" /> : <ArrowUp className="size-3" />}
                     {formatMoney(Math.abs(delta))}
                   </span>
                 )}
-                <span className="font-semibold text-slate-800">{formatMoney(p.price)}</span>
+                <span className="font-semibold text-base-content">{formatMoney(p.price)}</span>
               </div>
             </div>
           );

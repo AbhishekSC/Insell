@@ -61,13 +61,13 @@ export default function RequestedCommunitiesPage() {
         {isLoading ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-48 animate-pulse rounded-xl bg-slate-100" />
+              <div key={i} className="h-48 animate-pulse rounded-xl bg-base-200" />
             ))}
           </div>
         ) : requestedCommunities.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 py-16">
-            <Clock className="mb-3 text-slate-400" size={48} />
-            <p className="text-slate-500">No pending join requests right now</p>
+          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-base-300 py-16">
+            <Clock className="mb-3 text-base-content/50" size={48} />
+            <p className="text-base-content/60">No pending join requests right now</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">

@@ -1299,8 +1299,8 @@ export default function MarketplacePage() {
     >
       <div className="xl:h-full xl:min-h-0">
         <div className="flex gap-4 xl:h-full">
-          <aside className="hidden w-[220px] rounded-2xl border border-slate-100 bg-slate-50/90 p-3 pb-6 shadow-sm xl:sticky xl:top-1 xl:flex xl:h-[calc(100dvh-7.1rem)] xl:flex-col xl:overflow-y-auto">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Navigation</p>
+          <aside className="hidden w-[220px] rounded-2xl border border-base-200 bg-base-200/90 p-3 pb-6 shadow-sm xl:sticky xl:top-1 xl:flex xl:h-[calc(100dvh-7.1rem)] xl:flex-col xl:overflow-y-auto">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-base-content/60">Navigation</p>
             <div className="mt-2 space-y-1">
               {(authUser?.isAdmin ? [...LEFT_NAV_ITEMS, ADMIN_NAV_ITEM] : LEFT_NAV_ITEMS).map(({ label, icon, section }) => {
                 // Renamed-destructure (`icon: NavIcon`) used only in JSX trips
@@ -1322,8 +1322,8 @@ export default function MarketplacePage() {
                     type="button"
                     className={`btn btn-sm w-full justify-start rounded-lg border-none relative ${
                       activeSection === section
-                        ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-100"
-                        : "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-800"
+                        ? "bg-primary/15 text-primary hover:bg-primary/15"
+                        : "bg-transparent text-base-content/70 hover:bg-base-200 hover:text-base-content"
                     }`}
                     onClick={() => {
                       if (section === "map") {
@@ -1338,7 +1338,7 @@ export default function MarketplacePage() {
                     <div className="relative">
                       <NavIcon className="size-4" />
                       {badgeCount > 0 && (
-                        <span className="absolute -right-2 -top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                        <span className="absolute -right-2 -top-1 flex size-4 items-center justify-center rounded-full bg-error text-[9px] font-bold text-white">
                           {badgeCount > 9 ? "9+" : badgeCount}
                         </span>
                       )}
@@ -1349,10 +1349,10 @@ export default function MarketplacePage() {
               })}
             </div>
 
-            <div className="mt-auto rounded-xl border border-slate-200 bg-indigo-50 p-3 text-xs text-slate-600">
-              <p className="font-semibold text-indigo-700">Go Premium</p>
+            <div className="mt-auto rounded-xl border border-base-300 bg-primary/10 p-3 text-xs text-base-content/70">
+              <p className="font-semibold text-primary">Go Premium</p>
               <p className="mt-1">Get more visibility and reach serious buyers faster.</p>
-              <button type="button" className="btn btn-sm mt-3 w-full border-none bg-indigo-600 text-white hover:bg-indigo-500">Upgrade</button>
+              <button type="button" className="btn btn-sm mt-3 w-full border-none bg-primary text-white hover:bg-primary">Upgrade</button>
             </div>
           </aside>
 
@@ -1369,13 +1369,13 @@ export default function MarketplacePage() {
               <>
                 <StoriesBar onCategorySelect={setActiveCategory} />
 
-            <div className="mt-4 flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
+            <div className="mt-4 flex items-center justify-between gap-3 border-b border-base-300 pb-3">
               <div className="flex items-center gap-2 overflow-x-auto">
                 {CATEGORY_CHIPS.map((chip) => (
                   <button
                     key={chip}
                     type="button"
-                    className={`btn btn-sm rounded-full border-none ${activeCategory === chip ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-100" : "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-800"}`}
+                    className={`btn btn-sm rounded-full border-none ${activeCategory === chip ? "bg-primary/15 text-primary hover:bg-primary/15" : "bg-transparent text-base-content/70 hover:bg-base-200 hover:text-base-content"}`}
                     onClick={() => setActiveCategory(chip)}
                   >
                     {chip}
@@ -1383,7 +1383,7 @@ export default function MarketplacePage() {
                 ))}
                 <button
                   type="button"
-                  className="btn btn-sm rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  className="btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200"
                   onClick={() => setIsFiltersOpen(true)}
                 >
                   <Filter className="size-4" />
@@ -1406,7 +1406,7 @@ export default function MarketplacePage() {
                 <button
                   type="button"
                   onClick={handleShowNewPosts}
-                  className="btn btn-sm gap-1.5 rounded-full border-none bg-indigo-600 text-white shadow-lg hover:bg-indigo-500"
+                  className="btn btn-sm gap-1.5 rounded-full border-none bg-primary text-white shadow-lg hover:bg-primary"
                 >
                   <RefreshCw className="size-3.5" />
                   New posts available
@@ -1417,11 +1417,11 @@ export default function MarketplacePage() {
             {isLoading ? (
               <div className="mt-4 grid gap-4 xl:grid-cols-2">
                 {[1, 2, 3, 4].map((item) => (
-                  <div key={item} className="h-[420px] animate-pulse rounded-2xl bg-slate-100" />
+                  <div key={item} className="h-[420px] animate-pulse rounded-2xl bg-base-200" />
                 ))}
               </div>
             ) : posts.length === 0 ? (
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">No listings found with current preferences.</div>
+              <div className="mt-4 rounded-2xl border border-base-300 bg-base-100 p-8 text-center text-sm text-base-content/60">No listings found with current preferences.</div>
             ) : (
               <div className="mt-4 grid gap-5 2xl:grid-cols-2">
                 {posts.map((post) => {
@@ -1470,7 +1470,7 @@ export default function MarketplacePage() {
                       badge={badge}
                       badgeClassName={
                         post.offerStatus === "ACCEPTED"
-                          ? "bg-slate-900 text-white"
+                          ? "bg-neutral text-white"
                           : post.customBadge
                             ? getCustomBadgeClasses(post.customBadge)
                             : undefined
@@ -1498,7 +1498,7 @@ export default function MarketplacePage() {
                       }
                       requirementBlock={
                         post.media.length === 0 && isRequirement ? (
-                          <div className="flex h-[18rem] items-end bg-gradient-to-br from-indigo-500 via-violet-500 to-sky-500 p-4 text-white">
+                          <div className="flex h-[18rem] items-end bg-gradient-to-br from-primary via-secondary to-info p-4 text-white">
                             <div>
                               <p className="text-xs uppercase tracking-wide text-white/80">Requirement Post</p>
                               <p className="mt-1 text-2xl font-black leading-tight">{requirementTitle}</p>
@@ -1528,26 +1528,26 @@ export default function MarketplacePage() {
                       }
                       priceBlock={
                         <>
-                          <p className="inline-flex items-center gap-0.5 text-2xl font-black text-slate-800">
-                            <IndianRupee className="size-4 text-slate-700" />
+                          <p className="inline-flex items-center gap-0.5 text-2xl font-black text-base-content">
+                            <IndianRupee className="size-4 text-base-content" />
                             {formatMoney(post.price).replace("₹", "")}
-                            {activeRole === "Tenant" && <span className="text-sm font-normal text-slate-500">/mo</span>}
+                            {activeRole === "Tenant" && <span className="text-sm font-normal text-base-content/60">/mo</span>}
                           </p>
-                          <p className="line-clamp-1 text-base font-semibold text-slate-800">{isRequirement ? requirementTitle : post.title || "Premium Listing"}</p>
-                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                          <p className="line-clamp-1 text-base font-semibold text-base-content">{isRequirement ? requirementTitle : post.title || "Premium Listing"}</p>
+                          <div className="flex items-center gap-2 text-xs text-base-content/60">
                             <MapPin className="size-3" />
                             <span>{post.city || "City"}</span>
                             {post.locality && <><span>·</span><span>{post.locality}</span></>}
                             {post.latitude && post.longitude && (
                               <button
                                 type="button"
-                                className="flex items-center gap-1 text-indigo-600 hover:underline"
+                                className="flex items-center gap-1 text-primary hover:underline"
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   navigate(`/map-view?propertyId=${post._id}`);
                                 }}
                               >
-                                <span className="size-1.5 rounded-full bg-indigo-600"></span>
+                                <span className="size-1.5 rounded-full bg-primary"></span>
                                 <span>Live Location</span>
                               </button>
                             )}
@@ -1565,7 +1565,7 @@ export default function MarketplacePage() {
                             </div>
                           )}
                           {post.postMeta?.moveInDate && activeRole === "Tenant" && (
-                            <p className="text-xs text-slate-600">Move-in: {new Date(post.postMeta.moveInDate).toLocaleDateString()}</p>
+                            <p className="text-xs text-base-content/70">Move-in: {new Date(post.postMeta.moveInDate).toLocaleDateString()}</p>
                           )}
                         </>
                       }
@@ -1583,7 +1583,7 @@ export default function MarketplacePage() {
                       savesCount={post.savesCount || 0}
                       onContact={() => handleContactClick(post)}
                       onOpenPost={() => navigate(`/property/${post._id}`)}
-                      className={selectedForComparison.includes(post._id) ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-slate-100'}
+                      className={selectedForComparison.includes(post._id) ? 'border-primary ring-2 ring-primary/20' : 'border-base-200'}
                     />
                   );
                 })}
@@ -1594,8 +1594,8 @@ export default function MarketplacePage() {
             <div ref={loadMoreRef} className="py-4">
               {isFetchingNextPage && (
                 <div className="flex items-center justify-center">
-                  <div className="size-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent"></div>
-                  <span className="ml-2 text-sm text-slate-500">Loading more posts...</span>
+                  <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                  <span className="ml-2 text-sm text-base-content/60">Loading more posts...</span>
                 </div>
               )}
             </div>
@@ -1627,13 +1627,13 @@ export default function MarketplacePage() {
           </main>
 
           {activeSection === "marketplace" ? (
-            <aside className="hidden w-[320px] rounded-2xl border border-slate-100 bg-slate-50/90 p-4 pb-6 shadow-sm xl:sticky xl:top-1 xl:flex xl:h-[calc(100dvh-7.1rem)] xl:flex-col xl:overflow-y-auto">
+            <aside className="hidden w-[320px] rounded-2xl border border-base-200 bg-base-200/90 p-4 pb-6 shadow-sm xl:sticky xl:top-1 xl:flex xl:h-[calc(100dvh-7.1rem)] xl:flex-col xl:overflow-y-auto">
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-bold text-slate-800">Trending Localities</p>
+                <p className="text-sm font-bold text-base-content">Trending Localities</p>
                 <button
                   type="button"
-                  className="btn btn-xs border border-slate-200 bg-white text-indigo-600 hover:bg-indigo-50"
+                  className="btn btn-xs border border-base-300 bg-base-100 text-primary hover:bg-primary/10"
                   onClick={() => navigate("/trending-localities")}
                 >
                   View all
@@ -1641,23 +1641,23 @@ export default function MarketplacePage() {
               </div>
               <div className="space-y-2">
                 {trendingLocalities.map((item) => (
-                  <div key={item} className="rounded-xl border border-slate-200 p-2 text-xs font-medium text-slate-700">{item}</div>
+                  <div key={item} className="rounded-xl border border-base-300 p-2 text-xs font-medium text-base-content">{item}</div>
                 ))}
               </div>
             </div>
 
-            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+            <div className="mt-4 rounded-xl border border-base-300 bg-base-100 p-3">
               <div className="mb-2 flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-bold text-slate-800">
+                  <p className="text-sm font-bold text-base-content">
                     {userCity ? `Trending in ${userCity}` : "Trending News"}
                   </p>
-                  <p className="text-[10px] text-slate-400">Local property & infra updates</p>
+                  <p className="text-[10px] text-base-content/50">Local property & infra updates</p>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    className="btn btn-ghost btn-circle btn-xs text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
+                    className="btn btn-ghost btn-circle btn-xs text-base-content/60 hover:text-primary hover:bg-primary/10"
                     onClick={() => refetchNews()}
                     disabled={newsLoading}
                     title="Refresh news"
@@ -1666,7 +1666,7 @@ export default function MarketplacePage() {
                   </button>
                   <button
                     type="button"
-                    className="btn btn-xs border border-slate-200 bg-white text-indigo-600 hover:bg-indigo-50"
+                    className="btn btn-xs border border-base-300 bg-base-100 text-primary hover:bg-primary/10"
                     onClick={() => navigate(`/news${userCity ? `?city=${encodeURIComponent(userCity)}` : ""}`)}
                   >
                     View all
@@ -1676,11 +1676,11 @@ export default function MarketplacePage() {
               {newsLoading ? (
                 <div className="space-y-3">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="rounded-lg border border-slate-200 overflow-hidden">
-                      <div className="w-full h-24 bg-slate-200 animate-pulse" />
+                    <div key={i} className="rounded-lg border border-base-300 overflow-hidden">
+                      <div className="w-full h-24 bg-base-300 animate-pulse" />
                       <div className="p-2 space-y-2">
-                        <div className="h-3 bg-slate-200 rounded animate-pulse" />
-                        <div className="h-2 w-20 bg-slate-200 rounded animate-pulse" />
+                        <div className="h-3 bg-base-300 rounded animate-pulse" />
+                        <div className="h-2 w-20 bg-base-300 rounded animate-pulse" />
                       </div>
                     </div>
                   ))}
@@ -1693,7 +1693,7 @@ export default function MarketplacePage() {
                       href={news.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block rounded-lg border border-slate-200 overflow-hidden hover:border-indigo-200 hover:shadow-sm transition"
+                      className="block rounded-lg border border-base-300 overflow-hidden hover:border-primary/30 hover:shadow-sm transition"
                     >
                       <img
                         src={news.image}
@@ -1701,8 +1701,8 @@ export default function MarketplacePage() {
                         className="w-full h-24 object-cover"
                       />
                       <div className="p-2">
-                        <p className="text-xs font-semibold text-slate-800 line-clamp-2">{news.title}</p>
-                        <p className="mt-1 text-[10px] text-slate-500">{news.source?.name || news.source || "Unknown"}</p>
+                        <p className="text-xs font-semibold text-base-content line-clamp-2">{news.title}</p>
+                        <p className="mt-1 text-[10px] text-base-content/60">{news.source?.name || news.source || "Unknown"}</p>
                       </div>
                     </a>
                   ))}
@@ -1710,9 +1710,9 @@ export default function MarketplacePage() {
               )}
             </div>
 
-            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+            <div className="mt-4 rounded-xl border border-base-300 bg-base-100 p-3">
               <div className="mb-2">
-                <p className="text-sm font-bold text-slate-800">Recommended for You</p>
+                <p className="text-sm font-bold text-base-content">Recommended for You</p>
               </div>
               <div className="space-y-2">
                 {personalizedRecommendations.length > 0 ? (
@@ -1720,26 +1720,26 @@ export default function MarketplacePage() {
                     <button
                       key={`rec-${post._id}`}
                       type="button"
-                      className="flex w-full items-center gap-2 rounded-lg border border-slate-200 p-2 text-left hover:bg-slate-50"
+                      className="flex w-full items-center gap-2 rounded-lg border border-base-300 p-2 text-left hover:bg-base-200"
                       onClick={() => navigate(`/property/${post._id}`)}
                     >
                       <img src={post.mediaUrls?.[0] || post.media?.[0]} alt={post.title || "Recommendation"} className="h-12 w-16 rounded-md object-cover" />
                       <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold text-slate-800">{post.title || "Property"}</p>
-                        <p className="truncate text-[11px] text-slate-500">{formatMoney(post.price)} · {post.city || "India"}</p>
+                        <p className="truncate text-xs font-semibold text-base-content">{post.title || "Property"}</p>
+                        <p className="truncate text-[11px] text-base-content/60">{formatMoney(post.price)} · {post.city || "India"}</p>
                       </div>
                     </button>
                   ))
                 ) : (
-                  <p className="text-xs text-slate-500 text-center py-2">No recommendations yet</p>
+                  <p className="text-xs text-base-content/60 text-center py-2">No recommendations yet</p>
                 )}
               </div>
             </div>
 
-            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+            <div className="mt-4 rounded-xl border border-base-300 bg-base-100 p-3">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-bold text-slate-800">Trending Locations</p>
-                <TrendingUp className="size-4 text-slate-400" />
+                <p className="text-sm font-bold text-base-content">Trending Locations</p>
+                <TrendingUp className="size-4 text-base-content/50" />
               </div>
               <div className="space-y-2">
                 {trendingLocations.length > 0 ? (
@@ -1749,8 +1749,8 @@ export default function MarketplacePage() {
                       type="button"
                       className={`flex w-full items-center justify-between rounded-lg border p-2 text-left transition ${
                         selectedTrendingLocation === location.name
-                          ? "border-indigo-500 bg-indigo-50"
-                          : "border-slate-200 hover:bg-slate-50"
+                          ? "border-primary bg-primary/10"
+                          : "border-base-300 hover:bg-base-200"
                       }`}
                       onClick={() => {
                         if (selectedTrendingLocation === location.name) {
@@ -1763,45 +1763,45 @@ export default function MarketplacePage() {
                       }}
                     >
                       <div className="flex items-center gap-2">
-                        <MapPin className={`size-3 ${selectedTrendingLocation === location.name ? "text-indigo-600" : "text-slate-400"}`} />
-                        <p className={`text-xs font-semibold ${selectedTrendingLocation === location.name ? "text-indigo-800" : "text-slate-800"}`}>{location.name}</p>
+                        <MapPin className={`size-3 ${selectedTrendingLocation === location.name ? "text-primary" : "text-base-content/50"}`} />
+                        <p className={`text-xs font-semibold ${selectedTrendingLocation === location.name ? "text-primary" : "text-base-content"}`}>{location.name}</p>
                       </div>
                       <div className="flex items-center gap-1">
                         {location.isNearUser && (
-                          <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">Near You</span>
+                          <span className="rounded-full bg-success/15 px-1.5 py-0.5 text-[10px] font-medium text-success">Near You</span>
                         )}
-                        <span className="text-[11px] text-slate-500">{location.propertyCount} properties</span>
+                        <span className="text-[11px] text-base-content/60">{location.propertyCount} properties</span>
                       </div>
                     </button>
                   ))
                 ) : (
-                  <p className="text-xs text-slate-500 text-center py-2">No trending locations yet</p>
+                  <p className="text-xs text-base-content/60 text-center py-2">No trending locations yet</p>
                 )}
               </div>
             </div>
 
-            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+            <div className="mt-4 rounded-xl border border-base-300 bg-base-100 p-3">
               <div className="mb-2">
-                <p className="text-sm font-bold text-slate-800">Saved Searches</p>
+                <p className="text-sm font-bold text-base-content">Saved Searches</p>
               </div>
               <div className="space-y-2">
                 {savedSearches.map((item) => (
-                  <div key={item} className="rounded-lg border border-slate-200 p-2 text-xs text-slate-700">{item}</div>
+                  <div key={item} className="rounded-lg border border-base-300 p-2 text-xs text-base-content">{item}</div>
                 ))}
               </div>
             </div>
 
-            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+            <div className="mt-4 rounded-xl border border-base-300 bg-base-100 p-3">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-bold text-slate-800">Role Snapshot</p>
-                <Eye className="size-4 text-slate-400" />
+                <p className="text-sm font-bold text-base-content">Role Snapshot</p>
+                <Eye className="size-4 text-base-content/50" />
               </div>
               <div className="space-y-2">
                 {roleWidgets.map((widget) => (
-                  <div key={widget.title} className="rounded-lg border border-slate-200 p-2">
-                    <p className="text-[11px] text-slate-500">{widget.title}</p>
-                    <p className="text-lg font-black text-slate-800">{widget.value}</p>
-                    <p className="text-[11px] text-emerald-600">{widget.hint}</p>
+                  <div key={widget.title} className="rounded-lg border border-base-300 p-2">
+                    <p className="text-[11px] text-base-content/60">{widget.title}</p>
+                    <p className="text-lg font-black text-base-content">{widget.value}</p>
+                    <p className="text-[11px] text-success">{widget.hint}</p>
                   </div>
                 ))}
               </div>
@@ -1816,7 +1816,7 @@ export default function MarketplacePage() {
           duplicate nav — same component renders identically on every page. */}
 
       {activeSection === "marketplace" && (
-        <button type="button" className="btn btn-circle fixed bottom-24 right-5 z-40 h-14 w-14 border-none bg-indigo-600 text-white shadow-xl hover:bg-indigo-500 xl:hidden" onClick={() => setIsComposerOpen(true)}>
+        <button type="button" className="btn btn-circle fixed bottom-24 right-5 z-40 h-14 w-14 border-none bg-primary text-white shadow-xl hover:bg-primary xl:hidden" onClick={() => setIsComposerOpen(true)}>
           <Plus className="size-6" />
         </button>
       )}
@@ -1827,15 +1827,15 @@ export default function MarketplacePage() {
 
       {isComposerOpen ? (
         <div className="fixed inset-0 z-50 bg-black/35" onClick={resetComposer}>
-          <aside className="absolute right-0 top-0 h-full w-full max-w-5xl overflow-y-auto border-l border-slate-200 bg-white" onClick={(event) => event.stopPropagation()}>
-            <div className="sticky top-0 z-10 border-b border-slate-200 bg-white px-6 py-4">
+          <aside className="absolute right-0 top-0 h-full w-full max-w-5xl overflow-y-auto border-l border-base-300 bg-base-100" onClick={(event) => event.stopPropagation()}>
+            <div className="sticky top-0 z-10 border-b border-base-300 bg-base-100 px-6 py-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                  <p className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                     <Sparkles className="size-4" />
                     Create Post
                   </p>
-                  <h3 className="mt-2 text-2xl font-black text-slate-800">
+                  <h3 className="mt-2 text-2xl font-black text-base-content">
                     {showDraftsList ? "Your Drafts" : `Step ${composerStep} of 6`}
                   </h3>
                 </div>
@@ -1843,7 +1843,7 @@ export default function MarketplacePage() {
                   {composerStep === 1 && !showDraftsList && (
                     <button
                       type="button"
-                      className="btn btn-sm rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      className="btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200"
                       onClick={() => setShowDraftsList(true)}
                     >
                       <Edit3 className="size-4" />
@@ -1853,7 +1853,7 @@ export default function MarketplacePage() {
                   {showDraftsList && (
                     <button
                       type="button"
-                      className="btn btn-sm rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      className="btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200"
                       onClick={() => setShowDraftsList(false)}
                     >
                       Back
@@ -1873,41 +1873,41 @@ export default function MarketplacePage() {
                   {isDraftsListLoading ? (
                     <div className="grid gap-3 sm:grid-cols-2">
                       {[1, 2, 3, 4].map((item) => (
-                        <div key={item} className="h-20 animate-pulse rounded-2xl bg-slate-100" />
+                        <div key={item} className="h-20 animate-pulse rounded-2xl bg-base-200" />
                       ))}
                     </div>
                   ) : draftsList.length === 0 ? (
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-10 text-center">
-                      <Edit3 className="mx-auto size-8 text-slate-300" />
-                      <p className="mt-3 text-sm font-semibold text-slate-700">No drafts yet</p>
-                      <p className="mt-1 text-sm text-slate-500">Save a post as a draft to pick up where you left off.</p>
+                    <div className="rounded-2xl border border-base-300 bg-base-200 p-10 text-center">
+                      <Edit3 className="mx-auto size-8 text-base-content/40" />
+                      <p className="mt-3 text-sm font-semibold text-base-content">No drafts yet</p>
+                      <p className="mt-1 text-sm text-base-content/60">Save a post as a draft to pick up where you left off.</p>
                     </div>
                   ) : (
                     <div className="grid gap-3 sm:grid-cols-2">
                       {draftsList.map((post) => {
                         const image = Array.isArray(post.mediaUrls) ? post.mediaUrls[0] : null;
                         return (
-                          <div key={post._id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                            <div className="size-14 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+                          <div key={post._id} className="flex items-center gap-3 rounded-2xl border border-base-300 bg-base-100 p-3 shadow-sm">
+                            <div className="size-14 shrink-0 overflow-hidden rounded-xl bg-base-200">
                               {image ? (
                                 <img src={image} alt={post.title || "Draft"} className="h-full w-full object-cover" />
                               ) : null}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-semibold text-slate-800">{post.title || "Untitled draft"}</p>
-                              <p className="text-xs text-slate-500">{formatMoney(post.price)}</p>
+                              <p className="truncate text-sm font-semibold text-base-content">{post.title || "Untitled draft"}</p>
+                              <p className="text-xs text-base-content/60">{formatMoney(post.price)}</p>
                             </div>
                             <div className="flex shrink-0 items-center gap-1.5">
                               <button
                                 type="button"
-                                className="btn btn-xs rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                                className="btn btn-xs rounded-lg border border-base-300 bg-base-100 text-base-content hover:bg-base-200"
                                 onClick={() => resumeDraft(post)}
                               >
                                 Continue
                               </button>
                               <button
                                 type="button"
-                                className="btn btn-xs btn-circle border-none text-red-500 hover:bg-red-50"
+                                className="btn btn-xs btn-circle border-none text-error hover:bg-error/10"
                                 disabled={deletingDraft}
                                 onClick={() => setDraftToDelete(post)}
                                 title="Delete draft"
@@ -1923,7 +1923,7 @@ export default function MarketplacePage() {
                 </div>
               ) : composerStep === 1 ? (
                 <div>
-                  <p className="text-sm font-semibold text-slate-600">What would you like to post? Recommended for {activeRole}</p>
+                  <p className="text-sm font-semibold text-base-content/70">What would you like to post? Recommended for {activeRole}</p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     {recommendedPostTypes.map((postType) => {
                       const definition = POST_TYPE_DEFINITIONS[postType] || POST_TYPE_DEFINITIONS.PROPERTY_SALE;
@@ -1932,7 +1932,7 @@ export default function MarketplacePage() {
                       <button
                         key={postType}
                         type="button"
-                        className={`rounded-2xl border p-4 text-left transition ${isActive ? "border-indigo-500 bg-indigo-50" : "border-slate-200 bg-white hover:border-indigo-200"}`}
+                        className={`rounded-2xl border p-4 text-left transition ${isActive ? "border-primary bg-primary/10" : "border-base-300 bg-base-100 hover:border-primary/30"}`}
                         onClick={() => {
                           setDraft((prev) => ({
                             ...prev,
@@ -1942,14 +1942,14 @@ export default function MarketplacePage() {
                           }));
                         }}
                       >
-                        <p className="font-semibold text-slate-800">{definition.label}</p>
-                        <p className="mt-1 text-xs text-slate-500">{definition.description}</p>
+                        <p className="font-semibold text-base-content">{definition.label}</p>
+                        <p className="mt-1 text-xs text-base-content/60">{definition.description}</p>
                       </button>
                       );
                     })}
                   </div>
 
-                  <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-slate-500">Other Post Types</p>
+                  <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-base-content/60">Other Post Types</p>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     {availablePostTypes
                       .filter((postType) => !recommendedPostTypes.includes(postType))
@@ -1960,7 +1960,7 @@ export default function MarketplacePage() {
                           <button
                             key={postType}
                             type="button"
-                            className={`rounded-2xl border p-4 text-left transition ${isActive ? "border-indigo-500 bg-indigo-50" : "border-slate-200 bg-white hover:border-indigo-200"}`}
+                            className={`rounded-2xl border p-4 text-left transition ${isActive ? "border-primary bg-primary/10" : "border-base-300 bg-base-100 hover:border-primary/30"}`}
                             onClick={() => {
                               setDraft((prev) => ({
                                 ...prev,
@@ -1970,8 +1970,8 @@ export default function MarketplacePage() {
                               }));
                             }}
                           >
-                            <p className="font-semibold text-slate-800">{definition.label}</p>
-                            <p className="mt-1 text-xs text-slate-500">{definition.description}</p>
+                            <p className="font-semibold text-base-content">{definition.label}</p>
+                            <p className="mt-1 text-xs text-base-content/60">{definition.description}</p>
                           </button>
                         );
                       })}
@@ -1981,10 +1981,10 @@ export default function MarketplacePage() {
 
               {composerStep === 2 ? (
                 <div>
-                  <p className="text-sm font-semibold text-slate-600">Upload media (Max 5 files)</p>
+                  <p className="text-sm font-semibold text-base-content/70">Upload media (Max 5 files)</p>
                   <div
-                    className={`mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center transition ${
-                      isUploadingMedia ? "" : "hover:border-indigo-400 hover:bg-indigo-50/30"
+                    className={`mt-4 rounded-2xl border border-dashed border-base-300 bg-base-200 p-6 text-center transition ${
+                      isUploadingMedia ? "" : "hover:border-primary hover:bg-primary/10"
                     }`}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => {
@@ -2009,22 +2009,22 @@ export default function MarketplacePage() {
                   >
                     {isUploadingMedia ? (
                       <>
-                        <Loader2 className="mx-auto size-8 animate-spin text-indigo-600" />
-                        <p className="mt-2 text-sm font-semibold text-slate-700">Uploading… {mediaUploadProgress}%</p>
-                        <div className="mx-auto mt-3 h-2 w-full max-w-xs overflow-hidden rounded-full bg-slate-200">
+                        <Loader2 className="mx-auto size-8 animate-spin text-primary" />
+                        <p className="mt-2 text-sm font-semibold text-base-content">Uploading… {mediaUploadProgress}%</p>
+                        <div className="mx-auto mt-3 h-2 w-full max-w-xs overflow-hidden rounded-full bg-base-300">
                           <div
-                            className="h-full rounded-full bg-indigo-600 transition-all"
+                            className="h-full rounded-full bg-primary transition-all"
                             style={{ width: `${mediaUploadProgress}%` }}
                           />
                         </div>
                       </>
                     ) : (
                       <>
-                        <Upload className="mx-auto size-8 text-slate-400" />
-                        <p className="mt-2 text-sm text-slate-600">Drag photos/videos here or click to browse</p>
-                        <p className="mt-1 text-xs text-slate-500">Supports: PNG, JPEG, WEBP, GIF, MP4, WEBM, MOV (Max 50MB per file)</p>
+                        <Upload className="mx-auto size-8 text-base-content/50" />
+                        <p className="mt-2 text-sm text-base-content/70">Drag photos/videos here or click to browse</p>
+                        <p className="mt-1 text-xs text-base-content/60">Supports: PNG, JPEG, WEBP, GIF, MP4, WEBM, MOV (Max 50MB per file)</p>
                         {String(draft.postType || "").startsWith("REQUIREMENT_") ? (
-                          <p className="mt-1 text-xs text-slate-500">Media is optional for requirement posts.</p>
+                          <p className="mt-1 text-xs text-base-content/60">Media is optional for requirement posts.</p>
                         ) : null}
                         <input
                           type="file"
@@ -2052,7 +2052,7 @@ export default function MarketplacePage() {
                   </div>
 
                   <div className="mt-3">
-                    <p className="text-xs text-slate-500 mb-2">Uploaded media ({composerMedia.length}/5):</p>
+                    <p className="text-xs text-base-content/60 mb-2">Uploaded media ({composerMedia.length}/5):</p>
                     {composerMedia.length ? (
                       <div className="flex flex-wrap gap-2">
                         {composerMedia.map((url, idx) => {
@@ -2060,13 +2060,13 @@ export default function MarketplacePage() {
                           return (
                             <div key={idx} className="relative">
                               {isVideo ? (
-                                <video src={url} className="size-16 rounded-lg object-cover border border-slate-200" muted />
+                                <video src={url} className="size-16 rounded-lg object-cover border border-base-300" muted />
                               ) : (
-                                <img src={url} alt={`Upload ${idx + 1}`} className="size-16 rounded-lg object-cover border border-slate-200" />
+                                <img src={url} alt={`Upload ${idx + 1}`} className="size-16 rounded-lg object-cover border border-base-300" />
                               )}
                               <button
                                 type="button"
-                                className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-red-500 text-white text-xs leading-none shadow"
+                                className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-error text-white text-xs leading-none shadow"
                                 onClick={() => {
                                   const urls = composerMedia.filter((_, i) => i !== idx);
                                   setDraft((prev) => ({ ...prev, mediaUrls: urls.join(",") }));
@@ -2079,7 +2079,7 @@ export default function MarketplacePage() {
                         })}
                       </div>
                     ) : (
-                      <span className="text-sm text-slate-500">No media selected yet.</span>
+                      <span className="text-sm text-base-content/60">No media selected yet.</span>
                     )}
                   </div>
                 </div>
@@ -2087,18 +2087,18 @@ export default function MarketplacePage() {
 
               {composerStep === 3 ? (
                 <div>
-                  <p className="text-sm font-semibold text-slate-600">Add intent-specific details</p>
+                  <p className="text-sm font-semibold text-base-content/70">Add intent-specific details</p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <label className="form-control sm:col-span-2">
-                      <span className="label-text mb-1 text-xs text-slate-500">Title</span>
-                      <input className="input input-bordered border-slate-200" value={draft.title} onChange={(event) => updateDraft("title", event.target.value)} />
+                      <span className="label-text mb-1 text-xs text-base-content/60">Title</span>
+                      <input className="input input-bordered border-base-300" value={draft.title} onChange={(event) => updateDraft("title", event.target.value)} />
                     </label>
                     <label className="form-control sm:col-span-2">
-                      <span className="label-text mb-1 text-xs text-slate-500">Location (Optional)</span>
+                      <span className="label-text mb-1 text-xs text-base-content/60">Location (Optional)</span>
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          className="btn btn-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                          className="btn btn-sm border border-base-300 bg-base-100 text-base-content hover:bg-base-200"
                           onClick={() => {
                             if (!navigator.geolocation) {
                               toast.error("Geolocation is not supported by your browser");
@@ -2134,11 +2134,11 @@ export default function MarketplacePage() {
                       </div>
                     </label>
                     <div className="form-control">
-                      <label className="label-text mb-1 text-xs text-slate-500">City / Location</label>
+                      <label className="label-text mb-1 text-xs text-base-content/60">City / Location</label>
                       <div className="relative">
                           <input
                             type="text"
-                            className="input input-bordered border-slate-200 w-full"
+                            className="input input-bordered border-base-300 w-full"
                             value={draft.city}
                             onChange={(event) => {
                               const query = event.target.value;
@@ -2210,12 +2210,12 @@ export default function MarketplacePage() {
                             placeholder="Type city or location..."
                           />
                         {citySuggestions.length > 0 && (
-                          <div className="absolute z-[9999] w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                          <div className="absolute z-[9999] w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-xl max-h-60 overflow-y-auto">
                             {citySuggestions.map((suggestion, idx) => (
                               <button
                                 key={idx}
                                 type="button"
-                                className="w-full px-4 py-3 text-left hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
+                                className="w-full px-4 py-3 text-left hover:bg-base-200 border-b border-base-200 last:border-b-0"
                                 onClick={() => {
                                   if (suggestion.isManual) {
                                     // For manual entry, just set the city and show map without coordinates
@@ -2235,8 +2235,8 @@ export default function MarketplacePage() {
                                   setCitySuggestions([]);
                                 }}
                               >
-                                <div className="text-sm font-medium text-slate-900">{suggestion.city}</div>
-                                <div className="text-xs text-slate-500 truncate">{suggestion.display}</div>
+                                <div className="text-sm font-medium text-base-content">{suggestion.city}</div>
+                                <div className="text-xs text-base-content/60 truncate">{suggestion.display}</div>
                               </button>
                             ))}
                           </div>
@@ -2244,11 +2244,11 @@ export default function MarketplacePage() {
                       </div>
                     </div>
                     <label className="form-control">
-                      <span className="label-text mb-1 text-xs text-slate-500">Locality</span>
-                      <input className="input input-bordered border-slate-200" value={draft.locality} onChange={(event) => updateDraft("locality", event.target.value)} />
+                      <span className="label-text mb-1 text-xs text-base-content/60">Locality</span>
+                      <input className="input input-bordered border-base-300" value={draft.locality} onChange={(event) => updateDraft("locality", event.target.value)} />
                     </label>
                     <div className="sm:col-span-2">
-                      <div className="relative h-64 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
+                      <div className="relative h-64 rounded-lg overflow-hidden bg-base-200 border border-base-300">
                         <MapContainer
                           key={draft.latitude && draft.longitude ? `${draft.latitude}-${draft.longitude}` : "default"}
                           center={draft.latitude && draft.longitude ? [draft.latitude, draft.longitude] : DEFAULT_MAP_CENTER}
@@ -2265,48 +2265,48 @@ export default function MarketplacePage() {
                             onPositionChange={handleMapPositionChange}
                           />
                         </MapContainer>
-                        <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-md text-xs text-slate-600">
+                        <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-md text-xs text-base-content/70">
                           Click or drag pin to set location
                         </div>
                       </div>
                       {draft.latitude && draft.longitude ? (
-                        <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                        <div className="mt-2 flex items-center gap-2 text-xs text-base-content/60">
                           <MapPin className="size-3" />
                           <span>Coordinates: {draft.latitude.toFixed(6)}, {draft.longitude.toFixed(6)}</span>
                           <button
                             type="button"
-                            className="text-red-500 hover:text-red-700"
+                            className="text-error hover:text-error"
                             onClick={() => setDraft(prev => ({ ...prev, latitude: null, longitude: null }))}
                           >
                             Clear
                           </button>
                         </div>
                       ) : (
-                        <p className="mt-2 text-xs text-slate-500">Click or drag the pin on the map to set the exact location.</p>
+                        <p className="mt-2 text-xs text-base-content/60">Click or drag the pin on the map to set the exact location.</p>
                       )}
                     </div>
                     <label className="form-control sm:col-span-2">
-                      <span className="label-text mb-1 text-xs text-slate-500">Description</span>
-                      <textarea className="textarea textarea-bordered min-h-20 border-slate-200" value={draft.caption} onChange={(event) => updateDraft("caption", event.target.value)} />
+                      <span className="label-text mb-1 text-xs text-base-content/60">Description</span>
+                      <textarea className="textarea textarea-bordered min-h-20 border-base-300" value={draft.caption} onChange={(event) => updateDraft("caption", event.target.value)} />
                     </label>
 
                     {String(draft.postType || "").startsWith("REQUIREMENT_") ? (
                       <>
                         <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-slate-500">Budget Min</span>
-                          <input type="number" className="input input-bordered border-slate-200" value={draft.budgetMin} onChange={(event) => updateDraft("budgetMin", event.target.value)} />
+                          <span className="label-text mb-1 text-xs text-base-content/60">Budget Min</span>
+                          <input type="number" className="input input-bordered border-base-300" value={draft.budgetMin} onChange={(event) => updateDraft("budgetMin", event.target.value)} />
                         </label>
                         <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-slate-500">Budget Max</span>
-                          <input type="number" className="input input-bordered border-slate-200" value={draft.budgetMax} onChange={(event) => updateDraft("budgetMax", event.target.value)} />
+                          <span className="label-text mb-1 text-xs text-base-content/60">Budget Max</span>
+                          <input type="number" className="input input-bordered border-base-300" value={draft.budgetMax} onChange={(event) => updateDraft("budgetMax", event.target.value)} />
                         </label>
                         <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-slate-500">Preferred Move-in Date</span>
-                          <input type="date" className="input input-bordered border-slate-200" value={draft.moveInDate} onChange={(event) => updateDraft("moveInDate", event.target.value)} />
+                          <span className="label-text mb-1 text-xs text-base-content/60">Preferred Move-in Date</span>
+                          <input type="date" className="input input-bordered border-base-300" value={draft.moveInDate} onChange={(event) => updateDraft("moveInDate", event.target.value)} />
                         </label>
                         <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-slate-500">Property Preference</span>
-                          <select className="select select-bordered border-slate-200" value={draft.requirementPropertyType} onChange={(event) => updateDraft("requirementPropertyType", event.target.value)}>
+                          <span className="label-text mb-1 text-xs text-base-content/60">Property Preference</span>
+                          <select className="select select-bordered border-base-300" value={draft.requirementPropertyType} onChange={(event) => updateDraft("requirementPropertyType", event.target.value)}>
                             <option value="">Select type</option>
                             <option value="PG">PG</option>
                             <option value="Room">Room</option>
@@ -2317,29 +2317,29 @@ export default function MarketplacePage() {
                           </select>
                         </label>
                         <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-slate-500">Furnishing Preference</span>
-                          <select className="select select-bordered border-slate-200" value={draft.furnishedPreference} onChange={(event) => updateDraft("furnishedPreference", event.target.value)}>
+                          <span className="label-text mb-1 text-xs text-base-content/60">Furnishing Preference</span>
+                          <select className="select select-bordered border-base-300" value={draft.furnishedPreference} onChange={(event) => updateDraft("furnishedPreference", event.target.value)}>
                             <option value="">Select option</option>
                             {FURNISHING_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                           </select>
                         </label>
                         <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-slate-500">Occupancy</span>
-                          <select className="select select-bordered border-slate-200" value={draft.occupancyPreference} onChange={(event) => updateDraft("occupancyPreference", event.target.value)}>
+                          <span className="label-text mb-1 text-xs text-base-content/60">Occupancy</span>
+                          <select className="select select-bordered border-base-300" value={draft.occupancyPreference} onChange={(event) => updateDraft("occupancyPreference", event.target.value)}>
                             <option value="">Select option</option>
                             {OCCUPANCY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                           </select>
                         </label>
                         <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-slate-500">Gender Preference</span>
-                          <select className="select select-bordered border-slate-200" value={draft.genderPreference} onChange={(event) => updateDraft("genderPreference", event.target.value)}>
+                          <span className="label-text mb-1 text-xs text-base-content/60">Gender Preference</span>
+                          <select className="select select-bordered border-base-300" value={draft.genderPreference} onChange={(event) => updateDraft("genderPreference", event.target.value)}>
                             <option value="">Select option</option>
                             {GENDER_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                           </select>
                         </label>
                         <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-slate-500">Occupation</span>
-                          <select className="select select-bordered border-slate-200" value={draft.occupation} onChange={(event) => updateDraft("occupation", event.target.value)}>
+                          <span className="label-text mb-1 text-xs text-base-content/60">Occupation</span>
+                          <select className="select select-bordered border-base-300" value={draft.occupation} onChange={(event) => updateDraft("occupation", event.target.value)}>
                             <option value="">Select option</option>
                             <option value="Student">Student</option>
                             <option value="Working Professional">Working Professional</option>
@@ -2348,46 +2348,46 @@ export default function MarketplacePage() {
                           </select>
                         </label>
                         <label className="form-control sm:col-span-2">
-                          <span className="label-text mb-1 text-xs text-slate-500">Amenities Needed (optional)</span>
-                          <input className="input input-bordered border-slate-200" placeholder="Gym, security, power backup" value={draft.amenitiesText} onChange={(event) => updateDraft("amenitiesText", event.target.value)} />
+                          <span className="label-text mb-1 text-xs text-base-content/60">Amenities Needed (optional)</span>
+                          <input className="input input-bordered border-base-300" placeholder="Gym, security, power backup" value={draft.amenitiesText} onChange={(event) => updateDraft("amenitiesText", event.target.value)} />
                         </label>
                       </>
                     ) : (
                       <>
                         <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-slate-500">Price</span>
-                          <input type="number" className="input input-bordered border-slate-200" value={draft.price} onChange={(event) => updateDraft("price", event.target.value)} />
+                          <span className="label-text mb-1 text-xs text-base-content/60">Price</span>
+                          <input type="number" className="input input-bordered border-base-300" value={draft.price} onChange={(event) => updateDraft("price", event.target.value)} />
                         </label>
                         <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-slate-500">Area (sqft)</span>
-                          <input type="number" className="input input-bordered border-slate-200" value={draft.areaSqft} onChange={(event) => updateDraft("areaSqft", event.target.value)} />
+                          <span className="label-text mb-1 text-xs text-base-content/60">Area (sqft)</span>
+                          <input type="number" className="input input-bordered border-base-300" value={draft.areaSqft} onChange={(event) => updateDraft("areaSqft", event.target.value)} />
                         </label>
                         <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-slate-500">Bedrooms</span>
-                          <input type="number" className="input input-bordered border-slate-200" value={draft.bedrooms} onChange={(event) => updateDraft("bedrooms", event.target.value)} />
+                          <span className="label-text mb-1 text-xs text-base-content/60">Bedrooms</span>
+                          <input type="number" className="input input-bordered border-base-300" value={draft.bedrooms} onChange={(event) => updateDraft("bedrooms", event.target.value)} />
                         </label>
                         <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-slate-500">Bathrooms</span>
-                          <input type="number" className="input input-bordered border-slate-200" value={draft.bathrooms} onChange={(event) => updateDraft("bathrooms", event.target.value)} />
+                          <span className="label-text mb-1 text-xs text-base-content/60">Bathrooms</span>
+                          <input type="number" className="input input-bordered border-base-300" value={draft.bathrooms} onChange={(event) => updateDraft("bathrooms", event.target.value)} />
                         </label>
 
                         {draft.postType === "PROPERTY_RENT" ? (
                           <>
                             <label className="form-control">
-                              <span className="label-text mb-1 text-xs text-slate-500">Monthly Rent</span>
-                              <input type="number" className="input input-bordered border-slate-200" value={draft.price} onChange={(event) => updateDraft("price", event.target.value)} />
+                              <span className="label-text mb-1 text-xs text-base-content/60">Monthly Rent</span>
+                              <input type="number" className="input input-bordered border-base-300" value={draft.price} onChange={(event) => updateDraft("price", event.target.value)} />
                             </label>
                             <label className="form-control">
-                              <span className="label-text mb-1 text-xs text-slate-500">Deposit Amount</span>
-                              <input type="number" className="input input-bordered border-slate-200" value={draft.depositAmount} onChange={(event) => updateDraft("depositAmount", event.target.value)} />
+                              <span className="label-text mb-1 text-xs text-base-content/60">Deposit Amount</span>
+                              <input type="number" className="input input-bordered border-base-300" value={draft.depositAmount} onChange={(event) => updateDraft("depositAmount", event.target.value)} />
                             </label>
                             <label className="form-control">
-                              <span className="label-text mb-1 text-xs text-slate-500">Availability Date</span>
-                              <input type="date" className="input input-bordered border-slate-200" value={draft.availableFromDate} onChange={(event) => updateDraft("availableFromDate", event.target.value)} />
+                              <span className="label-text mb-1 text-xs text-base-content/60">Availability Date</span>
+                              <input type="date" className="input input-bordered border-base-300" value={draft.availableFromDate} onChange={(event) => updateDraft("availableFromDate", event.target.value)} />
                             </label>
                             <label className="form-control">
-                              <span className="label-text mb-1 text-xs text-slate-500">Tenant Preference</span>
-                              <select className="select select-bordered border-slate-200" value={draft.tenantType} onChange={(event) => updateDraft("tenantType", event.target.value)}>
+                              <span className="label-text mb-1 text-xs text-base-content/60">Tenant Preference</span>
+                              <select className="select select-bordered border-base-300" value={draft.tenantType} onChange={(event) => updateDraft("tenantType", event.target.value)}>
                                 <option value="">Select option</option>
                                 {TENANT_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                               </select>
@@ -2400,16 +2400,16 @@ export default function MarketplacePage() {
                     {draft.postType === "BUILDER_PROJECT" ? (
                       <>
                         <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-slate-500">Project Name</span>
-                          <input className="input input-bordered border-slate-200" value={draft.projectName} onChange={(event) => updateDraft("projectName", event.target.value)} />
+                          <span className="label-text mb-1 text-xs text-base-content/60">Project Name</span>
+                          <input className="input input-bordered border-base-300" value={draft.projectName} onChange={(event) => updateDraft("projectName", event.target.value)} />
                         </label>
                         <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-slate-500">Launch Date</span>
-                          <input type="date" className="input input-bordered border-slate-200" value={draft.launchDate} onChange={(event) => updateDraft("launchDate", event.target.value)} />
+                          <span className="label-text mb-1 text-xs text-base-content/60">Launch Date</span>
+                          <input type="date" className="input input-bordered border-base-300" value={draft.launchDate} onChange={(event) => updateDraft("launchDate", event.target.value)} />
                         </label>
                         <label className="form-control sm:col-span-2">
-                          <span className="label-text mb-1 text-xs text-slate-500">RERA Number</span>
-                          <input className="input input-bordered border-slate-200" value={draft.reraNumber} onChange={(event) => updateDraft("reraNumber", event.target.value)} />
+                          <span className="label-text mb-1 text-xs text-base-content/60">RERA Number</span>
+                          <input className="input input-bordered border-base-300" value={draft.reraNumber} onChange={(event) => updateDraft("reraNumber", event.target.value)} />
                         </label>
                       </>
                     ) : null}
@@ -2419,35 +2419,35 @@ export default function MarketplacePage() {
 
               {composerStep === 4 ? (
                 <div>
-                  <p className="text-sm font-semibold text-slate-600">Preview your post</p>
-                  <article className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+                  <p className="text-sm font-semibold text-base-content/70">Preview your post</p>
+                  <article className="mt-4 overflow-hidden rounded-2xl border border-base-300">
                     {composerMedia.length > 0 && isVideoUrl(composerMedia[0]) ? (
                       <video src={composerMedia[0]} alt="Preview" className="h-64 w-full object-cover" controls />
                     ) : (
                       <img src={composerMedia[0] || "https://placehold.co/1400x900?text=Preview"} alt="Preview" className="h-64 w-full object-cover" />
                     )}
                     <div className="p-4">
-                      <p className="text-xs text-slate-500">{getListingBadge(draft)} · {draft.propertyType || draft.requirementPropertyType || "Real Estate"}</p>
-                      <p className="mt-1 text-xl font-bold text-slate-800">{draft.title || "Untitled post"}</p>
-                      <p className="mt-1 text-sm text-slate-600">{draft.caption || "No description added."}</p>
+                      <p className="text-xs text-base-content/60">{getListingBadge(draft)} · {draft.propertyType || draft.requirementPropertyType || "Real Estate"}</p>
+                      <p className="mt-1 text-xl font-bold text-base-content">{draft.title || "Untitled post"}</p>
+                      <p className="mt-1 text-sm text-base-content/70">{draft.caption || "No description added."}</p>
                     </div>
                   </article>
                 </div>
               ) : null}
 
               {composerStep === 5 ? (
-                <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-6 text-center">
-                  <p className="text-2xl font-black text-slate-800">Ready to Publish</p>
-                  <p className="mt-2 text-sm text-slate-600">Your post will immediately appear in the marketplace feed.</p>
+                <div className="rounded-2xl border border-primary/30 bg-primary/10 p-6 text-center">
+                  <p className="text-2xl font-black text-base-content">Ready to Publish</p>
+                  <p className="mt-2 text-sm text-base-content/70">Your post will immediately appear in the marketplace feed.</p>
                 </div>
               ) : null}
 
               {composerStep === 6 ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center">
-                  <p className="text-2xl font-black text-emerald-700">
+                <div className="rounded-2xl border border-success/30 bg-success/10 p-6 text-center">
+                  <p className="text-2xl font-black text-success">
                     {draft.status === "DRAFT" ? "Saved as Draft" : "Post Published"}
                   </p>
-                  <p className="mt-2 text-sm text-slate-600">
+                  <p className="mt-2 text-sm text-base-content/70">
                     {draft.status === "DRAFT"
                       ? "Find it under My Drafts on your profile whenever you're ready to publish."
                       : "Your post is now live and discoverable."}
@@ -2461,7 +2461,7 @@ export default function MarketplacePage() {
                 )}
 
                 {showDraftsList ? null : composerStep < 5 ? (
-                  <button type="button" className="btn border-none bg-indigo-600 text-white hover:bg-indigo-500" disabled={!stepValid} onClick={() => setComposerStep((prev) => Math.min(5, prev + 1))}>Next</button>
+                  <button type="button" className="btn border-none bg-primary text-white hover:bg-primary" disabled={!stepValid} onClick={() => setComposerStep((prev) => Math.min(5, prev + 1))}>Next</button>
                 ) : composerStep === 5 ? (
                   <div className="flex items-center gap-2">
                     <button
@@ -2477,7 +2477,7 @@ export default function MarketplacePage() {
                     </button>
                     <button
                       type="button"
-                      className="btn border-none bg-indigo-600 text-white hover:bg-indigo-500"
+                      className="btn border-none bg-primary text-white hover:bg-primary"
                       disabled={creating}
                       onClick={() => {
                         setDraft((prev) => ({ ...prev, status: "PUBLISHED" }));
@@ -2489,7 +2489,7 @@ export default function MarketplacePage() {
                     </button>
                   </div>
                 ) : (
-                  <button type="button" className="btn border-none bg-indigo-600 text-white hover:bg-indigo-500" onClick={resetComposer}>Done</button>
+                  <button type="button" className="btn border-none bg-primary text-white hover:bg-primary" onClick={resetComposer}>Done</button>
                 )}
               </div>
             </div>
@@ -2518,18 +2518,18 @@ export default function MarketplacePage() {
       {contactModalOpen && selectedPostForContact && (
         <div className="fixed inset-0 z-50 bg-black/30" onClick={() => setContactModalOpen(false)}>
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md" onClick={(event) => event.stopPropagation()}>
-            <div className="rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="rounded-2xl bg-base-100 p-6 shadow-2xl">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-black text-slate-800">Contact Owner</h3>
+                <h3 className="text-lg font-black text-base-content">Contact Owner</h3>
                 <button type="button" className="btn btn-sm btn-circle btn-ghost" onClick={() => setContactModalOpen(false)}>
                   <X className="size-4" />
                 </button>
               </div>
 
               {/* Property Summary */}
-              <div className="rounded-xl bg-slate-50 p-4 mb-4">
+              <div className="rounded-xl bg-base-200 p-4 mb-4">
                 <div className="flex items-start gap-3">
-                  <div className="size-16 rounded-lg overflow-hidden bg-slate-200 flex-shrink-0">
+                  <div className="size-16 rounded-lg overflow-hidden bg-base-300 flex-shrink-0">
                     {selectedPostForContact.media?.[0] ? (
                       <img
                         src={selectedPostForContact.media[0]}
@@ -2537,22 +2537,22 @@ export default function MarketplacePage() {
                         className="size-full object-cover"
                       />
                     ) : (
-                      <div className="size-full flex items-center justify-center text-slate-400">
+                      <div className="size-full flex items-center justify-center text-base-content/50">
                         <Building2 className="size-6" />
                       </div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-slate-800 line-clamp-1">{selectedPostForContact.title || "Property"}</p>
-                    <p className="text-sm text-slate-600 line-clamp-1">{selectedPostForContact.bedrooms || 0} BHK • {Number(selectedPostForContact.areaSqft || 0)} sqft</p>
-                    <p className="text-sm font-bold text-indigo-600">{formatMoney(selectedPostForContact.price)}</p>
+                    <p className="font-semibold text-base-content line-clamp-1">{selectedPostForContact.title || "Property"}</p>
+                    <p className="text-sm text-base-content/70 line-clamp-1">{selectedPostForContact.bedrooms || 0} BHK • {Number(selectedPostForContact.areaSqft || 0)} sqft</p>
+                    <p className="text-sm font-bold text-primary">{formatMoney(selectedPostForContact.price)}</p>
                   </div>
                 </div>
               </div>
 
               {/* Pre-filled message */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-700 mb-2">Your Message</label>
+                <label className="block text-sm font-medium text-base-content mb-2">Your Message</label>
                 <textarea
                   ref={contactMessageRef}
                   className="textarea textarea-bordered w-full h-24 text-sm"
@@ -2563,7 +2563,7 @@ export default function MarketplacePage() {
 
               {/* Quick Actions */}
               <div className="mb-4">
-                <p className="text-xs font-medium text-slate-500 mb-2">Quick Actions</p>
+                <p className="text-xs font-medium text-base-content/60 mb-2">Quick Actions</p>
                 <div className="flex flex-wrap gap-2">
                   {[
                     "Interested",
@@ -2576,7 +2576,7 @@ export default function MarketplacePage() {
                     <button
                       key={action}
                       type="button"
-                      className="btn btn-xs border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      className="btn btn-xs border border-base-300 bg-base-100 text-base-content hover:bg-base-200"
                       onClick={() => {
                         if (contactMessageRef.current) {
                           contactMessageRef.current.value = `Hi ${selectedPostForContact.author?.fullName?.split(" ")[0] || "there"},\n\n${action}`;
@@ -2592,7 +2592,7 @@ export default function MarketplacePage() {
               {/* Send Button */}
               <button
                 type="button"
-                className="btn w-full border-none bg-indigo-600 text-white hover:bg-indigo-500"
+                className="btn w-full border-none bg-primary text-white hover:bg-primary"
                 onClick={() => {
                   const message = contactMessageRef.current?.value || "";
                   console.log("Send button clicked, message:", message);
@@ -2603,7 +2603,7 @@ export default function MarketplacePage() {
                 Send Message
               </button>
 
-              <p className="mt-3 text-center text-xs text-slate-500">
+              <p className="mt-3 text-center text-xs text-base-content/60">
                 Your message will be sent as a request. The owner can accept, ignore, or block.
               </p>
             </div>
@@ -2643,7 +2643,7 @@ export default function MarketplacePage() {
           <>
             <div className="fixed inset-0 z-40" onClick={() => setPostMenuAnchor(null)} />
             <div
-              className="fixed z-50 w-36 rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+              className="fixed z-50 w-36 rounded-xl border border-base-300 bg-base-100 py-1 shadow-lg"
               style={{ top: postMenuAnchor.top, left: postMenuAnchor.left }}
             >
               {String(authUser?._id) === String(postMenuAnchor.post.author?._id) ? (
@@ -2653,7 +2653,7 @@ export default function MarketplacePage() {
                     handleEditPost(postMenuAnchor.post);
                     setPostMenuAnchor(null);
                   }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-base-content hover:bg-base-200"
                 >
                   <Edit3 className="size-3.5" />
                   Edit
@@ -2665,7 +2665,7 @@ export default function MarketplacePage() {
                     setReportTargetPost(postMenuAnchor.post);
                     setPostMenuAnchor(null);
                   }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-error hover:bg-error/10"
                 >
                   <Flag className="size-3.5" />
                   Report
