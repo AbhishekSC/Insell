@@ -26,14 +26,14 @@ export default function ClampedCaption({ text }) {
   }, [text, expanded]);
 
   return (
-    <div className="text-xs text-slate-600">
+    <div className="text-xs text-base-content/70">
       <p ref={textRef} className={expanded ? "" : "line-clamp-1"}>
         {text}
       </p>
       {isOverflowing && (
         <button
           type="button"
-          className="mt-1 font-semibold text-indigo-600"
+          className="mt-1 font-semibold text-primary"
           onClick={(event) => {
             event.stopPropagation();
             setExpanded((prev) => !prev);

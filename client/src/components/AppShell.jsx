@@ -18,11 +18,13 @@ import {
   Menu,
   MessageCircle,
   MessageSquare,
+  Moon,
   Newspaper,
   Phone,
   Plus,
   Search,
   ShieldCheck,
+  Sun,
   TrendingUp,
   UserCircle,
   Users,
@@ -32,6 +34,7 @@ import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import { clearAuthToken } from "../lib/authToken";
 import { useStreamContext } from "../context/StreamProvider";
+import { useTheme } from "../context/ThemeProvider";
 import { getFullLocationDetails } from "../utils/geolocation";
 import { enablePushNotifications, disablePushNotifications, getNotificationPermissionState, hasRegisteredPushToken, isPushNotificationsConfigured, listenForForegroundMessages } from "../lib/firebase";
 import logoMobile from "../assets/brand/logo-mobile.png";
@@ -132,13 +135,13 @@ function GlobalSearch({
     <div className="hidden min-w-0 lg:block">
       <div className="w-full min-w-0 max-w-[780px]">
         <div className="relative">
-          <label className="flex h-12 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3">
-            <Search className="size-4 shrink-0 text-slate-400" />
+          <label className="flex h-12 w-full items-center gap-2 rounded-xl border border-base-300 bg-base-100 px-3">
+            <Search className="size-4 shrink-0 text-base-content/50" />
             <input
               ref={searchInputRef}
               type="text"
               placeholder="Search city, locality, property or builder"
-              className="flex-1 min-w-0 bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
+              className="flex-1 min-w-0 bg-transparent text-sm text-base-content placeholder:text-base-content/50 focus:outline-none"
               value={marketSearch}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setTimeout(() => setSearchFocused(false), 120)}
@@ -153,28 +156,28 @@ function GlobalSearch({
               onClick={onOpenFilters}
               className={`flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold transition-colors ${
                 hasActiveFilters
-                  ? "bg-indigo-100 text-indigo-700"
-                  : "border border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100"
+                  ? "bg-primary/15 text-primary"
+                  : "border border-base-300 bg-base-200 text-base-content/60 hover:bg-base-200"
               }`}
             >
               <Filter className="size-3" />
               Filters
             </button>
-            <span className="hidden shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-500 xl:inline-flex">
+            <span className="hidden shrink-0 items-center gap-1 rounded-md border border-base-300 bg-base-200 px-2 py-1 text-[10px] font-semibold text-base-content/60 xl:inline-flex">
               <Command className="size-3" />
               K
             </span>
           </label>
 
           {searchFocused ? (
-            <div className="absolute top-full left-0 right-0 z-50 mt-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+            <div className="absolute top-full left-0 right-0 z-50 mt-2 rounded-2xl border border-base-300 bg-base-100 p-3 shadow-xl">
               {searchHistory && searchHistory.length > 0 && !marketSearch ? (
                 <>
                   <div className="mb-2 flex items-center justify-between">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Recent Searches</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-base-content/60">Recent Searches</p>
                     <button
                       type="button"
-                      className="text-[10px] text-slate-400 hover:text-slate-600"
+                      className="text-[10px] text-base-content/50 hover:text-base-content/70"
                       onClick={() => onMarketplaceSearchChange?.('clear_history')}
                     >
                       Clear
@@ -185,14 +188,14 @@ function GlobalSearch({
                       <button
                         key={index}
                         type="button"
-                        className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                        className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-base-content hover:bg-base-200"
                         onMouseDown={() => {
                           setMarketSearch(item.query);
                           onMarketplaceSearchChange?.(item.query);
                           setSearchFocused(false);
                         }}
                       >
-                        <Search className="size-3.5 text-slate-400" />
+                        <Search className="size-3.5 text-base-content/50" />
                         {item.query}
                       </button>
                     ))}
@@ -202,28 +205,28 @@ function GlobalSearch({
 
               {isLoadingSuggestions ? (
                 <div className="flex items-center justify-center py-4">
-                  <div className="size-4 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600" />
+                  <div className="size-4 animate-spin rounded-full border-2 border-base-300 border-t-indigo-600" />
                 </div>
               ) : visibleSuggestions && visibleSuggestions.length > 0 ? (
                 <>
                   {marketSearch && (
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Suggestions</p>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-base-content/60">Suggestions</p>
                   )}
                   <div className="space-y-1">
                     {visibleSuggestions.map((item, index) => (
                       <button
                         key={`${item.type}-${index}`}
                         type="button"
-                        className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                        className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-base-content hover:bg-base-200"
                         onMouseDown={() => {
                           setMarketSearch(item.value);
                           onMarketplaceSearchChange?.(item.value, item.type, item.authorId);
                           setSearchFocused(false);
                         }}
                       >
-                        <Search className="size-3.5 text-slate-400" />
+                        <Search className="size-3.5 text-base-content/50" />
                         <span>{item.value}</span>
-                        <span className="ml-auto text-[10px] text-slate-400">
+                        <span className="ml-auto text-[10px] text-base-content/50">
                           {item.type === 'location' && '📍'}
                           {item.type === 'propertyType' && '🏠'}
                           {item.type === 'author' && '👤'}
@@ -233,7 +236,7 @@ function GlobalSearch({
                   </div>
                 </>
               ) : marketSearch ? (
-                <div className="py-4 text-center text-sm text-slate-400">
+                <div className="py-4 text-center text-sm text-base-content/50">
                   No suggestions found
                 </div>
               ) : null}
@@ -250,7 +253,7 @@ function HeaderActions({ onCreateProperty, unreadActivityCount, onShareLocation,
     <div className="hidden shrink-0 items-center gap-3 lg:flex">
       <button
         type="button"
-        className="btn h-11 w-[170px] rounded-lg border-none bg-indigo-600 px-5 text-white hover:bg-indigo-500"
+        className="btn h-11 w-[170px] rounded-lg border-none bg-primary px-5 text-white hover:bg-primary"
         onClick={() => onCreateProperty?.()}
       >
         <Plus className="size-4" />
@@ -258,16 +261,16 @@ function HeaderActions({ onCreateProperty, unreadActivityCount, onShareLocation,
       </button>
       {isAdmin && typeof liveUsersCount === "number" && (
         <span
-          className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700"
+          className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-1.5 text-xs font-semibold text-success"
           title="Users active in the last 5 minutes — visible to admins only"
         >
-          <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-emerald-500" />
+          <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-success" />
           {liveUsersCount.toLocaleString()} live
         </span>
       )}
       <button
         type="button"
-        className="btn btn-ghost btn-sm btn-circle border border-slate-200 text-slate-600 hover:bg-slate-100"
+        className="btn btn-ghost btn-sm btn-circle border border-base-300 text-base-content/70 hover:bg-base-200"
         aria-label="Share live location for a more personalized feed"
         title="Share live location for a more personalized feed"
         onClick={() => onShareLocation?.()}
@@ -281,13 +284,13 @@ function HeaderActions({ onCreateProperty, unreadActivityCount, onShareLocation,
       </button>
       <Link
         to="/activity"
-        className="btn btn-ghost btn-sm btn-circle relative border border-slate-200 text-slate-600 hover:bg-slate-100"
+        className="btn btn-ghost btn-sm btn-circle relative border border-base-300 text-base-content/70 hover:bg-base-200"
         aria-label="Activity"
         title="Activity"
       >
         <Bell className="size-4" />
         {unreadActivityCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+          <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-error text-[9px] font-bold text-white">
             {unreadActivityCount > 9 ? "9+" : unreadActivityCount}
           </span>
         )}
@@ -302,7 +305,7 @@ function NotificationMenuItem({ pushUiState, onEnable, isEnabling, onDisable, is
   if (pushUiState === "blocked") {
     return (
       <div
-        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-400"
+        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content/50"
         title="Blocked in your browser's site settings — this can only be re-enabled there, not from here"
       >
         <BellOff className="size-4" />
@@ -315,14 +318,14 @@ function NotificationMenuItem({ pushUiState, onEnable, isEnabling, onDisable, is
     return (
       <button
         type="button"
-        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
         onClick={() => {
           onClose?.();
           onDisable?.();
         }}
         disabled={isDisabling}
       >
-        <BellRing className="size-4 text-indigo-600" />
+        <BellRing className="size-4 text-primary" />
         {isDisabling ? "Turning off..." : "Notifications"}
       </button>
     );
@@ -331,14 +334,14 @@ function NotificationMenuItem({ pushUiState, onEnable, isEnabling, onDisable, is
   return (
     <button
       type="button"
-      className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+      className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
       onClick={() => {
         onClose?.();
         onEnable?.();
       }}
       disabled={isEnabling}
     >
-      <Bell className="size-4 text-slate-500" />
+      <Bell className="size-4 text-base-content/60" />
       {isEnabling ? "Turning on..." : "Notifications"}
     </button>
   );
@@ -357,6 +360,7 @@ function UserMenu({
   onReportIssue,
 }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   return (
@@ -364,28 +368,28 @@ function UserMenu({
       <div className="relative">
         <button
           type="button"
-          className="btn btn-ghost h-11 min-w-[180px] max-w-[260px] rounded-xl border border-slate-200 bg-white px-2.5 hover:bg-slate-50"
+          className="btn btn-ghost h-11 min-w-[180px] max-w-[260px] rounded-xl border border-base-300 bg-base-100 px-2.5 hover:bg-base-200"
           onClick={() => setIsDropdownOpen((prev) => !prev)}
         >
           <UserAvatar src={authUser?.profilePic} name={authUser?.fullName || "User"} sizeClass="size-7" userId={authUser?._id} />
           <span className="min-w-0 text-left">
-            <span className="block truncate text-xs font-semibold text-slate-700">{authUser?.fullName || "NearMySpace User"}</span>
-            <span className="block truncate text-[10px] text-slate-500">{userRoleLabel}</span>
+            <span className="block truncate text-xs font-semibold text-base-content">{authUser?.fullName || "NearMySpace User"}</span>
+            <span className="block truncate text-[10px] text-base-content/60">{userRoleLabel}</span>
           </span>
-          <ChevronDown className={`ml-1 size-3.5 shrink-0 text-slate-500 transition ${isDropdownOpen ? "rotate-180" : ""}`} />
+          <ChevronDown className={`ml-1 size-3.5 shrink-0 text-base-content/60 transition ${isDropdownOpen ? "rotate-180" : ""}`} />
         </button>
 
         {isDropdownOpen && (
-          <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-slate-200 bg-white shadow-lg">
+          <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-base-300 bg-base-100 shadow-lg">
             <button
               type="button"
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
               onClick={() => {
                 setIsDropdownOpen(false);
                 navigate(`/users/${authUser?._id}`);
               }}
             >
-              <UserCircle className="size-4 text-slate-500" />
+              <UserCircle className="size-4 text-base-content/60" />
               View Profile
             </button>
             <NotificationMenuItem
@@ -398,36 +402,47 @@ function UserMenu({
             />
             <button
               type="button"
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
               onClick={() => {
                 setIsDropdownOpen(false);
                 onReportIssue?.();
               }}
             >
-              <Flag className="size-4 text-slate-500" />
+              <Flag className="size-4 text-base-content/60" />
               Report Issue
             </button>
             <button
               type="button"
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
               onClick={() => {
                 setIsDropdownOpen(false);
                 navigate("/help");
               }}
             >
-              <HelpCircle className="size-4 text-slate-500" />
+              <HelpCircle className="size-4 text-base-content/60" />
               How to use this app
             </button>
             <button
               type="button"
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
+              onClick={() => {
+                setIsDropdownOpen(false);
+                toggleTheme();
+              }}
+            >
+              {theme === "dark" ? <Sun className="size-4 text-base-content/60" /> : <Moon className="size-4 text-base-content/60" />}
+              {theme === "dark" ? "Light mode" : "Dark mode"}
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
               onClick={() => {
                 setIsDropdownOpen(false);
                 logout();
               }}
               disabled={isPending}
             >
-              <LogOut className="size-4 text-slate-500" />
+              <LogOut className="size-4 text-base-content/60" />
               {isPending ? "Logging out..." : "Logout"}
             </button>
           </div>
@@ -451,6 +466,7 @@ export default function AppShell({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const isMarketplaceShell =
     location.pathname.startsWith("/marketplace") ||
     location.pathname.startsWith("/community") ||
@@ -626,14 +642,14 @@ export default function AppShell({
           role={url ? "button" : undefined}
           tabIndex={url ? 0 : undefined}
           onClick={url ? () => { toast.dismiss(t.id); navigate(url); } : undefined}
-          className={`flex w-80 max-w-[90vw] items-start gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-xl transition-all duration-200 ${url ? "cursor-pointer hover:border-indigo-200 hover:shadow-2xl" : ""} ${t.visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"}`}
+          className={`flex w-80 max-w-[90vw] items-start gap-3 rounded-xl border border-base-300 bg-base-100 p-3.5 shadow-xl transition-all duration-200 ${url ? "cursor-pointer hover:border-primary/30 hover:shadow-2xl" : ""} ${t.visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"}`}
         >
-          <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full bg-indigo-50 text-indigo-600">
+          <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
             <BellRing className="size-4.5" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-slate-900">{heading}</p>
-            {text && <p className="mt-0.5 line-clamp-2 text-sm text-slate-600">{text}</p>}
+            <p className="truncate text-sm font-semibold text-base-content">{heading}</p>
+            {text && <p className="mt-0.5 line-clamp-2 text-sm text-base-content/70">{text}</p>}
           </div>
           <button
             type="button"
@@ -642,7 +658,7 @@ export default function AppShell({
               toast.dismiss(t.id);
             }}
             aria-label="Dismiss"
-            className="shrink-0 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="shrink-0 rounded-full p-1 text-base-content/50 hover:bg-base-200 hover:text-base-content/70"
           >
             <X className="size-3.5" />
           </button>
@@ -824,11 +840,11 @@ export default function AppShell({
     <div
       className={
         isMarketplaceShell
-          ? "min-h-screen bg-[#f4f6fb] text-slate-900"
+          ? "min-h-screen bg-base-200 text-base-content"
           : "min-h-screen bg-[radial-gradient(circle_at_20%_20%,hsl(var(--p)/0.16),transparent_45%),radial-gradient(circle_at_85%_15%,hsl(var(--s)/0.18),transparent_35%),radial-gradient(circle_at_80%_85%,hsl(var(--a)/0.18),transparent_45%)] bg-base-200"
       }
     >
-      <header className={isMarketplaceShell ? "sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur" : "sticky top-0 z-30 border-b border-base-300/70 bg-base-100/75 backdrop-blur-2xl"}>
+      <header className={isMarketplaceShell ? "sticky top-0 z-30 border-b border-base-300 bg-base-100/95 backdrop-blur" : "sticky top-0 z-30 border-b border-base-300/70 bg-base-100/75 backdrop-blur-2xl"}>
         <div className={`mx-auto px-4 py-3 sm:px-6 ${isMarketplaceShell ? "max-w-[1440px]" : "max-w-7xl"}`}>
           {isMarketplaceShell ? (
             <>
@@ -885,7 +901,7 @@ export default function AppShell({
               <div className="flex items-center justify-between gap-3 lg:hidden">
                 <button
                   type="button"
-                  className="btn btn-ghost btn-circle btn-sm border border-slate-200 text-slate-600 hover:bg-slate-100"
+                  className="btn btn-ghost btn-circle btn-sm border border-base-300 text-base-content/70 hover:bg-base-200"
                   onClick={() => setShowMobileMenu(true)}
                   aria-label="Open menu"
                 >
@@ -894,14 +910,14 @@ export default function AppShell({
                 <div className="flex shrink-0 items-center gap-2">
                   <button
                     type="button"
-                    className="btn btn-ghost btn-circle btn-sm border border-slate-200 text-slate-600 hover:bg-slate-100"
+                    className="btn btn-ghost btn-circle btn-sm border border-base-300 text-base-content/70 hover:bg-base-200"
                     onClick={() => setSearchFocused(true)}
                   >
                     <Search className="size-4" />
                   </button>
                   <button
                     type="button"
-                    className="btn btn-ghost btn-sm btn-circle border border-slate-200 text-slate-600 hover:bg-slate-100"
+                    className="btn btn-ghost btn-sm btn-circle border border-base-300 text-base-content/70 hover:bg-base-200"
                     aria-label="Share live location for a more personalized feed"
                     title="Share live location for a more personalized feed"
                     onClick={() => shareLocation()}
@@ -916,13 +932,13 @@ export default function AppShell({
                   <button
                     type="button"
                     onClick={() => setShowNotificationPanel(true)}
-                    className="btn btn-ghost btn-sm btn-circle relative border border-slate-200 text-slate-600 hover:bg-slate-100"
+                    className="btn btn-ghost btn-sm btn-circle relative border border-base-300 text-base-content/70 hover:bg-base-200"
                     aria-label="Notifications"
                     title="Notifications"
                   >
                     <Bell className="size-4" />
                     {totalNotificationCount > 0 ? (
-                      <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                      <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-error text-[10px] font-bold text-white">
                         {totalNotificationCount > 9 ? "9+" : totalNotificationCount}
                       </span>
                     ) : null}
@@ -931,24 +947,24 @@ export default function AppShell({
                   <div className="relative">
                     <button
                       type="button"
-                      className="btn btn-ghost btn-circle btn-sm border border-slate-200 bg-white hover:bg-slate-50"
+                      className="btn btn-ghost btn-circle btn-sm border border-base-300 bg-base-100 hover:bg-base-200"
                       onClick={() => setMobileUserMenuOpen((prev) => !prev)}
                       aria-label="Account menu"
                     >
-                      <span className="grid size-6 shrink-0 place-items-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">{userInitials}</span>
+                      <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-bold text-primary">{userInitials}</span>
                     </button>
 
                     {mobileUserMenuOpen && (
-                      <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-slate-200 bg-white shadow-lg">
+                      <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-base-300 bg-base-100 shadow-lg">
                         <button
                           type="button"
-                          className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                          className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
                           onClick={() => {
                             setMobileUserMenuOpen(false);
                             navigate(`/users/${authUser?._id}`);
                           }}
                         >
-                          <UserCircle className="size-4 text-slate-500" />
+                          <UserCircle className="size-4 text-base-content/60" />
                           View Profile
                         </button>
                         <NotificationMenuItem
@@ -961,14 +977,14 @@ export default function AppShell({
                         />
                         <button
                           type="button"
-                          className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                          className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
                           onClick={() => {
                             setMobileUserMenuOpen(false);
                             logout();
                           }}
                           disabled={isPending}
                         >
-                          <LogOut className="size-4 text-slate-500" />
+                          <LogOut className="size-4 text-base-content/60" />
                           {isPending ? "Logging out..." : "Logout"}
                         </button>
                       </div>
@@ -1011,27 +1027,27 @@ export default function AppShell({
                 <div className="relative">
                   <button
                     type="button"
-                    className="btn btn-ghost h-9 min-w-[140px] max-w-[200px] rounded-xl border border-slate-200 bg-white px-2.5 hover:bg-slate-50"
+                    className="btn btn-ghost h-9 min-w-[140px] max-w-[200px] rounded-xl border border-base-300 bg-base-100 px-2.5 hover:bg-base-200"
                     onClick={() => setMobileUserMenuOpen((prev) => !prev)}
                   >
                     <UserAvatar src={authUser?.profilePic} name={authUser?.fullName || "User"} sizeClass="size-6" userId={authUser?._id} />
                     <span className="min-w-0 text-left">
-                      <span className="block truncate text-xs font-semibold text-slate-700">{authUser?.fullName || "NearMySpace User"}</span>
+                      <span className="block truncate text-xs font-semibold text-base-content">{authUser?.fullName || "NearMySpace User"}</span>
                     </span>
-                    <ChevronDown className={`ml-1 size-3 shrink-0 text-slate-500 transition ${mobileUserMenuOpen ? "rotate-180" : ""}`} />
+                    <ChevronDown className={`ml-1 size-3 shrink-0 text-base-content/60 transition ${mobileUserMenuOpen ? "rotate-180" : ""}`} />
                   </button>
 
                   {mobileUserMenuOpen && (
-                    <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-slate-200 bg-white shadow-lg">
+                    <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-base-300 bg-base-100 shadow-lg">
                       <button
                         type="button"
-                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
                         onClick={() => {
                           setMobileUserMenuOpen(false);
                           navigate(`/users/${authUser?._id}`);
                         }}
                       >
-                        <UserCircle className="size-4 text-slate-500" />
+                        <UserCircle className="size-4 text-base-content/60" />
                         View Profile
                       </button>
                       <NotificationMenuItem
@@ -1044,36 +1060,47 @@ export default function AppShell({
                       />
                       <button
                         type="button"
-                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
                         onClick={() => {
                           setMobileUserMenuOpen(false);
                           setShowReportIssueModal(true);
                         }}
                       >
-                        <Flag className="size-4 text-slate-500" />
+                        <Flag className="size-4 text-base-content/60" />
                         Report Issue
                       </button>
                       <button
                         type="button"
-                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
                         onClick={() => {
                           setMobileUserMenuOpen(false);
                           navigate("/help");
                         }}
                       >
-                        <HelpCircle className="size-4 text-slate-500" />
+                        <HelpCircle className="size-4 text-base-content/60" />
                         How to use this app
                       </button>
                       <button
                         type="button"
-                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
+                        onClick={() => {
+                          setMobileUserMenuOpen(false);
+                          toggleTheme();
+                        }}
+                      >
+                        {theme === "dark" ? <Sun className="size-4 text-base-content/60" /> : <Moon className="size-4 text-base-content/60" />}
+                        {theme === "dark" ? "Light mode" : "Dark mode"}
+                      </button>
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
                         onClick={() => {
                           setMobileUserMenuOpen(false);
                           logout();
                         }}
                         disabled={isPending}
                       >
-                        <LogOut className="size-4 text-slate-500" />
+                        <LogOut className="size-4 text-base-content/60" />
                         {isPending ? "Logging out..." : "Logout"}
                       </button>
                     </div>
@@ -1117,12 +1144,12 @@ export default function AppShell({
       {showMobileMenu ? (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowMobileMenu(false)} />
-          <div className="absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col bg-white shadow-2xl">
-            <div className="flex items-center gap-3 border-b border-slate-100 p-4">
+          <div className="absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col bg-base-100 shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-base-200 p-4">
               <img src={logoMobile} alt="NearMySpace" className="size-11 shrink-0 object-contain" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-base font-bold text-slate-800">{authUser?.fullName || "NearMySpace User"}</p>
-                <p className="truncate text-xs text-slate-500">NearMySpace</p>
+                <p className="truncate text-base font-bold text-base-content">{authUser?.fullName || "NearMySpace User"}</p>
+                <p className="truncate text-xs text-base-content/60">NearMySpace</p>
               </div>
               <button
                 type="button"
@@ -1147,13 +1174,13 @@ export default function AppShell({
                       to={item.to}
                       onClick={() => setShowMobileMenu(false)}
                       className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${
-                        active ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-slate-50"
+                        active ? "bg-primary/10 text-primary" : "text-base-content/70 hover:bg-base-200"
                       }`}
                     >
                       <Icon className="size-5" />
                       {item.label}
                       {badgeCount > 0 ? (
-                        <span className="ml-auto flex size-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                        <span className="ml-auto flex size-5 items-center justify-center rounded-full bg-error text-[10px] font-bold text-white">
                           {badgeCount > 9 ? "9+" : badgeCount}
                         </span>
                       ) : null}
@@ -1163,7 +1190,7 @@ export default function AppShell({
                         <Link
                           to="/trending-localities"
                           onClick={() => setShowMobileMenu(false)}
-                          className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                          className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-base-content/70 hover:bg-base-200"
                         >
                           <TrendingUp className="size-5" />
                           Trending Localities
@@ -1171,7 +1198,7 @@ export default function AppShell({
                         <Link
                           to="/news"
                           onClick={() => setShowMobileMenu(false)}
-                          className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                          className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-base-content/70 hover:bg-base-200"
                         >
                           <Newspaper className="size-5" />
                           Trending News
@@ -1183,14 +1210,14 @@ export default function AppShell({
               })}
             </div>
 
-            <div className="border-t border-slate-100 p-2">
+            <div className="border-t border-base-200 p-2">
               <button
                 type="button"
                 onClick={() => {
                   setShowMobileMenu(false);
                   setShowReportIssueModal(true);
                 }}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-base-content/70 hover:bg-base-200"
               >
                 <Flag className="size-5" />
                 Report Issue
@@ -1198,11 +1225,19 @@ export default function AppShell({
               <Link
                 to="/help"
                 onClick={() => setShowMobileMenu(false)}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-base-content/70 hover:bg-base-200"
               >
                 <HelpCircle className="size-5" />
                 How to use this app
               </Link>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-base-content/70 hover:bg-base-200"
+              >
+                {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
+                {theme === "dark" ? "Light mode" : "Dark mode"}
+              </button>
             </div>
           </div>
         </div>
@@ -1232,8 +1267,8 @@ export default function AppShell({
 
       {/* Mobile Search Modal */}
       {searchFocused && (
-        <div className="fixed inset-0 z-50 bg-white lg:hidden">
-          <div className="flex items-center gap-3 p-4 border-b border-slate-200">
+        <div className="fixed inset-0 z-50 bg-base-100 lg:hidden">
+          <div className="flex items-center gap-3 p-4 border-b border-base-300">
             <button
               type="button"
               onClick={() => setSearchFocused(false)}
@@ -1241,12 +1276,12 @@ export default function AppShell({
             >
               <ChevronDown className="size-5" />
             </button>
-            <div className="flex-1 flex items-center gap-2 bg-slate-100 rounded-lg px-3 py-2">
-              <Search className="size-4 text-slate-400" />
+            <div className="flex-1 flex items-center gap-2 bg-base-200 rounded-lg px-3 py-2">
+              <Search className="size-4 text-base-content/50" />
               <input
                 type="text"
                 placeholder="Search city, locality, property or builder"
-                className="flex-1 bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
+                className="flex-1 bg-transparent text-sm text-base-content placeholder:text-base-content/50 focus:outline-none"
                 value={marketSearch}
                 onChange={(e) => {
                   setMarketSearch(e.target.value);
@@ -1260,8 +1295,8 @@ export default function AppShell({
               onClick={() => setIsFiltersModalOpen(true)}
               className={`flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-colors ${
                 activeFilters
-                  ? "bg-indigo-100 text-indigo-700"
-                  : "bg-slate-100 text-slate-600"
+                  ? "bg-primary/15 text-primary"
+                  : "bg-base-200 text-base-content/70"
               }`}
             >
               <Filter className="size-3" />
@@ -1273,10 +1308,10 @@ export default function AppShell({
             {searchHistory && searchHistory.length > 0 && !marketSearch ? (
               <>
                 <div className="mb-2 flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Recent Searches</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-base-content/60">Recent Searches</p>
                   <button
                     type="button"
-                    className="text-[10px] text-slate-400 hover:text-slate-600"
+                    className="text-[10px] text-base-content/50 hover:text-base-content/70"
                     onClick={() => {
                       axiosInstance.delete("/search/history")
                         .then(() => setSearchHistory([]))
@@ -1291,14 +1326,14 @@ export default function AppShell({
                     <button
                       key={index}
                       type="button"
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-base-content hover:bg-base-200"
                       onClick={() => {
                         setMarketSearch(item.query);
                         onMarketplaceSearchChange?.(item.query);
                         setSearchFocused(false);
                       }}
                     >
-                      <Search className="size-3.5 text-slate-400" />
+                      <Search className="size-3.5 text-base-content/50" />
                       {item.query}
                     </button>
                   ))}
@@ -1308,28 +1343,28 @@ export default function AppShell({
 
             {isLoadingSuggestions ? (
               <div className="flex items-center justify-center py-8">
-                <div className="size-4 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600" />
+                <div className="size-4 animate-spin rounded-full border-2 border-base-300 border-t-indigo-600" />
               </div>
             ) : searchSuggestions && searchSuggestions.length > 0 ? (
               <>
                 {marketSearch && (
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Suggestions</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/60">Suggestions</p>
                 )}
                 <div className="space-y-1">
                   {searchSuggestions.map((item, index) => (
                     <button
                       key={`${item.type}-${index}`}
                       type="button"
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-base-content hover:bg-base-200"
                       onClick={() => {
                         setMarketSearch(item.value);
                         onMarketplaceSearchChange?.(item.value, item.type, item.authorId);
                         setSearchFocused(false);
                       }}
                     >
-                      <Search className="size-3.5 text-slate-400" />
+                      <Search className="size-3.5 text-base-content/50" />
                       <span>{item.value}</span>
-                      <span className="ml-auto text-xs text-slate-400">
+                      <span className="ml-auto text-xs text-base-content/50">
                         {item.type === 'location' && '📍'}
                         {item.type === 'propertyType' && '🏠'}
                         {item.type === 'author' && '👤'}
@@ -1339,7 +1374,7 @@ export default function AppShell({
                 </div>
               </>
             ) : marketSearch ? (
-              <div className="py-8 text-center text-sm text-slate-400">
+              <div className="py-8 text-center text-sm text-base-content/50">
                 No suggestions found
               </div>
             ) : null}

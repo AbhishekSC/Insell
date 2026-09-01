@@ -217,7 +217,7 @@ export default function EmailVerification({ onClose, dismissible = true }) {
 
   if (isAuthenticatedMode && verificationStatus?.isVerified) {
     return (
-      <div className="flex items-center gap-2 text-emerald-600">
+      <div className="flex items-center gap-2 text-success">
         <CheckCircle className="size-5" />
         <span className="text-sm font-medium">Email Verified</span>
       </div>
@@ -230,12 +230,12 @@ export default function EmailVerification({ onClose, dismissible = true }) {
   if (!isAuthenticatedMode && !pendingEmail) {
     return (
       <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl p-6 shadow-2xl border border-slate-200 max-w-md w-full text-center">
-          <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Mail className="size-5 text-amber-600" />
+        <div className="bg-base-100 rounded-2xl p-6 shadow-2xl border border-base-300 max-w-md w-full text-center">
+          <div className="w-10 h-10 bg-warning/15 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Mail className="size-5 text-warning" />
           </div>
-          <h3 className="text-lg font-bold text-slate-800 mb-2">No pending signup found</h3>
-          <p className="text-sm text-slate-600 mb-6">
+          <h3 className="text-lg font-bold text-base-content mb-2">No pending signup found</h3>
+          <p className="text-sm text-base-content/70 mb-6">
             We couldn't find a signup to verify. Please sign up again.
           </p>
           <Link to="/signup" className="btn btn-primary rounded-xl w-full">
@@ -248,13 +248,13 @@ export default function EmailVerification({ onClose, dismissible = true }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl p-6 shadow-2xl border border-slate-200 max-w-md w-full">
+      <div className="bg-base-100 rounded-2xl p-6 shadow-2xl border border-base-300 max-w-md w-full">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
-              <Mail className="size-5 text-indigo-600" />
+            <div className="w-10 h-10 bg-primary/15 rounded-full flex items-center justify-center">
+              <Mail className="size-5 text-primary" />
             </div>
-            <h3 className="text-lg font-bold text-slate-800">
+            <h3 className="text-lg font-bold text-base-content">
               {isAuthenticatedMode ? "Verify Your Email" : "Verify Your Account"}
             </h3>
           </div>
@@ -269,7 +269,7 @@ export default function EmailVerification({ onClose, dismissible = true }) {
           )}
         </div>
 
-        <p className="text-sm text-slate-600 mb-6">
+        <p className="text-sm text-base-content/70 mb-6">
           {isAuthenticatedMode
             ? dismissible
               ? "Get the verified badge by confirming your email address"
@@ -279,7 +279,7 @@ export default function EmailVerification({ onClose, dismissible = true }) {
 
         <form onSubmit={handleVerify} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label className="block text-sm font-medium text-base-content mb-2">
               Verification Code
             </label>
             <input
@@ -287,7 +287,7 @@ export default function EmailVerification({ onClose, dismissible = true }) {
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
               placeholder="Enter 6-digit code"
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center text-2xl tracking-widest"
+              className="w-full px-4 py-3 border border-base-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-center text-2xl tracking-widest"
               maxLength={6}
               disabled={verifyMutation.isPending}
               autoFocus
@@ -297,7 +297,7 @@ export default function EmailVerification({ onClose, dismissible = true }) {
           <button
             type="submit"
             disabled={verifyMutation.isPending || code.length !== 6}
-            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full bg-primary text-white py-3 rounded-lg font-medium hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {verifyMutation.isPending
               ? isAuthenticatedMode ? "Verifying..." : "Creating account..."
@@ -310,7 +310,7 @@ export default function EmailVerification({ onClose, dismissible = true }) {
             type="button"
             onClick={handleSendCode}
             disabled={sendCodeMutation.isPending || cooldownRemaining > 0}
-            className="text-sm text-indigo-600 hover:text-indigo-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
+            className="text-sm text-primary hover:text-primary font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
           >
             <RefreshCw className={`size-4 ${sendCodeMutation.isPending ? "animate-spin" : ""}`} />
             {cooldownRemaining > 0
@@ -320,17 +320,17 @@ export default function EmailVerification({ onClose, dismissible = true }) {
               : "Resend Code"}
           </button>
           <div className="mt-2 space-y-1">
-            <p className="text-xs text-slate-500 flex items-center justify-center gap-1">
+            <p className="text-xs text-base-content/60 flex items-center justify-center gap-1">
               <Clock className="size-3" />
               Code expires in 10 minutes
             </p>
             {remainingAttempts < 3 && remainingAttempts > 0 && (
-              <p className="text-xs text-amber-600">
+              <p className="text-xs text-warning">
                 {remainingAttempts} attempt{remainingAttempts !== 1 ? 's' : ''} remaining today
               </p>
             )}
             {remainingAttempts === 0 && (
-              <p className="text-xs text-red-600">
+              <p className="text-xs text-error">
                 Daily limit reached. Try again tomorrow.
               </p>
             )}

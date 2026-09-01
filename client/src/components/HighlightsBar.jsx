@@ -76,12 +76,12 @@ export default function HighlightsBar({ userId, isOwnProfile, isFriend, authUser
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
+      <div className="rounded-2xl border border-base-200 bg-base-100 px-4 py-3 shadow-sm">
         <div className="flex gap-4 overflow-x-auto py-1">
           {[1, 2, 3].map((item) => (
             <div key={item} className="flex shrink-0 flex-col items-center gap-1.5">
-              <div className="size-16 animate-pulse rounded-full bg-slate-100" />
-              <div className="h-2.5 w-10 animate-pulse rounded bg-slate-100" />
+              <div className="size-16 animate-pulse rounded-full bg-base-200" />
+              <div className="h-2.5 w-10 animate-pulse rounded bg-base-200" />
             </div>
           ))}
         </div>
@@ -94,7 +94,7 @@ export default function HighlightsBar({ userId, isOwnProfile, isFriend, authUser
   }
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
+    <div className="rounded-2xl border border-base-200 bg-base-100 px-4 py-3 shadow-sm">
       <div className="flex gap-4 overflow-x-auto py-1">
         {isOwnProfile && (
           <button
@@ -102,10 +102,10 @@ export default function HighlightsBar({ userId, isOwnProfile, isFriend, authUser
             onClick={() => setShowCreateModal(true)}
             className="flex shrink-0 flex-col items-center gap-1.5"
           >
-            <div className="grid size-16 place-items-center rounded-full border-2 border-dashed border-slate-300 text-slate-400 hover:border-indigo-400 hover:text-indigo-500">
+            <div className="grid size-16 place-items-center rounded-full border-2 border-dashed border-base-300 text-base-content/50 hover:border-primary hover:text-primary">
               <Plus className="size-6" />
             </div>
-            <span className="max-w-16 truncate text-xs text-slate-600">New</span>
+            <span className="max-w-16 truncate text-xs text-base-content/70">New</span>
           </button>
         )}
 
@@ -116,16 +116,16 @@ export default function HighlightsBar({ userId, isOwnProfile, isFriend, authUser
             onClick={() => openHighlight(highlight._id)}
             className="flex shrink-0 flex-col items-center gap-1.5"
           >
-            <div className="size-16 rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-indigo-600 p-[2px]">
-              <div className="size-full rounded-full bg-white p-[2px]">
-                <div className="size-full overflow-hidden rounded-full bg-slate-100">
+            <div className="size-16 rounded-full bg-gradient-to-tr from-warning via-secondary to-primary p-[2px]">
+              <div className="size-full rounded-full bg-base-100 p-[2px]">
+                <div className="size-full overflow-hidden rounded-full bg-base-200">
                   {highlight.coverImage && (
                     <img src={resolveMediaUrl(highlight.coverImage)} alt={highlight.title} className="h-full w-full object-cover" />
                   )}
                 </div>
               </div>
             </div>
-            <span className="max-w-16 truncate text-xs text-slate-600">{highlight.title}</span>
+            <span className="max-w-16 truncate text-xs text-base-content/70">{highlight.title}</span>
           </button>
         ))}
       </div>
@@ -186,23 +186,23 @@ function CreateHighlightModal({ onClose, onCreated }) {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(event) => event.stopPropagation()}>
+      <div className="w-full max-w-sm rounded-2xl bg-base-100 p-5 shadow-xl" onClick={(event) => event.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-base font-bold text-slate-900">New Highlight</h3>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100">
+          <h3 className="text-base font-bold text-base-content">New Highlight</h3>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-base-content/50 hover:bg-base-200">
             <X className="size-5" />
           </button>
         </div>
 
         {isLoading ? (
-          <p className="py-6 text-center text-sm text-slate-500">Loading your stories...</p>
+          <p className="py-6 text-center text-sm text-base-content/60">Loading your stories...</p>
         ) : (myStories || []).length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-500">
+          <p className="py-6 text-center text-sm text-base-content/60">
             You need an active story to start a highlight — post one first.
           </p>
         ) : (
           <>
-            <p className="mb-2 text-xs font-medium text-slate-500">Pick a story</p>
+            <p className="mb-2 text-xs font-medium text-base-content/60">Pick a story</p>
             <div className="grid grid-cols-4 gap-2">
               {myStories.map((story) => (
                 <button
@@ -210,7 +210,7 @@ function CreateHighlightModal({ onClose, onCreated }) {
                   type="button"
                   onClick={() => setSelectedStoryId(story._id)}
                   className={`relative aspect-square overflow-hidden rounded-lg border-2 ${
-                    selectedStoryId === story._id ? "border-indigo-600" : "border-transparent"
+                    selectedStoryId === story._id ? "border-primary" : "border-transparent"
                   }`}
                 >
                   {story.mediaType === "video" ? (
@@ -238,7 +238,7 @@ function CreateHighlightModal({ onClose, onCreated }) {
               type="button"
               disabled={!selectedStoryId || !title.trim() || isPending}
               onClick={() => createHighlight()}
-              className="mt-4 w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
+              className="mt-4 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-white hover:bg-primary disabled:opacity-60"
             >
               {isPending ? <Loader2 className="mx-auto size-4 animate-spin" /> : "Create"}
             </button>

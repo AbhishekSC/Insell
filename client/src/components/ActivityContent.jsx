@@ -33,51 +33,51 @@ function ActivityItem({ activity, onNavigateToPost, isOwnActivity = false, onRes
   const getActivityIcon = () => {
     switch (activity.type) {
       case "like":
-        return <Heart className="size-4 text-red-500 fill-red-500" />;
+        return <Heart className="size-4 text-error fill-error" />;
       case "comment":
-        return <MessageSquare className="size-4 text-blue-500" />;
+        return <MessageSquare className="size-4 text-info" />;
       case "save":
-        return <Bookmark className="size-4 text-indigo-500 fill-indigo-500" />;
+        return <Bookmark className="size-4 text-primary fill-primary" />;
       case "connection_request":
-        return <UserPlus className="size-4 text-green-500" />;
+        return <UserPlus className="size-4 text-success" />;
       case "connection_accepted":
-        return <UserPlus className="size-4 text-emerald-500" />;
+        return <UserPlus className="size-4 text-success" />;
       case "circle_invite":
-        return <Users className="size-4 text-indigo-500" />;
+        return <Users className="size-4 text-primary" />;
       case "circle_deleted":
-        return <Trash2 className="size-4 text-red-500" />;
+        return <Trash2 className="size-4 text-error" />;
       case "circle_join_request_result":
       case "circle_member_add_request_result":
-        return <Users className="size-4 text-emerald-500" />;
+        return <Users className="size-4 text-success" />;
       case "circle_member_joined":
-        return <UserPlus className="size-4 text-emerald-500" />;
+        return <UserPlus className="size-4 text-success" />;
       case "circle_member_left":
-        return <Users className="size-4 text-slate-400" />;
+        return <Users className="size-4 text-base-content/50" />;
       case "circle_call_started":
-        return <Video className="size-4 text-indigo-500" />;
+        return <Video className="size-4 text-primary" />;
       case "message_request":
-        return <MessageSquare className="size-4 text-indigo-500" />;
+        return <MessageSquare className="size-4 text-primary" />;
       case "price_drop":
-        return <IndianRupee className="size-4 text-emerald-600" />;
+        return <IndianRupee className="size-4 text-success" />;
       case "offer_received":
       case "offer_countered":
-        return <TrendingUp className="size-4 text-indigo-600" />;
+        return <TrendingUp className="size-4 text-primary" />;
       case "offer_accepted":
-        return <Check className="size-4 text-emerald-600" />;
+        return <Check className="size-4 text-success" />;
       case "offer_declined":
-        return <XCircle className="size-4 text-red-500" />;
+        return <XCircle className="size-4 text-error" />;
       case "review_received":
-        return <Star className="size-4 text-amber-500" />;
+        return <Star className="size-4 text-warning" />;
       case "admin_announcement":
-        return <Megaphone className="size-4 text-indigo-500" />;
+        return <Megaphone className="size-4 text-primary" />;
       case "post_blocked":
       case "post_reported":
-        return <ShieldAlert className="size-4 text-red-500" />;
+        return <ShieldAlert className="size-4 text-error" />;
       case "post_unblocked":
       case "post_report_resolved":
-        return <Flag className="size-4 text-emerald-500" />;
+        return <Flag className="size-4 text-success" />;
       default:
-        return <Clock className="size-4 text-slate-400" />;
+        return <Clock className="size-4 text-base-content/50" />;
     }
   };
 
@@ -155,7 +155,7 @@ function ActivityItem({ activity, onNavigateToPost, isOwnActivity = false, onRes
 
   return (
     <div 
-      className="flex gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer transition"
+      className="flex gap-3 px-4 py-3 hover:bg-base-200 cursor-pointer transition"
       onClick={() => activity.post?._id && onNavigateToPost(activity.post._id)}
     >
       <div className="flex-shrink-0 mt-1">
@@ -179,13 +179,13 @@ function ActivityItem({ activity, onNavigateToPost, isOwnActivity = false, onRes
                   sizeClass="size-6" 
                   userId={activity.actor._id} 
                 />
-                <span className="text-xs font-medium text-slate-600">{activity.actor.fullName}</span>
+                <span className="text-xs font-medium text-base-content/70">{activity.actor.fullName}</span>
               </div>
             )}
-            <p className="text-sm text-slate-700">{getActivityText()}</p>
+            <p className="text-sm text-base-content">{getActivityText()}</p>
             {activity.post && (
               <div 
-                className="mt-2 flex items-center gap-2 rounded-lg bg-slate-50 p-2 cursor-pointer hover:bg-slate-100 transition"
+                className="mt-2 flex items-center gap-2 rounded-lg bg-base-200 p-2 cursor-pointer hover:bg-base-200 transition"
                 onClick={(e) => {
                   e.stopPropagation();
                   onNavigateToPost(activity.post._id);
@@ -199,8 +199,8 @@ function ActivityItem({ activity, onNavigateToPost, isOwnActivity = false, onRes
                   />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold text-slate-800">{activity.post.title}</p>
-                  <div className="flex items-center gap-1 text-xs text-slate-500">
+                  <p className="truncate text-xs font-semibold text-base-content">{activity.post.title}</p>
+                  <div className="flex items-center gap-1 text-xs text-base-content/60">
                     <IndianRupee className="size-3" />
                     <span>{activity.post.price?.toLocaleString()}</span>
                     <span className="mx-1">·</span>
@@ -211,7 +211,7 @@ function ActivityItem({ activity, onNavigateToPost, isOwnActivity = false, onRes
               </div>
             )}
             {activity.targetUser && (
-              <div className="mt-2 flex items-center gap-2 rounded-lg bg-slate-50 p-2">
+              <div className="mt-2 flex items-center gap-2 rounded-lg bg-base-200 p-2">
                 <UserAvatar 
                   src={activity.targetUser.profilePic} 
                   name={activity.targetUser.fullName} 
@@ -219,8 +219,8 @@ function ActivityItem({ activity, onNavigateToPost, isOwnActivity = false, onRes
                   userId={activity.targetUser._id} 
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold text-slate-800">{activity.targetUser.fullName}</p>
-                  <p className="text-xs text-slate-500">{activity.targetUser.activeRole || "User"}</p>
+                  <p className="truncate text-xs font-semibold text-base-content">{activity.targetUser.fullName}</p>
+                  <p className="text-xs text-base-content/60">{activity.targetUser.activeRole || "User"}</p>
                 </div>
               </div>
             )}
@@ -229,7 +229,7 @@ function ActivityItem({ activity, onNavigateToPost, isOwnActivity = false, onRes
               <div className="mt-3 flex gap-2">
                 <button
                   type="button"
-                  className="btn btn-xs border-none bg-emerald-600 text-white hover:bg-emerald-500"
+                  className="btn btn-xs border-none bg-success text-white hover:bg-success"
                   onClick={(e) => {
                     e.stopPropagation();
                     onRespondOffer?.({ offerId: activity.offer._id, action: "accept" });
@@ -240,7 +240,7 @@ function ActivityItem({ activity, onNavigateToPost, isOwnActivity = false, onRes
                 </button>
                 <button
                   type="button"
-                  className="btn btn-xs border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  className="btn btn-xs border border-base-300 bg-base-100 text-base-content hover:bg-base-200"
                   onClick={(e) => {
                     e.stopPropagation();
                     onRespondOffer?.({ offerId: activity.offer._id, action: "decline" });
@@ -254,7 +254,7 @@ function ActivityItem({ activity, onNavigateToPost, isOwnActivity = false, onRes
             {activity.type === "offer_accepted" && activity.offer?.status === "accepted" && !activity.offer?.reviewedByMe && (
               <button
                 type="button"
-                className="mt-3 btn btn-xs border-none bg-indigo-600 text-white hover:bg-indigo-500"
+                className="mt-3 btn btn-xs border-none bg-primary text-white hover:bg-primary"
                 onClick={(e) => {
                   e.stopPropagation();
                   onLeaveReview?.({ offerId: activity.offer._id, revieweeName: activity.actor?.fullName });
@@ -265,7 +265,7 @@ function ActivityItem({ activity, onNavigateToPost, isOwnActivity = false, onRes
               </button>
             )}
           </div>
-          <span className="flex-shrink-0 text-xs text-slate-400">
+          <span className="flex-shrink-0 text-xs text-base-content/50">
             {formatDateTime(activity.createdAt)}
           </span>
         </div>
@@ -480,8 +480,8 @@ export default function ActivityContent({ onNavigateToPost }) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <RefreshCw className="mx-auto size-8 animate-spin text-slate-400" />
-          <p className="mt-2 text-sm text-slate-500">Loading activity...</p>
+          <RefreshCw className="mx-auto size-8 animate-spin text-base-content/50" />
+          <p className="mt-2 text-sm text-base-content/60">Loading activity...</p>
         </div>
       </div>
     );
@@ -492,13 +492,13 @@ export default function ActivityContent({ onNavigateToPost }) {
     <div className="pb-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Activity</h1>
-          <p className="mt-1 text-sm text-slate-500">Your recent activity and notifications</p>
+          <h1 className="text-2xl font-bold tracking-tight text-base-content">Activity</h1>
+          <p className="mt-1 text-sm text-base-content/60">Your recent activity and notifications</p>
         </div>
         <button 
           type="button" 
           onClick={refreshActivity}
-          className="btn btn-ghost btn-sm h-9 rounded-lg text-slate-600 hover:bg-white"
+          className="btn btn-ghost btn-sm h-9 rounded-lg text-base-content/70 hover:bg-base-100"
         >
           <RefreshCw className="size-4" />
           Refresh
@@ -507,18 +507,18 @@ export default function ActivityContent({ onNavigateToPost }) {
 
       {/* Notification count banner */}
       {unreadCount > 0 && (
-        <div className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+        <div className="mb-4 rounded-xl border border-primary/30 bg-primary/10 p-4">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-full bg-indigo-600 text-white">
+            <div className="flex size-10 items-center justify-center rounded-full bg-primary text-white">
               <span className="text-sm font-bold">{unreadCount}</span>
             </div>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-indigo-900">You have {unreadCount} unread notification{unreadCount > 1 ? "s" : ""}</p>
-              <p className="text-xs text-indigo-700">Check your connections section for new requests</p>
+              <p className="text-sm font-semibold text-primary">You have {unreadCount} unread notification{unreadCount > 1 ? "s" : ""}</p>
+              <p className="text-xs text-primary">Check your connections section for new requests</p>
             </div>
             <button
               type="button"
-              className="btn btn-xs border-none bg-indigo-600 text-white hover:bg-indigo-500"
+              className="btn btn-xs border-none bg-primary text-white hover:bg-primary"
               onClick={() => markAllAsRead()}
             >
               Mark all as read
@@ -543,8 +543,8 @@ export default function ActivityContent({ onNavigateToPost }) {
             type="button"
             className={`btn btn-sm rounded-full border-none ${
               activeFilter === filter.id
-                ? "bg-indigo-600 text-white"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                ? "bg-primary text-white"
+                : "bg-base-200 text-base-content hover:bg-base-300"
             }`}
             onClick={() => setActiveFilter(filter.id)}
           >
@@ -562,8 +562,8 @@ export default function ActivityContent({ onNavigateToPost }) {
       <div className="space-y-6">
         {/* All Activity - single chronological list */}
         {activeFilter === "all" && filteredActivities.length > 0 && (
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
-            <div className="divide-y divide-slate-100">
+          <div className="overflow-hidden rounded-2xl border border-base-300 bg-base-100 shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
+            <div className="divide-y divide-base-300">
               {filteredActivities.map((activity) => (
                 <ActivityItem
                   key={activity._id}
@@ -580,8 +580,8 @@ export default function ActivityContent({ onNavigateToPost }) {
 
         {/* Individual filter views */}
         {activeFilter === "like" && allLikes.length > 0 && (
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
-            <div className="divide-y divide-slate-100">
+          <div className="overflow-hidden rounded-2xl border border-base-300 bg-base-100 shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
+            <div className="divide-y divide-base-300">
               {allLikes.map((like) => (
                 <ActivityItem 
                   key={like._id} 
@@ -595,8 +595,8 @@ export default function ActivityContent({ onNavigateToPost }) {
         )}
 
         {activeFilter === "comment" && allComments.length > 0 && (
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
-            <div className="divide-y divide-slate-100">
+          <div className="overflow-hidden rounded-2xl border border-base-300 bg-base-100 shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
+            <div className="divide-y divide-base-300">
               {allComments.map((comment) => (
                 <ActivityItem 
                   key={comment._id} 
@@ -610,8 +610,8 @@ export default function ActivityContent({ onNavigateToPost }) {
         )}
 
         {activeFilter === "save" && allSaved.length > 0 && (
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
-            <div className="divide-y divide-slate-100">
+          <div className="overflow-hidden rounded-2xl border border-base-300 bg-base-100 shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
+            <div className="divide-y divide-base-300">
               {allSaved.map((save) => (
                 <ActivityItem 
                   key={save._id} 
@@ -625,8 +625,8 @@ export default function ActivityContent({ onNavigateToPost }) {
         )}
 
         {activeFilter === "connection_request" && allConnections.length > 0 && (
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
-            <div className="divide-y divide-slate-100">
+          <div className="overflow-hidden rounded-2xl border border-base-300 bg-base-100 shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
+            <div className="divide-y divide-base-300">
               {allConnections.map((connection) => (
                 <ActivityItem 
                   key={connection._id} 
@@ -640,8 +640,8 @@ export default function ActivityContent({ onNavigateToPost }) {
         )}
 
         {activeFilter === "circle_invite" && incomingCommunityEvents.length > 0 && (
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
-            <div className="divide-y divide-slate-100">
+          <div className="overflow-hidden rounded-2xl border border-base-300 bg-base-100 shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
+            <div className="divide-y divide-base-300">
               {incomingCommunityEvents.map((event) => (
                 <ActivityItem
                   key={event._id}
@@ -655,8 +655,8 @@ export default function ActivityContent({ onNavigateToPost }) {
         )}
 
         {activeFilter === "updates" && incomingOtherEvents.length > 0 && (
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
-            <div className="divide-y divide-slate-100">
+          <div className="overflow-hidden rounded-2xl border border-base-300 bg-base-100 shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
+            <div className="divide-y divide-base-300">
               {incomingOtherEvents.map((event) => (
                 <ActivityItem
                   key={event._id}
@@ -673,10 +673,10 @@ export default function ActivityContent({ onNavigateToPost }) {
 
         {/* Empty state */}
         {visibleCount === 0 && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center">
-            <Clock className="mx-auto size-12 text-slate-300" />
-            <p className="mt-3 text-sm font-semibold text-slate-800">No activity yet</p>
-            <p className="mt-1 text-xs text-slate-500">Start liking, commenting, and saving posts to see your activity here</p>
+          <div className="rounded-2xl border border-base-300 bg-base-100 p-8 text-center">
+            <Clock className="mx-auto size-12 text-base-content/40" />
+            <p className="mt-3 text-sm font-semibold text-base-content">No activity yet</p>
+            <p className="mt-1 text-xs text-base-content/60">Start liking, commenting, and saving posts to see your activity here</p>
           </div>
         )}
       </div>

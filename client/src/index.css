@@ -11,6 +11,18 @@
 		min-height: 100%;
 	}
 
+	/* Tells the browser to render native form controls (inputs, selects,
+	   dropdown popups, scrollbars) in the matching scheme. Without this,
+	   any <input>/<select> that doesn't set its own bg-* class (there are
+	   many) falls back to the browser's default white, regardless of our
+	   data-theme attribute. */
+	html[data-theme="dark"] {
+		color-scheme: dark;
+	}
+	html[data-theme="light"] {
+		color-scheme: light;
+	}
+
 	body {
 		font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
 		@apply bg-base-200 text-base-content antialiased transition-colors duration-300;

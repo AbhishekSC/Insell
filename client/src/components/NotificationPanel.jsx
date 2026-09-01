@@ -27,7 +27,7 @@ function NotificationMessage({ notification, onNavigate }) {
           e.stopPropagation();
           onNavigate?.();
         }}
-        className="font-semibold text-indigo-600 hover:underline"
+        className="font-semibold text-primary hover:underline"
       >
         {actor.fullName}
       </Link>
@@ -131,28 +131,28 @@ export default function NotificationPanel({ isOpen, onClose }) {
     switch (type) {
       case "property_contact":
       case "message_request":
-        return <MessageCircle className="size-5 text-indigo-600" />;
+        return <MessageCircle className="size-5 text-primary" />;
       case "property_like":
-        return <Heart className="size-5 text-red-500" />;
+        return <Heart className="size-5 text-error" />;
       case "property_save":
-        return <Bookmark className="size-5 text-indigo-600" />;
+        return <Bookmark className="size-5 text-primary" />;
       case "comment":
-        return <MessageCircle className="size-5 text-slate-600" />;
+        return <MessageCircle className="size-5 text-base-content/70" />;
       case "follow":
-        return <User className="size-5 text-emerald-600" />;
+        return <User className="size-5 text-success" />;
       case "price_drop":
-        return <IndianRupee className="size-5 text-emerald-600" />;
+        return <IndianRupee className="size-5 text-success" />;
       case "offer_received":
       case "offer_countered":
-        return <TrendingUp className="size-5 text-indigo-600" />;
+        return <TrendingUp className="size-5 text-primary" />;
       case "offer_accepted":
-        return <Check className="size-5 text-emerald-600" />;
+        return <Check className="size-5 text-success" />;
       case "offer_declined":
-        return <XCircle className="size-5 text-red-500" />;
+        return <XCircle className="size-5 text-error" />;
       case "review_received":
-        return <Star className="size-5 text-amber-500" />;
+        return <Star className="size-5 text-warning" />;
       default:
-        return <Bell className="size-5 text-slate-600" />;
+        return <Bell className="size-5 text-base-content/70" />;
     }
   };
 
@@ -209,20 +209,20 @@ export default function NotificationPanel({ isOpen, onClose }) {
         otherwise gets fully covered by this panel's h-full backdrop) so the
         nav stays visible and usable while the panel is open. */}
     <div className="fixed inset-x-0 top-0 bottom-16 z-50 overflow-hidden bg-black/30 xl:bottom-0" onClick={onClose}>
-      <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="absolute right-0 top-0 h-full w-full max-w-md bg-base-100 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex h-full flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+          <div className="flex items-center justify-between border-b border-base-300 px-5 py-4">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <Bell className="size-6 text-slate-700" />
+                <Bell className="size-6 text-base-content" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                  <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-error text-[10px] font-bold text-white">
                     {unreadCount}
                   </span>
                 )}
               </div>
-              <h3 className="text-lg font-black text-slate-800">Notifications</h3>
+              <h3 className="text-lg font-black text-base-content">Notifications</h3>
             </div>
             <button type="button" className="btn btn-sm btn-circle btn-ghost" onClick={onClose}>
               <X className="size-4" />
@@ -230,15 +230,15 @@ export default function NotificationPanel({ isOpen, onClose }) {
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex border-b border-slate-200 px-5">
+          <div className="flex border-b border-base-300 px-5">
             {["all", "message_request", "property_contact"].map((type) => (
               <button
                 key={type}
                 type="button"
                 className={`px-4 py-3 text-sm font-medium transition ${
                   filterType === type
-                    ? "border-b-2 border-indigo-600 text-indigo-600"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "border-b-2 border-primary text-primary"
+                    : "text-base-content/60 hover:text-base-content"
                 }`}
                 onClick={() => setFilterType(type)}
               >
@@ -249,10 +249,10 @@ export default function NotificationPanel({ isOpen, onClose }) {
 
           {/* Mark all as read */}
           {unreadCount > 0 && (
-            <div className="px-5 py-3 border-b border-slate-100">
+            <div className="px-5 py-3 border-b border-base-200">
               <button
                 type="button"
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                className="text-sm font-medium text-primary hover:text-primary"
                 onClick={markAllAsRead}
               >
                 Mark all as read
@@ -264,20 +264,20 @@ export default function NotificationPanel({ isOpen, onClose }) {
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (
               <div className="flex items-center justify-center p-8">
-                <div className="animate-spin rounded-full border-2 border-slate-200 border-t-indigo-600 size-8" />
+                <div className="animate-spin rounded-full border-2 border-base-300 border-t-indigo-600 size-8" />
               </div>
             ) : notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-8 text-center">
-                <Bell className="size-12 text-slate-300 mb-3" />
-                <p className="text-slate-500">No notifications yet</p>
+                <Bell className="size-12 text-base-content/40 mb-3" />
+                <p className="text-base-content/60">No notifications yet</p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-base-300">
                 {notifications.map((notification) => (
                   <div
                     key={notification._id}
-                    className={`p-4 transition hover:bg-slate-50 cursor-pointer ${
-                      !notification.read ? "bg-indigo-50/50" : ""
+                    className={`p-4 transition hover:bg-base-200 cursor-pointer ${
+                      !notification.read ? "bg-primary/10" : ""
                     }`}
                     onClick={() => handleNotificationClick(notification)}
                   >
@@ -291,31 +291,31 @@ export default function NotificationPanel({ isOpen, onClose }) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
-                            <p className="text-sm text-slate-700 line-clamp-2">
+                            <p className="text-sm text-base-content line-clamp-2">
                               <NotificationMessage notification={notification} onNavigate={onClose} />
                             </p>
                             {notification.actualMessage && (
-                              <p className="mt-1 text-xs text-slate-600 line-clamp-3 italic">"{notification.actualMessage}"</p>
+                              <p className="mt-1 text-xs text-base-content/70 line-clamp-3 italic">"{notification.actualMessage}"</p>
                             )}
-                            <p className="mt-1 text-xs text-slate-500">
+                            <p className="mt-1 text-xs text-base-content/60">
                               {getNotificationTypeLabel(notification.type)} • {new Date(notification.createdAt).toLocaleDateString()}
                             </p>
                           </div>
                           {!notification.read && (
-                            <span className="flex size-2 flex-shrink-0 rounded-full bg-indigo-600" />
+                            <span className="flex size-2 flex-shrink-0 rounded-full bg-primary" />
                           )}
                         </div>
 
                         {/* Property Info */}
                         {notification.propertyPost && (
-                          <div className="mt-2 rounded-lg bg-slate-100 p-2">
+                          <div className="mt-2 rounded-lg bg-base-200 p-2">
                             <div className="flex items-center gap-2">
-                              <Building2 className="size-4 text-slate-500" />
+                              <Building2 className="size-4 text-base-content/60" />
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium text-slate-800 line-clamp-1">
+                                <p className="text-xs font-medium text-base-content line-clamp-1">
                                   {notification.propertyPost.title || "Property"}
                                 </p>
-                                <div className="flex items-center gap-2 text-xs text-slate-600">
+                                <div className="flex items-center gap-2 text-xs text-base-content/70">
                                   <span className="flex items-center gap-1">
                                     <IndianRupee className="size-3" />
                                     {notification.propertyPost.price?.toLocaleString()}
@@ -335,7 +335,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
                           <div className="mt-3 flex gap-2">
                             <button
                               type="button"
-                              className="btn btn-xs border-none bg-emerald-600 text-white hover:bg-emerald-500"
+                              className="btn btn-xs border-none bg-success text-white hover:bg-success"
                               onClick={(e) => { e.stopPropagation(); handleRequestMutation.mutate({ notificationId: notification._id, action: "accept" }); }}
                             >
                               <Check className="size-3" />
@@ -343,7 +343,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
                             </button>
                             <button
                               type="button"
-                              className="btn btn-xs border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                              className="btn btn-xs border border-base-300 bg-base-100 text-base-content hover:bg-base-200"
                               onClick={(e) => { e.stopPropagation(); handleRequestMutation.mutate({ notificationId: notification._id, action: "ignore" }); }}
                             >
                               <XCircle className="size-3" />
@@ -365,7 +365,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
                           <div className="mt-3 flex gap-2">
                             <button
                               type="button"
-                              className="btn btn-xs border-none bg-emerald-600 text-white hover:bg-emerald-500"
+                              className="btn btn-xs border-none bg-success text-white hover:bg-success"
                               onClick={(e) => { e.stopPropagation(); respondOfferMutation.mutate({ offerId: notification.offer._id, action: "accept" }); }}
                             >
                               <Check className="size-3" />
@@ -373,7 +373,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
                             </button>
                             <button
                               type="button"
-                              className="btn btn-xs border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                              className="btn btn-xs border border-base-300 bg-base-100 text-base-content hover:bg-base-200"
                               onClick={(e) => { e.stopPropagation(); respondOfferMutation.mutate({ offerId: notification.offer._id, action: "decline" }); }}
                             >
                               <XCircle className="size-3" />
@@ -386,7 +386,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
                         {notification.type === "offer_accepted" && notification.offer?.status === "accepted" && !notification.offer?.reviewedByMe && (
                           <button
                             type="button"
-                            className="mt-3 btn btn-xs border-none bg-indigo-600 text-white hover:bg-indigo-500"
+                            className="mt-3 btn btn-xs border-none bg-primary text-white hover:bg-primary"
                             onClick={(e) => { e.stopPropagation(); setReviewModal({ offerId: notification.offer._id, revieweeName: notification.actor?.fullName }); }}
                           >
                             <Star className="size-3" />
@@ -398,9 +398,9 @@ export default function NotificationPanel({ isOpen, onClose }) {
                         {notification.type === "message_request" && notification.requestStatus !== "pending" && (
                           <div className="mt-2">
                             <span className={`text-xs font-medium ${
-                              notification.requestStatus === "accepted" ? "text-emerald-600" :
-                              notification.requestStatus === "ignored" ? "text-slate-500" :
-                              "text-red-600"
+                              notification.requestStatus === "accepted" ? "text-success" :
+                              notification.requestStatus === "ignored" ? "text-base-content/60" :
+                              "text-error"
                             }`}>
                               {notification.requestStatus.charAt(0).toUpperCase() + notification.requestStatus.slice(1)}
                             </span>
@@ -411,7 +411,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
                       {/* Delete */}
                       <button
                         type="button"
-                        className="flex-shrink-0 text-slate-400 hover:text-red-500"
+                        className="flex-shrink-0 text-base-content/50 hover:text-error"
                         onClick={(e) => { e.stopPropagation(); deleteNotificationMutation.mutate(notification._id); }}
                       >
                         <Trash2 className="size-4" />

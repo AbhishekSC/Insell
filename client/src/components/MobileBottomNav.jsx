@@ -33,14 +33,14 @@ export default function MobileBottomNav({
   return (
     <nav
       className={`fixed inset-x-0 bottom-0 z-40 grid h-16 grid-cols-5 border-t backdrop-blur xl:hidden ${
-        isMarketplaceShell ? "border-slate-200 bg-white/95" : "border-base-300/80 bg-base-100/95"
+        isMarketplaceShell ? "border-base-300 bg-base-100/95" : "border-base-300/80 bg-base-100/95"
       }`}
     >
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
         const active = isItemActive(item, location);
         let badgeCount = 0;
-        const badgeColor = "bg-red-500";
+        const badgeColor = "bg-error";
         if (item.to === "/marketplace?section=connections") badgeCount = connectionsCount;
 
         return (
@@ -50,10 +50,10 @@ export default function MobileBottomNav({
             className={`flex min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-medium ${
               active
                 ? isMarketplaceShell
-                  ? "text-indigo-600"
+                  ? "text-primary"
                   : "text-primary"
                 : isMarketplaceShell
-                  ? "text-slate-500"
+                  ? "text-base-content/60"
                   : "text-base-content/60"
             }`}
           >

@@ -399,12 +399,12 @@ const ROLE_DASHBOARD_CONFIGS = {
 };
 
 const WIDGET_COLORS = {
-  rose: { bg: "bg-rose-50", text: "text-rose-700", icon: "text-rose-600" },
-  blue: { bg: "bg-blue-50", text: "text-blue-700", icon: "text-blue-600" },
-  emerald: { bg: "bg-emerald-50", text: "text-emerald-700", icon: "text-emerald-600" },
-  amber: { bg: "bg-amber-50", text: "text-amber-700", icon: "text-amber-600" },
-  violet: { bg: "bg-violet-50", text: "text-violet-700", icon: "text-violet-600" },
-  indigo: { bg: "bg-indigo-50", text: "text-indigo-700", icon: "text-indigo-600" }
+  rose: { bg: "bg-error/10", text: "text-error", icon: "text-error" },
+  blue: { bg: "bg-info/10", text: "text-info", icon: "text-info" },
+  emerald: { bg: "bg-success/10", text: "text-success", icon: "text-success" },
+  amber: { bg: "bg-warning/10", text: "text-warning", icon: "text-warning" },
+  violet: { bg: "bg-secondary/10", text: "text-secondary", icon: "text-secondary" },
+  indigo: { bg: "bg-primary/10", text: "text-primary", icon: "text-primary" }
 };
 
 export default function RoleBasedDashboard({ userRole, userData }) {
@@ -414,11 +414,11 @@ export default function RoleBasedDashboard({ userRole, userData }) {
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
-      <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-indigo-500 to-violet-500 p-6 text-white">
+      <div className="rounded-2xl border border-base-300 bg-gradient-to-r from-primary to-secondary p-6 text-white">
         <h1 className="text-2xl font-bold">
           Welcome back, {userData?.fullName?.split(" ")[0] || "User"}!
         </h1>
-        <p className="mt-1 text-indigo-100">
+        <p className="mt-1 text-primary">
           Here's what's happening with your {role.toLowerCase()} account today.
         </p>
       </div>
@@ -432,7 +432,7 @@ export default function RoleBasedDashboard({ userRole, userData }) {
           return (
             <div
               key={widget.id}
-              className={`rounded-2xl border border-slate-200 ${colors.bg} p-5`}
+              className={`rounded-2xl border border-base-300 ${colors.bg} p-5`}
             >
               <div className="flex items-start justify-between">
                 <div className={`rounded-xl p-2 ${colors.bg}`}>
@@ -440,7 +440,7 @@ export default function RoleBasedDashboard({ userRole, userData }) {
                 </div>
                 {widget.trend && (
                   <div className={`flex items-center gap-1 text-xs font-semibold ${
-                    widget.trendUp ? "text-emerald-600" : "text-red-600"
+                    widget.trendUp ? "text-success" : "text-error"
                   }`}>
                     {widget.trendUp ? (
                       <ArrowUpRight className="size-3" />
@@ -453,8 +453,8 @@ export default function RoleBasedDashboard({ userRole, userData }) {
               </div>
               <div className="mt-3">
                 <p className={`text-2xl font-bold ${colors.text}`}>{widget.value}</p>
-                <p className="mt-1 text-sm font-medium text-slate-600">{widget.title}</p>
-                <p className="mt-1 text-xs text-slate-500">{widget.hint}</p>
+                <p className="mt-1 text-sm font-medium text-base-content/70">{widget.title}</p>
+                <p className="mt-1 text-xs text-base-content/60">{widget.hint}</p>
               </div>
             </div>
           );
@@ -462,8 +462,8 @@ export default function RoleBasedDashboard({ userRole, userData }) {
       </div>
 
       {/* Quick Actions */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 text-lg font-bold text-slate-800">Quick Actions</h2>
+      <div className="rounded-2xl border border-base-300 bg-base-100 p-5 shadow-sm">
+        <h2 className="mb-4 text-lg font-bold text-base-content">Quick Actions</h2>
         <div className="flex flex-wrap gap-3">
           {config.quickActions.map((action, index) => {
             const Icon = action.icon;
@@ -473,8 +473,8 @@ export default function RoleBasedDashboard({ userRole, userData }) {
                 type="button"
                 className={`btn btn-sm gap-2 ${
                   action.primary
-                    ? "bg-indigo-600 text-white hover:bg-indigo-500"
-                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    ? "bg-primary text-white hover:bg-primary"
+                    : "border-base-300 bg-base-100 text-base-content hover:bg-base-200"
                 }`}
               >
                 <Icon className="size-4" />
@@ -492,11 +492,11 @@ export default function RoleBasedDashboard({ userRole, userData }) {
           return (
             <div
               key={index}
-              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+              className="rounded-2xl border border-base-300 bg-base-100 p-5 shadow-sm"
             >
               <div className="mb-4 flex items-center gap-2">
-                <Icon className="size-5 text-indigo-600" />
-                <h2 className="text-lg font-bold text-slate-800">{section.title}</h2>
+                <Icon className="size-5 text-primary" />
+                <h2 className="text-lg font-bold text-base-content">{section.title}</h2>
               </div>
               
               {/* Placeholder content based on section type */}
@@ -505,7 +505,7 @@ export default function RoleBasedDashboard({ userRole, userData }) {
                   {[1, 2, 3].map((item) => (
                     <div
                       key={item}
-                      className="h-48 animate-pulse rounded-xl bg-slate-100"
+                      className="h-48 animate-pulse rounded-xl bg-base-200"
                     />
                   ))}
                 </div>
@@ -516,12 +516,12 @@ export default function RoleBasedDashboard({ userRole, userData }) {
                   {[1, 2, 3].map((item) => (
                     <div
                       key={item}
-                      className="flex items-center gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4"
+                      className="flex items-center gap-4 rounded-xl border border-base-300 bg-base-200 p-4"
                     >
-                      <div className="size-16 animate-pulse rounded-lg bg-slate-200" />
+                      <div className="size-16 animate-pulse rounded-lg bg-base-300" />
                       <div className="flex-1 space-y-2">
-                        <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200" />
-                        <div className="h-3 w-1/2 animate-pulse rounded bg-slate-200" />
+                        <div className="h-4 w-3/4 animate-pulse rounded bg-base-300" />
+                        <div className="h-3 w-1/2 animate-pulse rounded bg-base-300" />
                       </div>
                     </div>
                   ))}
@@ -529,8 +529,8 @@ export default function RoleBasedDashboard({ userRole, userData }) {
               )}
 
               {section.type === "analytics" && (
-                <div className="h-64 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex h-full items-center justify-center text-slate-400">
+                <div className="h-64 rounded-xl border border-base-300 bg-base-200 p-4">
+                  <div className="flex h-full items-center justify-center text-base-content/50">
                     <div className="text-center">
                       <BarChart3 className="mx-auto size-12" />
                       <p className="mt-2 text-sm">Analytics visualization</p>
@@ -544,16 +544,16 @@ export default function RoleBasedDashboard({ userRole, userData }) {
                   {[1, 2].map((item) => (
                     <div
                       key={item}
-                      className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4"
+                      className="flex items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4"
                     >
-                      <ArrowDownRight className="size-5 text-amber-600" />
+                      <ArrowDownRight className="size-5 text-warning" />
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-slate-800">
+                        <p className="text-sm font-semibold text-base-content">
                           Price dropped by ₹5L
                         </p>
-                        <p className="text-xs text-slate-600">2 BHK in Indore</p>
+                        <p className="text-xs text-base-content/70">2 BHK in Indore</p>
                       </div>
-                      <span className="text-xs text-slate-500">2h ago</span>
+                      <span className="text-xs text-base-content/60">2h ago</span>
                     </div>
                   ))}
                 </div>

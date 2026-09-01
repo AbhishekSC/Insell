@@ -88,34 +88,34 @@ export default function AddPeopleModal({ isOpen, onClose }) {
   return (
     <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="flex max-h-[80vh] w-full max-w-sm flex-col rounded-2xl bg-white shadow-xl"
+        className="flex max-h-[80vh] w-full max-w-sm flex-col rounded-2xl bg-base-100 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-slate-200 p-4">
+        <div className="flex items-center justify-between border-b border-base-300 p-4">
           <div className="flex items-center gap-2">
-            <div className="grid size-8 place-items-center rounded-xl bg-indigo-100 text-indigo-600">
+            <div className="grid size-8 place-items-center rounded-xl bg-primary/15 text-primary">
               <UserPlus className="size-4" />
             </div>
-            <h3 className="text-lg font-semibold text-slate-900">Add people</h3>
+            <h3 className="text-lg font-semibold text-base-content">Add people</h3>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-full p-1 text-base-content/50 transition-colors hover:bg-base-200 hover:text-base-content/70"
           >
             <X className="size-5" />
           </button>
         </div>
 
-        <div className="border-b border-slate-200 p-3">
+        <div className="border-b border-base-300 p-3">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-base-content/50" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search friends..."
-              className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+              className="w-full rounded-lg border border-base-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20"
             />
           </div>
         </div>
@@ -123,14 +123,14 @@ export default function AddPeopleModal({ isOpen, onClose }) {
         <div className="flex-1 overflow-y-auto p-2">
           {isLoading ? (
             <div className="flex items-center justify-center py-10">
-              <Loader2 className="size-6 animate-spin text-slate-400" />
+              <Loader2 className="size-6 animate-spin text-base-content/50" />
             </div>
           ) : filteredFriends.length === 0 ? (
-            <p className="py-10 text-center text-sm text-slate-500">
+            <p className="py-10 text-center text-sm text-base-content/60">
               {friends.length === 0 ? "No friends to invite yet." : "No friends match your search."}
             </p>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-base-300">
               {filteredFriends.map((friend) => {
                 const friendId = String(friend._id);
                 if (friendId === String(currentUserId)) return null;
@@ -148,20 +148,20 @@ export default function AddPeopleModal({ isOpen, onClose }) {
                       disabled={isUnavailable}
                       onClick={() => toggleSelect(friendId)}
                       className={`flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors ${
-                        isUnavailable ? "cursor-not-allowed opacity-60" : "hover:bg-slate-50"
+                        isUnavailable ? "cursor-not-allowed opacity-60" : "hover:bg-base-200"
                       }`}
                     >
                       <UserAvatar src={friend.profilePic} name={friend.fullName} sizeClass="size-10" />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold text-slate-800">
+                        <span className="block truncate text-sm font-semibold text-base-content">
                           {friend.fullName}
                         </span>
                         {isJoined ? (
-                          <span className="text-xs font-medium text-emerald-600">Already in call</span>
+                          <span className="text-xs font-medium text-success">Already in call</span>
                         ) : isPendingMember || isJustInvited ? (
-                          <span className="text-xs font-medium text-amber-600">Invited</span>
+                          <span className="text-xs font-medium text-warning">Invited</span>
                         ) : (
-                          <span className="text-xs text-slate-500">
+                          <span className="text-xs text-base-content/60">
                             {friend.travelStyle || friend.learningLanguage || "Friend"}
                           </span>
                         )}
@@ -169,7 +169,7 @@ export default function AddPeopleModal({ isOpen, onClose }) {
                       {!isUnavailable ? (
                         <span
                           className={`grid size-5 shrink-0 place-items-center rounded-full border-2 ${
-                            isSelected ? "border-indigo-600 bg-indigo-600" : "border-slate-300"
+                            isSelected ? "border-primary bg-primary" : "border-base-300"
                           }`}
                         >
                           {isSelected ? <Check className="size-3.5 text-white" /> : null}
@@ -183,12 +183,12 @@ export default function AddPeopleModal({ isOpen, onClose }) {
           )}
         </div>
 
-        <div className="border-t border-slate-200 p-4">
+        <div className="border-t border-base-300 p-4">
           <button
             type="button"
             onClick={handleInvite}
             disabled={selectedIds.length === 0 || isInviting}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary disabled:opacity-50"
           >
             {isInviting ? (
               <Loader2 className="size-4 animate-spin" />

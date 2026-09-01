@@ -5,9 +5,9 @@ import axiosInstance from "../lib/axios";
 const NOTICE_TYPES = ["post_reported", "post_blocked", "post_report_resolved"];
 
 const NOTICE_ICONS = {
-  post_reported: { Icon: Flag, bg: "bg-amber-50", text: "text-amber-600" },
-  post_blocked: { Icon: ShieldOff, bg: "bg-red-50", text: "text-red-600" },
-  post_report_resolved: { Icon: ShieldCheck, bg: "bg-emerald-50", text: "text-emerald-600" },
+  post_reported: { Icon: Flag, bg: "bg-warning/10", text: "text-warning" },
+  post_blocked: { Icon: ShieldOff, bg: "bg-error/10", text: "text-error" },
+  post_report_resolved: { Icon: ShieldCheck, bg: "bg-success/10", text: "text-success" },
 };
 
 function relativeDate(dateString) {
@@ -62,7 +62,7 @@ export default function PostModerationNotice({ enabled }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+      <div className="w-full max-w-sm rounded-2xl bg-base-100 p-6 shadow-xl">
         <div className="flex items-start justify-between gap-3">
           <div className={`grid size-10 shrink-0 place-items-center rounded-full ${headerIcon.bg} ${headerIcon.text}`}>
             <headerIcon.Icon className="size-5" />
@@ -71,29 +71,29 @@ export default function PostModerationNotice({ enabled }) {
             type="button"
             onClick={() => dismissAll()}
             disabled={isPending}
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-60"
+            className="rounded-lg p-1 text-base-content/50 hover:bg-base-200 hover:text-base-content/70 disabled:opacity-60"
             title="Dismiss"
           >
             <X className="size-5" />
           </button>
         </div>
 
-        <h3 className="mt-3 text-lg font-semibold text-slate-800">
+        <h3 className="mt-3 text-lg font-semibold text-base-content">
           {notices.length > 1 ? `${notices.length} updates on your posts` : "Update on your posts"}
         </h3>
-        <p className="mt-1 text-sm text-slate-500">Moderation activity on posts you own or reported.</p>
+        <p className="mt-1 text-sm text-base-content/60">Moderation activity on posts you own or reported.</p>
 
         <div className="mt-4 max-h-52 space-y-2 overflow-y-auto">
           {notices.map((notice) => {
             const { Icon, bg, text } = NOTICE_ICONS[notice.type] || NOTICE_ICONS.post_reported;
             return (
-              <div key={notice._id} className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div key={notice._id} className="flex items-start gap-2.5 rounded-xl border border-base-300 bg-base-200 p-3">
                 <div className={`grid size-6 shrink-0 place-items-center rounded-full ${bg} ${text}`}>
                   <Icon className="size-3.5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-slate-700">{notice.message}</p>
-                  <p className="mt-1 text-xs text-slate-400">{relativeDate(notice.createdAt)}</p>
+                  <p className="text-sm text-base-content">{notice.message}</p>
+                  <p className="mt-1 text-xs text-base-content/50">{relativeDate(notice.createdAt)}</p>
                 </div>
               </div>
             );
@@ -104,7 +104,7 @@ export default function PostModerationNotice({ enabled }) {
           type="button"
           onClick={() => dismissAll()}
           disabled={isPending}
-          className="mt-5 w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+          className="mt-5 w-full rounded-xl bg-neutral px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral disabled:opacity-60"
         >
           Got it
         </button>

@@ -284,7 +284,15 @@ function App() {
         />
       ) : null}
 
-      <Toaster />
+      <Toaster
+        toastOptions={{
+          style: {
+            background: "hsl(var(--b1))",
+            color: "hsl(var(--bc))",
+            border: "1px solid hsl(var(--b3))",
+          },
+        }}
+      />
     </div>
   );
 }

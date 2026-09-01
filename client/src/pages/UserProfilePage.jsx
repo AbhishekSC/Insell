@@ -97,8 +97,8 @@ function getBlockReasonLabel(reasonCode) {
 function ProfileStat({ label, value }) {
   return (
     <div className="text-center sm:text-left">
-      <p className="text-lg font-black text-slate-900">{value}</p>
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="text-lg font-black text-base-content">{value}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-base-content/60">{label}</p>
     </div>
   );
 }
@@ -456,9 +456,9 @@ export default function UserProfilePage() {
     return (
       <AppShell hideHero lockPageScroll title="Profile" subtitle="Loading profile...">
         <div className="grid min-h-[420px] place-items-center">
-          <div className="rounded-2xl border border-slate-200 bg-white px-6 py-5 text-center shadow-sm">
-            <Loader2 className="mx-auto size-5 animate-spin text-indigo-600" />
-            <p className="mt-2 text-sm text-slate-500">Loading profile...</p>
+          <div className="rounded-2xl border border-base-300 bg-base-100 px-6 py-5 text-center shadow-sm">
+            <Loader2 className="mx-auto size-5 animate-spin text-primary" />
+            <p className="mt-2 text-sm text-base-content/60">Loading profile...</p>
           </div>
         </div>
       </AppShell>
@@ -469,10 +469,10 @@ export default function UserProfilePage() {
     return (
       <AppShell hideHero lockPageScroll title="Profile" subtitle="User not found">
         <div className="grid min-h-[420px] place-items-center">
-          <div className="rounded-2xl border border-slate-200 bg-white px-6 py-6 text-center shadow-sm">
-            <p className="text-base font-semibold text-slate-800">Profile not found</p>
-            <p className="mt-1 text-sm text-slate-500">This user may have been removed or is unavailable.</p>
-            <button type="button" className="btn btn-sm mt-4 border-none bg-indigo-600 text-white hover:bg-indigo-500" onClick={() => navigate(-1)}>
+          <div className="rounded-2xl border border-base-300 bg-base-100 px-6 py-6 text-center shadow-sm">
+            <p className="text-base font-semibold text-base-content">Profile not found</p>
+            <p className="mt-1 text-sm text-base-content/60">This user may have been removed or is unavailable.</p>
+            <button type="button" className="btn btn-sm mt-4 border-none bg-primary text-white hover:bg-primary" onClick={() => navigate(-1)}>
               <ArrowLeft className="size-4" />
               Go back
             </button>
@@ -491,7 +491,7 @@ export default function UserProfilePage() {
     if (isOwnProfile) {
       return (
         <>
-          <Link to="/marketplace?section=profile" className={`btn btn-sm rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 ${buttonClass}`}>
+          <Link to="/marketplace?section=profile" className={`btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200 ${buttonClass}`}>
             Edit Profile
           </Link>
           {/* "About" replaces Instagram's "View archive" slot on mobile,
@@ -500,7 +500,7 @@ export default function UserProfilePage() {
           <button
             type="button"
             onClick={() => setShowAboutModal(true)}
-            className={`btn btn-sm rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 sm:hidden ${buttonClass}`}
+            className={`btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200 sm:hidden ${buttonClass}`}
           >
             About
           </button>
@@ -510,11 +510,11 @@ export default function UserProfilePage() {
     if (relationship.connectionStatus === "friends") {
       return (
         <>
-          <Link to="/chat" className={`btn btn-sm rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 ${buttonClass}`}>
+          <Link to="/chat" className={`btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200 ${buttonClass}`}>
             <MessageCircle className="size-4" />
             Message
           </Link>
-          <button type="button" className={`btn btn-sm rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 ${buttonClass}`}>
+          <button type="button" className={`btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200 ${buttonClass}`}>
             Share
           </button>
         </>
@@ -522,14 +522,14 @@ export default function UserProfilePage() {
     }
     if (relationship.connectionStatus === "pending_sent") {
       return (
-        <button type="button" className={`btn btn-sm rounded-full border border-slate-200 bg-slate-50 text-slate-500 ${buttonClass}`} disabled>
+        <button type="button" className={`btn btn-sm rounded-full border border-base-300 bg-base-200 text-base-content/60 ${buttonClass}`} disabled>
           Request Sent
         </button>
       );
     }
     if (relationship.connectionStatus === "pending_received") {
       return (
-        <Link to="/connections" className={`btn btn-sm rounded-full border-none bg-indigo-600 text-white hover:bg-indigo-500 ${buttonClass}`}>
+        <Link to="/connections" className={`btn btn-sm rounded-full border-none bg-primary text-white hover:bg-primary ${buttonClass}`}>
           Respond to Request
         </Link>
       );
@@ -537,7 +537,7 @@ export default function UserProfilePage() {
     return (
       <button
         type="button"
-        className={`btn btn-sm rounded-full border-none bg-indigo-600 text-white hover:bg-indigo-500 ${buttonClass}`}
+        className={`btn btn-sm rounded-full border-none bg-primary text-white hover:bg-primary ${buttonClass}`}
         disabled={isConnecting}
         onClick={() => sendConnectionRequest()}
       >
@@ -553,16 +553,16 @@ export default function UserProfilePage() {
         <div className="flex flex-col gap-6">
           {/* Verification Banner - only show for own profile if not verified */}
           {isOwnProfile && !profileUser?.isVerified && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <div className="rounded-xl border border-warning/30 bg-warning/10 p-3">
               <div className="flex items-center gap-2.5">
-                <div className="shrink-0 rounded-full bg-amber-100 p-1.5">
-                  <Sparkles className="size-4 text-amber-600" />
+                <div className="shrink-0 rounded-full bg-warning/15 p-1.5">
+                  <Sparkles className="size-4 text-warning" />
                 </div>
-                <p className="min-w-0 flex-1 text-xs sm:text-sm font-semibold text-amber-800">Get verified</p>
+                <p className="min-w-0 flex-1 text-xs sm:text-sm font-semibold text-warning">Get verified</p>
                 <button
                   type="button"
                   onClick={() => setShowVerification(!showVerification)}
-                  className="btn btn-xs sm:btn-sm bg-amber-600 text-white hover:bg-amber-700 shrink-0"
+                  className="btn btn-xs sm:btn-sm bg-warning text-white hover:bg-warning shrink-0"
                 >
                   {showVerification ? "Hide" : "Verify Now"}
                 </button>
@@ -580,7 +580,7 @@ export default function UserProfilePage() {
               buttons). Structurally different enough from the desktop
               header (avatar+stats+button side by side) that it's a
               separate block rather than a responsive reflow of one. */}
-          <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:hidden">
+          <section className="rounded-2xl border border-base-200 bg-base-100 p-4 shadow-sm sm:hidden">
             <div className="flex items-center gap-4">
               <button
                 type="button"
@@ -594,53 +594,53 @@ export default function UserProfilePage() {
                   src={profileUser.profilePic}
                   name={profileUser.fullName || "User"}
                   sizeClass="size-20"
-                  className="ring-4 ring-slate-100"
+                  className="ring-4 ring-base-300"
                 />
                 {isProfileUserOnline && (
-                  <div className="absolute bottom-0.5 right-0.5 size-3.5 rounded-full bg-emerald-500 ring-2 ring-white"></div>
+                  <div className="absolute bottom-0.5 right-0.5 size-3.5 rounded-full bg-success ring-2 ring-white"></div>
                 )}
               </button>
 
               <div className="flex flex-1 justify-around">
                 <div className="text-center">
-                  <p className="text-lg font-bold text-slate-900">{stats.postsCount || 0}</p>
-                  <p className="text-xs text-slate-500">posts</p>
+                  <p className="text-lg font-bold text-base-content">{stats.postsCount || 0}</p>
+                  <p className="text-xs text-base-content/60">posts</p>
                 </div>
                 <button type="button" onClick={() => setConnectionsModalTitle("Followers")} className="text-center">
-                  <p className="text-lg font-bold text-slate-900">{stats.followersCount || 0}</p>
-                  <p className="text-xs text-slate-500">followers</p>
+                  <p className="text-lg font-bold text-base-content">{stats.followersCount || 0}</p>
+                  <p className="text-xs text-base-content/60">followers</p>
                 </button>
                 <button type="button" onClick={() => setConnectionsModalTitle("Following")} className="text-center">
-                  <p className="text-lg font-bold text-slate-900">{stats.followingCount || 0}</p>
-                  <p className="text-xs text-slate-500">following</p>
+                  <p className="text-lg font-bold text-base-content">{stats.followingCount || 0}</p>
+                  <p className="text-xs text-base-content/60">following</p>
                 </button>
               </div>
             </div>
 
             <div className="mt-3">
-              <h1 className="flex items-center gap-1.5 text-base font-bold text-slate-900">
+              <h1 className="flex items-center gap-1.5 text-base font-bold text-base-content">
                 {profileUser.fullName || "Unknown User"}
-                {verified ? <BadgeCheck className="size-4 text-emerald-600" /> : null}
+                {verified ? <BadgeCheck className="size-4 text-success" /> : null}
               </h1>
               {profileUser.ratingCount > 0 && (
-                <p className="flex items-center gap-1 text-xs font-medium text-amber-600">
+                <p className="flex items-center gap-1 text-xs font-medium text-warning">
                   <Star className="size-3.5 fill-current" />
                   {profileUser.ratingAvg?.toFixed(1)}
-                  <span className="text-slate-400 font-normal">({profileUser.ratingCount})</span>
+                  <span className="text-base-content/50 font-normal">({profileUser.ratingCount})</span>
                 </p>
               )}
-              <p className="flex items-center gap-1 text-xs text-slate-500">
+              <p className="flex items-center gap-1 text-xs text-base-content/60">
                 <MapPin className="size-3.5" />
                 {cityLabel}
               </p>
-              <p className="mt-1 text-sm text-slate-600">{profileUser.bio?.trim() || "No bio added yet."}</p>
+              <p className="mt-1 text-sm text-base-content/70">{profileUser.bio?.trim() || "No bio added yet."}</p>
             </div>
 
             <div className="mt-3 flex gap-2">{renderProfileActions("flex-1")}</div>
           </section>
 
           {/* Profile Header — desktop/tablet */}
-          <section className="hidden rounded-2xl border border-slate-100 bg-white p-5 text-center shadow-sm sm:flex sm:p-8 lg:flex-row lg:items-center lg:justify-between lg:text-left">
+          <section className="hidden rounded-2xl border border-base-200 bg-base-100 p-5 text-center shadow-sm sm:flex sm:p-8 lg:flex-row lg:items-center lg:justify-between lg:text-left">
             {/* Left: Avatar and Info */}
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-6 lg:items-center">
               <div className="relative shrink-0">
@@ -656,32 +656,32 @@ export default function UserProfilePage() {
                     src={profileUser.profilePic}
                     name={profileUser.fullName || "User"}
                     sizeClass="size-24"
-                    className="ring-4 ring-slate-100"
+                    className="ring-4 ring-base-300"
                   />
                 </button>
                 {isProfileUserOnline && (
-                  <div className="absolute bottom-1 right-1 size-4 rounded-full bg-emerald-500 ring-2 ring-white"></div>
+                  <div className="absolute bottom-1 right-1 size-4 rounded-full bg-success ring-2 ring-white"></div>
                 )}
               </div>
               <div className="min-w-0 text-center sm:text-left">
                 <div className="flex items-center justify-center gap-2 sm:justify-start">
-                  <h1 className="text-2xl font-bold text-slate-900">
+                  <h1 className="text-2xl font-bold text-base-content">
                     {profileUser.fullName || "Unknown User"}
                   </h1>
-                  {verified ? <BadgeCheck className="size-5 text-emerald-600" /> : null}
+                  {verified ? <BadgeCheck className="size-5 text-success" /> : null}
                 </div>
                 {profileUser.ratingCount > 0 && (
-                  <p className="mt-1 flex items-center justify-center gap-1 text-sm font-medium text-amber-600 sm:justify-start">
+                  <p className="mt-1 flex items-center justify-center gap-1 text-sm font-medium text-warning sm:justify-start">
                     <Star className="size-4 fill-current" />
                     {profileUser.ratingAvg?.toFixed(1)}
-                    <span className="text-slate-400 font-normal">({profileUser.ratingCount} review{profileUser.ratingCount === 1 ? "" : "s"})</span>
+                    <span className="text-base-content/50 font-normal">({profileUser.ratingCount} review{profileUser.ratingCount === 1 ? "" : "s"})</span>
                   </p>
                 )}
-                <p className="mt-1 flex items-center justify-center gap-1 text-sm text-slate-500 sm:justify-start">
+                <p className="mt-1 flex items-center justify-center gap-1 text-sm text-base-content/60 sm:justify-start">
                   <MapPin className="size-4" />
                   {cityLabel}
                 </p>
-                <p className="mt-2 line-clamp-2 text-sm text-slate-600">
+                <p className="mt-2 line-clamp-2 text-sm text-base-content/70">
                   {profileUser.bio?.trim() || "No bio added yet."}
                 </p>
               </div>
@@ -690,32 +690,32 @@ export default function UserProfilePage() {
             {/* Center: Quick Stats */}
             <div className="flex flex-wrap justify-center gap-4 sm:gap-8">
               <div className="text-center">
-                <p className="text-xl font-bold text-slate-900">{stats.postsCount || 0}</p>
-                <p className="text-xs text-slate-500">Posts</p>
+                <p className="text-xl font-bold text-base-content">{stats.postsCount || 0}</p>
+                <p className="text-xs text-base-content/60">Posts</p>
               </div>
               <button
                 type="button"
                 onClick={() => setConnectionsModalTitle("Followers")}
                 className="text-center transition-opacity hover:opacity-70"
               >
-                <p className="text-xl font-bold text-slate-900">{stats.followersCount || 0}</p>
-                <p className="text-xs text-slate-500">Followers</p>
+                <p className="text-xl font-bold text-base-content">{stats.followersCount || 0}</p>
+                <p className="text-xs text-base-content/60">Followers</p>
               </button>
               <button
                 type="button"
                 onClick={() => setConnectionsModalTitle("Following")}
                 className="text-center transition-opacity hover:opacity-70"
               >
-                <p className="text-xl font-bold text-slate-900">{stats.followingCount || 0}</p>
-                <p className="text-xs text-slate-500">Following</p>
+                <p className="text-xl font-bold text-base-content">{stats.followingCount || 0}</p>
+                <p className="text-xs text-base-content/60">Following</p>
               </button>
               <div className="text-center">
-                <p className="text-xl font-bold text-slate-900">{stats.savedCount || 0}</p>
-                <p className="text-xs text-slate-500">Saved</p>
+                <p className="text-xl font-bold text-base-content">{stats.savedCount || 0}</p>
+                <p className="text-xs text-base-content/60">Saved</p>
               </div>
               <div className="text-center">
-                <p className="text-xl font-bold text-slate-900">{stats.reviewsCount || 0}</p>
-                <p className="text-xs text-slate-500">Reviews</p>
+                <p className="text-xl font-bold text-base-content">{stats.reviewsCount || 0}</p>
+                <p className="text-xs text-base-content/60">Reviews</p>
               </div>
             </div>
 
@@ -738,7 +738,7 @@ export default function UserProfilePage() {
                   moves out of the mobile tab bar (becomes a header button,
                   see above); Reviews stays in both — see the mobile row
                   below. */}
-              <div className="hidden border-b border-slate-200 sm:block">
+              <div className="hidden border-b border-base-300 sm:block">
                 <div className="flex items-center gap-1 overflow-x-auto">
                   {(() => {
                     const tabs = isOwnProfile ? [
@@ -762,8 +762,8 @@ export default function UserProfilePage() {
                           type="button"
                           className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
                             activeTab === tab.id
-                              ? "border-indigo-600 text-indigo-600"
-                              : "border-transparent text-slate-500 hover:text-slate-700"
+                              ? "border-primary text-primary"
+                              : "border-transparent text-base-content/60 hover:text-base-content"
                           }`}
                           onClick={() => setActiveTab(tab.id)}
                         >
@@ -779,7 +779,7 @@ export default function UserProfilePage() {
               {/* Navigation Tabs — mobile: Instagram-style icon-only row.
                   Posts + Reviews for everyone; Saved / Recently Viewed only
                   on your own profile, since those are private to you. */}
-              <div className="border-b border-slate-200 sm:hidden">
+              <div className="border-b border-base-300 sm:hidden">
                 <div className="flex items-center justify-around">
                   {(() => {
                     const tabs = isOwnProfile
@@ -802,8 +802,8 @@ export default function UserProfilePage() {
                           aria-label={tab.label}
                           className={`flex-1 border-b-2 py-3 flex items-center justify-center ${
                             activeTab === tab.id
-                              ? "border-indigo-600 text-indigo-600"
-                              : "border-transparent text-slate-400"
+                              ? "border-primary text-primary"
+                              : "border-transparent text-base-content/50"
                           }`}
                           onClick={() => setActiveTab(tab.id)}
                         >
@@ -825,7 +825,7 @@ export default function UserProfilePage() {
                       <button
                         key={filter}
                         type="button"
-                        className="rounded-full border border-slate-200 px-4 py-1.5 text-sm font-medium text-slate-600 hover:border-indigo-600 hover:text-indigo-600 transition-colors"
+                        className="rounded-full border border-base-300 px-4 py-1.5 text-sm font-medium text-base-content/70 hover:border-primary hover:text-primary transition-colors"
                       >
                         {filter}
                       </button>
@@ -837,14 +837,14 @@ export default function UserProfilePage() {
                     {isPostsLoading ? (
                       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                         {[1, 2, 3, 4, 5, 6].map((item) => (
-                          <div key={item} className="aspect-square animate-pulse rounded-2xl bg-slate-100" />
+                          <div key={item} className="aspect-square animate-pulse rounded-2xl bg-base-200" />
                         ))}
                       </div>
                     ) : posts.length === 0 ? (
-                      <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
-                        <Grid3x3 className="mx-auto size-8 text-slate-300" />
-                        <p className="mt-3 text-sm font-semibold text-slate-700">No posts yet</p>
-                        <p className="mt-1 text-sm text-slate-500">
+                      <div className="rounded-2xl border border-base-300 bg-base-100 p-10 text-center">
+                        <Grid3x3 className="mx-auto size-8 text-base-content/40" />
+                        <p className="mt-3 text-sm font-semibold text-base-content">No posts yet</p>
+                        <p className="mt-1 text-sm text-base-content/60">
                           {relationship.isSelf ? "Create your first listing from the marketplace feed." : "This user has not shared any listings yet."}
                         </p>
                       </div>
@@ -901,7 +901,7 @@ export default function UserProfilePage() {
                                 badgeClassName={post.customBadge ? getCustomBadgeClasses(post.customBadge) : undefined}
                                 extraTopRight={
                                   post.isBlocked ? (
-                                    <span className="flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm">
+                                    <span className="flex items-center gap-1 rounded-full bg-error px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm">
                                       <ShieldAlert className="size-3" />
                                       Blocked
                                     </span>
@@ -921,10 +921,10 @@ export default function UserProfilePage() {
                                         <MoreVertical className="size-3.5" />
                                       </button>
                                       {menuOpenPostId === post._id && (
-                                        <div className="absolute right-0 top-full z-10 mt-1 w-36 rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                                        <div className="absolute right-0 top-full z-10 mt-1 w-36 rounded-xl border border-base-300 bg-base-100 shadow-xl overflow-hidden">
                                           <button
                                             type="button"
-                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-base-content hover:bg-base-200 transition-colors"
                                             onClick={(event) => {
                                               event.stopPropagation();
                                               setPostToEdit(post);
@@ -935,13 +935,13 @@ export default function UserProfilePage() {
                                               setMenuOpenPostId(null);
                                             }}
                                           >
-                                            <Edit2 className="size-4 text-slate-500" />
+                                            <Edit2 className="size-4 text-base-content/60" />
                                             Edit Post
                                           </button>
-                                          <div className="border-t border-slate-100" />
+                                          <div className="border-t border-base-200" />
                                           <button
                                             type="button"
-                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-error hover:bg-error/10 transition-colors"
                                             onClick={(event) => {
                                               event.stopPropagation();
                                               setPostToDelete(post);
@@ -968,10 +968,10 @@ export default function UserProfilePage() {
                                         <MoreVertical className="size-3.5" />
                                       </button>
                                       {menuOpenPostId === post._id && (
-                                        <div className="absolute right-0 top-full z-10 mt-1 w-36 rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                                        <div className="absolute right-0 top-full z-10 mt-1 w-36 rounded-xl border border-base-300 bg-base-100 shadow-xl overflow-hidden">
                                           <button
                                             type="button"
-                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-error hover:bg-error/10 transition-colors"
                                             onClick={(event) => {
                                               event.stopPropagation();
                                               setReportTargetPost(post);
@@ -1000,36 +1000,36 @@ export default function UserProfilePage() {
                                 onFullscreen={(img) => setSelectedImage(img)}
                                 priceBlock={
                                   <>
-                                    <p className="text-lg font-bold text-slate-900">{formatMoney(post.price)}</p>
-                                    <p className="text-sm font-medium text-slate-800 line-clamp-1">{post.title || "Premium Listing"}</p>
-                                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                                    <p className="text-lg font-bold text-base-content">{formatMoney(post.price)}</p>
+                                    <p className="text-sm font-medium text-base-content line-clamp-1">{post.title || "Premium Listing"}</p>
+                                    <div className="flex items-center gap-2 text-xs text-base-content/60">
                                       <MapPin className="size-3" />
                                       <span>{post.city || "City"}</span>
                                       {post.locality && <><span>·</span><span>{post.locality}</span></>}
                                       {post.latitude && post.longitude && (
                                         <button
                                           type="button"
-                                          className="flex items-center gap-1 text-indigo-600 hover:underline"
+                                          className="flex items-center gap-1 text-primary hover:underline"
                                           onClick={(event) => {
                                             event.stopPropagation();
                                             navigate(`/map-view?propertyId=${post._id}`);
                                           }}
                                         >
-                                          <span className="size-1.5 rounded-full bg-indigo-600"></span>
+                                          <span className="size-1.5 rounded-full bg-primary"></span>
                                           <span>Live Location</span>
                                         </button>
                                       )}
                                     </div>
                                     {post.isBlocked && (
-                                      <div className="rounded-lg border border-red-200 bg-red-50 p-2.5">
-                                        <p className="flex items-center gap-1.5 text-xs font-semibold text-red-700">
+                                      <div className="rounded-lg border border-error/30 bg-error/10 p-2.5">
+                                        <p className="flex items-center gap-1.5 text-xs font-semibold text-error">
                                           <ShieldAlert className="size-3.5" />
                                           Blocked by Admin
                                         </p>
-                                        <p className="mt-1 text-[11px] text-red-600">
+                                        <p className="mt-1 text-[11px] text-error">
                                           Reason: {getBlockReasonLabel(post.blockReasonCode)}
                                         </p>
-                                        {post.blockNote && <p className="mt-1 text-[11px] text-red-600">{post.blockNote}</p>}
+                                        {post.blockNote && <p className="mt-1 text-[11px] text-error">{post.blockNote}</p>}
                                       </div>
                                     )}
                                     {detailBadges.length > 0 && (
@@ -1060,7 +1060,7 @@ export default function UserProfilePage() {
                                 savesCount={post.savesCount || 0}
                                 onContact={!isOwnProfile ? () => navigate(`/property/${post._id}`) : undefined}
                                 onOpenPost={() => navigate(`/property/${post._id}`)}
-                                className={selectedForComparison.includes(post._id) ? "border-indigo-500 ring-2 ring-indigo-200" : "border-slate-100"}
+                                className={selectedForComparison.includes(post._id) ? "border-primary ring-2 ring-primary/20" : "border-base-200"}
                               />
                             );
                           })}
@@ -1069,7 +1069,7 @@ export default function UserProfilePage() {
                         {hasNextPage ? (
                           <button
                             type="button"
-                            className="btn mt-6 w-full rounded-xl border border-slate-200 bg-white text-indigo-600 hover:bg-indigo-50"
+                            className="btn mt-6 w-full rounded-xl border border-base-300 bg-base-100 text-primary hover:bg-primary/10"
                             disabled={isFetchingNextPage}
                             onClick={() => fetchNextPage()}
                           >
@@ -1087,20 +1087,20 @@ export default function UserProfilePage() {
                     {isBookmarksLoading ? (
                       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                         {[1, 2, 3, 4, 5, 6].map((item) => (
-                          <div key={item} className="aspect-square animate-pulse rounded-2xl bg-slate-100" />
+                          <div key={item} className="aspect-square animate-pulse rounded-2xl bg-base-200" />
                         ))}
                       </div>
                     ) : bookmarks.length === 0 ? (
-                      <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
-                        <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-indigo-50">
-                          <Save className="size-10 text-indigo-400" />
+                      <div className="rounded-2xl border border-base-300 bg-base-100 p-12 text-center">
+                        <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-primary/10">
+                          <Save className="size-10 text-primary" />
                         </div>
-                        <h3 className="mt-6 text-lg font-semibold text-slate-900">No saved properties yet</h3>
-                        <p className="mt-2 text-sm text-slate-500">
+                        <h3 className="mt-6 text-lg font-semibold text-base-content">No saved properties yet</h3>
+                        <p className="mt-2 text-sm text-base-content/60">
                           {isOwnProfile ? "Save properties from the marketplace to quickly find them later." : "This user has not saved any properties yet."}
                         </p>
                         {isOwnProfile && (
-                          <Link to="/marketplace" className="btn btn-sm mt-6 rounded-full border border-slate-200 bg-white text-indigo-600 hover:bg-indigo-50">
+                          <Link to="/marketplace" className="btn btn-sm mt-6 rounded-full border border-base-300 bg-base-100 text-primary hover:bg-primary/10">
                             Explore Properties
                           </Link>
                         )}
@@ -1160,7 +1160,7 @@ export default function UserProfilePage() {
                                 badgeClassName={post.customBadge ? getCustomBadgeClasses(post.customBadge) : undefined}
                                 extraTopRight={
                                   post.isBlocked ? (
-                                    <span className="flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm">
+                                    <span className="flex items-center gap-1 rounded-full bg-error px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm">
                                       <ShieldAlert className="size-3" />
                                       Blocked
                                     </span>
@@ -1180,10 +1180,10 @@ export default function UserProfilePage() {
                                         <MoreVertical className="size-3.5" />
                                       </button>
                                       {menuOpenPostId === post._id && (
-                                        <div className="absolute right-0 top-full z-10 mt-1 w-36 rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                                        <div className="absolute right-0 top-full z-10 mt-1 w-36 rounded-xl border border-base-300 bg-base-100 shadow-xl overflow-hidden">
                                           <button
                                             type="button"
-                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-error hover:bg-error/10 transition-colors"
                                             onClick={(event) => {
                                               event.stopPropagation();
                                               setReportTargetPost(post);
@@ -1212,36 +1212,36 @@ export default function UserProfilePage() {
                                 onFullscreen={(img) => setSelectedImage(img)}
                                 priceBlock={
                                   <>
-                                    <p className="text-lg font-bold text-slate-900">{formatMoney(post.price)}</p>
-                                    <p className="text-sm font-medium text-slate-800 line-clamp-1">{post.title || "Premium Listing"}</p>
-                                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                                    <p className="text-lg font-bold text-base-content">{formatMoney(post.price)}</p>
+                                    <p className="text-sm font-medium text-base-content line-clamp-1">{post.title || "Premium Listing"}</p>
+                                    <div className="flex items-center gap-2 text-xs text-base-content/60">
                                       <MapPin className="size-3" />
                                       <span>{post.city || "City"}</span>
                                       {post.locality && <><span>·</span><span>{post.locality}</span></>}
                                       {post.latitude && post.longitude && (
                                         <button
                                           type="button"
-                                          className="flex items-center gap-1 text-indigo-600 hover:underline"
+                                          className="flex items-center gap-1 text-primary hover:underline"
                                           onClick={(event) => {
                                             event.stopPropagation();
                                             navigate(`/map-view?propertyId=${post._id}`);
                                           }}
                                         >
-                                          <span className="size-1.5 rounded-full bg-indigo-600"></span>
+                                          <span className="size-1.5 rounded-full bg-primary"></span>
                                           <span>Live Location</span>
                                         </button>
                                       )}
                                     </div>
                                     {post.isBlocked && (
-                                      <div className="rounded-lg border border-red-200 bg-red-50 p-2.5">
-                                        <p className="flex items-center gap-1.5 text-xs font-semibold text-red-700">
+                                      <div className="rounded-lg border border-error/30 bg-error/10 p-2.5">
+                                        <p className="flex items-center gap-1.5 text-xs font-semibold text-error">
                                           <ShieldAlert className="size-3.5" />
                                           Blocked by Admin
                                         </p>
-                                        <p className="mt-1 text-[11px] text-red-600">
+                                        <p className="mt-1 text-[11px] text-error">
                                           Reason: {getBlockReasonLabel(post.blockReasonCode)}
                                         </p>
-                                        {post.blockNote && <p className="mt-1 text-[11px] text-red-600">{post.blockNote}</p>}
+                                        {post.blockNote && <p className="mt-1 text-[11px] text-error">{post.blockNote}</p>}
                                       </div>
                                     )}
                                     {detailBadges.length > 0 && (
@@ -1272,7 +1272,7 @@ export default function UserProfilePage() {
                                 savesCount={post.savesCount || 0}
                                 onContact={!isOwnPost ? () => navigate(`/property/${post._id}`) : undefined}
                                 onOpenPost={() => navigate(`/property/${post._id}`)}
-                                className={selectedForComparison.includes(post._id) ? "border-indigo-500 ring-2 ring-indigo-200" : "border-slate-100"}
+                                className={selectedForComparison.includes(post._id) ? "border-primary ring-2 ring-primary/20" : "border-base-200"}
                               />
                             );
                           })}
@@ -1281,7 +1281,7 @@ export default function UserProfilePage() {
                         {hasNextBookmarkPage ? (
                           <button
                             type="button"
-                            className="btn mt-6 w-full rounded-xl border border-slate-200 bg-white text-indigo-600 hover:bg-indigo-50"
+                            className="btn mt-6 w-full rounded-xl border border-base-300 bg-base-100 text-primary hover:bg-primary/10"
                             disabled={isFetchingNextBookmarkPage}
                             onClick={() => fetchNextBookmarkPage()}
                           >
@@ -1294,44 +1294,44 @@ export default function UserProfilePage() {
                 </>
               ) : activeTab === "about" ? (
                 <>
-                  <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <section className="rounded-2xl border border-base-300 bg-base-100 p-6 shadow-sm">
                     <div className="grid grid-cols-2 gap-4 mb-6">
-                      <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4">
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+                      <div className="flex items-center gap-3 rounded-xl bg-base-200 p-4">
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
                           <Calendar className="size-5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-900 uppercase">Member Since</p>
-                          <p className="text-sm text-slate-600 truncate">
+                          <p className="text-xs font-semibold text-base-content uppercase">Member Since</p>
+                          <p className="text-sm text-base-content/70 truncate">
                             {profileUser.createdAt ? new Date(profileUser.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "N/A"}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4">
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                      <div className="flex items-center gap-3 rounded-xl bg-base-200 p-4">
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
                           <BadgeCheck className="size-5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-900 uppercase">Verified Email</p>
-                          <p className="text-sm text-slate-600 truncate">{profileUser.emailVerified ? "Verified" : "Not Verified"}</p>
+                          <p className="text-xs font-semibold text-base-content uppercase">Verified Email</p>
+                          <p className="text-sm text-base-content/70 truncate">{profileUser.emailVerified ? "Verified" : "Not Verified"}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4">
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-600">
+                      <div className="flex items-center gap-3 rounded-xl bg-base-200 p-4">
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-info/15 text-info">
                           <Phone className="size-5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-900 uppercase">Phone</p>
-                          <p className="text-sm text-slate-600 truncate">{profileUser.phoneNumber || "Not provided"}</p>
+                          <p className="text-xs font-semibold text-base-content uppercase">Phone</p>
+                          <p className="text-sm text-base-content/70 truncate">{profileUser.phoneNumber || "Not provided"}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4">
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                      <div className="flex items-center gap-3 rounded-xl bg-base-200 p-4">
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-warning/15 text-warning">
                           <MapPin className="size-5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-900 uppercase">Locations</p>
-                          <p className="text-sm text-slate-600 truncate">
+                          <p className="text-xs font-semibold text-base-content uppercase">Locations</p>
+                          <p className="text-sm text-base-content/70 truncate">
                             {(profileUser.preferredLocalities || []).slice(0, 2).join(", ") || "Not specified"}
                           </p>
                         </div>
@@ -1342,20 +1342,20 @@ export default function UserProfilePage() {
               ) : activeTab === "activity" ? (
                 <>
                   <section>
-                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                      <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-900">
-                        <Clock className="size-4 text-slate-500" />
+                    <div className="rounded-2xl border border-base-300 bg-base-100 p-6 shadow-sm">
+                      <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-base-content">
+                        <Clock className="size-4 text-base-content/60" />
                         Recently Viewed ({recentlyViewed.length})
                       </h3>
                       {recentlyViewed.length === 0 ? (
-                        <p className="text-sm text-slate-500">No recently viewed properties yet</p>
+                        <p className="text-sm text-base-content/60">No recently viewed properties yet</p>
                       ) : (
                         <div className="space-y-3">
                           {recentlyViewed.map((item) => (
                             <Link
                               key={item.id}
                               to={`/property/${item.id}`}
-                              className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 hover:bg-slate-100 transition"
+                              className="flex items-center gap-3 rounded-lg bg-base-200 p-3 hover:bg-base-200 transition"
                             >
                               {item.image && (
                                 <img
@@ -1365,8 +1365,8 @@ export default function UserProfilePage() {
                                 />
                               )}
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-xs font-semibold text-slate-800">{item.title || "Property"}</p>
-                                <div className="flex items-center gap-1 text-xs text-slate-500">
+                                <p className="truncate text-xs font-semibold text-base-content">{item.title || "Property"}</p>
+                                <div className="flex items-center gap-1 text-xs text-base-content/60">
                                   <IndianRupee className="size-3" />
                                   <span>{item.price?.toLocaleString()}</span>
                                   <span className="mx-1">·</span>
@@ -1382,28 +1382,28 @@ export default function UserProfilePage() {
                   </section>
                 </>
               ) : activeTab === "reviews" ? (
-                <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <section className="rounded-2xl border border-base-300 bg-base-100 p-6 shadow-sm">
                   <div className="mb-4 flex items-center justify-between">
-                    <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                      <Star className="size-4 text-amber-500" />
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-base-content">
+                      <Star className="size-4 text-warning" />
                       Reviews
                     </h3>
                     {reviewsData?.ratingCount > 0 && (
-                      <span className="flex items-center gap-1 text-sm font-medium text-amber-600">
+                      <span className="flex items-center gap-1 text-sm font-medium text-warning">
                         <Star className="size-4 fill-current" />
                         {reviewsData.ratingAvg?.toFixed(1)}
-                        <span className="text-slate-400 font-normal">({reviewsData.ratingCount})</span>
+                        <span className="text-base-content/50 font-normal">({reviewsData.ratingCount})</span>
                       </span>
                     )}
                   </div>
                   {isReviewsLoading ? (
-                    <p className="text-sm text-slate-500">Loading reviews...</p>
+                    <p className="text-sm text-base-content/60">Loading reviews...</p>
                   ) : userReviews.length === 0 ? (
-                    <p className="text-sm text-slate-500">No reviews yet — reviews appear here once a deal is closed and either side rates it.</p>
+                    <p className="text-sm text-base-content/60">No reviews yet — reviews appear here once a deal is closed and either side rates it.</p>
                   ) : (
                     <div className="space-y-4">
                       {userReviews.map((review) => (
-                        <div key={review._id} className="flex gap-3 border-b border-slate-100 pb-4 last:border-0 last:pb-0">
+                        <div key={review._id} className="flex gap-3 border-b border-base-200 pb-4 last:border-0 last:pb-0">
                           <UserAvatar
                             src={review.reviewer?.profilePic}
                             name={review.reviewer?.fullName || "User"}
@@ -1412,8 +1412,8 @@ export default function UserProfilePage() {
                           />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between gap-2">
-                              <p className="text-sm font-semibold text-slate-800">{review.reviewer?.fullName || "Anonymous"}</p>
-                              <span className="text-xs text-slate-400">
+                              <p className="text-sm font-semibold text-base-content">{review.reviewer?.fullName || "Anonymous"}</p>
+                              <span className="text-xs text-base-content/50">
                                 {review.createdAt ? new Date(review.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}
                               </span>
                             </div>
@@ -1421,17 +1421,17 @@ export default function UserProfilePage() {
                               {[1, 2, 3, 4, 5].map((star) => (
                                 <Star
                                   key={star}
-                                  className={`size-3.5 ${star <= review.rating ? "fill-amber-400 text-amber-400" : "text-slate-200"}`}
+                                  className={`size-3.5 ${star <= review.rating ? "fill-warning text-warning" : "text-base-content/30"}`}
                                 />
                               ))}
                             </div>
                             {review.comment && (
-                              <p className="mt-1.5 text-sm text-slate-600">{review.comment}</p>
+                              <p className="mt-1.5 text-sm text-base-content/70">{review.comment}</p>
                             )}
                             {review.post?._id && (
                               <Link
                                 to={`/property/${review.post._id}`}
-                                className="mt-2 flex items-center gap-2 rounded-lg bg-slate-50 p-2 hover:bg-slate-100 transition"
+                                className="mt-2 flex items-center gap-2 rounded-lg bg-base-200 p-2 hover:bg-base-200 transition"
                               >
                                 {review.post.mediaUrls?.[0] && (
                                   <img
@@ -1441,8 +1441,8 @@ export default function UserProfilePage() {
                                   />
                                 )}
                                 <div className="min-w-0 flex-1">
-                                  <p className="truncate text-xs font-semibold text-slate-800">{review.post.title || "Property"}</p>
-                                  <div className="flex items-center gap-1 text-xs text-slate-500">
+                                  <p className="truncate text-xs font-semibold text-base-content">{review.post.title || "Property"}</p>
+                                  <div className="flex items-center gap-1 text-xs text-base-content/60">
                                     <IndianRupee className="size-3" />
                                     <span>{review.post.price?.toLocaleString()}</span>
                                     {review.post.city && (
@@ -1463,10 +1463,10 @@ export default function UserProfilePage() {
                   )}
                 </section>
               ) : (
-                <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
-                  <Grid3x3 className="mx-auto size-8 text-slate-300" />
-                  <p className="mt-3 text-sm font-semibold text-slate-700">Coming soon</p>
-                  <p className="mt-1 text-sm text-slate-500">This section is under development.</p>
+                <div className="rounded-2xl border border-base-300 bg-base-100 p-10 text-center">
+                  <Grid3x3 className="mx-auto size-8 text-base-content/40" />
+                  <p className="mt-3 text-sm font-semibold text-base-content">Coming soon</p>
+                  <p className="mt-1 text-sm text-base-content/60">This section is under development.</p>
                 </div>
               )}
             </div>
@@ -1476,93 +1476,93 @@ export default function UserProfilePage() {
               {isOwnProfile ? (
                 <>
                   {/* Owner Sidebar - Analytics */}
-                  <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                    <h3 className="mb-4 text-sm font-semibold text-slate-900">Profile Overview</h3>
+                  <div className="rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm">
+                    <h3 className="mb-4 text-sm font-semibold text-base-content">Profile Overview</h3>
                     <div className="grid grid-cols-4 gap-4">
                       <div className="text-center">
-                        <p className="text-lg font-bold text-slate-900">{stats.postsCount || 0}</p>
-                        <p className="text-xs text-slate-500">Posts</p>
+                        <p className="text-lg font-bold text-base-content">{stats.postsCount || 0}</p>
+                        <p className="text-xs text-base-content/60">Posts</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-lg font-bold text-slate-900">{stats.viewsCount || 0}</p>
-                        <p className="text-xs text-slate-500">Views</p>
+                        <p className="text-lg font-bold text-base-content">{stats.viewsCount || 0}</p>
+                        <p className="text-xs text-base-content/60">Views</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-lg font-bold text-slate-900">{stats.likesCount || 0}</p>
-                        <p className="text-xs text-slate-500">Likes</p>
+                        <p className="text-lg font-bold text-base-content">{stats.likesCount || 0}</p>
+                        <p className="text-xs text-base-content/60">Likes</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-lg font-bold text-slate-900">{stats.savedCount || 0}</p>
-                        <p className="text-xs text-slate-500">Saved</p>
+                        <p className="text-lg font-bold text-base-content">{stats.savedCount || 0}</p>
+                        <p className="text-xs text-base-content/60">Saved</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                    <h3 className="mb-4 text-sm font-semibold text-slate-900">Quick Insights</h3>
+                  <div className="rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm">
+                    <h3 className="mb-4 text-sm font-semibold text-base-content">Quick Insights</h3>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-600">Response Rate</span>
-                        <span className="text-xs font-semibold text-slate-900">N/A</span>
+                        <span className="text-xs text-base-content/70">Response Rate</span>
+                        <span className="text-xs font-semibold text-base-content">N/A</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-600">Avg Response Time</span>
-                        <span className="text-xs font-semibold text-slate-900">N/A</span>
+                        <span className="text-xs text-base-content/70">Avg Response Time</span>
+                        <span className="text-xs font-semibold text-base-content">N/A</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-600">Total Views</span>
-                        <span className="text-xs font-semibold text-slate-900">{stats.viewsCount || 0}</span>
+                        <span className="text-xs text-base-content/70">Total Views</span>
+                        <span className="text-xs font-semibold text-base-content">{stats.viewsCount || 0}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-600">Profile Visits</span>
-                        <span className="text-xs font-semibold text-slate-900">0</span>
+                        <span className="text-xs text-base-content/70">Profile Visits</span>
+                        <span className="text-xs font-semibold text-base-content">0</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-600">Active Listings</span>
-                        <span className="text-xs font-semibold text-slate-900">{stats.postsCount || 0}</span>
+                        <span className="text-xs text-base-content/70">Active Listings</span>
+                        <span className="text-xs font-semibold text-base-content">{stats.postsCount || 0}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                    <h3 className="mb-4 text-sm font-semibold text-slate-900">Recent Activity</h3>
+                  <div className="rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm">
+                    <h3 className="mb-4 text-sm font-semibold text-base-content">Recent Activity</h3>
                     <div className="space-y-4">
                       <div className="flex items-start gap-3">
-                        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
                           <Grid3x3 className="size-4" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium text-slate-900">Posted a property</p>
-                          <p className="text-[10px] text-slate-500">Recently</p>
+                          <p className="text-xs font-medium text-base-content">Posted a property</p>
+                          <p className="text-[10px] text-base-content/60">Recently</p>
                         </div>
                       </div>
                       {posts.length === 0 ? (
-                        <p className="text-xs text-slate-500 text-center">No recent activity</p>
+                        <p className="text-xs text-base-content/60 text-center">No recent activity</p>
                       ) : null}
                     </div>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                    <h3 className="mb-4 text-sm font-semibold text-slate-900">Operating Areas</h3>
+                  <div className="rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm">
+                    <h3 className="mb-4 text-sm font-semibold text-base-content">Operating Areas</h3>
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <MapPin className="size-4 text-slate-400" />
+                      <div className="flex items-center gap-2 text-sm text-base-content/70">
+                        <MapPin className="size-4 text-base-content/50" />
                         <span>{profileUser?.city || profileUser?.homeBase || "Not specified"}</span>
                       </div>
                       {(profileUser?.preferredLocalities || []).slice(0, 3).map((locality, index) => (
-                        <div key={index} className="flex items-center gap-2 text-sm text-slate-600">
-                          <MapPin className="size-4 text-slate-400" />
+                        <div key={index} className="flex items-center gap-2 text-sm text-base-content/70">
+                          <MapPin className="size-4 text-base-content/50" />
                           <span>{locality}</span>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                    <h3 className="mb-4 text-sm font-semibold text-slate-900">About</h3>
-                    <p className="text-sm text-slate-600 line-clamp-4">
+                  <div className="rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm">
+                    <h3 className="mb-4 text-sm font-semibold text-base-content">About</h3>
+                    <p className="text-sm text-base-content/70 line-clamp-4">
                       {profileUser?.bio?.trim() || "No bio information available."}
                     </p>
                   </div>
@@ -1583,20 +1583,20 @@ export default function UserProfilePage() {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+          <div className="w-full max-w-md rounded-2xl bg-base-100 p-6 shadow-xl">
             <div className="flex items-center gap-3 mb-4">
-              <div className="rounded-full bg-red-100 p-2">
-                <Trash2 className="size-5 text-red-600" />
+              <div className="rounded-full bg-error/15 p-2">
+                <Trash2 className="size-5 text-error" />
               </div>
-              <h3 className="text-lg font-semibold text-slate-900">Delete Post</h3>
+              <h3 className="text-lg font-semibold text-base-content">Delete Post</h3>
             </div>
-            <p className="text-sm text-slate-600 mb-6">
+            <p className="text-sm text-base-content/70 mb-6">
               Are you sure you want to delete this post? This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 type="button"
-                className="btn btn-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                className="btn btn-sm border border-base-300 bg-base-100 text-base-content hover:bg-base-200"
                 onClick={() => {
                   setShowDeleteModal(false);
                   setPostToDelete(null);
@@ -1606,7 +1606,7 @@ export default function UserProfilePage() {
               </button>
               <button
                 type="button"
-                className="btn btn-sm bg-red-600 text-white hover:bg-red-700"
+                className="btn btn-sm bg-error text-white hover:bg-error"
                 onClick={() => {
                   if (postToDelete) {
                     deletePost(postToDelete._id);
@@ -1625,9 +1625,9 @@ export default function UserProfilePage() {
       {/* Edit Post Modal */}
       {showEditModal && postToEdit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-base-100 p-6 shadow-xl">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-slate-900">Edit Post</h3>
+              <h3 className="text-lg font-semibold text-base-content">Edit Post</h3>
               <button
                 type="button"
                 className="btn btn-ghost btn-circle"
@@ -1656,7 +1656,7 @@ export default function UserProfilePage() {
               className="space-y-4"
             >
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block text-sm font-medium text-base-content mb-2">
                   Images ({(postToEdit.mediaUrls?.length || 0) + newImageFiles.length}/5)
                 </label>
                 
@@ -1665,7 +1665,7 @@ export default function UserProfilePage() {
                   {/* Current images */}
                   {postToEdit.mediaUrls && postToEdit.mediaUrls.map((url, index) => (
                     !removedImageUrls.includes(url) && (
-                      <div key={`current-${index}`} className="relative flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-slate-200">
+                      <div key={`current-${index}`} className="relative flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-base-300">
                         <img
                           src={url}
                           alt={`Current image ${index + 1}`}
@@ -1674,7 +1674,7 @@ export default function UserProfilePage() {
                         <button
                           type="button"
                           onClick={() => setRemovedImageUrls([...removedImageUrls, url])}
-                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                          className="absolute top-1 right-1 bg-error text-white rounded-full p-1 hover:bg-error transition-colors"
                         >
                           <X className="size-3" />
                         </button>
@@ -1684,13 +1684,13 @@ export default function UserProfilePage() {
                   
                   {/* New image previews */}
                   {newImagePreviews.map((preview, index) => (
-                    <div key={`new-${index}`} className="relative flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-slate-200">
+                    <div key={`new-${index}`} className="relative flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-base-300">
                       <img
                         src={preview}
                         alt={`New image ${index + 1}`}
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute top-1 left-1 bg-indigo-600 text-white text-xs px-1.5 py-0.5 rounded-full">New</div>
+                      <div className="absolute top-1 left-1 bg-primary text-white text-xs px-1.5 py-0.5 rounded-full">New</div>
                       <button
                         type="button"
                         onClick={() => {
@@ -1699,7 +1699,7 @@ export default function UserProfilePage() {
                           setNewImageFiles(newFiles);
                           setNewImagePreviews(newPreviews);
                         }}
-                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                        className="absolute top-1 right-1 bg-error text-white rounded-full p-1 hover:bg-error transition-colors"
                       >
                         <X className="size-3" />
                       </button>
@@ -1735,61 +1735,61 @@ export default function UserProfilePage() {
                       const previews = filesToAdd.map(file => URL.createObjectURL(file));
                       setNewImagePreviews([...newImagePreviews, ...previews]);
                     }}
-                    className="w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-700 file:cursor-pointer hover:file:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full text-sm text-base-content/70 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary file:cursor-pointer hover:file:bg-primary/15 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 )}
                 
                 {(postToEdit.mediaUrls?.filter(url => !removedImageUrls.includes(url)).length || 0) + newImageFiles.length >= 5 && (
-                  <p className="text-sm text-slate-500">Maximum 5 images reached</p>
+                  <p className="text-sm text-base-content/60">Maximum 5 images reached</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
+                <label className="block text-sm font-medium text-base-content mb-1">Title</label>
                 <input
                   type="text"
                   name="title"
                   defaultValue={postToEdit.title || ""}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-lg border border-base-300 px-3 py-2 text-sm focus:border-primary focus:outline-none"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Price</label>
+                <label className="block text-sm font-medium text-base-content mb-1">Price</label>
                 <div className="relative">
-                  <IndianRupee className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  <IndianRupee className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-base-content/50" />
                   <input
                     type="number"
                     name="price"
                     min="0"
                     defaultValue={postToEdit.price ?? ""}
-                    className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm focus:border-indigo-500 focus:outline-none"
+                    className="w-full rounded-lg border border-base-300 py-2 pl-9 pr-3 text-sm focus:border-primary focus:outline-none"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Badge</label>
+                <label className="block text-sm font-medium text-base-content mb-1">Badge</label>
                 <input
                   type="text"
                   name="customBadge"
                   defaultValue={postToEdit.customBadge || ""}
                   maxLength={40}
                   placeholder={`Leave blank to use the default (${getListingBadge(postToEdit)})`}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-lg border border-base-300 px-3 py-2 text-sm focus:border-primary focus:outline-none"
                 />
-                <p className="mt-1 text-xs text-slate-500">Shown on the card in place of the default listing badge, e.g. "Looking for Rent".</p>
+                <p className="mt-1 text-xs text-base-content/60">Shown on the card in place of the default listing badge, e.g. "Looking for Rent".</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-base-content mb-1">Description</label>
                 <textarea
                   name="caption"
                   defaultValue={postToEdit.caption || ""}
                   rows={4}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-lg border border-base-300 px-3 py-2 text-sm focus:border-primary focus:outline-none"
                   placeholder="Add a description for your post..."
                 />
               </div>
@@ -1797,7 +1797,7 @@ export default function UserProfilePage() {
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
-                  className="btn btn-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  className="btn btn-sm border border-base-300 bg-base-100 text-base-content hover:bg-base-200"
                   onClick={() => {
                     setShowEditModal(false);
                     setPostToEdit(null);
@@ -1807,7 +1807,7 @@ export default function UserProfilePage() {
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-sm bg-indigo-600 text-white hover:bg-indigo-700"
+                  className="btn btn-sm bg-primary text-white hover:bg-primary"
                   disabled={updatingPost}
                 >
                   {updatingPost ? "Saving..." : "Save Changes"}
@@ -1890,57 +1890,57 @@ export default function UserProfilePage() {
           onClick={() => setShowAboutModal(false)}
         >
           <div
-            className="max-h-[80vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl"
+            className="max-h-[80vh] w-full overflow-y-auto rounded-t-2xl bg-base-100 p-5 shadow-xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900">About</h3>
+              <h3 className="text-base font-bold text-base-content">About</h3>
               <button
                 type="button"
                 onClick={() => setShowAboutModal(false)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+                className="rounded-lg p-1 text-base-content/50 hover:bg-base-200"
               >
                 <X className="size-5" />
               </button>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+              <div className="flex items-center gap-3 rounded-xl bg-base-200 p-4">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
                   <Calendar className="size-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-900 uppercase">Member Since</p>
-                  <p className="text-sm text-slate-600 truncate">
+                  <p className="text-xs font-semibold text-base-content uppercase">Member Since</p>
+                  <p className="text-sm text-base-content/70 truncate">
                     {profileUser.createdAt ? new Date(profileUser.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "N/A"}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <div className="flex items-center gap-3 rounded-xl bg-base-200 p-4">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
                   <BadgeCheck className="size-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-900 uppercase">Verified Email</p>
-                  <p className="text-sm text-slate-600 truncate">{profileUser.emailVerified ? "Verified" : "Not Verified"}</p>
+                  <p className="text-xs font-semibold text-base-content uppercase">Verified Email</p>
+                  <p className="text-sm text-base-content/70 truncate">{profileUser.emailVerified ? "Verified" : "Not Verified"}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-600">
+              <div className="flex items-center gap-3 rounded-xl bg-base-200 p-4">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-info/15 text-info">
                   <Phone className="size-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-900 uppercase">Phone</p>
-                  <p className="text-sm text-slate-600 truncate">{profileUser.phoneNumber || "Not provided"}</p>
+                  <p className="text-xs font-semibold text-base-content uppercase">Phone</p>
+                  <p className="text-sm text-base-content/70 truncate">{profileUser.phoneNumber || "Not provided"}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+              <div className="flex items-center gap-3 rounded-xl bg-base-200 p-4">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-warning/15 text-warning">
                   <MapPin className="size-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-900 uppercase">Locations</p>
-                  <p className="text-sm text-slate-600 truncate">
+                  <p className="text-xs font-semibold text-base-content uppercase">Locations</p>
+                  <p className="text-sm text-base-content/70 truncate">
                     {(profileUser.preferredLocalities || []).slice(0, 2).join(", ") || "Not specified"}
                   </p>
                 </div>

@@ -79,21 +79,21 @@ export default function CommentSection({ post, onClose }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-lg rounded-2xl bg-white shadow-xl"
+        className="w-full max-w-lg rounded-2xl bg-base-100 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 p-4">
+        <div className="flex items-center justify-between border-b border-base-300 p-4">
           <div className="flex items-center gap-2">
-            <MessageCircle className="size-5 text-slate-600" />
-            <h3 className="text-lg font-semibold text-slate-900">Comments</h3>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+            <MessageCircle className="size-5 text-base-content/70" />
+            <h3 className="text-lg font-semibold text-base-content">Comments</h3>
+            <span className="rounded-full bg-base-200 px-2 py-0.5 text-xs font-medium text-base-content/70">
               {comments.length}
             </span>
           </div>
           <button
             type="button"
-            className="btn btn-circle btn-ghost size-8 text-slate-500 hover:bg-slate-100"
+            className="btn btn-circle btn-ghost size-8 text-base-content/60 hover:bg-base-200"
             onClick={onClose}
           >
             <X className="size-5" />
@@ -110,11 +110,11 @@ export default function CommentSection({ post, onClose }) {
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <p className="text-sm font-medium text-red-500">Failed to load comments</p>
+              <p className="text-sm font-medium text-error">Failed to load comments</p>
               <button
                 type="button"
                 onClick={() => refetch()}
-                className="mt-2 text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                className="mt-2 text-sm text-primary hover:text-primary flex items-center gap-1"
               >
                 <RefreshCw className="size-4" />
                 Retry
@@ -122,9 +122,9 @@ export default function CommentSection({ post, onClose }) {
             </div>
           ) : comments.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <MessageCircle className="size-12 text-slate-300" />
-              <p className="mt-3 text-sm font-medium text-slate-700">No comments yet</p>
-              <p className="mt-1 text-sm text-slate-500">Be the first to comment on this post</p>
+              <MessageCircle className="size-12 text-base-content/40" />
+              <p className="mt-3 text-sm font-medium text-base-content">No comments yet</p>
+              <p className="mt-1 text-sm text-base-content/60">Be the first to comment on this post</p>
             </div>
           ) : (
             <div className="space-y-4 w-full">
@@ -147,7 +147,7 @@ export default function CommentSection({ post, onClose }) {
                 <button
                   type="button"
                   onClick={() => setPage(p => p + 1)}
-                  className="w-full py-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                  className="w-full py-2 text-sm text-primary hover:text-primary font-medium"
                 >
                   Load More Comments
                 </button>
@@ -157,19 +157,19 @@ export default function CommentSection({ post, onClose }) {
         </div>
 
         {/* Comment Input */}
-        <div className="border-t border-slate-200 p-4">
+        <div className="border-t border-base-300 p-4">
           <form onSubmit={handleSubmitComment} className="flex gap-2">
             <input
               type="text"
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               placeholder="Add a comment..."
-              className="flex-1 rounded-full border border-slate-200 px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="flex-1 rounded-full border border-base-300 px-4 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               disabled={isCreatingComment}
             />
             <button
               type="submit"
-              className="btn btn-circle btn-ghost size-10 shrink-0 text-indigo-600 hover:bg-indigo-50 disabled:opacity-50"
+              className="btn btn-circle btn-ghost size-10 shrink-0 text-primary hover:bg-primary/10 disabled:opacity-50"
               disabled={!newComment.trim() || isCreatingComment}
             >
               <Send className="size-5" />

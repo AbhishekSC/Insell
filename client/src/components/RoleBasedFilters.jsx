@@ -134,10 +134,10 @@ export default function RoleBasedFilters({ userRole, isOpen, onClose, onApply, o
         return (
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
-              <Icon className="size-4 text-slate-400" />
+              <Icon className="size-4 text-base-content/50" />
             </div>
             <select
-              className="select select-bordered w-full border-slate-200 bg-slate-50 pl-10 focus:border-indigo-300"
+              className="select select-bordered w-full border-base-300 bg-base-200 pl-10 focus:border-primary/30"
               value={activeFilters[filter.key] || filter.options[0]}
               onChange={(e) => handleFilterChange(filter.key, e.target.value)}
             >
@@ -154,10 +154,10 @@ export default function RoleBasedFilters({ userRole, isOpen, onClose, onApply, o
         return (
           <div>
             <div className="mb-2 flex items-center justify-between text-sm">
-              <span className="text-slate-600">
+              <span className="text-base-content/70">
                 {formatMoney(activeFilters[filter.key]?.[0] || filter.min)}
               </span>
-              <span className="text-slate-600">
+              <span className="text-base-content/70">
                 {formatMoney(activeFilters[filter.key]?.[1] || filter.max)}
               </span>
             </div>
@@ -180,11 +180,11 @@ export default function RoleBasedFilters({ userRole, isOpen, onClose, onApply, o
         return (
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
-              <Icon className="size-4 text-slate-400" />
+              <Icon className="size-4 text-base-content/50" />
             </div>
             <input
               type="text"
-              className="input input-bordered w-full border-slate-200 bg-slate-50 pl-10 focus:border-indigo-300"
+              className="input input-bordered w-full border-base-300 bg-base-200 pl-10 focus:border-primary/30"
               placeholder={`Search ${filter.label.toLowerCase()}...`}
               value={activeFilters[filter.key] || ""}
               onChange={(e) => handleFilterChange(filter.key, e.target.value)}
@@ -196,11 +196,11 @@ export default function RoleBasedFilters({ userRole, isOpen, onClose, onApply, o
         return (
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
-              <Icon className="size-4 text-slate-400" />
+              <Icon className="size-4 text-base-content/50" />
             </div>
             <input
               type="date"
-              className="input input-bordered w-full border-slate-200 bg-slate-50 pl-10 focus:border-indigo-300"
+              className="input input-bordered w-full border-base-300 bg-base-200 pl-10 focus:border-primary/30"
               value={activeFilters[filter.key] || ""}
               onChange={(e) => handleFilterChange(filter.key, e.target.value)}
             />
@@ -210,7 +210,7 @@ export default function RoleBasedFilters({ userRole, isOpen, onClose, onApply, o
       case "toggle":
         return (
           <label className="flex cursor-pointer items-center justify-between">
-            <span className="text-sm font-medium text-slate-700">{filter.label}</span>
+            <span className="text-sm font-medium text-base-content">{filter.label}</span>
             <input
               type="checkbox"
               className="toggle toggle-primary toggle-sm"
@@ -229,12 +229,12 @@ export default function RoleBasedFilters({ userRole, isOpen, onClose, onApply, o
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
+      <div className="w-full max-w-lg rounded-2xl bg-base-100 shadow-xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 p-4">
+        <div className="flex items-center justify-between border-b border-base-300 p-4">
           <div className="flex items-center gap-2">
-            <SlidersHorizontal className="size-5 text-indigo-600" />
-            <h2 className="text-lg font-bold text-slate-800">
+            <SlidersHorizontal className="size-5 text-primary" />
+            <h2 className="text-lg font-bold text-base-content">
               {role} Filters
             </h2>
           </div>
@@ -252,8 +252,8 @@ export default function RoleBasedFilters({ userRole, isOpen, onClose, onApply, o
           <div className="space-y-4">
             {config.filters.map((filter) => (
               <div key={filter.key} className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <filter.icon className="size-4 text-indigo-600" />
+                <label className="flex items-center gap-2 text-sm font-semibold text-base-content">
+                  <filter.icon className="size-4 text-primary" />
                   {filter.label}
                 </label>
                 {renderFilterInput(filter)}
@@ -263,10 +263,10 @@ export default function RoleBasedFilters({ userRole, isOpen, onClose, onApply, o
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-slate-200 p-4">
+        <div className="flex items-center justify-between border-t border-base-300 p-4">
           <button
             type="button"
-            className="btn btn-sm border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            className="btn btn-sm border-base-300 bg-base-100 text-base-content hover:bg-base-200"
             onClick={handleReset}
           >
             Reset
@@ -274,14 +274,14 @@ export default function RoleBasedFilters({ userRole, isOpen, onClose, onApply, o
           <div className="flex gap-2">
             <button
               type="button"
-              className="btn btn-sm border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              className="btn btn-sm border-base-300 bg-base-100 text-base-content hover:bg-base-200"
               onClick={onClose}
             >
               Cancel
             </button>
             <button
               type="button"
-              className="btn btn-sm bg-indigo-600 text-white hover:bg-indigo-500"
+              className="btn btn-sm bg-primary text-white hover:bg-primary"
               onClick={handleApply}
             >
               Apply Filters

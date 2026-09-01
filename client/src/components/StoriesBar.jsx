@@ -9,14 +9,14 @@ import { resolveMediaUrl } from "../lib/media";
 import { useStoryOverlay } from "../context/StoryOverlayContext";
 
 const STORY_CATEGORIES = [
-  { label: "Premium Projects", category: "premium", color: "from-amber-400 to-orange-500" },
-  { label: "Luxury Homes", category: "luxury", color: "from-purple-400 to-pink-500" },
-  { label: "New Launches", category: "new", color: "from-emerald-400 to-teal-500" },
-  { label: "Verified Brokers", category: "verified", color: "from-blue-400 to-indigo-500" },
-  { label: "Price Drops", category: "price-drop", color: "from-rose-400 to-red-500" },
-  { label: "Commercial", category: "commercial", color: "from-slate-400 to-gray-500" },
-  { label: "Investment", category: "investment", color: "from-violet-400 to-purple-500" },
-  { label: "Trending", category: "trending", color: "from-cyan-400 to-blue-500" },
+  { label: "Premium Projects", category: "premium", color: "from-warning to-warning" },
+  { label: "Luxury Homes", category: "luxury", color: "from-secondary to-secondary" },
+  { label: "New Launches", category: "new", color: "from-success to-teal-500" },
+  { label: "Verified Brokers", category: "verified", color: "from-info to-primary" },
+  { label: "Price Drops", category: "price-drop", color: "from-error to-error" },
+  { label: "Commercial", category: "commercial", color: "from-base-300 to-base-300" },
+  { label: "Investment", category: "investment", color: "from-secondary to-secondary" },
+  { label: "Trending", category: "trending", color: "from-info to-info" },
 ];
 
 export default function StoriesBar() {
@@ -155,10 +155,10 @@ export default function StoriesBar() {
           className="flex min-w-[4.5rem] flex-col items-center gap-1"
           onClick={() => setIsCreating(true)}
         >
-          <div className="relative flex size-16 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-indigo-300 bg-indigo-50 transition hover:border-indigo-400 hover:bg-indigo-100">
-            <Plus className="size-6 text-indigo-600" />
+          <div className="relative flex size-16 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-primary/30 bg-primary/10 transition hover:border-primary hover:bg-primary/15">
+            <Plus className="size-6 text-primary" />
           </div>
-          <span className="text-[11px] font-semibold text-slate-700">Add Story</span>
+          <span className="text-[11px] font-semibold text-base-content">Add Story</span>
         </button>
 
         {/* Only show stories if they exist */}
@@ -172,14 +172,14 @@ export default function StoriesBar() {
                 className="flex min-w-[4.5rem] flex-col items-center gap-1 relative"
                 onClick={() => handleStoryClick(authorStory.stories)}
               >
-                <span className="block size-16 overflow-hidden rounded-full p-[2px] bg-gradient-to-br from-indigo-500 via-violet-500 to-pink-500">
+                <span className="block size-16 overflow-hidden rounded-full p-[2px] bg-gradient-to-br from-primary via-secondary to-secondary">
                   <img
                     src={authorStory.author.profilePic || "https://placehold.co/100x100?text=User"}
                     alt={authorStory.author.fullName}
                     className="size-full rounded-full object-cover"
                   />
                 </span>
-                <span className="text-[11px] font-semibold text-slate-700 line-clamp-1 w-full text-center">
+                <span className="text-[11px] font-semibold text-base-content line-clamp-1 w-full text-center">
                   {authorStory.author.fullName?.split(" ")[0]}
                 </span>
               </button>
@@ -189,8 +189,8 @@ export default function StoriesBar() {
 
         {isLoading && (
           <div className="flex min-w-[4.5rem] flex-col items-center gap-1">
-            <div className="size-16 animate-pulse rounded-full bg-slate-200" />
-            <span className="text-[11px] text-slate-400">Loading...</span>
+            <div className="size-16 animate-pulse rounded-full bg-base-300" />
+            <span className="text-[11px] text-base-content/50">Loading...</span>
           </div>
         )}
       </div>
@@ -332,7 +332,7 @@ export function StoryViewer({
       {/* Close Button */}
       <button
         type="button"
-        className="absolute top-6 right-4 text-white hover:text-slate-300 z-20"
+        className="absolute top-6 right-4 text-white hover:text-base-content/40 z-20"
         onClick={onClose}
       >
         <X className="size-6" />
@@ -341,14 +341,14 @@ export function StoryViewer({
       {/* Navigation */}
       <button
         type="button"
-        className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-slate-300 z-20"
+        className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-base-content/40 z-20"
         onClick={onPrevious}
       >
         <ChevronLeft className="size-8" />
       </button>
       <button
         type="button"
-        className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-slate-300 z-20"
+        className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-base-content/40 z-20"
         onClick={onNext}
       >
         <ChevronRight className="size-8" />
@@ -384,10 +384,10 @@ export function StoryViewer({
               <p className="text-sm font-semibold text-white">
                 {story.author?.fullName}
                 {story.author?.isVerified && (
-                  <span className="ml-1 text-emerald-400">✓</span>
+                  <span className="ml-1 text-success">✓</span>
                 )}
               </p>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-base-content/40">
                 {story.author?.activeRole || story.author?.primaryRole} • {relativeTime(story.createdAt)}
               </p>
             </div>
@@ -409,7 +409,7 @@ export function StoryViewer({
                   <p className="text-sm font-semibold text-white line-clamp-1">
                     {story.propertyId.title}
                   </p>
-                  <div className="flex items-center gap-2 text-xs text-slate-300">
+                  <div className="flex items-center gap-2 text-xs text-base-content/40">
                     <span className="flex items-center gap-1">
                       <IndianRupee className="size-3" />
                       {formatMoney(story.propertyId.price)}
@@ -473,7 +473,7 @@ export function StoryViewer({
                 aria-label={isLiked ? "Unlike story" : "Like story"}
                 className="flex items-center gap-1 transition-transform active:scale-90 disabled:opacity-60"
               >
-                <Heart className={`size-4 ${isLiked ? "fill-red-500 text-red-500" : ""}`} />
+                <Heart className={`size-4 ${isLiked ? "fill-error text-error" : ""}`} />
                 <span className="text-xs">{story.likedBy?.length || 0}</span>
               </button>
             )}
@@ -570,12 +570,12 @@ function SaveToHighlightModal({ storyId, authorId, onClose }) {
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+        className="w-full max-w-sm rounded-2xl bg-base-100 p-5 shadow-xl"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-base font-bold text-slate-900">Save to Highlight</h3>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100">
+          <h3 className="text-base font-bold text-base-content">Save to Highlight</h3>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-base-content/50 hover:bg-base-200">
             <X className="size-5" />
           </button>
         </div>
@@ -583,7 +583,7 @@ function SaveToHighlightModal({ storyId, authorId, onClose }) {
         {mode === "pick" ? (
           <>
             {isLoading ? (
-              <p className="py-6 text-center text-sm text-slate-500">Loading your highlights...</p>
+              <p className="py-6 text-center text-sm text-base-content/60">Loading your highlights...</p>
             ) : (
               <div className="max-h-60 space-y-1.5 overflow-y-auto">
                 {(highlights || []).map((highlight) => {
@@ -594,27 +594,27 @@ function SaveToHighlightModal({ storyId, authorId, onClose }) {
                       type="button"
                       disabled={isAdding || isSaved}
                       onClick={() => addToExisting(highlight._id)}
-                      className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-slate-50 disabled:opacity-70"
+                      className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-base-200 disabled:opacity-70"
                     >
-                      <div className="size-11 shrink-0 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
+                      <div className="size-11 shrink-0 overflow-hidden rounded-full border border-base-300 bg-base-200">
                         {highlight.coverImage && (
                           <img src={highlight.coverImage} alt={highlight.title} className="h-full w-full object-cover" />
                         )}
                       </div>
-                      <span className="flex-1 truncate text-sm font-medium text-slate-800">{highlight.title}</span>
-                      {isSaved && <Check className="size-4 text-emerald-600" />}
+                      <span className="flex-1 truncate text-sm font-medium text-base-content">{highlight.title}</span>
+                      {isSaved && <Check className="size-4 text-success" />}
                     </button>
                   );
                 })}
                 {(highlights || []).length === 0 && (
-                  <p className="py-6 text-center text-sm text-slate-500">You don't have any highlights yet.</p>
+                  <p className="py-6 text-center text-sm text-base-content/60">You don't have any highlights yet.</p>
                 )}
               </div>
             )}
             <button
               type="button"
               onClick={() => setMode("create")}
-              className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 py-2.5 text-sm font-semibold text-indigo-600 hover:bg-indigo-50"
+              className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-base-300 py-2.5 text-sm font-semibold text-primary hover:bg-primary/10"
             >
               <Plus className="size-4" />
               New Highlight
@@ -635,7 +635,7 @@ function SaveToHighlightModal({ storyId, authorId, onClose }) {
               <button
                 type="button"
                 onClick={() => setMode("pick")}
-                className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="flex-1 rounded-xl border border-base-300 py-2.5 text-sm font-semibold text-base-content hover:bg-base-200"
               >
                 Back
               </button>
@@ -643,7 +643,7 @@ function SaveToHighlightModal({ storyId, authorId, onClose }) {
                 type="button"
                 disabled={!newTitle.trim() || isCreating}
                 onClick={() => createNew()}
-                className="flex-1 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
+                className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-white hover:bg-primary disabled:opacity-60"
               >
                 {isCreating ? <Loader2 className="mx-auto size-4 animate-spin" /> : "Create"}
               </button>
@@ -682,16 +682,16 @@ function CreateStoryModal({ onClose, onCreate, isPending }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex w-full max-w-md max-h-[calc(100dvh-2rem)] flex-col rounded-2xl bg-white shadow-xl overflow-hidden">
+      <div className="flex w-full max-w-md max-h-[calc(100dvh-2rem)] flex-col rounded-2xl bg-base-100 shadow-xl overflow-hidden">
         {/* Header */}
-        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="text-lg font-semibold text-slate-800">Create Story</h2>
+        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-base-200">
+          <h2 className="text-lg font-semibold text-base-content">Create Story</h2>
           <button
             type="button"
-            className="p-1 hover:bg-slate-100 rounded-full transition"
+            className="p-1 hover:bg-base-200 rounded-full transition"
             onClick={onClose}
           >
-            <X className="size-5 text-slate-500" />
+            <X className="size-5 text-base-content/60" />
           </button>
         </div>
 
@@ -708,7 +708,7 @@ function CreateStoryModal({ onClose, onCreate, isPending }) {
             />
             <label
               htmlFor="story-file"
-              className="flex aspect-[9/16] max-h-64 sm:max-h-80 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50 transition-all"
+              className="flex aspect-[9/16] max-h-64 sm:max-h-80 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-base-300 bg-base-200 hover:border-primary hover:bg-primary/10 transition-all"
             >
               {file ? (
                 <div className="relative h-full w-full">
@@ -737,11 +737,11 @@ function CreateStoryModal({ onClose, onCreate, isPending }) {
                 </div>
               ) : (
                 <div className="text-center p-6">
-                  <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-indigo-100">
-                    <Plus className="size-7 text-indigo-600" />
+                  <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-primary/15">
+                    <Plus className="size-7 text-primary" />
                   </div>
-                  <p className="text-sm font-medium text-slate-700">Add photo or video</p>
-                  <p className="text-xs text-slate-500 mt-1">Max 30 seconds for videos</p>
+                  <p className="text-sm font-medium text-base-content">Add photo or video</p>
+                  <p className="text-xs text-base-content/60 mt-1">Max 30 seconds for videos</p>
                 </div>
               )}
             </label>
@@ -750,52 +750,52 @@ function CreateStoryModal({ onClose, onCreate, isPending }) {
           {/* Caption */}
           <div>
             <textarea
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 outline-none transition resize-none text-sm"
+              className="w-full px-4 py-3 rounded-xl border border-base-300 bg-base-200 focus:border-primary/30 focus:ring-2 focus:ring-primary/20 outline-none transition resize-none text-sm"
               placeholder="Write a caption..."
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               maxLength={500}
               rows={3}
             />
-            <p className="text-xs text-slate-400 mt-1 text-right">{caption.length}/500</p>
+            <p className="text-xs text-base-content/50 mt-1 text-right">{caption.length}/500</p>
           </div>
 
           {/* Visibility */}
           <div>
-            <label className="text-sm font-medium text-slate-700 mb-2 block">Who can see this story?</label>
+            <label className="text-sm font-medium text-base-content mb-2 block">Who can see this story?</label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 className={`flex items-center gap-2 p-3 rounded-xl border-2 transition ${
                   visibility === "public"
-                    ? "border-indigo-500 bg-indigo-50"
-                    : "border-slate-200 bg-slate-50 hover:border-slate-300"
+                    ? "border-primary bg-primary/10"
+                    : "border-base-300 bg-base-200 hover:border-base-300"
                 }`}
                 onClick={() => setVisibility("public")}
               >
-                <div className="flex size-8 items-center justify-center rounded-full bg-indigo-100">
+                <div className="flex size-8 items-center justify-center rounded-full bg-primary/15">
                   <span className="text-lg">🌍</span>
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-medium text-slate-800">Public</p>
-                  <p className="text-xs text-slate-500">Everyone</p>
+                  <p className="text-sm font-medium text-base-content">Public</p>
+                  <p className="text-xs text-base-content/60">Everyone</p>
                 </div>
               </button>
               <button
                 type="button"
                 className={`flex items-center gap-2 p-3 rounded-xl border-2 transition ${
                   visibility === "private"
-                    ? "border-indigo-500 bg-indigo-50"
-                    : "border-slate-200 bg-slate-50 hover:border-slate-300"
+                    ? "border-primary bg-primary/10"
+                    : "border-base-300 bg-base-200 hover:border-base-300"
                 }`}
                 onClick={() => setVisibility("private")}
               >
-                <div className="flex size-8 items-center justify-center rounded-full bg-indigo-100">
+                <div className="flex size-8 items-center justify-center rounded-full bg-primary/15">
                   <span className="text-lg">👥</span>
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-medium text-slate-800">Private</p>
-                  <p className="text-xs text-slate-500">Followers only</p>
+                  <p className="text-sm font-medium text-base-content">Private</p>
+                  <p className="text-xs text-base-content/60">Followers only</p>
                 </div>
               </button>
             </div>
@@ -803,17 +803,17 @@ function CreateStoryModal({ onClose, onCreate, isPending }) {
         </div>
 
           {/* Actions */}
-          <div className="shrink-0 flex gap-3 p-6 pt-4 border-t border-slate-100">
+          <div className="shrink-0 flex gap-3 p-6 pt-4 border-t border-base-200">
             <button
               type="button"
-              className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition"
+              className="flex-1 px-4 py-3 rounded-xl border border-base-300 text-base-content font-medium hover:bg-base-200 transition"
               onClick={onClose}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-3 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary transition disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isPending || !file}
             >
               {isPending ? "Sharing..." : "Share Story"}

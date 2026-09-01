@@ -292,7 +292,7 @@ export default function CallContent() {
       <div className="mb-4 flex items-center justify-end">
         <div className="flex items-center gap-2">
           <button
-            className="btn btn-sm rounded-xl bg-indigo-600 text-white hover:bg-indigo-500"
+            className="btn btn-sm rounded-xl bg-primary text-white hover:bg-primary"
             onClick={startCall}
             disabled={videoBusy}
             title={videoBusy ? "Joining call..." : "Start video call"}
@@ -302,14 +302,14 @@ export default function CallContent() {
           </button>
 
           {incomingVideoCall ? (
-            <button className="btn btn-sm rounded-xl bg-emerald-600 text-white hover:bg-emerald-500" onClick={joinIncoming} disabled={videoBusy}>
+            <button className="btn btn-sm rounded-xl bg-success text-white hover:bg-success" onClick={joinIncoming} disabled={videoBusy}>
               <PhoneIncoming className="size-4" />
               Join incoming
             </button>
           ) : null}
 
           <button
-            className="btn btn-sm rounded-xl border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-70"
+            className="btn btn-sm rounded-xl border border-error/30 text-error hover:bg-error/10 disabled:opacity-70"
             onClick={endCall}
             disabled={!activeVideoCall}
           >
@@ -318,7 +318,7 @@ export default function CallContent() {
           </button>
 
           {activeVideoCall ? (
-            <button type="button" className="btn btn-sm rounded-xl bg-slate-600 text-white hover:bg-slate-500" onClick={() => navigate("/call/live")}>
+            <button type="button" className="btn btn-sm rounded-xl bg-neutral text-white hover:bg-neutral" onClick={() => navigate("/call/live")}>
               <Video className="size-4" />
               Video controls
             </button>
@@ -327,8 +327,8 @@ export default function CallContent() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3 xl:h-full xl:min-h-0">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2 xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden">
-          <div className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-sky-500 p-8 text-white">
+        <section className="rounded-2xl border border-base-300 bg-base-100 p-6 shadow-sm lg:col-span-2 xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden">
+          <div className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-secondary to-info p-8 text-white">
             <div className="relative z-10 max-w-lg">
               <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${serviceReady ? "bg-white/20" : "bg-white/10"}`}>
                 <Radio className="size-3.5" />
@@ -350,57 +350,57 @@ export default function CallContent() {
 
           <div className="flex flex-1 flex-col">
             {incomingVideoCall ? (
-              <div className="mb-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                <div className="grid size-10 place-items-center rounded-xl bg-emerald-100 text-emerald-600"><PhoneIncoming className="size-5" /></div>
-                <div className="min-w-0 flex-1"><p className="font-semibold text-slate-800">Incoming call</p><p className="text-xs text-slate-500">Someone is waiting for you to join.</p></div>
-                <button className="btn btn-sm rounded-xl bg-emerald-600 text-white hover:bg-emerald-500" onClick={joinIncoming} disabled={videoBusy}>Join now</button>
+              <div className="mb-4 flex items-center gap-3 rounded-xl border border-success/30 bg-success/10 p-4">
+                <div className="grid size-10 place-items-center rounded-xl bg-success/15 text-success"><PhoneIncoming className="size-5" /></div>
+                <div className="min-w-0 flex-1"><p className="font-semibold text-base-content">Incoming call</p><p className="text-xs text-base-content/60">Someone is waiting for you to join.</p></div>
+                <button className="btn btn-sm rounded-xl bg-success text-white hover:bg-success" onClick={joinIncoming} disabled={videoBusy}>Join now</button>
               </div>
             ) : null}
 
             {!videoClient ? (
-              <div className="flex flex-1 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-8 text-center"><Loader2 className="size-6 animate-spin text-indigo-600" /></div>
+              <div className="flex flex-1 items-center justify-center rounded-xl border border-base-300 bg-base-200 p-8 text-center"><Loader2 className="size-6 animate-spin text-primary" /></div>
             ) : activeVideoCall ? (
-              <div className="flex flex-1 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-8 text-center">
-                <div className="max-w-sm"><div className="mx-auto grid size-14 place-items-center rounded-2xl bg-emerald-100 text-emerald-600"><Check className="size-7" /></div><h3 className="mt-4 text-lg font-bold text-slate-800">Connected and ready</h3><p className="mt-1 text-sm text-slate-500">Open the call room for a full-screen experience.</p><button type="button" className="btn btn-sm mt-5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500" onClick={() => navigate("/call/live")}>Open live room <ChevronRight className="size-4" /></button></div>
+              <div className="flex flex-1 items-center justify-center rounded-xl border border-base-300 bg-base-200 p-8 text-center">
+                <div className="max-w-sm"><div className="mx-auto grid size-14 place-items-center rounded-2xl bg-success/15 text-success"><Check className="size-7" /></div><h3 className="mt-4 text-lg font-bold text-base-content">Connected and ready</h3><p className="mt-1 text-sm text-base-content/60">Open the call room for a full-screen experience.</p><button type="button" className="btn btn-sm mt-5 rounded-xl bg-primary text-white hover:bg-primary" onClick={() => navigate("/call/live")}>Open live room <ChevronRight className="size-4" /></button></div>
               </div>
             ) : (
-              <div className="flex flex-1 flex-col justify-center rounded-xl border border-slate-200 bg-slate-50 p-6 sm:p-10">
+              <div className="flex flex-1 flex-col justify-center rounded-xl border border-base-300 bg-base-200 p-6 sm:p-10">
                 {selectedFriends.length === 1 ? (
-                  <div className="mx-auto w-full max-w-sm text-center"><UserAvatar src={selectedFriends[0].profilePic} name={selectedFriends[0].fullName} sizeClass="size-20" className="mx-auto ring-4 ring-indigo-100" /><p className="mt-4 text-lg font-bold text-slate-800">Call {selectedFriends[0].fullName}</p><p className="mt-1 text-sm text-slate-500">{selectedFriends[0].travelStyle || selectedFriends[0].learningLanguage || "Travel partner"} · {selectedFriends[0].homeBase || selectedFriends[0].location || "Planning together"}</p><button type="button" className="btn btn-sm mt-6 w-full rounded-xl bg-indigo-600 text-white hover:bg-indigo-500" onClick={startCall} disabled={videoBusy || !serviceReady}>{videoBusy ? <Loader2 className="size-5 animate-spin" /> : <Video className="size-5" />} Start video call</button><p className="mt-3 text-xs text-slate-400">A private room will be created for both of you.</p></div>
+                  <div className="mx-auto w-full max-w-sm text-center"><UserAvatar src={selectedFriends[0].profilePic} name={selectedFriends[0].fullName} sizeClass="size-20" className="mx-auto ring-4 ring-primary/20" /><p className="mt-4 text-lg font-bold text-base-content">Call {selectedFriends[0].fullName}</p><p className="mt-1 text-sm text-base-content/60">{selectedFriends[0].travelStyle || selectedFriends[0].learningLanguage || "Travel partner"} · {selectedFriends[0].homeBase || selectedFriends[0].location || "Planning together"}</p><button type="button" className="btn btn-sm mt-6 w-full rounded-xl bg-primary text-white hover:bg-primary" onClick={startCall} disabled={videoBusy || !serviceReady}>{videoBusy ? <Loader2 className="size-5 animate-spin" /> : <Video className="size-5" />} Start video call</button><p className="mt-3 text-xs text-base-content/50">A private room will be created for both of you.</p></div>
                 ) : selectedFriends.length > 1 ? (
                   <div className="mx-auto w-full max-w-sm text-center">
                     <div className="flex justify-center -space-x-3">
                       {selectedFriends.slice(0, 4).map((friend) => (
-                        <UserAvatar key={friend._id} src={friend.profilePic} name={friend.fullName} sizeClass="size-16" className="ring-4 ring-slate-50" />
+                        <UserAvatar key={friend._id} src={friend.profilePic} name={friend.fullName} sizeClass="size-16" className="ring-4 ring-base-300" />
                       ))}
                       {selectedFriends.length > 4 ? (
-                        <div className="grid size-16 place-items-center rounded-full bg-slate-200 text-sm font-bold text-slate-700 ring-4 ring-slate-50">
+                        <div className="grid size-16 place-items-center rounded-full bg-base-300 text-sm font-bold text-base-content ring-4 ring-base-300">
                           +{selectedFriends.length - 4}
                         </div>
                       ) : null}
                     </div>
-                    <p className="mt-4 text-lg font-bold text-slate-800">Group call with {selectedFriends.length} people</p>
-                    <p className="mt-1 truncate text-sm text-slate-500">{selectedFriends.map((friend) => friend.fullName).join(", ")}</p>
-                    <button type="button" className="btn btn-sm mt-6 w-full rounded-xl bg-indigo-600 text-white hover:bg-indigo-500" onClick={startCall} disabled={videoBusy || !serviceReady}>{videoBusy ? <Loader2 className="size-5 animate-spin" /> : <Video className="size-5" />} Start group call</button>
-                    <p className="mt-3 text-xs text-slate-400">A private room will be created for all {selectedFriends.length + 1} of you.</p>
+                    <p className="mt-4 text-lg font-bold text-base-content">Group call with {selectedFriends.length} people</p>
+                    <p className="mt-1 truncate text-sm text-base-content/60">{selectedFriends.map((friend) => friend.fullName).join(", ")}</p>
+                    <button type="button" className="btn btn-sm mt-6 w-full rounded-xl bg-primary text-white hover:bg-primary" onClick={startCall} disabled={videoBusy || !serviceReady}>{videoBusy ? <Loader2 className="size-5 animate-spin" /> : <Video className="size-5" />} Start group call</button>
+                    <p className="mt-3 text-xs text-base-content/50">A private room will be created for all {selectedFriends.length + 1} of you.</p>
                   </div>
                 ) : (
-                  <div className="mx-auto max-w-sm text-center"><div className="mx-auto grid size-16 place-items-center rounded-3xl bg-indigo-100 text-indigo-600"><Video className="size-7" /></div><h3 className="mt-5 text-lg font-bold text-slate-800">Pick someone to call</h3><p className="mt-1 text-sm text-slate-500">Select one friend for a private call, or several for a group call.</p></div>
+                  <div className="mx-auto max-w-sm text-center"><div className="mx-auto grid size-16 place-items-center rounded-3xl bg-primary/15 text-primary"><Video className="size-7" /></div><h3 className="mt-5 text-lg font-bold text-base-content">Pick someone to call</h3><p className="mt-1 text-sm text-base-content/60">Select one friend for a private call, or several for a group call.</p></div>
                 )}
               </div>
             )}
           </div>
         </section>
 
-        <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:min-h-0 xl:overflow-y-auto">
+        <aside className="rounded-2xl border border-base-300 bg-base-100 p-4 shadow-sm xl:min-h-0 xl:overflow-y-auto">
           <div className="mb-4 flex items-center gap-3">
-            <div className="grid size-9 place-items-center rounded-xl bg-indigo-100 text-indigo-600"><Users className="size-4" /></div>
-            <div><h3 className="font-semibold text-slate-800">Start a call</h3><p className="text-xs text-slate-500">Pick one for a 1:1 call, or several for a group call</p></div>
+            <div className="grid size-9 place-items-center rounded-xl bg-primary/15 text-primary"><Users className="size-4" /></div>
+            <div><h3 className="font-semibold text-base-content">Start a call</h3><p className="text-xs text-base-content/60">Pick one for a 1:1 call, or several for a group call</p></div>
           </div>
           {isLoading ? (
-            <div className="mt-4 h-28 animate-pulse rounded-2xl bg-slate-100" />
+            <div className="mt-4 h-28 animate-pulse rounded-2xl bg-base-200" />
           ) : friends.length === 0 ? (
-            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">No friends available yet. Build your network from Requests.</div>
+            <div className="mt-4 rounded-xl border border-base-300 bg-base-100 p-8 text-center text-sm text-base-content/60">No friends available yet. Build your network from Requests.</div>
           ) : (
             <div className="space-y-1">
               {friends.map((friend) => {
@@ -409,58 +409,58 @@ export default function CallContent() {
                 const inCall = status === "busy";
                 const isOnline = onlineFriendIds.has(friend._id);
                 return (
-                  <button key={friend._id} type="button" className={`flex w-full items-center gap-3 rounded-lg p-3 text-left transition-all ${isSelected ? "bg-indigo-50 border border-indigo-200" : "hover:bg-slate-50 border border-transparent"}`} onClick={() => toggleFriendSelection(friend._id)}>
+                  <button key={friend._id} type="button" className={`flex w-full items-center gap-3 rounded-lg p-3 text-left transition-all ${isSelected ? "bg-primary/10 border border-primary/30" : "hover:bg-base-200 border border-transparent"}`} onClick={() => toggleFriendSelection(friend._id)}>
                     <span className="relative shrink-0">
                       <UserAvatar src={friend.profilePic} name={friend.fullName} sizeClass="size-10" />
                       {inCall ? (
-                        <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-white bg-red-500" title="In a call" />
+                        <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-white bg-error" title="In a call" />
                       ) : isOnline ? (
-                        <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-white bg-emerald-500" title="Online" />
+                        <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-white bg-success" title="Online" />
                       ) : null}
                     </span>
                     <span className="min-w-0 flex-1 text-left">
-                      <span className="block truncate text-sm font-semibold text-slate-800">{friend.fullName}</span>
-                      <span className={`block truncate text-xs ${inCall ? "font-medium text-red-500" : "text-slate-500"}`}>
+                      <span className="block truncate text-sm font-semibold text-base-content">{friend.fullName}</span>
+                      <span className={`block truncate text-xs ${inCall ? "font-medium text-error" : "text-base-content/60"}`}>
                         {inCall ? "In a call" : friend.travelStyle || friend.learningLanguage || "Travel partner"}
                       </span>
                     </span>
-                    {isSelected ? <Check className="size-4 text-indigo-600" /> : <ChevronRight className="size-4 text-slate-400" />}
+                    {isSelected ? <Check className="size-4 text-primary" /> : <ChevronRight className="size-4 text-base-content/50" />}
                   </button>
                 );
               })}
             </div>
           )}
 
-          <div className="mt-6 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+          <div className="mt-6 flex items-center gap-2 rounded-lg border border-base-300 bg-base-200 p-3 text-xs text-base-content/70">
             <ShieldCheck className="size-4 flex-shrink-0" />
             <span>Private rooms are only visible to invited members.</span>
           </div>
 
           <div className="mt-6 flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-slate-800">Active rooms</h3>
-              <p className="text-xs text-slate-500">Join a conversation in progress</p>
+              <h3 className="text-sm font-bold text-base-content">Active rooms</h3>
+              <p className="text-xs text-base-content/60">Join a conversation in progress</p>
             </div>
             <button type="button" className="btn btn-ghost btn-sm btn-circle" onClick={() => refetchActiveCalls()} disabled={activeCallsFetching} aria-label="Refresh active calls">
               <RefreshCw className={`size-4 ${activeCallsFetching ? "animate-spin" : ""}`} />
             </button>
           </div>
           {activeCallsData.length === 0 ? (
-            <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500">No live rooms right now.</div>
+            <div className="mt-3 rounded-lg border border-base-300 bg-base-200 p-4 text-center text-sm text-base-content/60">No live rooms right now.</div>
           ) : (
             <div className="mt-3 space-y-2">
               {activeCallsData.map((call) => (
-                <div key={call.cid} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3">
+                <div key={call.cid} className="flex items-center justify-between rounded-lg border border-base-300 bg-base-100 p-3">
                   <div>
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600"><span className="size-1.5 rounded-full bg-emerald-600" /> Live now</span>
-                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-success"><span className="size-1.5 rounded-full bg-success" /> Live now</span>
+                    <p className="mt-1 text-sm font-semibold text-base-content">
                       {call.isCommunityCall
                         ? `Join ${call.communityLabel || "community"} call`
                         : `${call.liveParticipantsCount} participant${call.liveParticipantsCount === 1 ? "" : "s"}`}
                     </p>
-                    <p className="mt-0.5 truncate text-xs text-slate-500">{call.members.map((member) => member.name).join(", ") || "Private room"}</p>
+                    <p className="mt-0.5 truncate text-xs text-base-content/60">{call.members.map((member) => member.name).join(", ") || "Private room"}</p>
                   </div>
-                  <button type="button" className="btn btn-sm rounded-xl bg-indigo-600 text-white hover:bg-indigo-500" onClick={() => joinFromList(call.cid)} disabled={videoBusy}>Join</button>
+                  <button type="button" className="btn btn-sm rounded-xl bg-primary text-white hover:bg-primary" onClick={() => joinFromList(call.cid)} disabled={videoBusy}>Join</button>
                 </div>
               ))}
             </div>

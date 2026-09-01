@@ -50,40 +50,40 @@ export default function AnnouncementNotice({ enabled }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+      <div className="w-full max-w-sm rounded-2xl bg-base-100 p-6 shadow-xl">
         <div className="flex items-start justify-between gap-3">
-          <div className="grid size-10 shrink-0 place-items-center rounded-full bg-indigo-50 text-indigo-600">
+          <div className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
             <Megaphone className="size-5" />
           </div>
           <button
             type="button"
             onClick={() => dismissAll()}
             disabled={isPending}
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-60"
+            className="rounded-lg p-1 text-base-content/50 hover:bg-base-200 hover:text-base-content/70 disabled:opacity-60"
             title="Dismiss"
           >
             <X className="size-5" />
           </button>
         </div>
 
-        <h3 className="mt-3 text-lg font-semibold text-slate-800">
+        <h3 className="mt-3 text-lg font-semibold text-base-content">
           {notices.length > 1 ? `${notices.length} announcements` : "Announcement"}
         </h3>
-        <p className="mt-1 text-sm text-slate-500">Platform updates from the NearMySpace team.</p>
+        <p className="mt-1 text-sm text-base-content/60">Platform updates from the NearMySpace team.</p>
 
         <div className="mt-4 max-h-52 space-y-2 overflow-y-auto">
           {notices.map((notice) => (
-            <div key={notice._id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div key={notice._id} className="rounded-xl border border-base-300 bg-base-200 p-3">
               {notice.image && (
                 <img src={notice.image} alt="" className="mb-2 max-h-40 w-full rounded-lg object-cover" />
               )}
               <div className="flex items-start gap-2.5">
-                <div className="grid size-6 shrink-0 place-items-center rounded-full bg-indigo-50 text-indigo-600">
+                <div className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
                   <Megaphone className="size-3.5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-slate-700">{notice.message}</p>
-                  <p className="mt-1 text-xs text-slate-400">{relativeDate(notice.createdAt)}</p>
+                  <p className="text-sm text-base-content">{notice.message}</p>
+                  <p className="mt-1 text-xs text-base-content/50">{relativeDate(notice.createdAt)}</p>
                 </div>
               </div>
             </div>
@@ -94,7 +94,7 @@ export default function AnnouncementNotice({ enabled }) {
           type="button"
           onClick={() => dismissAll()}
           disabled={isPending}
-          className="mt-5 w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+          className="mt-5 w-full rounded-xl bg-neutral px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral disabled:opacity-60"
         >
           Got it
         </button>

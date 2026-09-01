@@ -3,16 +3,16 @@ import ComparisonBadge from "./ComparisonBadge";
 
 export default function ComparisonTable({ properties, comparisonItems, getBestValue }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    <div className="bg-base-100 rounded-2xl shadow-sm border border-base-300 overflow-hidden">
       {/* Table Header */}
-      <div className="sticky top-0 bg-slate-50/95 backdrop-blur-sm border-b border-slate-200">
-        <div className="grid grid-cols-5 divide-x divide-slate-200">
+      <div className="sticky top-0 bg-base-200/95 backdrop-blur-sm border-b border-base-300">
+        <div className="grid grid-cols-5 divide-x divide-base-300">
           <div className="col-span-1 px-6 py-4">
-            <span className="font-semibold text-slate-700">Feature</span>
+            <span className="font-semibold text-base-content">Feature</span>
           </div>
           {properties.map((property) => (
             <div key={property.id} className="col-span-1 px-6 py-4 text-center">
-              <span className="font-semibold text-slate-700 text-sm line-clamp-2">
+              <span className="font-semibold text-base-content text-sm line-clamp-2">
                 {property.title?.split(' ').slice(0, 3).join(' ')}...
               </span>
             </div>
@@ -21,7 +21,7 @@ export default function ComparisonTable({ properties, comparisonItems, getBestVa
       </div>
 
       {/* Table Body */}
-      <div className="divide-y divide-slate-100">
+      <div className="divide-y divide-base-300">
         {comparisonItems.map((item, index) => {
           const bestValue = item.highlight ? getBestValue(item.key, item.best) : null;
           const isEven = index % 2 === 0;
@@ -29,17 +29,17 @@ export default function ComparisonTable({ properties, comparisonItems, getBestVa
           return (
             <div
               key={item.key}
-              className={`grid grid-cols-5 divide-x divide-slate-100 transition-colors duration-150 ${
-                isEven ? 'bg-white' : 'bg-slate-50/30'
-              } hover:bg-indigo-50/30`}
+              className={`grid grid-cols-5 divide-x divide-base-300 transition-colors duration-150 ${
+                isEven ? 'bg-base-100' : 'bg-base-200/30'
+              } hover:bg-primary/10`}
             >
               {/* Feature Label */}
               <div className="col-span-1 px-6 py-4">
                 <div className="flex items-center gap-2.5">
                   {item.icon && (
-                    <item.icon className="size-4 text-slate-400 flex-shrink-0" />
+                    <item.icon className="size-4 text-base-content/50 flex-shrink-0" />
                   )}
-                  <span className="font-medium text-slate-700">{item.label}</span>
+                  <span className="font-medium text-base-content">{item.label}</span>
                 </div>
               </div>
 
@@ -61,7 +61,7 @@ export default function ComparisonTable({ properties, comparisonItems, getBestVa
                         {displayValue}
                       </ComparisonBadge>
                     ) : (
-                      <span className="text-slate-600">{displayValue}</span>
+                      <span className="text-base-content/70">{displayValue}</span>
                     )}
                   </div>
                 );

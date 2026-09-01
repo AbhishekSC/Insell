@@ -73,16 +73,16 @@ function ConfirmBlockModal({ user, isPending, onCancel, onConfirm }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
       <div
-        className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
+        className="w-full max-w-sm rounded-2xl bg-base-100 p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className={`mx-auto grid size-12 place-items-center rounded-full ${isBlocking ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"}`}>
+        <div className={`mx-auto grid size-12 place-items-center rounded-full ${isBlocking ? "bg-error/10 text-error" : "bg-success/10 text-success"}`}>
           {isBlocking ? <ShieldOff className="size-6" /> : <ShieldCheck className="size-6" />}
         </div>
-        <h3 className="mt-4 text-center text-lg font-semibold text-slate-800">
+        <h3 className="mt-4 text-center text-lg font-semibold text-base-content">
           {isBlocking ? "Block this user?" : "Unblock this user?"}
         </h3>
-        <p className="mt-1.5 text-center text-sm text-slate-500">
+        <p className="mt-1.5 text-center text-sm text-base-content/60">
           {isBlocking
             ? `${user.fullName || "This user"} will no longer be able to log in or use the platform.`
             : `${user.fullName || "This user"} will regain access to the platform.`}
@@ -92,7 +92,7 @@ function ConfirmBlockModal({ user, isPending, onCancel, onConfirm }) {
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="flex-1 rounded-xl border border-base-300 px-4 py-2.5 text-sm font-semibold text-base-content hover:bg-base-200"
           >
             Cancel
           </button>
@@ -101,7 +101,7 @@ function ConfirmBlockModal({ user, isPending, onCancel, onConfirm }) {
             onClick={onConfirm}
             disabled={isPending}
             className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors disabled:opacity-60 ${
-              isBlocking ? "bg-red-600 hover:bg-red-500" : "bg-emerald-600 hover:bg-emerald-500"
+              isBlocking ? "bg-error hover:bg-error" : "bg-success hover:bg-success"
             }`}
           >
             {isPending ? <Loader2 className="mx-auto size-4 animate-spin" /> : isBlocking ? "Block" : "Unblock"}
@@ -127,28 +127,28 @@ function BlockPostModal({ post, isPending, onCancel, onConfirm }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="mx-auto grid size-12 place-items-center rounded-full bg-red-50 text-red-600">
+      <div className="w-full max-w-md rounded-2xl bg-base-100 p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mx-auto grid size-12 place-items-center rounded-full bg-error/10 text-error">
           <ShieldOff className="size-6" />
         </div>
-        <h3 className="mt-4 text-center text-lg font-semibold text-slate-800">Block this post?</h3>
-        <p className="mt-1.5 text-center text-sm text-slate-500">
+        <h3 className="mt-4 text-center text-lg font-semibold text-base-content">Block this post?</h3>
+        <p className="mt-1.5 text-center text-sm text-base-content/60">
           It will no longer be visible on the marketplace. The owner keeps seeing it on their own profile, badged as blocked.
         </p>
 
-        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p className="truncate text-sm font-semibold text-slate-800">{post.title || "Untitled listing"}</p>
-          <p className="text-xs text-slate-500">Posted by {post.author?.fullName || "Unknown"}</p>
+        <div className="mt-4 rounded-xl border border-base-300 bg-base-200 p-3">
+          <p className="truncate text-sm font-semibold text-base-content">{post.title || "Untitled listing"}</p>
+          <p className="text-xs text-base-content/60">Posted by {post.author?.fullName || "Unknown"}</p>
         </div>
 
         <div className="mt-4">
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">Reason for blocking *</label>
+          <label className="mb-1.5 block text-sm font-medium text-base-content">Reason for blocking *</label>
           <div className="space-y-1.5">
             {BLOCK_REASON_OPTIONS.map((option) => (
               <label
                 key={option.code}
                 className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                  reasonCode === option.code ? "border-red-300 bg-red-50 text-red-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                  reasonCode === option.code ? "border-error/30 bg-error/10 text-error" : "border-base-300 text-base-content/70 hover:bg-base-200"
                 }`}
               >
                 <input
@@ -166,13 +166,13 @@ function BlockPostModal({ post, isPending, onCancel, onConfirm }) {
         </div>
 
         <div className="mt-4">
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">Additional note</label>
+          <label className="mb-1.5 block text-sm font-medium text-base-content">Additional note</label>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Explain why this post is being blocked..."
             rows={3}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+            className="w-full rounded-lg border border-base-300 px-3 py-2 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20"
           />
         </div>
 
@@ -180,7 +180,7 @@ function BlockPostModal({ post, isPending, onCancel, onConfirm }) {
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="flex-1 rounded-xl border border-base-300 px-4 py-2.5 text-sm font-semibold text-base-content hover:bg-base-200"
           >
             Cancel
           </button>
@@ -188,7 +188,7 @@ function BlockPostModal({ post, isPending, onCancel, onConfirm }) {
             type="button"
             onClick={() => onConfirm({ reasonCode, note })}
             disabled={isPending || !reasonCode}
-            className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-500 disabled:opacity-60"
+            className="flex-1 rounded-xl bg-error px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-error disabled:opacity-60"
           >
             {isPending ? <Loader2 className="mx-auto size-4 animate-spin" /> : "Block Post"}
           </button>
@@ -203,12 +203,12 @@ function ConfirmUnblockPostModal({ post, isPending, onCancel, onConfirm }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="mx-auto grid size-12 place-items-center rounded-full bg-emerald-50 text-emerald-600">
+      <div className="w-full max-w-sm rounded-2xl bg-base-100 p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mx-auto grid size-12 place-items-center rounded-full bg-success/10 text-success">
           <ShieldCheck className="size-6" />
         </div>
-        <h3 className="mt-4 text-center text-lg font-semibold text-slate-800">Unblock this post?</h3>
-        <p className="mt-1.5 text-center text-sm text-slate-500">
+        <h3 className="mt-4 text-center text-lg font-semibold text-base-content">Unblock this post?</h3>
+        <p className="mt-1.5 text-center text-sm text-base-content/60">
           "{post.title || "This post"}" will become visible to users again across the marketplace.
         </p>
 
@@ -216,7 +216,7 @@ function ConfirmUnblockPostModal({ post, isPending, onCancel, onConfirm }) {
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="flex-1 rounded-xl border border-base-300 px-4 py-2.5 text-sm font-semibold text-base-content hover:bg-base-200"
           >
             Cancel
           </button>
@@ -224,7 +224,7 @@ function ConfirmUnblockPostModal({ post, isPending, onCancel, onConfirm }) {
             type="button"
             onClick={onConfirm}
             disabled={isPending}
-            className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-60"
+            className="flex-1 rounded-xl bg-success px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-success disabled:opacity-60"
           >
             {isPending ? <Loader2 className="mx-auto size-4 animate-spin" /> : "Unblock"}
           </button>
@@ -293,34 +293,34 @@ function UsersPanel() {
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+    <div className="rounded-2xl border border-base-300 bg-base-100 shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-base-300 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex items-center gap-2">
-          <div className="grid size-9 place-items-center rounded-xl bg-indigo-100 text-indigo-600">
+          <div className="grid size-9 place-items-center rounded-xl bg-primary/15 text-primary">
             <Users className="size-4" />
           </div>
           <div>
-            <h2 className="font-semibold text-slate-800">All users</h2>
-            <p className="text-xs text-slate-500">{pagination.total} total</p>
+            <h2 className="font-semibold text-base-content">All users</h2>
+            <p className="text-xs text-base-content/60">{pagination.total} total</p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-base-content/50" />
             <input
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search name, email, phone..."
-              className="w-56 rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+              className="w-56 rounded-lg border border-base-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+            className="rounded-lg border border-base-300 px-3 py-2 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20"
           >
             <option value="all">All statuses</option>
             <option value="active">Active</option>
@@ -330,7 +330,7 @@ function UsersPanel() {
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+            className="rounded-lg border border-base-300 px-3 py-2 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20"
           >
             <option value="">All roles</option>
             {ROLE_OPTIONS.map((r) => (
@@ -343,7 +343,7 @@ function UsersPanel() {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-sm">
           <thead>
-            <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <tr className="border-b border-base-200 text-left text-xs font-semibold uppercase tracking-wide text-base-content/60">
               <th className="px-4 py-3 sm:px-5">User</th>
               <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">Phone</th>
@@ -353,46 +353,46 @@ function UsersPanel() {
               <th className="px-4 py-3 text-right sm:pr-5">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-base-300">
             {isLoading ? (
               <tr>
-                <td colSpan={7} className="px-5 py-10 text-center text-slate-400">
+                <td colSpan={7} className="px-5 py-10 text-center text-base-content/50">
                   <Loader2 className="mx-auto size-6 animate-spin" />
                 </td>
               </tr>
             ) : isError ? (
               <tr>
-                <td colSpan={7} className="px-5 py-10 text-center text-sm text-red-500">
+                <td colSpan={7} className="px-5 py-10 text-center text-sm text-error">
                   Failed to load users.
                 </td>
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-5 py-10 text-center text-sm text-slate-500">
+                <td colSpan={7} className="px-5 py-10 text-center text-sm text-base-content/60">
                   No users match these filters.
                 </td>
               </tr>
             ) : (
               users.map((user) => (
-                <tr key={user._id} className="hover:bg-slate-50/70">
+                <tr key={user._id} className="hover:bg-base-200/70">
                   <td className="px-4 py-3 sm:px-5">
                     <div className="flex items-center gap-3">
                       <UserAvatar src={user.profilePic} name={user.fullName} sizeClass="size-9" userId={user._id} />
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-slate-800">{user.fullName || "Unknown"}</p>
-                        <p className="truncate text-xs text-slate-500">{user.activeRole || user.primaryRole || "—"}</p>
+                        <p className="truncate text-sm font-semibold text-base-content">{user.fullName || "Unknown"}</p>
+                        <p className="truncate text-xs text-base-content/60">{user.activeRole || user.primaryRole || "—"}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="max-w-[200px] truncate px-4 py-3 text-slate-600">{user.email}</td>
-                  <td className="px-4 py-3 text-slate-600">{user.mobileNumber || "—"}</td>
-                  <td className="max-w-[160px] truncate px-4 py-3 text-slate-600">{user.location || user.city || "—"}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatDate(user.createdAt)}</td>
+                  <td className="max-w-[200px] truncate px-4 py-3 text-base-content/70">{user.email}</td>
+                  <td className="px-4 py-3 text-base-content/70">{user.mobileNumber || "—"}</td>
+                  <td className="max-w-[160px] truncate px-4 py-3 text-base-content/70">{user.location || user.city || "—"}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-base-content/70">{formatDate(user.createdAt)}</td>
                   <td className="px-4 py-3">
                     {user.isBlocked ? (
-                      <span className="inline-flex items-center rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">Blocked</span>
+                      <span className="inline-flex items-center rounded-full bg-error/10 px-2.5 py-1 text-xs font-semibold text-error">Blocked</span>
                     ) : (
-                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">Active</span>
+                      <span className="inline-flex items-center rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">Active</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right sm:pr-5">
@@ -402,8 +402,8 @@ function UsersPanel() {
                       disabled={pendingBlockId === user._id}
                       className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60 ${
                         user.isBlocked
-                          ? "border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-                          : "border-red-200 text-red-600 hover:bg-red-50"
+                          ? "border-success/30 text-success hover:bg-success/10"
+                          : "border-error/30 text-error hover:bg-error/10"
                       }`}
                     >
                       {pendingBlockId === user._id ? (
@@ -423,8 +423,8 @@ function UsersPanel() {
         </table>
       </div>
 
-      <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 sm:px-5">
-        <p className="text-xs text-slate-500">
+      <div className="flex items-center justify-between border-t border-base-300 px-4 py-3 sm:px-5">
+        <p className="text-xs text-base-content/60">
           Page {pagination.page} of {pagination.totalPages}
           {isFetching ? " · updating..." : ""}
         </p>
@@ -433,7 +433,7 @@ function UsersPanel() {
             type="button"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-lg border border-base-300 px-2.5 py-1.5 text-xs font-semibold text-base-content/70 hover:bg-base-200 disabled:opacity-40"
           >
             <ChevronLeft className="size-3.5" /> Prev
           </button>
@@ -441,7 +441,7 @@ function UsersPanel() {
             type="button"
             onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
             disabled={page >= pagination.totalPages}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-lg border border-base-300 px-2.5 py-1.5 text-xs font-semibold text-base-content/70 hover:bg-base-200 disabled:opacity-40"
           >
             Next <ChevronRight className="size-3.5" />
           </button>
@@ -559,34 +559,34 @@ function PostsPanel() {
   });
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+    <div className="rounded-2xl border border-base-300 bg-base-100 shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-base-300 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex items-center gap-2">
-          <div className="grid size-9 place-items-center rounded-xl bg-indigo-100 text-indigo-600">
+          <div className="grid size-9 place-items-center rounded-xl bg-primary/15 text-primary">
             <ShieldAlert className="size-4" />
           </div>
           <div>
-            <h2 className="font-semibold text-slate-800">Marketplace posts</h2>
-            <p className="text-xs text-slate-500">{pagination.total} total</p>
+            <h2 className="font-semibold text-base-content">Marketplace posts</h2>
+            <p className="text-xs text-base-content/60">{pagination.total} total</p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-base-content/50" />
             <input
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search title, city..."
-              className="w-56 rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+              className="w-56 rounded-lg border border-base-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+            className="rounded-lg border border-base-300 px-3 py-2 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20"
           >
             <option value="all">All statuses</option>
             <option value="active">Active</option>
@@ -598,7 +598,7 @@ function PostsPanel() {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-sm">
           <thead>
-            <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <tr className="border-b border-base-200 text-left text-xs font-semibold uppercase tracking-wide text-base-content/60">
               <th className="px-4 py-3 sm:px-5">Post</th>
               <th className="px-4 py-3">Owner</th>
               <th className="px-4 py-3">Price</th>
@@ -608,28 +608,28 @@ function PostsPanel() {
               <th className="px-4 py-3 text-right sm:pr-5">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-base-300">
             {isLoading ? (
               <tr>
-                <td colSpan={7} className="px-5 py-10 text-center text-slate-400">
+                <td colSpan={7} className="px-5 py-10 text-center text-base-content/50">
                   <Loader2 className="mx-auto size-6 animate-spin" />
                 </td>
               </tr>
             ) : isError ? (
               <tr>
-                <td colSpan={7} className="px-5 py-10 text-center text-sm text-red-500">
+                <td colSpan={7} className="px-5 py-10 text-center text-sm text-error">
                   Failed to load posts.
                 </td>
               </tr>
             ) : posts.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-5 py-10 text-center text-sm text-slate-500">
+                <td colSpan={7} className="px-5 py-10 text-center text-sm text-base-content/60">
                   No posts match these filters.
                 </td>
               </tr>
             ) : (
               posts.map((post) => (
-                <tr key={post._id} className="hover:bg-slate-50/70">
+                <tr key={post._id} className="hover:bg-base-200/70">
                   <td className="px-4 py-3 sm:px-5">
                     <div className="flex items-center gap-3">
                       <img
@@ -637,30 +637,30 @@ function PostsPanel() {
                         alt=""
                         className="size-9 shrink-0 rounded-lg object-cover"
                       />
-                      <p className="max-w-[220px] truncate text-sm font-semibold text-slate-800">{post.title || "Untitled listing"}</p>
+                      <p className="max-w-[220px] truncate text-sm font-semibold text-base-content">{post.title || "Untitled listing"}</p>
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <UserAvatar src={post.author?.profilePic} name={post.author?.fullName} sizeClass="size-7" userId={post.author?._id} />
-                      <span className="max-w-[140px] truncate text-slate-600">{post.author?.fullName || "Unknown"}</span>
+                      <span className="max-w-[140px] truncate text-base-content/70">{post.author?.fullName || "Unknown"}</span>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatMoney(post.price)}</td>
-                  <td className="max-w-[140px] truncate px-4 py-3 text-slate-600">{post.city || "—"}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatDate(post.createdAt)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-base-content/70">{formatMoney(post.price)}</td>
+                  <td className="max-w-[140px] truncate px-4 py-3 text-base-content/70">{post.city || "—"}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-base-content/70">{formatDate(post.createdAt)}</td>
                   <td className="px-4 py-3">
                     {post.isBlocked ? (
-                      <span className="inline-flex items-center rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">Blocked</span>
+                      <span className="inline-flex items-center rounded-full bg-error/10 px-2.5 py-1 text-xs font-semibold text-error">Blocked</span>
                     ) : (
-                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">Active</span>
+                      <span className="inline-flex items-center rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">Active</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right sm:pr-5">
                     <button
                       type="button"
                       onClick={(event) => toggleMenu(post, event)}
-                      className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+                      className="rounded-lg p-1.5 text-base-content/60 hover:bg-base-200"
                     >
                       <MoreVertical className="size-4" />
                     </button>
@@ -672,8 +672,8 @@ function PostsPanel() {
         </table>
       </div>
 
-      <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 sm:px-5">
-        <p className="text-xs text-slate-500">
+      <div className="flex items-center justify-between border-t border-base-300 px-4 py-3 sm:px-5">
+        <p className="text-xs text-base-content/60">
           Page {pagination.page} of {pagination.totalPages}
           {isFetching ? " · updating..." : ""}
         </p>
@@ -682,7 +682,7 @@ function PostsPanel() {
             type="button"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-lg border border-base-300 px-2.5 py-1.5 text-xs font-semibold text-base-content/70 hover:bg-base-200 disabled:opacity-40"
           >
             <ChevronLeft className="size-3.5" /> Prev
           </button>
@@ -690,7 +690,7 @@ function PostsPanel() {
             type="button"
             onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
             disabled={page >= pagination.totalPages}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-lg border border-base-300 px-2.5 py-1.5 text-xs font-semibold text-base-content/70 hover:bg-base-200 disabled:opacity-40"
           >
             Next <ChevronRight className="size-3.5" />
           </button>
@@ -702,28 +702,28 @@ function PostsPanel() {
           <>
             <div className="fixed inset-0 z-40" onClick={() => setMenuAnchor(null)} />
             <div
-              className="fixed z-50 w-44 rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+              className="fixed z-50 w-44 rounded-xl border border-base-300 bg-base-100 py-1 shadow-lg"
               style={{ top: menuAnchor.top, left: menuAnchor.left }}
             >
               <Link
                 to={`/property/${menuAnchor.post._id}`}
                 onClick={() => setMenuAnchor(null)}
-                className="flex items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                className="flex items-center gap-2 px-4 py-2 text-left text-sm text-base-content hover:bg-base-200"
               >
-                <Eye className="size-4 text-slate-500" />
+                <Eye className="size-4 text-base-content/60" />
                 View Post
               </Link>
               {menuAnchor.post.author?._id && (
                 <Link
                   to={`/users/${menuAnchor.post.author._id}`}
                   onClick={() => setMenuAnchor(null)}
-                  className="flex items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                  className="flex items-center gap-2 px-4 py-2 text-left text-sm text-base-content hover:bg-base-200"
                 >
-                  <UserIcon className="size-4 text-slate-500" />
+                  <UserIcon className="size-4 text-base-content/60" />
                   View User
                 </Link>
               )}
-              <div className="my-1 border-t border-slate-100" />
+              <div className="my-1 border-t border-base-200" />
               {menuAnchor.post.isBlocked ? (
                 <button
                   type="button"
@@ -731,7 +731,7 @@ function PostsPanel() {
                     setUnblockTarget(menuAnchor.post);
                     setMenuAnchor(null);
                   }}
-                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50"
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-success hover:bg-success/10"
                 >
                   <ShieldCheck className="size-4" />
                   Unblock Post
@@ -743,7 +743,7 @@ function PostsPanel() {
                     setBlockTarget(menuAnchor.post);
                     setMenuAnchor(null);
                   }}
-                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-error hover:bg-error/10"
                 >
                   <ShieldOff className="size-4" />
                   Block Post
@@ -789,12 +789,12 @@ function ReportDetailModal({ postId, onClose, onBlockPost, onUnblockPost, onDism
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div
-        className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl bg-white shadow-xl"
+        className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl bg-base-100 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-slate-200 p-4">
-          <h3 className="font-semibold text-slate-800">Reported post</h3>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-500 hover:bg-slate-100">
+        <div className="flex items-center justify-between border-b border-base-300 p-4">
+          <h3 className="font-semibold text-base-content">Reported post</h3>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-base-content/60 hover:bg-base-200">
             <X className="size-5" />
           </button>
         </div>
@@ -802,48 +802,48 @@ function ReportDetailModal({ postId, onClose, onBlockPost, onUnblockPost, onDism
         <div className="flex-1 overflow-y-auto p-4">
           {isLoading ? (
             <div className="py-10 text-center">
-              <Loader2 className="mx-auto size-6 animate-spin text-slate-400" />
+              <Loader2 className="mx-auto size-6 animate-spin text-base-content/50" />
             </div>
           ) : !post ? (
-            <p className="py-10 text-center text-sm text-slate-500">Post not found.</p>
+            <p className="py-10 text-center text-sm text-base-content/60">Post not found.</p>
           ) : (
             <>
-              <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="flex items-center gap-3 rounded-xl border border-base-300 bg-base-200 p-3">
                 <img
                   src={post.mediaUrls?.[0] || "https://placehold.co/80x80?text=%20"}
                   alt=""
                   className="size-12 shrink-0 rounded-lg object-cover"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-slate-800">{post.title || "Untitled listing"}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="truncate text-sm font-semibold text-base-content">{post.title || "Untitled listing"}</p>
+                  <p className="text-xs text-base-content/60">
                     Posted by {post.author?.fullName || "Unknown"} · {formatMoney(post.price)}
                   </p>
                 </div>
                 {post.isBlocked ? (
-                  <span className="shrink-0 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">Blocked</span>
+                  <span className="shrink-0 rounded-full bg-error/10 px-2.5 py-1 text-xs font-semibold text-error">Blocked</span>
                 ) : (
-                  <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">Active</span>
+                  <span className="shrink-0 rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">Active</span>
                 )}
               </div>
 
-              <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-base-content/50">
                 {reports.length} report{reports.length === 1 ? "" : "s"}
               </p>
               <div className="space-y-2">
                 {reports.map((report) => (
-                  <div key={report._id} className="rounded-xl border border-slate-200 p-3">
+                  <div key={report._id} className="rounded-xl border border-base-300 p-3">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <UserAvatar src={report.reporter?.profilePic} name={report.reporter?.fullName} sizeClass="size-6" userId={report.reporter?._id} />
-                        <span className="text-sm font-medium text-slate-800">{report.reporter?.fullName || "Unknown"}</span>
+                        <span className="text-sm font-medium text-base-content">{report.reporter?.fullName || "Unknown"}</span>
                       </div>
-                      <span className="text-xs text-slate-400">{formatDate(report.createdAt)}</span>
+                      <span className="text-xs text-base-content/50">{formatDate(report.createdAt)}</span>
                     </div>
-                    <p className="mt-1.5 text-xs font-semibold text-red-600">{getReportReasonLabel(report.reasonCode)}</p>
-                    {report.description && <p className="mt-1 text-xs text-slate-600">{report.description}</p>}
+                    <p className="mt-1.5 text-xs font-semibold text-error">{getReportReasonLabel(report.reasonCode)}</p>
+                    {report.description && <p className="mt-1 text-xs text-base-content/70">{report.description}</p>}
                     {report.status !== "PENDING" && (
-                      <span className="mt-1.5 inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+                      <span className="mt-1.5 inline-flex items-center rounded-full bg-base-200 px-2 py-0.5 text-[11px] font-semibold text-base-content/60">
                         {report.status === "DISMISSED" ? "Dismissed" : "Action taken"}
                       </span>
                     )}
@@ -855,13 +855,13 @@ function ReportDetailModal({ postId, onClose, onBlockPost, onUnblockPost, onDism
         </div>
 
         {post && (
-          <div className="flex gap-3 border-t border-slate-200 p-4">
+          <div className="flex gap-3 border-t border-base-300 p-4">
             {pendingReports.length > 0 && (
               <button
                 type="button"
                 onClick={() => onDismiss(post._id)}
                 disabled={isDismissing}
-                className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                className="flex-1 rounded-xl border border-base-300 px-4 py-2.5 text-sm font-semibold text-base-content hover:bg-base-200 disabled:opacity-60"
               >
                 {isDismissing ? <Loader2 className="mx-auto size-4 animate-spin" /> : "Dismiss Reports"}
               </button>
@@ -870,7 +870,7 @@ function ReportDetailModal({ postId, onClose, onBlockPost, onUnblockPost, onDism
               <button
                 type="button"
                 onClick={() => onUnblockPost(post)}
-                className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500"
+                className="flex-1 rounded-xl bg-success px-4 py-2.5 text-sm font-semibold text-white hover:bg-success"
               >
                 Unblock Post
               </button>
@@ -878,7 +878,7 @@ function ReportDetailModal({ postId, onClose, onBlockPost, onUnblockPost, onDism
               <button
                 type="button"
                 onClick={() => onBlockPost(post)}
-                className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-500"
+                className="flex-1 rounded-xl bg-error px-4 py-2.5 text-sm font-semibold text-white hover:bg-error"
               >
                 Block Post
               </button>
@@ -979,34 +979,34 @@ function ReportsPanel() {
   });
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+    <div className="rounded-2xl border border-base-300 bg-base-100 shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-base-300 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex items-center gap-2">
-          <div className="grid size-9 place-items-center rounded-xl bg-indigo-100 text-indigo-600">
+          <div className="grid size-9 place-items-center rounded-xl bg-primary/15 text-primary">
             <Flag className="size-4" />
           </div>
           <div>
-            <h2 className="font-semibold text-slate-800">Reported posts</h2>
-            <p className="text-xs text-slate-500">{pagination.total} total</p>
+            <h2 className="font-semibold text-base-content">Reported posts</h2>
+            <p className="text-xs text-base-content/60">{pagination.total} total</p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-base-content/50" />
             <input
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search post title..."
-              className="w-56 rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+              className="w-56 rounded-lg border border-base-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+            className="rounded-lg border border-base-300 px-3 py-2 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20"
           >
             <option value="pending">Pending</option>
             <option value="reviewed">Reviewed</option>
@@ -1018,7 +1018,7 @@ function ReportsPanel() {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-sm">
           <thead>
-            <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <tr className="border-b border-base-200 text-left text-xs font-semibold uppercase tracking-wide text-base-content/60">
               <th className="px-4 py-3 sm:px-5">Post</th>
               <th className="px-4 py-3">Reports</th>
               <th className="px-4 py-3">Top reason</th>
@@ -1027,28 +1027,28 @@ function ReportsPanel() {
               <th className="px-4 py-3 text-right sm:pr-5">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-base-300">
             {isLoading ? (
               <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-slate-400">
+                <td colSpan={6} className="px-5 py-10 text-center text-base-content/50">
                   <Loader2 className="mx-auto size-6 animate-spin" />
                 </td>
               </tr>
             ) : isError ? (
               <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-sm text-red-500">
+                <td colSpan={6} className="px-5 py-10 text-center text-sm text-error">
                   Failed to load reports.
                 </td>
               </tr>
             ) : reports.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-sm text-slate-500">
+                <td colSpan={6} className="px-5 py-10 text-center text-sm text-base-content/60">
                   No reports match these filters.
                 </td>
               </tr>
             ) : (
               reports.map((entry) => (
-                <tr key={entry.postId} className="hover:bg-slate-50/70">
+                <tr key={entry.postId} className="hover:bg-base-200/70">
                   <td className="px-4 py-3 sm:px-5">
                     <div className="flex items-center gap-3">
                       <img
@@ -1056,26 +1056,26 @@ function ReportsPanel() {
                         alt=""
                         className="size-9 shrink-0 rounded-lg object-cover"
                       />
-                      <p className="max-w-[220px] truncate text-sm font-semibold text-slate-800">{entry.post?.title || "Untitled listing"}</p>
+                      <p className="max-w-[220px] truncate text-sm font-semibold text-base-content">{entry.post?.title || "Untitled listing"}</p>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {entry.reportCount} {entry.pendingCount > 0 && <span className="text-xs text-red-500">({entry.pendingCount} pending)</span>}
+                  <td className="px-4 py-3 text-base-content/70">
+                    {entry.reportCount} {entry.pendingCount > 0 && <span className="text-xs text-error">({entry.pendingCount} pending)</span>}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{getReportReasonLabel(entry.topReason)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatDate(entry.latestReportAt)}</td>
+                  <td className="px-4 py-3 text-base-content/70">{getReportReasonLabel(entry.topReason)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-base-content/70">{formatDate(entry.latestReportAt)}</td>
                   <td className="px-4 py-3">
                     {entry.post?.isBlocked ? (
-                      <span className="inline-flex items-center rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">Blocked</span>
+                      <span className="inline-flex items-center rounded-full bg-error/10 px-2.5 py-1 text-xs font-semibold text-error">Blocked</span>
                     ) : (
-                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">Active</span>
+                      <span className="inline-flex items-center rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">Active</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right sm:pr-5">
                     <button
                       type="button"
                       onClick={() => setSelectedPostId(entry.postId)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-base-300 px-3 py-1.5 text-xs font-semibold text-base-content hover:bg-base-200"
                     >
                       <Eye className="size-3.5" />
                       Review
@@ -1088,8 +1088,8 @@ function ReportsPanel() {
         </table>
       </div>
 
-      <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 sm:px-5">
-        <p className="text-xs text-slate-500">
+      <div className="flex items-center justify-between border-t border-base-300 px-4 py-3 sm:px-5">
+        <p className="text-xs text-base-content/60">
           Page {pagination.page} of {pagination.totalPages}
           {isFetching ? " · updating..." : ""}
         </p>
@@ -1098,7 +1098,7 @@ function ReportsPanel() {
             type="button"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-lg border border-base-300 px-2.5 py-1.5 text-xs font-semibold text-base-content/70 hover:bg-base-200 disabled:opacity-40"
           >
             <ChevronLeft className="size-3.5" /> Prev
           </button>
@@ -1106,7 +1106,7 @@ function ReportsPanel() {
             type="button"
             onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
             disabled={page >= pagination.totalPages}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-lg border border-base-300 px-2.5 py-1.5 text-xs font-semibold text-base-content/70 hover:bg-base-200 disabled:opacity-40"
           >
             Next <ChevronRight className="size-3.5" />
           </button>
@@ -1180,22 +1180,22 @@ function FeedbackPanel() {
   });
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+    <div className="rounded-2xl border border-base-300 bg-base-100 shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-base-300 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex items-center gap-2">
-          <div className="grid size-9 place-items-center rounded-xl bg-indigo-100 text-indigo-600">
+          <div className="grid size-9 place-items-center rounded-xl bg-primary/15 text-primary">
             <MessageSquareWarning className="size-4" />
           </div>
           <div>
-            <h2 className="font-semibold text-slate-800">Reported issues</h2>
-            <p className="text-xs text-slate-500">{pagination.total} total</p>
+            <h2 className="font-semibold text-base-content">Reported issues</h2>
+            <p className="text-xs text-base-content/60">{pagination.total} total</p>
           </div>
         </div>
 
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+          className="rounded-lg border border-base-300 px-3 py-2 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20"
         >
           <option value="OPEN">Open</option>
           <option value="RESOLVED">Resolved</option>
@@ -1206,7 +1206,7 @@ function FeedbackPanel() {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-sm">
           <thead>
-            <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <tr className="border-b border-base-200 text-left text-xs font-semibold uppercase tracking-wide text-base-content/60">
               <th className="px-4 py-3 sm:px-5">Reporter</th>
               <th className="px-4 py-3">Message</th>
               <th className="px-4 py-3">Page</th>
@@ -1215,53 +1215,53 @@ function FeedbackPanel() {
               <th className="px-4 py-3 text-right sm:pr-5">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-base-300">
             {isLoading ? (
               <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-slate-400">
+                <td colSpan={6} className="px-5 py-10 text-center text-base-content/50">
                   <Loader2 className="mx-auto size-6 animate-spin" />
                 </td>
               </tr>
             ) : isError ? (
               <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-sm text-red-500">
+                <td colSpan={6} className="px-5 py-10 text-center text-sm text-error">
                   Failed to load feedback.
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-sm text-slate-500">
+                <td colSpan={6} className="px-5 py-10 text-center text-sm text-base-content/60">
                   No feedback matches these filters.
                 </td>
               </tr>
             ) : (
               items.map((item) => (
-                <tr key={item._id} className="cursor-pointer hover:bg-slate-50/70" onClick={() => setSelectedFeedback(item)}>
+                <tr key={item._id} className="cursor-pointer hover:bg-base-200/70" onClick={() => setSelectedFeedback(item)}>
                   <td className="px-4 py-3 sm:px-5">
                     <div className="flex items-center gap-2">
                       <UserAvatar src={item.reporter?.profilePic} name={item.reporter?.fullName || "User"} sizeClass="size-7" />
-                      <span className="max-w-[140px] truncate text-sm font-medium text-slate-800">{item.reporter?.fullName || "Unknown"}</span>
+                      <span className="max-w-[140px] truncate text-sm font-medium text-base-content">{item.reporter?.fullName || "Unknown"}</span>
                     </div>
                   </td>
-                  <td className="max-w-[280px] px-4 py-3 text-slate-600">
+                  <td className="max-w-[280px] px-4 py-3 text-base-content/70">
                     <p className="line-clamp-2">{item.message}</p>
                     {item.screenshotUrl && (
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setPreview(item.screenshotUrl); }}
-                        className="mt-1 text-xs font-semibold text-indigo-600 hover:underline"
+                        className="mt-1 text-xs font-semibold text-primary hover:underline"
                       >
                         View screenshot
                       </button>
                     )}
                   </td>
-                  <td className="max-w-[160px] truncate px-4 py-3 text-xs text-slate-500">{item.page || "—"}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatDate(item.createdAt)}</td>
+                  <td className="max-w-[160px] truncate px-4 py-3 text-xs text-base-content/60">{item.page || "—"}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-base-content/70">{formatDate(item.createdAt)}</td>
                   <td className="px-4 py-3">
                     {item.status === "RESOLVED" ? (
-                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">Resolved</span>
+                      <span className="inline-flex items-center rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">Resolved</span>
                     ) : (
-                      <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-600">Open</span>
+                      <span className="inline-flex items-center rounded-full bg-warning/10 px-2.5 py-1 text-xs font-semibold text-warning">Open</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right sm:pr-5">
@@ -1270,7 +1270,7 @@ function FeedbackPanel() {
                         type="button"
                         onClick={(e) => { e.stopPropagation(); resolveFeedback(item._id); }}
                         disabled={isResolving}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-base-300 px-3 py-1.5 text-xs font-semibold text-base-content hover:bg-base-200 disabled:opacity-50"
                       >
                         Mark resolved
                       </button>
@@ -1283,8 +1283,8 @@ function FeedbackPanel() {
         </table>
       </div>
 
-      <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 sm:px-5">
-        <p className="text-xs text-slate-500">
+      <div className="flex items-center justify-between border-t border-base-300 px-4 py-3 sm:px-5">
+        <p className="text-xs text-base-content/60">
           Page {pagination.page} of {pagination.totalPages}
           {isFetching ? " · updating..." : ""}
         </p>
@@ -1293,7 +1293,7 @@ function FeedbackPanel() {
             type="button"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-lg border border-base-300 px-2.5 py-1.5 text-xs font-semibold text-base-content/70 hover:bg-base-200 disabled:opacity-40"
           >
             <ChevronLeft className="size-3.5" /> Prev
           </button>
@@ -1301,7 +1301,7 @@ function FeedbackPanel() {
             type="button"
             onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
             disabled={page >= pagination.totalPages}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-lg border border-base-300 px-2.5 py-1.5 text-xs font-semibold text-base-content/70 hover:bg-base-200 disabled:opacity-40"
           >
             Next <ChevronRight className="size-3.5" />
           </button>
@@ -1331,12 +1331,12 @@ function FeedbackDetailModal({ feedback, isResolving, onClose, onResolve, onPrev
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4" onClick={onClose}>
       <div
-        className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-6 shadow-xl sm:max-w-lg sm:rounded-2xl"
+        className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-base-100 p-6 shadow-xl sm:max-w-lg sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between">
-          <h3 className="text-lg font-semibold text-slate-800">Reported issue</h3>
-          <button type="button" onClick={onClose} className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+          <h3 className="text-lg font-semibold text-base-content">Reported issue</h3>
+          <button type="button" onClick={onClose} className="rounded-full p-1 text-base-content/50 hover:bg-base-200 hover:text-base-content/70">
             <X className="size-5" />
           </button>
         </div>
@@ -1344,51 +1344,51 @@ function FeedbackDetailModal({ feedback, isResolving, onClose, onResolve, onPrev
         <div className="mt-4 flex items-center gap-3">
           <UserAvatar src={feedback.reporter?.profilePic} name={feedback.reporter?.fullName || "User"} sizeClass="size-10" />
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-slate-800">{feedback.reporter?.fullName || "Unknown"}</p>
-            <p className="truncate text-xs text-slate-500">{feedback.reporter?.email || "—"}</p>
+            <p className="truncate text-sm font-semibold text-base-content">{feedback.reporter?.fullName || "Unknown"}</p>
+            <p className="truncate text-xs text-base-content/60">{feedback.reporter?.email || "—"}</p>
           </div>
           {feedback.status === "RESOLVED" ? (
-            <span className="ml-auto shrink-0 inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">Resolved</span>
+            <span className="ml-auto shrink-0 inline-flex items-center rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">Resolved</span>
           ) : (
-            <span className="ml-auto shrink-0 inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-600">Open</span>
+            <span className="ml-auto shrink-0 inline-flex items-center rounded-full bg-warning/10 px-2.5 py-1 text-xs font-semibold text-warning">Open</span>
           )}
         </div>
 
         <div className="mt-5 space-y-3 text-sm">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Message</p>
-            <p className="mt-1 whitespace-pre-wrap text-slate-700">{feedback.message}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-base-content/50">Message</p>
+            <p className="mt-1 whitespace-pre-wrap text-base-content">{feedback.message}</p>
           </div>
           <div className="flex gap-6">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Page</p>
-              <p className="mt-1 text-slate-700">{feedback.page || "—"}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-base-content/50">Page</p>
+              <p className="mt-1 text-base-content">{feedback.page || "—"}</p>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Submitted</p>
-              <p className="mt-1 text-slate-700">{formatDate(feedback.createdAt)}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-base-content/50">Submitted</p>
+              <p className="mt-1 text-base-content">{formatDate(feedback.createdAt)}</p>
             </div>
           </div>
           {feedback.status === "RESOLVED" && (
             <div className="flex gap-6">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Resolved by</p>
-                <p className="mt-1 text-slate-700">{feedback.resolvedBy?.fullName || "—"}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-base-content/50">Resolved by</p>
+                <p className="mt-1 text-base-content">{feedback.resolvedBy?.fullName || "—"}</p>
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Resolved at</p>
-                <p className="mt-1 text-slate-700">{formatDate(feedback.resolvedAt)}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-base-content/50">Resolved at</p>
+                <p className="mt-1 text-base-content">{formatDate(feedback.resolvedAt)}</p>
               </div>
             </div>
           )}
           {feedback.screenshotUrl && (
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Screenshot</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-base-content/50">Screenshot</p>
               <button type="button" onClick={() => onPreviewScreenshot(feedback.screenshotUrl)} className="mt-1.5 block">
                 <img
                   src={feedback.screenshotUrl}
                   alt="Feedback screenshot"
-                  className="max-h-48 rounded-lg border border-slate-200 object-contain hover:opacity-90"
+                  className="max-h-48 rounded-lg border border-base-300 object-contain hover:opacity-90"
                 />
               </button>
             </div>
@@ -1399,7 +1399,7 @@ function FeedbackDetailModal({ feedback, isResolving, onClose, onResolve, onPrev
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="flex-1 rounded-xl border border-base-300 px-4 py-2.5 text-sm font-semibold text-base-content hover:bg-base-200"
           >
             Close
           </button>
@@ -1408,7 +1408,7 @@ function FeedbackDetailModal({ feedback, isResolving, onClose, onResolve, onPrev
               type="button"
               onClick={() => onResolve(feedback._id)}
               disabled={isResolving}
-              className="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 disabled:opacity-60"
+              className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary disabled:opacity-60"
             >
               {isResolving ? <Loader2 className="mx-auto size-4 animate-spin" /> : "Mark resolved"}
             </button>
@@ -1489,14 +1489,14 @@ function AnnouncementsPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="rounded-2xl border border-base-300 bg-base-100 p-4 shadow-sm sm:p-5">
         <div className="mb-4 flex items-center gap-2">
-          <div className="grid size-9 place-items-center rounded-xl bg-indigo-100 text-indigo-600">
+          <div className="grid size-9 place-items-center rounded-xl bg-primary/15 text-primary">
             <Megaphone className="size-4" />
           </div>
           <div>
-            <h2 className="font-semibold text-slate-800">New announcement</h2>
-            <p className="text-xs text-slate-500">Pushes instantly as a must-dismiss notice to matching users.</p>
+            <h2 className="font-semibold text-base-content">New announcement</h2>
+            <p className="text-xs text-base-content/60">Pushes instantly as a must-dismiss notice to matching users.</p>
           </div>
         </div>
 
@@ -1506,25 +1506,25 @@ function AnnouncementsPanel() {
           maxLength={240}
           rows={3}
           placeholder="e.g. We're rolling out a new verification badge for brokers this week."
-          className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+          className="w-full rounded-xl border border-base-300 px-3.5 py-2.5 text-sm text-base-content placeholder:text-base-content/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
         />
-        <p className="mt-1 text-right text-xs text-slate-400">{message.length}/240</p>
+        <p className="mt-1 text-right text-xs text-base-content/50">{message.length}/240</p>
 
         <div className="mt-3">
           {imageUrl ? (
             <div className="relative inline-block">
-              <img src={imageUrl} alt="Announcement" className="h-28 w-auto rounded-xl border border-slate-200 object-cover" />
+              <img src={imageUrl} alt="Announcement" className="h-28 w-auto rounded-xl border border-base-300 object-cover" />
               <button
                 type="button"
                 onClick={() => setImageUrl("")}
-                className="absolute -right-2 -top-2 grid size-6 place-items-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-700"
+                className="absolute -right-2 -top-2 grid size-6 place-items-center rounded-full bg-neutral text-white shadow-sm hover:bg-neutral"
                 title="Remove image"
               >
                 <X className="size-3.5" />
               </button>
             </div>
           ) : (
-            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-base-300 px-3.5 py-2 text-sm font-medium text-base-content/70 hover:bg-base-200">
               {isUploadingImage ? <Loader2 className="size-4 animate-spin" /> : <ImageIcon className="size-4" />}
               {isUploadingImage ? "Uploading..." : "Add image (optional)"}
               <input
@@ -1547,7 +1547,7 @@ function AnnouncementsPanel() {
             value={role}
             onChange={(e) => setRole(e.target.value)}
             disabled={verifiedOnly}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 disabled:opacity-50"
+            className="rounded-lg border border-base-300 px-3 py-2 text-sm text-base-content disabled:opacity-50"
           >
             <option value="">Any role</option>
             {ROLE_OPTIONS.map((r) => (
@@ -1560,10 +1560,10 @@ function AnnouncementsPanel() {
             value={city}
             onChange={(e) => setCity(e.target.value)}
             placeholder="Any city"
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400"
+            className="rounded-lg border border-base-300 px-3 py-2 text-sm text-base-content placeholder:text-base-content/50"
           />
 
-          <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+          <label className="inline-flex items-center gap-2 text-sm text-base-content">
             <input
               type="checkbox"
               checked={verifiedOnly}
@@ -1571,7 +1571,7 @@ function AnnouncementsPanel() {
                 setVerifiedOnly(e.target.checked);
                 if (e.target.checked) setRole("");
               }}
-              className="size-4 rounded border-slate-300"
+              className="size-4 rounded border-base-300"
             />
             Verified brokers/sellers/landlords only
           </label>
@@ -1580,7 +1580,7 @@ function AnnouncementsPanel() {
             type="button"
             onClick={() => sendAnnouncement()}
             disabled={isSending || isUploadingImage || !message.trim()}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 disabled:opacity-50 sm:ml-auto"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary disabled:opacity-50 sm:ml-auto"
           >
             {isSending ? <Loader2 className="size-4 animate-spin" /> : <Megaphone className="size-4" />}
             Send
@@ -1588,26 +1588,26 @@ function AnnouncementsPanel() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 p-4 sm:p-5">
-          <h2 className="font-semibold text-slate-800">History</h2>
-          <p className="text-xs text-slate-500">{pagination.total} sent</p>
+      <div className="rounded-2xl border border-base-300 bg-base-100 shadow-sm">
+        <div className="border-b border-base-300 p-4 sm:p-5">
+          <h2 className="font-semibold text-base-content">History</h2>
+          <p className="text-xs text-base-content/60">{pagination.total} sent</p>
         </div>
 
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-base-300">
           {isLoading ? (
-            <div className="p-8 text-center text-sm text-slate-500">Loading...</div>
+            <div className="p-8 text-center text-sm text-base-content/60">Loading...</div>
           ) : announcements.length === 0 ? (
-            <div className="p-8 text-center text-sm text-slate-500">No announcements sent yet</div>
+            <div className="p-8 text-center text-sm text-base-content/60">No announcements sent yet</div>
           ) : (
             announcements.map((a) => (
               <div key={a._id} className="flex items-start gap-3 px-4 py-3 sm:px-5">
                 {a.image && (
-                  <img src={a.image} alt="" className="size-12 shrink-0 rounded-lg border border-slate-200 object-cover" />
+                  <img src={a.image} alt="" className="size-12 shrink-0 rounded-lg border border-base-300 object-cover" />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-slate-800">{a.message}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-sm text-base-content">{a.message}</p>
+                  <p className="text-xs text-base-content/60">
                     {segmentLabel(a)} · {a.recipientCount} recipients · by {a.sentBy?.fullName || "Admin"} · {formatDate(a.createdAt)}
                   </p>
                 </div>
@@ -1616,8 +1616,8 @@ function AnnouncementsPanel() {
           )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 sm:px-5">
-          <p className="text-xs text-slate-500">
+        <div className="flex items-center justify-between border-t border-base-300 px-4 py-3 sm:px-5">
+          <p className="text-xs text-base-content/60">
             Page {pagination.page} of {pagination.totalPages}
             {isFetching ? " · updating..." : ""}
           </p>
@@ -1626,7 +1626,7 @@ function AnnouncementsPanel() {
               type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+              className="inline-flex items-center gap-1 rounded-lg border border-base-300 px-2.5 py-1.5 text-xs font-semibold text-base-content/70 hover:bg-base-200 disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" /> Prev
             </button>
@@ -1634,7 +1634,7 @@ function AnnouncementsPanel() {
               type="button"
               onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
               disabled={page >= pagination.totalPages}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+              className="inline-flex items-center gap-1 rounded-lg border border-base-300 px-2.5 py-1.5 text-xs font-semibold text-base-content/70 hover:bg-base-200 disabled:opacity-40"
             >
               Next <ChevronRight className="size-3.5" />
             </button>
@@ -1655,7 +1655,7 @@ export default function AdminPage() {
           type="button"
           onClick={() => setActiveTab("users")}
           className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-            activeTab === "users" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            activeTab === "users" ? "bg-primary text-white" : "bg-base-200 text-base-content/70 hover:bg-base-300"
           }`}
         >
           Users
@@ -1664,7 +1664,7 @@ export default function AdminPage() {
           type="button"
           onClick={() => setActiveTab("posts")}
           className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-            activeTab === "posts" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            activeTab === "posts" ? "bg-primary text-white" : "bg-base-200 text-base-content/70 hover:bg-base-300"
           }`}
         >
           Posts
@@ -1673,7 +1673,7 @@ export default function AdminPage() {
           type="button"
           onClick={() => setActiveTab("reports")}
           className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-            activeTab === "reports" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            activeTab === "reports" ? "bg-primary text-white" : "bg-base-200 text-base-content/70 hover:bg-base-300"
           }`}
         >
           Reports
@@ -1682,7 +1682,7 @@ export default function AdminPage() {
           type="button"
           onClick={() => setActiveTab("announcements")}
           className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-            activeTab === "announcements" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            activeTab === "announcements" ? "bg-primary text-white" : "bg-base-200 text-base-content/70 hover:bg-base-300"
           }`}
         >
           Announcements
@@ -1691,7 +1691,7 @@ export default function AdminPage() {
           type="button"
           onClick={() => setActiveTab("feedback")}
           className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-            activeTab === "feedback" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            activeTab === "feedback" ? "bg-primary text-white" : "bg-base-200 text-base-content/70 hover:bg-base-300"
           }`}
         >
           Feedback

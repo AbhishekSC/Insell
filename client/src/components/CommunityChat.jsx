@@ -302,7 +302,7 @@ export default function CommunityChat({ community, onBack }) {
   if (!community) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-slate-500">Select a community to start chatting</p>
+        <p className="text-base-content/60">Select a community to start chatting</p>
       </div>
     );
   }
@@ -310,18 +310,18 @@ export default function CommunityChat({ community, onBack }) {
   return (
     <div className="flex h-full flex-col">
       {/* Chat Header */}
-      <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+      <div className="flex items-center justify-between border-b border-base-300 bg-base-100 px-4 py-3">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="rounded-lg p-2 hover:bg-slate-100 transition-colors"
+            className="rounded-lg p-2 hover:bg-base-200 transition-colors"
           >
             <ArrowLeft size={20} />
           </button>
           <button
             type="button"
             onClick={() => circle?.photo && setShowPhotoPreview(true)}
-            className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold ${circle?.photo ? "cursor-zoom-in" : "cursor-default"}`}
+            className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gradient-to-r from-primary to-secondary text-white font-semibold ${circle?.photo ? "cursor-zoom-in" : "cursor-default"}`}
             aria-label={circle?.photo ? "View community photo" : undefined}
           >
             {circle?.photo ? (
@@ -336,8 +336,8 @@ export default function CommunityChat({ community, onBack }) {
             ) : null}
           </button>
           <div>
-            <h2 className="font-semibold text-slate-900">{community.name}</h2>
-            <p className="text-xs text-slate-500">
+            <h2 className="font-semibold text-base-content">{community.name}</h2>
+            <p className="text-xs text-base-content/60">
               {circle?.members?.length || 0} members
             </p>
           </div>
@@ -349,7 +349,7 @@ export default function CommunityChat({ community, onBack }) {
               onClick={startOrJoinCommunityCall}
               disabled={videoBusy}
               className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors disabled:opacity-60 ${
-                isCommunityCallActive ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100" : "text-slate-600 hover:bg-slate-100"
+                isCommunityCallActive ? "bg-success/10 text-success hover:bg-success/15" : "text-base-content/70 hover:bg-base-200"
               }`}
               title={isCommunityCallActive ? "Join the ongoing community call" : "Start a community call"}
             >
@@ -366,7 +366,7 @@ export default function CommunityChat({ community, onBack }) {
           <div className="relative">
             <button
               onClick={() => setShowActionsMenu((prev) => !prev)}
-              className="rounded-lg p-2 hover:bg-slate-100 transition-colors"
+              className="rounded-lg p-2 hover:bg-base-200 transition-colors"
               title="Community options"
             >
               <Menu size={20} />
@@ -375,16 +375,16 @@ export default function CommunityChat({ community, onBack }) {
           {showActionsMenu && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowActionsMenu(false)} />
-              <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-slate-200 bg-white py-1.5 shadow-lg">
+              <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-base-300 bg-base-100 py-1.5 shadow-lg">
                 {isMember && (
                   <button
                     onClick={() => {
                       setShowAddMemberModal(true);
                       setShowActionsMenu(false);
                     }}
-                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
                   >
-                    <UserPlus size={16} className="text-indigo-600" />
+                    <UserPlus size={16} className="text-primary" />
                     {isCreator ? "Add member" : "Request to add a friend"}
                   </button>
                 )}
@@ -393,9 +393,9 @@ export default function CommunityChat({ community, onBack }) {
                     setShowMembers(!showMembers);
                     setShowActionsMenu(false);
                   }}
-                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
                 >
-                  <Users size={16} className="text-slate-500" />
+                  <Users size={16} className="text-base-content/60" />
                   {showMembers ? "Hide members" : "View members"}
                 </button>
                 {canReview && (
@@ -404,9 +404,9 @@ export default function CommunityChat({ community, onBack }) {
                       setShowActionsMenu(false);
                       photoInputRef.current?.click();
                     }}
-                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
                   >
-                    <Camera size={16} className="text-slate-500" />
+                    <Camera size={16} className="text-base-content/60" />
                     Update profile
                   </button>
                 )}
@@ -416,7 +416,7 @@ export default function CommunityChat({ community, onBack }) {
                       setShowLeaveModal(true);
                       setShowActionsMenu(false);
                     }}
-                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-error hover:bg-error/10"
                   >
                     <LogOut size={16} />
                     Leave community
@@ -428,7 +428,7 @@ export default function CommunityChat({ community, onBack }) {
                       setShowDestroyModal(true);
                       setShowActionsMenu(false);
                     }}
-                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-error hover:bg-error/10"
                   >
                     <Trash2 size={16} />
                     Delete community
@@ -450,20 +450,20 @@ export default function CommunityChat({ community, onBack }) {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Messages Area */}
-        <div className="flex flex-1 flex-col bg-slate-50">
+        <div className="flex flex-1 flex-col bg-base-200">
           {!streamClient || !communityChannel ? (
-            <div className="flex flex-1 items-center justify-center text-sm text-slate-500">
+            <div className="flex flex-1 items-center justify-center text-sm text-base-content/60">
               Preparing community chat...
             </div>
           ) : (
             <CommunityChatErrorBoundary
               fallback={
-                <div className="flex flex-1 flex-col items-center justify-center p-6 text-center text-sm text-slate-500">
-                  <p className="font-semibold text-slate-700">Community chat could not load.</p>
+                <div className="flex flex-1 flex-col items-center justify-center p-6 text-center text-sm text-base-content/60">
+                  <p className="font-semibold text-base-content">Community chat could not load.</p>
                 </div>
               }
             >
-              <div className="flex-1 overflow-hidden">
+              <div className="telegram-chat-shell flex-1 overflow-hidden">
                 <Chat client={streamClient}>
                   <Channel channel={communityChannel}>
                     <Window>
@@ -483,13 +483,13 @@ export default function CommunityChat({ community, onBack }) {
           <div className="fixed inset-0 z-40 bg-black/30 sm:hidden" onClick={() => setShowMembers(false)} />
         )}
         {showMembers && (
-          <div className="fixed inset-y-0 right-0 z-50 w-72 max-w-[85vw] border-l border-slate-200 bg-white overflow-y-auto sm:static sm:z-auto sm:max-w-none">
-            <div className="sticky top-0 border-b border-slate-200 bg-white px-4 py-3">
+          <div className="fixed inset-y-0 right-0 z-50 w-72 max-w-[85vw] border-l border-base-300 bg-base-100 overflow-y-auto sm:static sm:z-auto sm:max-w-none">
+            <div className="sticky top-0 border-b border-base-300 bg-base-100 px-4 py-3">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-slate-900">Members</h3>
+                <h3 className="font-semibold text-base-content">Members</h3>
                 <button
                   onClick={() => setShowMembers(false)}
-                  className="rounded-lg p-1 hover:bg-slate-100"
+                  className="rounded-lg p-1 hover:bg-base-200"
                 >
                   <X size={18} />
                 </button>
@@ -499,9 +499,9 @@ export default function CommunityChat({ community, onBack }) {
               {(circle?.members || []).map((member) => (
                 <div
                   key={member._id}
-                  className="flex items-center gap-3 rounded-lg p-2 hover:bg-slate-50"
+                  className="flex items-center gap-3 rounded-lg p-2 hover:bg-base-200"
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-indigo-600 font-semibold">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-primary font-semibold">
                     {member.profilePic ? (
                       <img src={member.profilePic} alt={member.fullName} className="h-full w-full object-cover" />
                     ) : (
@@ -509,25 +509,25 @@ export default function CommunityChat({ community, onBack }) {
                     )}
                   </div>
                   <div className="flex-1">
-                    <p className="font-medium text-slate-900 text-sm">
+                    <p className="font-medium text-base-content text-sm">
                       {member.fullName}
                       {member._id === circle?.creator?._id && (
-                        <Crown className="inline ml-1 text-amber-500" size={14} />
+                        <Crown className="inline ml-1 text-warning" size={14} />
                       )}
                       {circle?.moderators?.includes(member._id) && member._id !== circle?.creator?._id && (
-                        <Shield className="inline ml-1 text-blue-500" size={14} />
+                        <Shield className="inline ml-1 text-info" size={14} />
                       )}
                     </p>
-                    <p className="text-xs text-slate-500">{member.email}</p>
+                    <p className="text-xs text-base-content/60">{member.email}</p>
                   </div>
                 </div>
               ))}
               {(circle?.pendingInvites || []).length > 0 && (
-                <div className="mt-2 border-t border-slate-100 pt-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Pending invites</p>
+                <div className="mt-2 border-t border-base-200 pt-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/50">Pending invites</p>
                   <div className="flex flex-wrap gap-1.5">
                     {circle.pendingInvites.map((member) => (
-                      <span key={member._id} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
+                      <span key={member._id} className="rounded-full bg-base-200 px-2.5 py-1 text-xs text-base-content/70">
                         {member.fullName}
                       </span>
                     ))}
@@ -535,14 +535,14 @@ export default function CommunityChat({ community, onBack }) {
                 </div>
               )}
               {canReview && memberAddRequests.length > 0 && (
-                <div className="mt-2 border-t border-slate-100 pt-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <div className="mt-2 border-t border-base-200 pt-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/50">
                     Member requests awaiting approval
                   </p>
                   <div className="space-y-2">
                     {memberAddRequests.map((entry) => (
-                      <div key={entry.targetUser?._id || entry.targetUser} className="rounded-lg bg-slate-50 p-2">
-                        <p className="text-xs text-slate-700">
+                      <div key={entry.targetUser?._id || entry.targetUser} className="rounded-lg bg-base-200 p-2">
+                        <p className="text-xs text-base-content">
                           <span className="font-medium">{entry.requestedBy?.fullName || "A member"}</span> wants to add{" "}
                           <span className="font-medium">{entry.targetUser?.fullName || "a friend"}</span>
                         </p>
@@ -555,7 +555,7 @@ export default function CommunityChat({ community, onBack }) {
                               })
                             }
                             disabled={respondAddRequestMutation.isPending}
-                            className="flex items-center gap-1 rounded-md bg-indigo-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                            className="flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-white hover:bg-primary transition-colors disabled:opacity-50"
                           >
                             <Check size={12} />
                             Approve
@@ -568,7 +568,7 @@ export default function CommunityChat({ community, onBack }) {
                               })
                             }
                             disabled={respondAddRequestMutation.isPending}
-                            className="flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-50"
+                            className="flex items-center gap-1 rounded-md border border-base-300 px-2 py-1 text-[11px] font-medium text-base-content hover:bg-base-200 transition-colors disabled:opacity-50"
                           >
                             <X size={12} />
                             Decline
@@ -587,9 +587,9 @@ export default function CommunityChat({ community, onBack }) {
       {/* Add Member Modal */}
       {showAddMemberModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+          <div className="w-full max-w-md rounded-xl bg-base-100 p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-900">
+              <h2 className="text-xl font-bold text-base-content">
                 {isCreator ? "Add member from friends" : "Request to add a friend"}
               </h2>
               <button
@@ -597,19 +597,19 @@ export default function CommunityChat({ community, onBack }) {
                   setShowAddMemberModal(false);
                   setSelectedFriendIds([]);
                 }}
-                className="rounded-lg p-1 hover:bg-slate-100"
+                className="rounded-lg p-1 hover:bg-base-200"
               >
                 <X size={20} />
               </button>
             </div>
-            <p className="mb-4 text-sm text-slate-500">
+            <p className="mb-4 text-sm text-base-content/60">
               {isCreator
                 ? "Only your friends can be added. They'll get an invite and join once they accept."
                 : "Only your friends can be proposed. The admin needs to approve before they get invited."}
             </p>
             <div className="max-h-72 space-y-1 overflow-y-auto">
               {inviteOptions.length === 0 ? (
-                <p className="py-6 text-center text-sm text-slate-500">
+                <p className="py-6 text-center text-sm text-base-content/60">
                   No friends available to invite right now.
                 </p>
               ) : (
@@ -621,18 +621,18 @@ export default function CommunityChat({ community, onBack }) {
                       type="button"
                       onClick={() => toggleFriendSelection(friend._id)}
                       className={`flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors ${
-                        selected ? "bg-indigo-50 ring-1 ring-indigo-300" : "hover:bg-slate-50"
+                        selected ? "bg-primary/10 ring-1 ring-primary" : "hover:bg-base-200"
                       }`}
                     >
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-indigo-600 text-sm font-semibold">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-primary text-sm font-semibold">
                         {friend.profilePic ? (
                           <img src={friend.profilePic} alt={friend.fullName} className="h-full w-full object-cover" />
                         ) : (
                           friend.fullName?.charAt(0) || "U"
                         )}
                       </div>
-                      <span className="flex-1 text-sm font-medium text-slate-900">{friend.fullName}</span>
-                      {selected && <Check size={16} className="text-indigo-600" />}
+                      <span className="flex-1 text-sm font-medium text-base-content">{friend.fullName}</span>
+                      {selected && <Check size={16} className="text-primary" />}
                     </button>
                   );
                 })
@@ -645,7 +645,7 @@ export default function CommunityChat({ community, onBack }) {
                   setShowAddMemberModal(false);
                   setSelectedFriendIds([]);
                 }}
-                className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-slate-700 hover:bg-slate-50 transition-colors"
+                className="flex-1 rounded-lg border border-base-300 px-4 py-2 text-base-content hover:bg-base-200 transition-colors"
               >
                 Cancel
               </button>
@@ -653,7 +653,7 @@ export default function CommunityChat({ community, onBack }) {
                 type="button"
                 onClick={submitInvites}
                 disabled={inviteMutation.isPending || proposeMemberMutation.isPending || selectedFriendIds.length === 0}
-                className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                className="flex-1 rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary transition-colors disabled:opacity-50"
               >
                 {inviteMutation.isPending || proposeMemberMutation.isPending
                   ? "Sending..."
@@ -669,24 +669,24 @@ export default function CommunityChat({ community, onBack }) {
       {/* Leave Community Confirmation Modal */}
       {showLeaveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+          <div className="w-full max-w-sm rounded-xl bg-base-100 p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">Leave community?</h2>
+              <h2 className="text-lg font-bold text-base-content">Leave community?</h2>
               <button
                 onClick={() => setShowLeaveModal(false)}
-                className="rounded-lg p-1 hover:bg-slate-100"
+                className="rounded-lg p-1 hover:bg-base-200"
               >
                 <X size={20} />
               </button>
             </div>
-            <p className="text-sm text-slate-600">
-              You'll lose access to <span className="font-medium text-slate-900">{community.name}</span>'s chat and shared resources. You can rejoin later, but you'll need to request to join again.
+            <p className="text-sm text-base-content/70">
+              You'll lose access to <span className="font-medium text-base-content">{community.name}</span>'s chat and shared resources. You can rejoin later, but you'll need to request to join again.
             </p>
             <div className="mt-5 flex gap-3">
               <button
                 type="button"
                 onClick={() => setShowLeaveModal(false)}
-                className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-slate-700 hover:bg-slate-50 transition-colors"
+                className="flex-1 rounded-lg border border-base-300 px-4 py-2 text-base-content hover:bg-base-200 transition-colors"
               >
                 Cancel
               </button>
@@ -694,7 +694,7 @@ export default function CommunityChat({ community, onBack }) {
                 type="button"
                 onClick={() => leaveMutation.mutate()}
                 disabled={leaveMutation.isPending}
-                className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                className="flex-1 rounded-lg bg-error px-4 py-2 text-white hover:bg-error transition-colors disabled:opacity-50"
               >
                 {leaveMutation.isPending ? "Leaving..." : "Leave community"}
               </button>
@@ -706,25 +706,25 @@ export default function CommunityChat({ community, onBack }) {
       {/* Destroy Community Confirmation Modal */}
       {showDestroyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+          <div className="w-full max-w-sm rounded-xl bg-base-100 p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">Delete community?</h2>
+              <h2 className="text-lg font-bold text-base-content">Delete community?</h2>
               <button
                 onClick={() => setShowDestroyModal(false)}
-                className="rounded-lg p-1 hover:bg-slate-100"
+                className="rounded-lg p-1 hover:bg-base-200"
               >
                 <X size={20} />
               </button>
             </div>
-            <p className="text-sm text-slate-600">
-              This permanently deletes <span className="font-medium text-slate-900">{community.name}</span>, its chat, and
+            <p className="text-sm text-base-content/70">
+              This permanently deletes <span className="font-medium text-base-content">{community.name}</span>, its chat, and
               shared resources. Every member will be notified. This cannot be undone.
             </p>
             <div className="mt-5 flex gap-3">
               <button
                 type="button"
                 onClick={() => setShowDestroyModal(false)}
-                className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-slate-700 hover:bg-slate-50 transition-colors"
+                className="flex-1 rounded-lg border border-base-300 px-4 py-2 text-base-content hover:bg-base-200 transition-colors"
               >
                 Cancel
               </button>
@@ -732,7 +732,7 @@ export default function CommunityChat({ community, onBack }) {
                 type="button"
                 onClick={() => destroyMutation.mutate()}
                 disabled={destroyMutation.isPending}
-                className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                className="flex-1 rounded-lg bg-error px-4 py-2 text-white hover:bg-error transition-colors disabled:opacity-50"
               >
                 {destroyMutation.isPending ? "Deleting..." : "Delete community"}
               </button>

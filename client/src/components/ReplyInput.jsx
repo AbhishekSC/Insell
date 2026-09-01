@@ -52,20 +52,20 @@ export default function ReplyInput({ postId, parentCommentId, onCancel, onReply 
         value={replyText}
         onChange={(e) => setReplyText(e.target.value)}
         placeholder="Write a reply..."
-        className="flex-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+        className="flex-1 rounded-full border border-base-300 px-3 py-1.5 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
         disabled={isCreatingReply}
       />
       <button
         type="button"
         onClick={onCancel}
-        className="btn btn-circle btn-ghost size-8 shrink-0 text-slate-500 hover:bg-slate-100"
+        className="btn btn-circle btn-ghost size-8 shrink-0 text-base-content/60 hover:bg-base-200"
         disabled={isCreatingReply}
       >
         <X className="size-4" />
       </button>
       <button
         type="submit"
-        className="btn btn-circle btn-ghost size-8 shrink-0 text-indigo-600 hover:bg-indigo-50 disabled:opacity-50"
+        className="btn btn-circle btn-ghost size-8 shrink-0 text-primary hover:bg-primary/10 disabled:opacity-50"
         disabled={!replyText.trim() || isCreatingReply}
       >
         <Send className="size-4" />

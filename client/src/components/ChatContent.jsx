@@ -49,9 +49,9 @@ function CustomAttachment(props) {
     <button
       type="button"
       onClick={() => navigate(`/property/${propertyAttachment.property_id}`)}
-      className="block w-full max-w-xs overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition-shadow hover:shadow-md"
+      className="block w-full max-w-xs overflow-hidden rounded-xl border border-base-300 bg-base-100 text-left shadow-sm transition-shadow hover:shadow-md"
     >
-      <div className="aspect-video w-full overflow-hidden bg-slate-100">
+      <div className="aspect-video w-full overflow-hidden bg-base-200">
         {propertyAttachment.image_url ? (
           <img
             src={propertyAttachment.image_url}
@@ -59,14 +59,14 @@ function CustomAttachment(props) {
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-slate-300">
+          <div className="flex h-full items-center justify-center text-base-content/40">
             <Building2 className="size-8" />
           </div>
         )}
       </div>
       <div className="p-3">
-        <p className="text-[11px] font-semibold tracking-wide text-indigo-600">NearMySpace PROPERTY</p>
-        <p className="mt-0.5 line-clamp-2 text-sm font-medium text-slate-800">{propertyAttachment.title}</p>
+        <p className="text-[11px] font-semibold tracking-wide text-primary">NearMySpace PROPERTY</p>
+        <p className="mt-0.5 line-clamp-2 text-sm font-medium text-base-content">{propertyAttachment.title}</p>
       </div>
     </button>
   );
@@ -348,24 +348,24 @@ export default function ChatContent({ deepLinkUserId } = {}) {
     <div className="telegram-chat-layout h-full xl:h-[calc(100dvh-7.1rem)] xl:min-h-0 overflow-hidden">
       <section className={`telegram-sidebar min-h-0 overflow-hidden ${showSidebar ? "" : "hidden sm:block"}`}>
         <div className="flex h-full min-h-0 flex-col">
-          <div className="border-b border-slate-200 px-4 pb-4 pt-4 sm:px-5">
+          <div className="border-b border-base-300 px-4 pb-4 pt-4 sm:px-5">
             <div className="mb-3 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <div className="grid size-9 place-items-center rounded-xl bg-indigo-100 text-indigo-600">
+                <div className="grid size-9 place-items-center rounded-xl bg-primary/15 text-primary">
                   <Users className="size-4.5" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-slate-800">Your inbox</h2>
-                  <p className="text-[11px] text-slate-500">{friendCountLabel}</p>
+                  <h2 className="text-base font-bold text-base-content">Your inbox</h2>
+                  <p className="text-[11px] text-base-content/60">{friendCountLabel}</p>
                 </div>
               </div>
-              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${serviceReady ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600"}`}>
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${serviceReady ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>
                 <Radio className="size-3" />
                 {serviceReady ? "Ready" : "Syncing"}
               </span>
             </div>
 
-            <label className="input input-bordered mt-4 flex h-11 items-center gap-2 rounded-xl border-slate-200 bg-slate-50 transition focus-within:border-indigo-300 focus-within:bg-white focus-within:outline-none">
+            <label className="input input-bordered mt-4 flex h-11 items-center gap-2 rounded-xl border-base-300 bg-base-200 transition focus-within:border-primary/30 focus-within:bg-base-100 focus-within:outline-none">
               <Search className="size-4 opacity-60" />
               <input
                 type="text"
@@ -379,12 +379,12 @@ export default function ChatContent({ deepLinkUserId } = {}) {
 
           {isLoading ? (
             <div className="space-y-2 p-4">
-              <div className="h-16 animate-pulse rounded-xl bg-slate-100"></div>
-              <div className="h-16 animate-pulse rounded-xl bg-slate-100"></div>
-              <div className="h-16 animate-pulse rounded-xl bg-slate-100"></div>
+              <div className="h-16 animate-pulse rounded-xl bg-base-200"></div>
+              <div className="h-16 animate-pulse rounded-xl bg-base-200"></div>
+              <div className="h-16 animate-pulse rounded-xl bg-base-200"></div>
             </div>
           ) : filteredFriends.length === 0 ? (
-            <div className="m-4 rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+            <div className="m-4 rounded-xl border border-base-300 bg-base-100 p-8 text-center text-sm text-base-content/60">
               {friends.length === 0
                 ? "You have no connected users yet. Accept requests first."
                 : "No users matched your search."}
@@ -403,8 +403,8 @@ export default function ChatContent({ deepLinkUserId } = {}) {
                     type="button"
                     className={`mb-1.5 w-full rounded-2xl border p-3 text-left transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
                       isActive
-                        ? "border-indigo-300 bg-indigo-50 shadow-sm shadow-indigo-100"
-                        : "border-transparent bg-white hover:border-slate-200 hover:bg-slate-50 hover:shadow-sm"
+                        ? "border-primary/30 bg-primary/10 shadow-sm shadow-primary/20"
+                        : "border-transparent bg-base-100 hover:border-base-300 hover:bg-base-200 hover:shadow-sm"
                     }`}
                     onClick={() => openFriendChat(friend)}
                     disabled={!streamReady || streamConnecting || !chatClient}
@@ -419,19 +419,19 @@ export default function ChatContent({ deepLinkUserId } = {}) {
                         />
                         {presenceByFriendId[friend._id]?.status === "busy" ? (
                           <span
-                            className="absolute bottom-0 right-0 grid size-3.5 place-items-center rounded-full border-2 border-white bg-red-500"
+                            className="absolute bottom-0 right-0 grid size-3.5 place-items-center rounded-full border-2 border-white bg-error"
                             title="In a call"
                           ></span>
                         ) : isOnline ? (
-                          <span className="absolute bottom-0 right-0 grid size-3.5 place-items-center rounded-full border-2 border-white bg-emerald-500"></span>
+                          <span className="absolute bottom-0 right-0 grid size-3.5 place-items-center rounded-full border-2 border-white bg-success"></span>
                         ) : null}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="truncate text-sm font-semibold text-slate-800">{friend.fullName || "User"}</p>
-                          {lastMessageLabel && <p className="text-[10px] text-slate-400">{lastMessageLabel}</p>}
+                          <p className="truncate text-sm font-semibold text-base-content">{friend.fullName || "User"}</p>
+                          {lastMessageLabel && <p className="text-[10px] text-base-content/50">{lastMessageLabel}</p>}
                         </div>
-                        <p className="mt-0.5 truncate text-xs text-slate-500">Tap to start conversation</p>
+                        <p className="mt-0.5 truncate text-xs text-base-content/60">Tap to start conversation</p>
                       </div>
                     </div>
                   </button>
@@ -445,15 +445,15 @@ export default function ChatContent({ deepLinkUserId } = {}) {
       <section className={`telegram-conversation-panel min-h-0 h-full overflow-hidden ${showConversation ? "" : "hidden sm:block"}`}>
         {!hasActiveConversation ? (
           <div className="flex h-full flex-col items-center justify-center p-8 text-center">
-            <div className="mb-4 grid size-20 place-items-center rounded-full bg-indigo-50">
-              <MessageCircleHeart className="size-10 text-indigo-400" />
+            <div className="mb-4 grid size-20 place-items-center rounded-full bg-primary/10">
+              <MessageCircleHeart className="size-10 text-primary" />
             </div>
-            <h3 className="mb-2 text-xl font-bold text-slate-800">Your messages</h3>
-            <p className="text-sm text-slate-500">Select a conversation to start chatting</p>
+            <h3 className="mb-2 text-xl font-bold text-base-content">Your messages</h3>
+            <p className="text-sm text-base-content/60">Select a conversation to start chatting</p>
           </div>
         ) : (
-          <div className="flex flex-1 min-h-0 h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
-            <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
+          <div className="flex flex-1 min-h-0 h-full flex-col overflow-hidden rounded-xl border border-base-300 bg-base-100">
+            <div className="flex items-center gap-2 border-b border-base-200 px-3 py-2">
               <button
                 type="button"
                 className="btn btn-ghost btn-xs gap-1 sm:hidden"
@@ -470,7 +470,7 @@ export default function ChatContent({ deepLinkUserId } = {}) {
                 <button
                   type="button"
                   className={`btn btn-ghost btn-xs gap-1 ${
-                    isOneToOneCallActive ? "text-emerald-600 hover:bg-emerald-50" : "text-indigo-600 hover:bg-indigo-50"
+                    isOneToOneCallActive ? "text-success hover:bg-success/10" : "text-primary hover:bg-primary/10"
                   }`}
                   onClick={startCallWithSelectedFriend}
                   disabled={videoBusy || !serviceReady}
@@ -487,7 +487,7 @@ export default function ChatContent({ deepLinkUserId } = {}) {
                 </button>
               )}
             </div>
-            <div className="flex-1 min-h-0 overflow-hidden pb-6">
+            <div className="telegram-chat-shell flex-1 min-h-0 overflow-hidden pb-6">
               <Chat client={chatClient}>
                 <Channel channel={activeChannel}>
                   <ComponentProvider value={{ Attachment: CustomAttachment }}>

@@ -20,7 +20,7 @@ const createCustomIcon = (price, isSelected = false) => {
   return L.divIcon({
     className: "custom-marker",
     html: `
-      <div class="${isSelected ? "bg-amber-500" : "bg-indigo-600"} text-white px-3 py-2 rounded-full shadow-lg text-xs font-bold whitespace-nowrap${isSelected ? " ring-2 ring-white" : ""}">
+      <div class="${isSelected ? "bg-warning" : "bg-primary"} text-white px-3 py-2 rounded-full shadow-lg text-xs font-bold whitespace-nowrap${isSelected ? " ring-2 ring-white" : ""}">
         ₹${formattedPrice}
       </div>
     `,
@@ -60,7 +60,7 @@ const createAmenityIcon = (type) => {
   return L.divIcon({
     className: "amenity-marker",
     html: `
-      <div class="bg-white rounded-full shadow-lg border-2 flex items-center justify-center" style="width: 36px; height: 36px; border-color: ${config.color};">
+      <div class="bg-base-100 rounded-full shadow-lg border-2 flex items-center justify-center" style="width: 36px; height: 36px; border-color: ${config.color};">
         <div style="color: ${config.color}; font-size: 16px;">
           ${config.label === "Schools" ? "🏫" : config.label === "Hospitals" ? "🏥" : config.label === "Metro" ? "🚇" : "🏬"}
         </div>
@@ -357,12 +357,12 @@ export default function PropertyMapView() {
                            locationFilters.state || locationFilters.city || locationFilters.area;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-base-200">
       {/* Header */}
-      <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-50">
+      <div className="bg-base-100/80 backdrop-blur-xl border-b border-base-300 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 text-center">
-          <h1 className="text-base sm:text-xl font-bold text-slate-900 leading-tight">Property Map View</h1>
-          <p className="text-xs sm:text-sm text-slate-500 leading-tight">Explore properties on the map</p>
+          <h1 className="text-base sm:text-xl font-bold text-base-content leading-tight">Property Map View</h1>
+          <p className="text-xs sm:text-sm text-base-content/60 leading-tight">Explore properties on the map</p>
         </div>
       </div>
 
@@ -371,15 +371,15 @@ export default function PropertyMapView() {
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent"></div>
-              <p className="mt-4 text-slate-600">Loading properties...</p>
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+              <p className="mt-4 text-base-content/70">Loading properties...</p>
             </div>
           </div>
         ) : error ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <MapPin className="size-16 text-slate-300 mx-auto mb-4" />
-              <p className="text-lg text-slate-600 mb-4">Failed to load properties</p>
+              <MapPin className="size-16 text-base-content/40 mx-auto mb-4" />
+              <p className="text-lg text-base-content/70 mb-4">Failed to load properties</p>
               <button
                 onClick={() => navigate("/marketplace")}
                 className="btn btn-primary"
@@ -391,8 +391,8 @@ export default function PropertyMapView() {
         ) : properties.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <MapPin className="size-16 text-slate-300 mx-auto mb-4" />
-              <p className="text-lg text-slate-600 mb-4">No properties with location data</p>
+              <MapPin className="size-16 text-base-content/40 mx-auto mb-4" />
+              <p className="text-lg text-base-content/70 mb-4">No properties with location data</p>
               <button
                 onClick={() => navigate("/marketplace")}
                 className="btn btn-primary"
@@ -436,33 +436,33 @@ export default function PropertyMapView() {
                       />
                     )}
                     <div className="p-2">
-                      <h3 className="text-xs font-bold text-slate-900 mb-1 line-clamp-2">
+                      <h3 className="text-xs font-bold text-base-content mb-1 line-clamp-2">
                         {property.title || "Property"}
                       </h3>
-                      <p className="text-sm font-bold text-indigo-600 mb-1.5">
+                      <p className="text-sm font-bold text-primary mb-1.5">
                         {formatPrice(property.price)}
                       </p>
-                      <div className="flex items-center gap-1 text-[11px] text-slate-600 mb-1.5">
-                        <MapPin className="size-3 text-slate-400 shrink-0" />
+                      <div className="flex items-center gap-1 text-[11px] text-base-content/70 mb-1.5">
+                        <MapPin className="size-3 text-base-content/50 shrink-0" />
                         <span className="truncate">{property.city || "City"}</span>
                         {property.locality && <span className="truncate">· {property.locality}</span>}
                       </div>
-                      <div className="flex items-center gap-2 text-[11px] text-slate-600 mb-2 flex-wrap">
+                      <div className="flex items-center gap-2 text-[11px] text-base-content/70 mb-2 flex-wrap">
                         {property.bedrooms > 0 && (
                           <span className="flex items-center gap-1">
-                            <Bed className="size-3 text-slate-400" />
+                            <Bed className="size-3 text-base-content/50" />
                             {property.bedrooms} BHK
                           </span>
                         )}
                         {property.bathrooms > 0 && (
                           <span className="flex items-center gap-1">
-                            <Bath className="size-3 text-slate-400" />
+                            <Bath className="size-3 text-base-content/50" />
                             {property.bathrooms}
                           </span>
                         )}
                         {property.areaSqft > 0 && (
                           <span className="flex items-center gap-1">
-                            <Square className="size-3 text-slate-400" />
+                            <Square className="size-3 text-base-content/50" />
                             {property.areaSqft.toLocaleString()} sqft
                           </span>
                         )}
@@ -472,7 +472,7 @@ export default function PropertyMapView() {
                           e.preventDefault();
                           navigate(`/property/${property._id}`);
                         }}
-                        className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs bg-indigo-600 text-white rounded-full font-semibold shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-xl transition-all duration-200"
+                        className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs bg-primary text-white rounded-full font-semibold shadow-lg shadow-primary/20 hover:bg-primary hover:shadow-xl transition-all duration-200"
                       >
                         <Home className="size-3" />
                         View Details
@@ -498,18 +498,18 @@ export default function PropertyMapView() {
                         {amenity.type === 'schools' ? '🏫' : amenity.type === 'hospitals' ? '🏥' : amenity.type === 'metro' ? '🚇' : '🏬'}
                       </span>
                       <div className="flex-1">
-                        <h4 className="font-semibold text-slate-900 text-sm">{amenity.name}</h4>
-                        <p className="text-xs text-slate-600">
+                        <h4 className="font-semibold text-base-content text-sm">{amenity.name}</h4>
+                        <p className="text-xs text-base-content/70">
                           {AMENITY_CONFIG[amenity.type]?.label}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
-                      <p className="text-xs text-slate-500">
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-base-200">
+                      <p className="text-xs text-base-content/60">
                         <MapPin className="size-3 inline mr-1" />
                         {amenity.distance}m away
                       </p>
-                      <span className="text-xs font-medium text-indigo-600">
+                      <span className="text-xs font-medium text-primary">
                         {amenity.distance < 500 ? 'Very Close' : amenity.distance < 1000 ? 'Close' : 'Nearby'}
                       </span>
                     </div>
@@ -572,24 +572,24 @@ export default function PropertyMapView() {
                 <button
                   type="button"
                   onClick={() => setShowPropertyList((prev) => !prev)}
-                  className="w-full bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2 sm:px-5 sm:py-3 border border-slate-200 flex items-center gap-1.5 sm:gap-2 text-left"
+                  className="w-full bg-base-100/95 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2 sm:px-5 sm:py-3 border border-base-300 flex items-center gap-1.5 sm:gap-2 text-left"
                 >
-                  <MapPin className="size-4 sm:size-5 text-indigo-600 shrink-0" />
+                  <MapPin className="size-4 sm:size-5 text-primary shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs sm:text-sm font-semibold text-slate-900">{properties.length}</p>
-                    <p className="text-[10px] sm:text-xs text-slate-500">Properties</p>
+                    <p className="text-xs sm:text-sm font-semibold text-base-content">{properties.length}</p>
+                    <p className="text-[10px] sm:text-xs text-base-content/60">Properties</p>
                   </div>
-                  <ChevronDown className={`size-3.5 sm:size-4 text-slate-400 shrink-0 transition-transform ${showPropertyList ? "rotate-180" : ""}`} />
+                  <ChevronDown className={`size-3.5 sm:size-4 text-base-content/50 shrink-0 transition-transform ${showPropertyList ? "rotate-180" : ""}`} />
                 </button>
 
                 {showPropertyList && (
-                  <div className="mt-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 max-h-60 sm:max-h-72 overflow-y-auto divide-y divide-slate-100">
+                  <div className="mt-2 bg-base-100/95 backdrop-blur-sm rounded-xl shadow-lg border border-base-300 max-h-60 sm:max-h-72 overflow-y-auto divide-y divide-base-300">
                     {properties.map((property) => (
                       <button
                         key={property._id}
                         type="button"
                         onClick={() => handleMarkerClick(property)}
-                        className={`w-full flex items-center gap-2 sm:gap-3 px-2 py-1.5 sm:px-3 sm:py-2 text-left hover:bg-indigo-50 transition-colors ${selectedProperty?._id === property._id ? "bg-indigo-50" : ""}`}
+                        className={`w-full flex items-center gap-2 sm:gap-3 px-2 py-1.5 sm:px-3 sm:py-2 text-left hover:bg-primary/10 transition-colors ${selectedProperty?._id === property._id ? "bg-primary/10" : ""}`}
                       >
                         {property.mediaUrls?.[0] ? (
                           <img
@@ -598,11 +598,11 @@ export default function PropertyMapView() {
                             className="w-7 h-7 sm:w-10 sm:h-10 object-cover rounded-lg shrink-0"
                           />
                         ) : (
-                          <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-lg bg-slate-100 shrink-0" />
+                          <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-lg bg-base-200 shrink-0" />
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="text-[11px] sm:text-xs font-semibold text-slate-900 truncate">{property.title || "Property"}</p>
-                          <p className="text-[11px] sm:text-xs text-indigo-600 font-medium">{formatPrice(property.price)}</p>
+                          <p className="text-[11px] sm:text-xs font-semibold text-base-content truncate">{property.title || "Property"}</p>
+                          <p className="text-[11px] sm:text-xs text-primary font-medium">{formatPrice(property.price)}</p>
                         </div>
                       </button>
                     ))}
@@ -614,13 +614,13 @@ export default function PropertyMapView() {
             {/* Filter Toggle Button */}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="shrink-0 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2 sm:px-4 sm:py-3 border border-slate-200 hover:bg-white transition-colors"
+              className="shrink-0 bg-base-100/95 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2 sm:px-4 sm:py-3 border border-base-300 hover:bg-base-100 transition-colors"
             >
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <SlidersHorizontal className="size-4 sm:size-5 text-indigo-600" />
-                <span className="hidden sm:inline text-sm font-semibold text-slate-900">Filters</span>
+                <SlidersHorizontal className="size-4 sm:size-5 text-primary" />
+                <span className="hidden sm:inline text-sm font-semibold text-base-content">Filters</span>
                 {hasActiveFilters && (
-                  <div className="bg-indigo-600 text-white text-[10px] sm:text-xs rounded-full px-1.5 py-0.5 sm:px-2">Active</div>
+                  <div className="bg-primary text-white text-[10px] sm:text-xs rounded-full px-1.5 py-0.5 sm:px-2">Active</div>
                 )}
               </div>
             </button>
@@ -630,7 +630,7 @@ export default function PropertyMapView() {
               image/title/price/View Details on mobile, so this richer
               amenities panel is desktop-only to avoid a redundant second card */}
           {selectedProperty && (
-            <div className="hidden sm:block bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2 sm:px-4 sm:py-3 border border-slate-200 w-full sm:max-w-xs">
+            <div className="hidden sm:block bg-base-100/95 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2 sm:px-4 sm:py-3 border border-base-300 w-full sm:max-w-xs">
               <div className="flex items-start gap-2 sm:gap-3">
                 {selectedProperty.mediaUrls?.[0] && (
                   <img
@@ -640,52 +640,52 @@ export default function PropertyMapView() {
                   />
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] sm:text-xs text-slate-500 mb-0.5 sm:mb-1">Selected Property</p>
-                  <h4 className="text-xs sm:text-sm font-semibold text-slate-900 truncate">{selectedProperty.title || "Property"}</h4>
-                  <p className="text-[11px] sm:text-xs text-indigo-600 font-medium">{formatPrice(selectedProperty.price)}</p>
+                  <p className="text-[10px] sm:text-xs text-base-content/60 mb-0.5 sm:mb-1">Selected Property</p>
+                  <h4 className="text-xs sm:text-sm font-semibold text-base-content truncate">{selectedProperty.title || "Property"}</h4>
+                  <p className="text-[11px] sm:text-xs text-primary font-medium">{formatPrice(selectedProperty.price)}</p>
                 </div>
                 <button
                   onClick={() => setSelectedProperty(null)}
-                  className="text-slate-400 hover:text-slate-600"
+                  className="text-base-content/50 hover:text-base-content/70"
                 >
                   <X className="size-4" />
                 </button>
               </div>
               {amenitiesLoading && (
-                <div className="mt-3 pt-3 border-t border-slate-100">
+                <div className="mt-3 pt-3 border-t border-base-200">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-indigo-600 rounded-full animate-pulse" />
-                    <p className="text-xs text-slate-500">Loading nearby amenities...</p>
+                    <div className="w-3 h-3 bg-primary rounded-full animate-pulse" />
+                    <p className="text-xs text-base-content/60">Loading nearby amenities...</p>
                   </div>
                 </div>
               )}
               {!amenitiesLoading && amenitiesError && (
-                <div className="mt-3 pt-3 border-t border-slate-100">
-                  <p className="text-xs text-red-500">Couldn't load nearby amenities. Try again in a moment.</p>
+                <div className="mt-3 pt-3 border-t border-base-200">
+                  <p className="text-xs text-error">Couldn't load nearby amenities. Try again in a moment.</p>
                 </div>
               )}
               {!amenitiesLoading && !amenitiesError && amenitiesData?.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-slate-100">
-                  <p className="text-xs text-slate-500 mb-2">{amenitiesData.length} amenities within {amenitiesRadiusKm}km</p>
+                <div className="mt-3 pt-3 border-t border-base-200">
+                  <p className="text-xs text-base-content/60 mb-2">{amenitiesData.length} amenities within {amenitiesRadiusKm}km</p>
                   <div className="space-y-1 max-h-32 overflow-y-auto">
                     {amenitiesData.slice(0, 5).map((amenity) => (
                       <div key={amenity.id} className="flex items-center gap-2 text-xs">
                         <span>
                           {amenity.type === 'schools' ? '🏫' : amenity.type === 'hospitals' ? '🏥' : amenity.type === 'metro' ? '🚇' : '🏬'}
                         </span>
-                        <span className="truncate text-slate-700">{amenity.name}</span>
-                        <span className="text-slate-400 ml-auto">{amenity.distance}m</span>
+                        <span className="truncate text-base-content">{amenity.name}</span>
+                        <span className="text-base-content/50 ml-auto">{amenity.distance}m</span>
                       </div>
                     ))}
                     {amenitiesData.length > 5 && (
-                      <p className="text-xs text-slate-400">+{amenitiesData.length - 5} more</p>
+                      <p className="text-xs text-base-content/50">+{amenitiesData.length - 5} more</p>
                     )}
                   </div>
                 </div>
               )}
               {!amenitiesLoading && !amenitiesError && amenitiesData?.length === 0 && (
-                <div className="mt-3 pt-3 border-t border-slate-100">
-                  <p className="text-xs text-slate-400">No amenities found within {amenitiesRadiusKm}km.</p>
+                <div className="mt-3 pt-3 border-t border-base-200">
+                  <p className="text-xs text-base-content/50">No amenities found within {amenitiesRadiusKm}km.</p>
                 </div>
               )}
             </div>
@@ -693,13 +693,13 @@ export default function PropertyMapView() {
 
           {/* Filter Panel */}
           {showFilters && (
-          <div className="w-full sm:w-80 max-w-xs sm:max-w-none sm:ml-auto bg-white/95 backdrop-blur-sm rounded-xl shadow-xl p-3 sm:p-5 border border-slate-200 max-h-[calc(100dvh-140px)] overflow-y-auto text-xs sm:text-sm">
+          <div className="w-full sm:w-80 max-w-xs sm:max-w-none sm:ml-auto bg-base-100/95 backdrop-blur-sm rounded-xl shadow-xl p-3 sm:p-5 border border-base-300 max-h-[calc(100dvh-140px)] overflow-y-auto text-xs sm:text-sm">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <h3 className="text-sm sm:text-base font-bold text-slate-900">Filters</h3>
+              <h3 className="text-sm sm:text-base font-bold text-base-content">Filters</h3>
               {hasActiveFilters && (
                 <button
                   onClick={clearFilters}
-                  className="text-[11px] sm:text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                  className="text-[11px] sm:text-xs text-primary hover:text-primary font-medium"
                 >
                   Clear All
                 </button>
@@ -709,7 +709,7 @@ export default function PropertyMapView() {
             <div className="max-h-[calc(100vh-200px)] overflow-y-auto">
               {/* Location Filters */}
               <div className="mb-3 sm:mb-4">
-                <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5 sm:mb-2">Location</label>
+                <label className="block text-xs sm:text-sm font-medium text-base-content mb-1.5 sm:mb-2">Location</label>
                 <div className="space-y-2">
                 {/* State Input with Autocomplete */}
                 <div className="relative">
@@ -720,10 +720,10 @@ export default function PropertyMapView() {
                     onChange={(e) => setLocationFilters({ ...locationFilters, state: e.target.value })}
                     onFocus={() => setShowSuggestions({ ...showSuggestions, state: true })}
                     onBlur={() => setTimeout(() => setShowSuggestions({ ...showSuggestions, state: false }), 200)}
-                    className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-base-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                   {showSuggestions.state && locationFilters.state && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                    <div className="absolute z-50 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
                       {uniqueStates
                         .filter(state => state.toLowerCase().includes(locationFilters.state.toLowerCase()))
                         .slice(0, 10)
@@ -735,7 +735,7 @@ export default function PropertyMapView() {
                               setLocationFilters({ ...locationFilters, state });
                               setShowSuggestions({ ...showSuggestions, state: false });
                             }}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-slate-100 transition-colors"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-base-200 transition-colors"
                           >
                             {state}
                           </button>
@@ -753,10 +753,10 @@ export default function PropertyMapView() {
                     onChange={(e) => setLocationFilters({ ...locationFilters, city: e.target.value })}
                     onFocus={() => setShowSuggestions({ ...showSuggestions, city: true })}
                     onBlur={() => setTimeout(() => setShowSuggestions({ ...showSuggestions, city: false }), 200)}
-                    className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-base-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                   {showSuggestions.city && locationFilters.city && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                    <div className="absolute z-50 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
                       {locationSuggestions && locationSuggestions.length > 0 ? (
                         locationSuggestions
                           .filter(loc => loc.type === 'city' || loc.city)
@@ -769,7 +769,7 @@ export default function PropertyMapView() {
                                 setLocationFilters({ ...locationFilters, city: loc.city || loc.name, state: loc.state || locationFilters.state });
                                 setShowSuggestions({ ...showSuggestions, city: false });
                               }}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-slate-100 transition-colors"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-base-200 transition-colors"
                             >
                               {loc.city || loc.name}, {loc.state}
                             </button>
@@ -786,7 +786,7 @@ export default function PropertyMapView() {
                                 setLocationFilters({ ...locationFilters, city });
                                 setShowSuggestions({ ...showSuggestions, city: false });
                               }}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-slate-100 transition-colors"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-base-200 transition-colors"
                             >
                               {city}
                             </button>
@@ -805,10 +805,10 @@ export default function PropertyMapView() {
                     onChange={(e) => setLocationFilters({ ...locationFilters, area: e.target.value })}
                     onFocus={() => setShowSuggestions({ ...showSuggestions, area: true })}
                     onBlur={() => setTimeout(() => setShowSuggestions({ ...showSuggestions, area: false }), 200)}
-                    className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-base-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                   {showSuggestions.area && locationFilters.area && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                    <div className="absolute z-50 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
                       {locationSuggestions && locationSuggestions.length > 0 ? (
                         locationSuggestions
                           .filter(loc => loc.type === 'locality' || loc.locality)
@@ -821,7 +821,7 @@ export default function PropertyMapView() {
                                 setLocationFilters({ ...locationFilters, area: loc.locality || loc.name, city: loc.city || locationFilters.city, state: loc.state || locationFilters.state });
                                 setShowSuggestions({ ...showSuggestions, area: false });
                               }}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-slate-100 transition-colors"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-base-200 transition-colors"
                             >
                               {loc.locality || loc.name}, {loc.city}
                             </button>
@@ -838,7 +838,7 @@ export default function PropertyMapView() {
                                 setLocationFilters({ ...locationFilters, area: locality });
                                 setShowSuggestions({ ...showSuggestions, area: false });
                               }}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-slate-100 transition-colors"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-base-200 transition-colors"
                             >
                               {locality}
                             </button>
@@ -852,52 +852,52 @@ export default function PropertyMapView() {
 
             {/* Price Filter */}
             <div className="mb-3 sm:mb-4">
-              <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5 sm:mb-2">Price Range (₹)</label>
+              <label className="block text-xs sm:text-sm font-medium text-base-content mb-1.5 sm:mb-2">Price Range (₹)</label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
                   placeholder="Min"
                   value={priceRange.min}
                   onChange={(e) => setPriceRange({ ...priceRange, min: e.target.value })}
-                  className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-base-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
-                <span className="text-slate-400">-</span>
+                <span className="text-base-content/50">-</span>
                 <input
                   type="number"
                   placeholder="Max"
                   value={priceRange.max}
                   onChange={(e) => setPriceRange({ ...priceRange, max: e.target.value })}
-                  className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-base-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
             </div>
 
             {/* Area Filter */}
             <div className="mb-3 sm:mb-4">
-              <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5 sm:mb-2">Area Range (sq ft)</label>
+              <label className="block text-xs sm:text-sm font-medium text-base-content mb-1.5 sm:mb-2">Area Range (sq ft)</label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
                   placeholder="Min"
                   value={areaRange.min}
                   onChange={(e) => setAreaRange({ ...areaRange, min: e.target.value })}
-                  className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-base-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
-                <span className="text-slate-400">-</span>
+                <span className="text-base-content/50">-</span>
                 <input
                   type="number"
                   placeholder="Max"
                   value={areaRange.max}
                   onChange={(e) => setAreaRange({ ...areaRange, max: e.target.value })}
-                  className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-base-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
             </div>
 
             {/* Amenity Filters — always visible/toggleable; amenities only load
                 once a property has been selected as the search anchor */}
-            <div className="mb-3 sm:mb-4 pt-3 sm:pt-4 border-t border-slate-100">
-              <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-2 sm:mb-3">Nearby Amenities</label>
+            <div className="mb-3 sm:mb-4 pt-3 sm:pt-4 border-t border-base-200">
+              <label className="block text-xs sm:text-sm font-medium text-base-content mb-2 sm:mb-3">Nearby Amenities</label>
               <div className="space-y-1.5 sm:space-y-2">
                 {Object.entries(AMENITY_CONFIG).map(([type, config]) => (
                   <label key={type} className="flex items-center gap-2 sm:gap-3 cursor-pointer">
@@ -905,9 +905,9 @@ export default function PropertyMapView() {
                       type="checkbox"
                       checked={amenityFilters[type]}
                       onChange={(e) => setAmenityFilters({ ...amenityFilters, [type]: e.target.checked })}
-                      className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border-base-300 text-primary focus:ring-primary"
                     />
-                    <span className="text-xs sm:text-sm text-slate-700 flex items-center gap-1.5 sm:gap-2">
+                    <span className="text-xs sm:text-sm text-base-content flex items-center gap-1.5 sm:gap-2">
                       <span>{config.label === "Schools" ? "🏫" : config.label === "Hospitals" ? "🏥" : config.label === "Metro" ? "🚇" : "🏬"}</span>
                       {config.label}
                     </span>
@@ -915,23 +915,23 @@ export default function PropertyMapView() {
                 ))}
               </div>
               {!amenitiesAnchor && (
-                <p className="text-xs text-slate-400 mt-2">Select a property to load nearby amenities.</p>
+                <p className="text-xs text-base-content/50 mt-2">Select a property to load nearby amenities.</p>
               )}
               {amenitiesLoading && (
-                <p className="text-xs text-slate-500 mt-2">Loading amenities...</p>
+                <p className="text-xs text-base-content/60 mt-2">Loading amenities...</p>
               )}
               {!amenitiesLoading && amenitiesError && (
-                <p className="text-xs text-red-500 mt-2">Couldn't load nearby amenities.</p>
+                <p className="text-xs text-error mt-2">Couldn't load nearby amenities.</p>
               )}
               {!amenitiesLoading && !amenitiesError && amenitiesData?.length > 0 && (
-                <p className="text-xs text-slate-500 mt-2">{amenitiesData.length} amenities found</p>
+                <p className="text-xs text-base-content/60 mt-2">{amenitiesData.length} amenities found</p>
               )}
             </div>
 
             {/* Results Count */}
-            <div className="pt-3 border-t border-slate-100">
-              <p className="text-sm text-slate-600">
-                Showing <span className="font-semibold text-slate-900">{properties.length}</span> properties
+            <div className="pt-3 border-t border-base-200">
+              <p className="text-sm text-base-content/70">
+                Showing <span className="font-semibold text-base-content">{properties.length}</span> properties
               </p>
             </div>
             </div>

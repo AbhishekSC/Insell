@@ -51,26 +51,26 @@ export default function PriceDropNotice({ enabled }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+      <div className="w-full max-w-sm rounded-2xl bg-base-100 p-6 shadow-xl">
         <div className="flex items-start justify-between gap-3">
-          <div className="grid size-10 shrink-0 place-items-center rounded-full bg-emerald-50 text-emerald-600">
+          <div className="grid size-10 shrink-0 place-items-center rounded-full bg-success/10 text-success">
             <IndianRupee className="size-5" />
           </div>
           <button
             type="button"
             onClick={() => dismissAll()}
             disabled={isPending}
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-60"
+            className="rounded-lg p-1 text-base-content/50 hover:bg-base-200 hover:text-base-content/70 disabled:opacity-60"
             title="Dismiss"
           >
             <X className="size-5" />
           </button>
         </div>
 
-        <h3 className="mt-3 text-lg font-semibold text-slate-800">
+        <h3 className="mt-3 text-lg font-semibold text-base-content">
           {notices.length > 1 ? `${notices.length} price updates` : "Price update"}
         </h3>
-        <p className="mt-1 text-sm text-slate-500">The price changed on a property you liked or saved.</p>
+        <p className="mt-1 text-sm text-base-content/60">The price changed on a property you liked or saved.</p>
 
         <div className="mt-4 max-h-64 space-y-2 overflow-y-auto">
           {notices.map((notice) => {
@@ -81,7 +81,7 @@ export default function PriceDropNotice({ enabled }) {
                 key={notice._id}
                 to={notice.propertyPost?._id ? `/property/${notice.propertyPost._id}` : "#"}
                 onClick={() => dismissAll()}
-                className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 hover:bg-slate-100"
+                className="flex items-center gap-3 rounded-xl border border-base-300 bg-base-200 p-3 hover:bg-base-200"
               >
                 {notice.propertyPost?.mediaUrls?.[0] && (
                   <img
@@ -91,17 +91,17 @@ export default function PriceDropNotice({ enabled }) {
                   />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-800">{notice.propertyPost?.title || "Property"}</p>
+                  <p className="truncate text-sm font-medium text-base-content">{notice.propertyPost?.title || "Property"}</p>
                   {hasPrices ? (
-                    <p className={`mt-0.5 flex items-center gap-1 text-xs font-semibold ${isDrop ? "text-emerald-600" : "text-red-500"}`}>
+                    <p className={`mt-0.5 flex items-center gap-1 text-xs font-semibold ${isDrop ? "text-success" : "text-error"}`}>
                       {isDrop ? <ArrowDown className="size-3" /> : <ArrowUp className="size-3" />}
-                      <span className="line-through text-slate-400 font-normal">{formatMoney(notice.priceBefore)}</span>
+                      <span className="line-through text-base-content/50 font-normal">{formatMoney(notice.priceBefore)}</span>
                       <span>→ {formatMoney(notice.priceAfter)}</span>
                     </p>
                   ) : (
-                    <p className="mt-0.5 text-xs text-slate-600">{notice.message}</p>
+                    <p className="mt-0.5 text-xs text-base-content/70">{notice.message}</p>
                   )}
-                  <p className="mt-1 text-xs text-slate-400">{relativeDate(notice.createdAt)}</p>
+                  <p className="mt-1 text-xs text-base-content/50">{relativeDate(notice.createdAt)}</p>
                 </div>
               </Link>
             );
@@ -112,7 +112,7 @@ export default function PriceDropNotice({ enabled }) {
           type="button"
           onClick={() => dismissAll()}
           disabled={isPending}
-          className="mt-5 w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+          className="mt-5 w-full rounded-xl bg-neutral px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral disabled:opacity-60"
         >
           Got it
         </button>

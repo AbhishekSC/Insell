@@ -9,22 +9,22 @@ export default function PropertyComparisonCard({ property, formatPrice, isBest =
   return (
     <div 
       onClick={() => navigate(`/property/${property.id}`)}
-      className={`group bg-white rounded-2xl shadow-sm border overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer ${
+      className={`group bg-base-100 rounded-2xl shadow-sm border overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer ${
         isBest 
-          ? 'border-amber-400 ring-2 ring-amber-200 shadow-md' 
-          : 'border-slate-200 hover:border-indigo-200'
+          ? 'border-warning ring-2 ring-warning shadow-md' 
+          : 'border-base-300 hover:border-primary/30'
       }`}
     >
       {/* Image Section */}
-      <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
+      <div className="relative aspect-[4/3] overflow-hidden bg-base-200">
         {isBest && (
-          <div className="absolute top-3 left-3 bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 z-10">
+          <div className="absolute top-3 left-3 bg-warning text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 z-10">
             <Trophy className="size-3" />
             <span>Best Choice</span>
           </div>
         )}
         {!imageLoaded && (
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-200 to-slate-300 animate-pulse" />
+          <div className="absolute inset-0 bg-gradient-to-br from-base-300 to-base-300 animate-pulse" />
         )}
         {property.mediaUrls?.[0] ? (
           <img
@@ -36,8 +36,8 @@ export default function PropertyComparisonCard({ property, formatPrice, isBest =
             onLoad={() => setImageLoaded(true)}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
-            <MapPin className="size-12 text-slate-300" />
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-base-300 to-base-300">
+            <MapPin className="size-12 text-base-content/40" />
           </div>
         )}
       </div>
@@ -46,19 +46,19 @@ export default function PropertyComparisonCard({ property, formatPrice, isBest =
       <div className="p-5">
         {/* Price */}
         <div className="mb-3">
-          <p className="text-2xl font-bold text-slate-900 tracking-tight">
+          <p className="text-2xl font-bold text-base-content tracking-tight">
             {formatPrice(property.price)}
           </p>
         </div>
 
         {/* Title */}
-        <h3 className="font-semibold text-slate-800 mb-2 line-clamp-2 leading-snug">
+        <h3 className="font-semibold text-base-content mb-2 line-clamp-2 leading-snug">
           {property.title}
         </h3>
 
         {/* Location */}
-        <div className="flex items-center gap-1.5 text-sm text-slate-600 mb-4">
-          <MapPin className="size-4 text-slate-400 flex-shrink-0" />
+        <div className="flex items-center gap-1.5 text-sm text-base-content/70 mb-4">
+          <MapPin className="size-4 text-base-content/50 flex-shrink-0" />
           <span className="truncate">
             {property.city}
             {property.locality && `, ${property.locality}`}
@@ -66,22 +66,22 @@ export default function PropertyComparisonCard({ property, formatPrice, isBest =
         </div>
 
         {/* Specifications Row */}
-        <div className="flex items-center gap-4 text-sm text-slate-600 mb-4">
+        <div className="flex items-center gap-4 text-sm text-base-content/70 mb-4">
           {property.bedrooms > 0 && (
             <div className="flex items-center gap-1.5">
-              <Bed className="size-4 text-slate-400" />
+              <Bed className="size-4 text-base-content/50" />
               <span className="font-medium">{property.bedrooms}</span>
             </div>
           )}
           {property.bathrooms > 0 && (
             <div className="flex items-center gap-1.5">
-              <Bath className="size-4 text-slate-400" />
+              <Bath className="size-4 text-base-content/50" />
               <span className="font-medium">{property.bathrooms}</span>
             </div>
           )}
           {property.areaSqft > 0 && (
             <div className="flex items-center gap-1.5">
-              <Square className="size-4 text-slate-400" />
+              <Square className="size-4 text-base-content/50" />
               <span className="font-medium">{property.areaSqft.toLocaleString()} sqft</span>
             </div>
           )}
@@ -89,7 +89,7 @@ export default function PropertyComparisonCard({ property, formatPrice, isBest =
 
         {/* Author Section */}
         {property.author && (
-          <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
+          <div className="flex items-center gap-3 pt-4 border-t border-base-200">
             <div 
               onClick={(e) => {
                 e.stopPropagation();
@@ -104,7 +104,7 @@ export default function PropertyComparisonCard({ property, formatPrice, isBest =
                   className="w-10 h-10 rounded-full object-cover"
                 />
               ) : (
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary flex items-center justify-center">
                   <User className="size-5 text-white" />
                 </div>
               )}
@@ -115,13 +115,13 @@ export default function PropertyComparisonCard({ property, formatPrice, isBest =
                   e.stopPropagation();
                   navigate(`/users/${property.author.id}`);
                 }}
-                className="font-medium text-slate-900 truncate cursor-pointer hover:text-indigo-600 transition-colors"
+                className="font-medium text-base-content truncate cursor-pointer hover:text-primary transition-colors"
               >
                 {property.author.fullName}
               </p>
               {property.author.isVerified && (
-                <div className="flex items-center gap-1 text-xs text-slate-500">
-                  <CheckCircle className="size-3 text-blue-500" />
+                <div className="flex items-center gap-1 text-xs text-base-content/60">
+                  <CheckCircle className="size-3 text-info" />
                   <span>Verified</span>
                 </div>
               )}

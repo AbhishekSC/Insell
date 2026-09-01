@@ -25,7 +25,7 @@ export default function FullscreenMediaViewer({ src, onClose }) {
       )}
       <button
         type="button"
-        className="btn btn-sm absolute right-6 top-6 border-none bg-white text-slate-700 hover:bg-slate-100"
+        className="btn btn-sm absolute right-6 top-6 border-none bg-base-100 text-base-content hover:bg-base-200"
         onClick={onClose}
       >
         <X className="size-4" />

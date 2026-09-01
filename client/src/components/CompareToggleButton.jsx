@@ -13,7 +13,7 @@ export default function CompareToggleButton({ postId, selected, onToggle }) {
       type="button"
       className={`size-8 rounded-full flex items-center justify-center transition-all duration-200 ${
         isSelected
-          ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200"
+          ? "bg-primary text-white shadow-lg shadow-primary/20"
           : "text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
       }`}
       onClick={(event) => {

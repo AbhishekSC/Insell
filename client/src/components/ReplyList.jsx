@@ -39,12 +39,12 @@ function ReplyList({
 
   if (error) {
     return (
-      <div className="mt-3 flex items-center gap-2 text-red-500">
+      <div className="mt-3 flex items-center gap-2 text-error">
         <span className="text-xs">Failed to load replies</span>
         <button
           type="button"
           onClick={() => refetch()}
-          className="text-xs flex items-center gap-1 hover:text-red-600"
+          className="text-xs flex items-center gap-1 hover:text-error"
         >
           <RefreshCw className="size-3" />
           Retry
