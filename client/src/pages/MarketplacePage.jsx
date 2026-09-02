@@ -481,7 +481,9 @@ export default function MarketplacePage() {
     city: "",
     locality: "",
     budgetMin: 0,
-    budgetMax: 150000000,
+    budgetMax: 0, // 0 means unlimited (see maxOk below) — was 150000000, which
+    // silently hid every listing priced above ₹15 crore from everyone's
+    // default feed with no UI indication a filter was even active.
   });
   const [appliedFilters, setAppliedFilters] = useState(filters);
 
@@ -798,9 +800,24 @@ export default function MarketplacePage() {
   // ranked query never "fixed" the mismatch, so clicking it visibly did
   // nothing. Comparing against when THIS feed was last loaded, instead of
   // against feed position, works regardless of sort order.
+  // Deliberately NOT wall-clock "now" — using new Date() here meant any
+  // incidental background refetch (window refocus, an automatic React Query
+  // retry, a still-cached response) would push feedLoadedAt forward even
+  // when the actual data didn't change, permanently masking real new posts
+  // created before that refetch. Anchoring to the newest createdAt actually
+  // present in the loaded first page means a stale/cached refetch that
+  // returns the same posts leaves this unchanged, so the comparison against
+  // latestFeedPost stays meaningful no matter how often background refetches
+  // fire.
   const [feedLoadedAt, setFeedLoadedAt] = useState(null);
   useEffect(() => {
-    if (data) setFeedLoadedAt(new Date());
+    const firstPagePosts = data?.pages?.[0]?.posts || [];
+    if (firstPagePosts.length === 0) return;
+    const newestInFeed = firstPagePosts.reduce((max, post) => {
+      const t = new Date(post.createdAt).getTime();
+      return Number.isFinite(t) && t > max ? t : max;
+    }, 0);
+    if (newestInFeed > 0) setFeedLoadedAt(new Date(newestInFeed));
   }, [data]);
 
   const hasNewPosts = Boolean(
