@@ -1114,9 +1114,7 @@ export default function AppShell({
 
       <main
         className={`mx-auto w-full px-4 pt-6 sm:px-6 ${isMarketplaceShell ? "max-w-[1440px]" : "max-w-7xl"} ${
-          lockPageScroll
-            ? "flex h-[calc(100dvh-56px-4rem)] flex-col overflow-hidden xl:h-[calc(100dvh-4.75rem)] xl:pb-0"
-            : "pb-24 md:pb-8"
+          lockPageScroll ? "xl:flex xl:h-[calc(100dvh-4.75rem)] xl:flex-col xl:overflow-hidden" : "pb-24 md:pb-8"
         }`}
       >
         {!hideHero ? (
@@ -1129,7 +1127,7 @@ export default function AppShell({
           </section>
         ) : null}
 
-        <div className={lockPageScroll ? "flex-1 min-h-0 overflow-hidden" : "pb-6"}>{children}</div>
+        <div className={lockPageScroll ? "xl:flex-1 xl:min-h-0 xl:overflow-hidden" : "pb-6"}>{children}</div>
       </main>
 
       {!hideBottomNav && (

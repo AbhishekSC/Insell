@@ -1303,7 +1303,7 @@ export default function MarketplacePage() {
   return (
     <AppShell
       hideHero
-      lockPageScroll
+      lockPageScroll={activeSection === "chat" || (activeSection === "communities" && Boolean(selectedCommunity))}
       title="Marketplace"
       subtitle="Social-first discovery"
       marketplaceSearch={search}
