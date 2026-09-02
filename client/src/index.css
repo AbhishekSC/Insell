@@ -150,11 +150,11 @@
 	}
 
 	.telegram-sidebar {
-		@apply rounded-2xl border border-base-300/80 bg-base-100/90 shadow-sm backdrop-blur;
+		@apply border-0 bg-base-100/90 shadow-none backdrop-blur xl:rounded-2xl xl:border xl:border-base-300/80 xl:shadow-sm;
 	}
 
 	.telegram-conversation-panel {
-		@apply rounded-2xl border border-base-300/80 bg-base-100/90 shadow-sm backdrop-blur;
+		@apply border-0 bg-base-100/90 shadow-none backdrop-blur xl:rounded-2xl xl:border xl:border-base-300/80 xl:shadow-sm;
 	}
 
 	.chat-welcome {
@@ -202,9 +202,9 @@
 	.telegram-chat-shell .str-chat .str-chat__message-composer-container {
 		flex: 0 0 auto;
 		gap: 0;
-		padding: 0.55rem 0.75rem;
-		border-top: 1px solid hsl(var(--b3) / 0.8);
-		background: hsl(var(--b1) / 0.96);
+		padding: 0.4rem 0.5rem;
+		border-top: none;
+		background: transparent;
 	}
 
 	.str-chat .str-chat__message-composer-container {
@@ -324,37 +324,72 @@
 	}
 
 	.telegram-chat-shell .str-chat__textarea textarea {
-		@apply bg-transparent px-2 py-1.5 text-sm shadow-none;
-		min-height: 28px;
-		max-height: 96px;
+		@apply bg-transparent px-1 py-0 text-sm text-base-content shadow-none placeholder:text-base-content/55;
+		min-height: 20px;
+		max-height: 80px;
 	}
 
 	.telegram-chat-shell .str-chat__message-composer {
 		align-items: center;
-		gap: 0.45rem;
+		gap: 0.4rem;
 		max-width: 100%;
 	}
 
 	.telegram-chat-shell .str-chat__message-composer > .str-chat__attachment-selector {
-		width: 2.4rem;
-		max-width: 2.4rem;
+		width: 2.75rem;
+		max-width: 2.75rem;
+	}
+
+	/* Only + / input / send in the compact row — the emoji picker isn't
+	   part of the requested layout, so it's hidden rather than removed
+	   from the component tree. */
+	.telegram-chat-shell .str-chat__message-composer-controls .str-chat__emoji-picker-button {
+		display: none;
 	}
 
 	.telegram-chat-shell .str-chat__attachment-selector__menu-button {
-		@apply grid size-9 place-items-center rounded-xl border border-base-300/80 bg-base-100 text-base-content/65 shadow-sm transition hover:border-primary/35 hover:text-primary;
+		@apply grid size-11 shrink-0 place-items-center rounded-full border-0 bg-transparent p-0 text-base-content/80 shadow-none transition hover:text-primary;
+	}
+
+	/* The attachment button's icon hardcodes its own `color` (doesn't
+	   inherit currentColor like the other composer icons), so the text-*
+	   class above has no effect on it without this direct override. */
+	.telegram-chat-shell .str-chat__attachment-selector__menu-button .str-chat__attachment-selector__menu-button__icon {
+		color: oklch(var(--bc) / 0.8);
+	}
+
+	.telegram-chat-shell .str-chat__attachment-selector__menu-button:hover .str-chat__attachment-selector__menu-button__icon {
+		color: oklch(var(--p));
 	}
 
 	.telegram-chat-shell .str-chat__message-composer-compose-area {
-		@apply rounded-2xl border border-base-300/80 bg-base-100 shadow-sm transition focus-within:border-primary/45 focus-within:ring-2 focus-within:ring-primary/10;
+		@apply flex flex-1 items-center rounded-full shadow-none transition focus-within:ring-2 focus-within:ring-primary/15;
+		min-height: 2.75rem;
+		background: oklch(var(--b2) / 0.85);
+		border: 1.5px solid oklch(var(--bc) / 0.45) !important;
+	}
+
+	.telegram-chat-shell .str-chat__message-composer-compose-area:focus-within {
+		border-color: oklch(var(--p) / 0.7) !important;
 	}
 
 	.telegram-chat-shell .str-chat__message-composer-controls {
-		gap: 0.35rem;
-		padding: 0.3rem;
+		gap: 0.3rem;
+		padding: 0.3rem 0.65rem;
+		align-items: center;
+	}
+
+	.telegram-chat-shell .str-chat__message-composer-controls .str-chat__message-composer-controls__text-composition-controls {
+		min-height: 20px;
+	}
+
+	.telegram-chat-shell .str-chat__message-composer-controls .str-chat__message-composer__actions,
+	.telegram-chat-shell .str-chat__message-composer-controls .str-chat__message-composer__additional-actions {
+		height: 20px;
 	}
 
 	.telegram-chat-shell .str-chat__send-button {
-		@apply grid size-8 place-items-center rounded-xl bg-primary p-0 text-primary-content shadow-sm transition hover:bg-primary/90 disabled:bg-base-300 disabled:text-base-content/35;
+		@apply grid size-11 shrink-0 place-items-center rounded-full border-0 bg-primary p-0 text-primary-content shadow-sm transition hover:bg-primary/85 disabled:bg-base-300 disabled:text-base-content/40;
 	}
 
 	.telegram-chat-shell .str-chat__input-flat-wrapper,
@@ -530,12 +565,7 @@
 
 	@media (max-width: 639px) {
 		.telegram-chat-layout {
-			min-height: calc(100dvh - 17.5rem);
-		}
-
-		.telegram-sidebar,
-		.telegram-conversation-panel {
-			border-radius: 1.25rem;
+			min-height: calc(100dvh - 4rem);
 		}
 
 		.telegram-chat-shell .str-chat__message-simple__content {
@@ -866,4 +896,28 @@
 	.call-mini-widget__end {
 		@apply grid size-10 shrink-0 place-items-center rounded-full border border-red-300/40 bg-red-500/90 text-white shadow-lg transition-colors hover:bg-red-500;
 	}
+}
+
+/* Deliberately outside @layer components: Tailwind's content-based purge
+   drops any @layer rule whose selector text never appears literally in a
+   scanned JSX file, and "str-chat__context-menu" is stream-chat-react's own
+   internal class (portals to the channel container for the "+" attachment
+   menu, outside .telegram-chat-shell) — never written in our source, so it
+   was silently stripped from both dev and prod builds. Unlayered CSS is
+   never purged, and !important still beats the library's own unlayered,
+   non-important rule regardless of layer/specificity. */
+.str-chat__context-menu {
+	background: oklch(var(--b1)) !important;
+	color: oklch(var(--bc)) !important;
+	border: 1px solid oklch(var(--b3) / 0.8);
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.str-chat__context-menu .str-chat__context-menu__button__label,
+.str-chat__context-menu .str-chat__context-menu__button__details {
+	color: oklch(var(--bc)) !important;
+}
+
+.str-chat__context-menu .str-chat__context-menu__button:hover:not(:disabled) {
+	background: oklch(var(--b2)) !important;
 }

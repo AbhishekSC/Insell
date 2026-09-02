@@ -452,7 +452,7 @@ export default function ChatContent({ deepLinkUserId } = {}) {
             <p className="text-sm text-base-content/60">Select a conversation to start chatting</p>
           </div>
         ) : (
-          <div className="flex flex-1 min-h-0 h-full flex-col overflow-hidden rounded-xl border border-base-300 bg-base-100">
+          <div className="flex flex-1 min-h-0 h-full flex-col overflow-hidden bg-base-100 xl:rounded-xl xl:border xl:border-base-300">
             <div className="flex items-center gap-2 border-b border-base-200 px-3 py-2">
               <button
                 type="button"
@@ -487,7 +487,7 @@ export default function ChatContent({ deepLinkUserId } = {}) {
                 </button>
               )}
             </div>
-            <div className="telegram-chat-shell flex-1 min-h-0 overflow-hidden pb-6">
+            <div className="telegram-chat-shell flex-1 min-h-0 overflow-hidden">
               <Chat client={chatClient}>
                 <Channel channel={activeChannel}>
                   <ComponentProvider value={{ Attachment: CustomAttachment }}>

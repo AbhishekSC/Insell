@@ -98,17 +98,7 @@ const STORY_COLLECTIONS = [
   { label: "Trending", category: "Recent", image: "https://placehold.co/480x320?text=Trending" },
 ];
 
-const CATEGORY_CHIPS = [
-  "For You",
-  "Following",
-  "Near Me",
-  "Luxury",
-  "Commercial",
-  "Agricultural",
-  "Investment",
-  "Verified",
-  "Recent",
-];
+const CATEGORY_CHIPS = ["For You", "Following", "Near Me"];
 
 const LISTING_TYPES = ["All", "Sell", "Rent", "Requirement", "Project", "Commercial", "Agricultural Land"];
 const PROPERTY_TYPES = ["All", "Apartment", "Independent House", "Villa", "Plot", "Commercial", "Agricultural Land"];
@@ -486,6 +476,13 @@ export default function MarketplacePage() {
     // default feed with no UI indication a filter was even active.
   });
   const [appliedFilters, setAppliedFilters] = useState(filters);
+  const hasActiveMarketplaceFilters =
+    appliedFilters.transactionType !== "All" ||
+    appliedFilters.propertyType !== "All" ||
+    Boolean(appliedFilters.city) ||
+    Boolean(appliedFilters.locality) ||
+    Number(appliedFilters.budgetMin || 0) > 0 ||
+    Number(appliedFilters.budgetMax || 0) > 0;
 
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [composerStep, setComposerStep] = useState(1);
@@ -1304,6 +1301,7 @@ export default function MarketplacePage() {
     <AppShell
       hideHero
       lockPageScroll={activeSection === "chat" || (activeSection === "communities" && Boolean(selectedCommunity))}
+      hideMobileHeader={activeSection === "chat"}
       title="Marketplace"
       subtitle="Social-first discovery"
       marketplaceSearch={search}
@@ -1374,12 +1372,14 @@ export default function MarketplacePage() {
           </aside>
 
           <main
-            className={`min-w-0 flex-1 rounded-2xl bg-transparent p-1 pb-6 xl:h-[calc(100dvh-7.1rem)] xl:overflow-y-auto ${
-              activeSection === "chat" || (activeSection === "communities" && selectedCommunity)
-                ? "h-[calc(100dvh-9rem)] overflow-hidden"
-                : activeSection === "communities"
-                  ? "xl:h-[calc(100dvh-9rem)] xl:overflow-hidden"
-                  : ""
+            className={`min-w-0 flex-1 bg-transparent xl:h-[calc(100dvh-7.1rem)] xl:overflow-y-auto xl:rounded-2xl xl:p-1 xl:pb-6 ${
+              activeSection === "chat"
+                ? "h-[calc(100dvh-4rem)] overflow-hidden rounded-none p-0"
+                : activeSection === "communities" && selectedCommunity
+                  ? "h-[calc(100dvh-9rem)] overflow-hidden rounded-2xl p-1 pb-6"
+                  : activeSection === "communities"
+                    ? "rounded-2xl p-1 pb-6 xl:h-[calc(100dvh-9rem)] xl:overflow-hidden"
+                    : "rounded-2xl p-1 pb-6"
             }`}
           >
             {activeSection === "marketplace" ? (
@@ -1387,7 +1387,7 @@ export default function MarketplacePage() {
                 <StoriesBar onCategorySelect={setActiveCategory} />
 
             <div className="mt-4 flex items-center justify-between gap-3 border-b border-base-300 pb-3">
-              <div className="flex items-center gap-2 overflow-x-auto">
+              <div className="flex items-center gap-2">
                 {CATEGORY_CHIPS.map((chip) => (
                   <button
                     key={chip}
@@ -1400,7 +1400,7 @@ export default function MarketplacePage() {
                 ))}
                 <button
                   type="button"
-                  className="btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200"
+                  className={`btn btn-sm rounded-full border-none ${hasActiveMarketplaceFilters ? "bg-primary/15 text-primary hover:bg-primary/15" : "bg-transparent text-base-content/70 hover:bg-base-200 hover:text-base-content"}`}
                   onClick={() => setIsFiltersOpen(true)}
                 >
                   <Filter className="size-4" />

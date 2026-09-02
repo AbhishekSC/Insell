@@ -117,7 +117,20 @@ export default function RoleBasedFilters({ userRole, isOpen, onClose, onApply, o
   };
 
   const handleApply = () => {
-    onApply?.(activeFilters);
+    // The feed only reads a fixed shape (transactionType/propertyType/city/
+    // locality/budgetMin/budgetMax) — translate whichever role-specific
+    // fields are present into that shape so "Apply" actually narrows results
+    // instead of being silently ignored.
+    const budgetSource = activeFilters.budgetRange || activeFilters.priceRange || null;
+    const rawPropertyType = activeFilters.propertyType;
+    onApply?.({
+      transactionType: "All",
+      propertyType: rawPropertyType && !["All", "Any"].includes(rawPropertyType) ? rawPropertyType : "All",
+      city: "",
+      locality: activeFilters.location || "",
+      budgetMin: budgetSource ? budgetSource[0] : 0,
+      budgetMax: budgetSource ? budgetSource[1] : 0,
+    });
     onClose?.();
   };
 

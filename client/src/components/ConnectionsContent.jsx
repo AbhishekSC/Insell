@@ -42,7 +42,7 @@ function userLocation(user) {
 
 function ConnectionsTabs({ activeTab, onChange, requestCount, messageRequestCount }) {
   return (
-    <nav className="flex min-w-max items-center gap-1 px-2" aria-label="Connection sections">
+    <nav className="grid grid-cols-4 items-center" aria-label="Connection sections">
       {TABS.map((tab) => {
         const active = activeTab === tab;
         const totalRequests = tab === "Requests" ? requestCount + messageRequestCount : 0;
@@ -51,10 +51,12 @@ function ConnectionsTabs({ activeTab, onChange, requestCount, messageRequestCoun
             key={tab}
             type="button"
             onClick={() => onChange(tab)}
-            className={`relative px-4 py-3 text-sm transition ${active ? "font-bold text-primary" : "font-medium text-base-content/60 hover:text-base-content"}`}
+            className={`relative px-1 py-3 text-center text-xs transition sm:text-sm ${active ? "font-bold text-primary" : "font-medium text-base-content/60 hover:text-base-content"}`}
           >
-            {tab}
-            {tab === "Requests" && totalRequests > 0 ? <span className="ml-2 rounded-full bg-base-200 px-1.5 py-0.5 text-[11px] font-bold text-base-content/70">{totalRequests}</span> : null}
+            <span className="inline-flex items-center justify-center gap-1">
+              {tab}
+              {tab === "Requests" && totalRequests > 0 ? <span className="rounded-full bg-base-200 px-1.5 py-0.5 text-[10px] font-bold text-base-content/70">{totalRequests}</span> : null}
+            </span>
             {active ? <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-primary" /> : null}
           </button>
         );
@@ -377,7 +379,7 @@ export default function ConnectionsContent({ onOpenMessages }) {
   return (
     <div className="xl:h-full xl:overflow-y-auto xl:pr-1 pb-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold tracking-tight text-base-content">My Network</h1><p className="mt-1 text-sm text-base-content/60">Manage your connections and grow your real estate network.</p></div><button type="button" onClick={refreshLists} className="btn btn-ghost btn-sm h-9 rounded-lg text-base-content/70 hover:bg-base-100"><RefreshCw className="size-4" />Refresh</button></div>
-      <div className="overflow-x-auto rounded-2xl border border-base-300 bg-base-100 shadow-[0_2px_10px_rgba(15,23,42,0.025)]"><ConnectionsTabs activeTab={activeTab} onChange={setActiveTab} requestCount={incomingRequests.length} messageRequestCount={messageRequests.length} /></div>
+      <div className="rounded-2xl border border-base-300 bg-base-100 shadow-[0_2px_10px_rgba(15,23,42,0.025)]"><ConnectionsTabs activeTab={activeTab} onChange={setActiveTab} requestCount={incomingRequests.length} messageRequestCount={messageRequests.length} /></div>
       <div className={`mt-5 grid gap-5 ${showDiscover ? "" : "xl:grid-cols-[minmax(0,1fr)_340px]"}`}>
         <main className="min-w-0 space-y-5">
           {(activeTab === "All" || showRequests) && (incomingRequests.length ? <section className="overflow-hidden rounded-2xl border border-base-300 bg-base-100 shadow-[0_2px_10px_rgba(15,23,42,0.035)]"><div className="flex items-center justify-between px-4 py-4 sm:px-5"><div><h2 className="text-base font-bold text-base-content">Connection Requests</h2><p className="mt-0.5 text-xs text-base-content/60">{incomingRequests.length} waiting for your response</p></div>{incomingRequests.length > 6 ? <button type="button" onClick={() => toggleList("requests")} className="text-sm font-semibold text-primary">{expandedLists.requests ? "Show less" : "View all"}</button> : null}</div><div className="divide-y divide-base-300 border-t border-base-200">{visibleIncoming.map((request) => <RequestRow key={request._id} request={request} onAccept={(id) => acceptRequest(id)} onReject={(id) => rejectRequest(id)} busy={accepting || rejecting} />)}</div></section> : <EmptyRequestBanner onDiscover={() => setActiveTab("Discover")} />)}
