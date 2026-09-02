@@ -201,8 +201,9 @@ export default function ChatPage() {
       title="Messages"
       subtitle="Stay in touch with your travel community."
       lockPageScroll
+      hideMobileHeader
     >
-      <div className="telegram-chat-layout h-full min-h-[calc(100dvh-14rem)] overflow-hidden sm:min-h-[580px]">
+      <div className="telegram-chat-layout h-full min-h-[calc(100dvh-4rem)] overflow-hidden sm:min-h-[580px]">
         <section className={`telegram-sidebar min-h-0 overflow-hidden ${showSidebar ? "" : "hidden sm:block"}`}>
           <div className="flex h-full min-h-0 flex-col">
             <div className="border-b border-base-300/80 px-4 pb-4 pt-4 sm:px-5">
@@ -368,7 +369,7 @@ export default function ChatPage() {
                   </button>
                   <p className="truncate text-sm font-semibold">{selectedFriend?.fullName || "Conversation"}</p>
                 </div>
-                <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-base-300/70 bg-base-100/85">
+                <div className="flex-1 min-h-0 overflow-hidden bg-base-100/85 xl:rounded-xl xl:border xl:border-base-300/70">
                   <Chat client={chatClient}>
                     <Channel channel={activeChannel}>
                       <Window>

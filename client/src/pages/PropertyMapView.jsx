@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet";
-import { MapPin, Bed, Bath, Square, Building2, Home, Filter, X, SlidersHorizontal, GraduationCap, Hospital, Train, ShoppingBag, ChevronDown } from "lucide-react";
+import { MapPin, Bed, Bath, Square, Building2, Home, Filter, X, SlidersHorizontal, GraduationCap, Hospital, Train, ShoppingBag, ChevronDown, ArrowLeft, Search, LocateFixed, Loader2 } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useQuery } from "@tanstack/react-query";
+import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import MobileBottomNav from "../components/MobileBottomNav";
 
@@ -103,17 +104,20 @@ export default function PropertyMapView() {
   const [areaRange, setAreaRange] = useState({ min: '', max: '' });
   const [locationFilters, setLocationFilters] = useState({ state: '', city: '', area: '' });
   const [showSuggestions, setShowSuggestions] = useState({ state: false, city: false, area: false });
+  // The top search bar only navigates the map — it must never hide markers,
+  // so it's kept separate from locationFilters (which the Filters panel uses
+  // to actually filter which properties are shown).
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchSelection, setSearchSelection] = useState(null);
   const [selectedProperty, setSelectedProperty] = useState(null);
   // Separate from selectedProperty on purpose: closing the selected-property
   // card shouldn't also wipe the amenity markers/radius off the map.
   const [amenitiesAnchor, setAmenitiesAnchor] = useState(null);
   const [showPropertyList, setShowPropertyList] = useState(false);
-  const [amenityFilters, setAmenityFilters] = useState({
-    schools: true,
-    hospitals: true,
-    metro: true,
-    malls: true
-  });
+  // All amenity types are always shown on the map now that the toggle UI
+  // has been removed from the Filters panel — kept as a plain object since
+  // the amenities query still expects this shape.
+  const amenityFilters = { schools: true, hospitals: true, metro: true, malls: true };
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["propertyFeed", "map"],
@@ -123,26 +127,16 @@ export default function PropertyMapView() {
     },
   });
 
-  // Fetch Indian states
-  const { data: statesData } = useQuery({
-    queryKey: ["indianStates"],
-    queryFn: async () => {
-      const response = await axiosInstance.get("/location/states");
-      return response.data?.data || [];
-    },
-    staleTime: 1000 * 60 * 60 * 24, // Cache for 24 hours
-  });
-
   // Fetch location suggestions from API with debouncing
   const [debouncedQuery, setDebouncedQuery] = useState("");
   
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedQuery(locationFilters.state || locationFilters.city || locationFilters.area);
+      setDebouncedQuery(searchQuery || locationFilters.state || locationFilters.city || locationFilters.area);
     }, 500); // 500ms debounce
-    
+
     return () => clearTimeout(timer);
-  }, [locationFilters.state, locationFilters.city, locationFilters.area]);
+  }, [searchQuery, locationFilters.state, locationFilters.city, locationFilters.area]);
 
   const { data: locationSuggestions } = useQuery({
     queryKey: ["locationSuggestions", debouncedQuery],
@@ -218,8 +212,24 @@ export default function PropertyMapView() {
     return filtered;
   }, [data?.posts, priceRange, areaRange, locationFilters]);
 
+  // Separate from `properties` (which reflects search/filters) — this only
+  // answers "is there any listing to plot at all," so a search/filter that
+  // matches nothing doesn't tear down the whole map + search bar.
+  const hasGeoTaggedProperties = useMemo(
+    () => (data?.posts || []).some((post) => post.latitude && post.longitude),
+    [data?.posts]
+  );
+
   // Calculate map center and zoom based on filtered properties
   const mapView = useMemo(() => {
+    // A place picked from the search bar always wins — it uses the
+    // geocoder's own coordinates, so it works even when zero properties
+    // happen to be there yet (averaging an empty/mismatched property list
+    // previously produced NaN and stranded the map).
+    if (searchSelection) {
+      return { center: [searchSelection.lat, searchSelection.lng], zoom: searchSelection.zoom };
+    }
+
     if (properties.length === 0) {
       return { center: [20.5937, 78.9629], zoom: 5 };
     }
@@ -254,7 +264,7 @@ export default function PropertyMapView() {
     const avgLat = properties.reduce((sum, p) => sum + p.latitude, 0) / properties.length;
     const avgLng = properties.reduce((sum, p) => sum + p.longitude, 0) / properties.length;
     return { center: [avgLat, avgLng], zoom: 10 };
-  }, [properties, locationFilters.state, locationFilters.city]);
+  }, [properties, locationFilters.state, locationFilters.city, searchSelection]);
 
   // Update map center when filters change
   useEffect(() => {
@@ -262,56 +272,6 @@ export default function PropertyMapView() {
     setMapZoom(mapView.zoom);
   }, [mapView]);
 
-  // Extract unique values for autocomplete suggestions with cascading logic
-  const uniqueStates = useMemo(() => {
-    // Use API states if available, otherwise fall back to property data
-    if (statesData && statesData.length > 0) {
-      return statesData;
-    }
-    
-    const states = new Set();
-    data?.posts?.forEach(post => {
-      if (post.state) states.add(post.state);
-    });
-    const result = Array.from(states).sort();
-    console.log("Unique states:", result);
-    return result;
-  }, [statesData, data?.posts]);
-
-  const uniqueCities = useMemo(() => {
-    // If state is selected, filter cities by state from API or property data
-    const cities = new Set();
-    data?.posts?.forEach(post => {
-      if (post.city) {
-        if (!locationFilters.state || post.state === locationFilters.state) {
-          cities.add(post.city);
-        }
-      }
-    });
-    const result = Array.from(cities).sort();
-    console.log("Unique cities (filtered by state):", result);
-    return result;
-  }, [data?.posts, locationFilters.state]);
-
-  const uniqueLocalities = useMemo(() => {
-    // If city is selected, filter localities by city from property data
-    const localities = new Set();
-    data?.posts?.forEach(post => {
-      if (post.locality) {
-        if (!locationFilters.city || post.city === locationFilters.city) {
-          localities.add(post.locality);
-        }
-      }
-      if (post.area) {
-        if (!locationFilters.city || post.city === locationFilters.city) {
-          localities.add(post.area);
-        }
-      }
-    });
-    const result = Array.from(localities).sort();
-    console.log("Unique localities (filtered by city):", result);
-    return result;
-  }, [data?.posts, locationFilters.city]);
 
   const formatPrice = (price) => {
     if (!price) return "Price on request";
@@ -353,21 +313,46 @@ export default function PropertyMapView() {
     setLocationFilters({ state: '', city: '', area: '' });
   };
 
+  const [isLocating, setIsLocating] = useState(false);
+  const handleLocateMe = () => {
+    if (!window.isSecureContext) {
+      toast.error("Location needs a secure (https) connection");
+      return;
+    }
+    if (!navigator.geolocation) {
+      toast.error("Geolocation isn't supported on this device");
+      return;
+    }
+    setIsLocating(true);
+    toast.loading("Finding your location...", { id: "locate-me" });
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setMapCenter([position.coords.latitude, position.coords.longitude]);
+        setMapZoom(15);
+        setIsLocating(false);
+        toast.success("Centered on your location", { id: "locate-me" });
+      },
+      (err) => {
+        setIsLocating(false);
+        const message =
+          err.code === err.PERMISSION_DENIED
+            ? "Location permission denied — enable it in your browser settings"
+            : err.code === err.TIMEOUT
+              ? "Timed out finding your location"
+              : "Couldn't access your location";
+        toast.error(message, { id: "locate-me" });
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   const hasActiveFilters = priceRange.min || priceRange.max || areaRange.min || areaRange.max || 
                            locationFilters.state || locationFilters.city || locationFilters.area;
 
   return (
     <div className="min-h-screen bg-base-200">
-      {/* Header */}
-      <div className="bg-base-100/80 backdrop-blur-xl border-b border-base-300 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 text-center">
-          <h1 className="text-base sm:text-xl font-bold text-base-content leading-tight">Property Map View</h1>
-          <p className="text-xs sm:text-sm text-base-content/60 leading-tight">Explore properties on the map</p>
-        </div>
-      </div>
-
       {/* Map Container */}
-      <div className="relative h-[calc(100dvh-56px-4rem)] xl:h-[calc(100dvh-56px)]">
+      <div className="relative h-[calc(100dvh-4rem)] xl:h-dvh">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -388,7 +373,7 @@ export default function PropertyMapView() {
               </button>
             </div>
           </div>
-        ) : properties.length === 0 ? (
+        ) : !hasGeoTaggedProperties ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <MapPin className="size-16 text-base-content/40 mx-auto mb-4" />
@@ -562,69 +547,128 @@ export default function PropertyMapView() {
           </MapContainer>
         )}
 
-        {/* Map overlay controls: property list (left) + filter toggle (right),
-            stacked in normal flow so nothing overlaps regardless of what's open */}
-        <div className="absolute inset-x-4 top-4 z-[1000] flex flex-col gap-2">
-          <div className="flex items-start justify-between gap-2">
-            {/* Property Count Badge / expandable property list */}
-            {!isLoading && properties.length > 0 && (
-              <div className="w-48 sm:w-64 max-w-[60vw] sm:max-w-xs shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowPropertyList((prev) => !prev)}
-                  className="w-full bg-base-100/95 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2 sm:px-5 sm:py-3 border border-base-300 flex items-center gap-1.5 sm:gap-2 text-left"
-                >
-                  <MapPin className="size-4 sm:size-5 text-primary shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs sm:text-sm font-semibold text-base-content">{properties.length}</p>
-                    <p className="text-[10px] sm:text-xs text-base-content/60">Properties</p>
-                  </div>
-                  <ChevronDown className={`size-3.5 sm:size-4 text-base-content/50 shrink-0 transition-transform ${showPropertyList ? "rotate-180" : ""}`} />
-                </button>
-
-                {showPropertyList && (
-                  <div className="mt-2 bg-base-100/95 backdrop-blur-sm rounded-xl shadow-lg border border-base-300 max-h-60 sm:max-h-72 overflow-y-auto divide-y divide-base-300">
-                    {properties.map((property) => (
-                      <button
-                        key={property._id}
-                        type="button"
-                        onClick={() => handleMarkerClick(property)}
-                        className={`w-full flex items-center gap-2 sm:gap-3 px-2 py-1.5 sm:px-3 sm:py-2 text-left hover:bg-primary/10 transition-colors ${selectedProperty?._id === property._id ? "bg-primary/10" : ""}`}
-                      >
-                        {property.mediaUrls?.[0] ? (
-                          <img
-                            src={property.mediaUrls[0]}
-                            alt={property.title}
-                            className="w-7 h-7 sm:w-10 sm:h-10 object-cover rounded-lg shrink-0"
-                          />
-                        ) : (
-                          <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-lg bg-base-200 shrink-0" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] sm:text-xs font-semibold text-base-content truncate">{property.title || "Property"}</p>
-                          <p className="text-[11px] sm:text-xs text-primary font-medium">{formatPrice(property.price)}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Filter Toggle Button */}
+        {/* Map overlay controls: search bar + compact property count, stacked
+            in normal flow so nothing overlaps regardless of what's open */}
+        <div className="absolute inset-x-4 top-4 z-[1000] flex flex-col gap-2 sm:inset-x-auto sm:left-1/2 sm:w-[380px] sm:-translate-x-1/2 lg:w-[420px]">
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="shrink-0 bg-base-100/95 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2 sm:px-4 sm:py-3 border border-base-300 hover:bg-base-100 transition-colors"
+              type="button"
+              onClick={() => navigate(-1)}
+              aria-label="Go back"
+              className="grid size-11 shrink-0 place-items-center rounded-full border border-base-300 bg-base-100/95 shadow-lg backdrop-blur-sm transition-colors hover:bg-base-100"
             >
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <SlidersHorizontal className="size-4 sm:size-5 text-primary" />
-                <span className="hidden sm:inline text-sm font-semibold text-base-content">Filters</span>
-                {hasActiveFilters && (
-                  <div className="bg-primary text-white text-[10px] sm:text-xs rounded-full px-1.5 py-0.5 sm:px-2">Active</div>
+              <ArrowLeft className="size-5 text-base-content" />
+            </button>
+
+            {/* Search bar — navigates the map to a place via the geocoder's
+                own coordinates. Deliberately doesn't touch locationFilters,
+                so it never hides existing property markers; use the
+                Filters panel for that. */}
+            <div className="relative min-w-0 flex-1">
+              <div className="flex items-center gap-2 rounded-full border border-base-300 bg-base-100/95 px-3 py-2 shadow-lg backdrop-blur-sm sm:px-4">
+                <Search className="size-4 shrink-0 text-base-content/50" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setSearchSelection(null);
+                  }}
+                  onFocus={() => setShowSuggestions({ ...showSuggestions, area: true })}
+                  onBlur={() => setTimeout(() => setShowSuggestions({ ...showSuggestions, area: false }), 200)}
+                  placeholder="Search city, locality or area"
+                  className="min-w-0 flex-1 bg-transparent text-sm text-base-content placeholder:text-base-content/50 focus:outline-none"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSearchSelection(null);
+                    }}
+                    className="shrink-0 text-base-content/50 hover:text-base-content"
+                    aria-label="Clear search"
+                  >
+                    <X className="size-4" />
+                  </button>
                 )}
               </div>
-            </button>
+
+              {showSuggestions.area && searchQuery && (
+                <div className="absolute z-50 mt-1.5 w-full max-h-60 overflow-y-auto rounded-xl border border-base-300 bg-base-100 shadow-lg">
+                  {locationSuggestions && locationSuggestions.length > 0 ? (
+                    locationSuggestions.slice(0, 10).map((loc) => (
+                      <button
+                        key={loc.displayName}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setSearchQuery(loc.locality || loc.name);
+                          setSearchSelection({
+                            lat: loc.lat,
+                            lng: loc.lng,
+                            zoom: loc.locality ? 14 : loc.city ? 12 : 8,
+                          });
+                          setShowSuggestions({ ...showSuggestions, area: false });
+                        }}
+                        className="w-full px-3.5 py-2.5 text-left text-sm transition-colors hover:bg-base-200"
+                      >
+                        {loc.locality || loc.name}{loc.city ? `, ${loc.city}` : ""}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3.5 py-2.5 text-sm text-base-content/50">No matches</div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Property count — small, beside the search bar */}
+            {!isLoading && properties.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowPropertyList((prev) => !prev)}
+                className="flex shrink-0 items-center gap-1 rounded-full border border-base-300 bg-base-100/95 px-2.5 py-2 shadow-lg backdrop-blur-sm"
+              >
+                <MapPin className="size-3.5 text-primary" />
+                <span className="text-xs font-semibold text-base-content">{properties.length}</span>
+                <ChevronDown className={`size-3 text-base-content/50 transition-transform ${showPropertyList ? "rotate-180" : ""}`} />
+              </button>
+            )}
           </div>
+
+          {!isLoading && locationFilters.area && properties.length === 0 && (
+            <div className="rounded-xl border border-base-300 bg-base-100/95 px-3.5 py-2.5 text-sm text-base-content/70 shadow-lg backdrop-blur-sm">
+              No properties found for &quot;{locationFilters.area}&quot;
+            </div>
+          )}
+
+          {showPropertyList && properties.length > 0 && (
+            <div className="max-h-60 overflow-y-auto divide-y divide-base-300 rounded-xl border border-base-300 bg-base-100/95 shadow-lg backdrop-blur-sm sm:max-h-72">
+              {properties.map((property) => (
+                <button
+                  key={property._id}
+                  type="button"
+                  onClick={() => handleMarkerClick(property)}
+                  className={`flex w-full items-center gap-2 px-2 py-1.5 text-left transition-colors hover:bg-primary/10 sm:gap-3 sm:px-3 sm:py-2 ${selectedProperty?._id === property._id ? "bg-primary/10" : ""}`}
+                >
+                  {property.mediaUrls?.[0] ? (
+                    <img
+                      src={property.mediaUrls[0]}
+                      alt={property.title}
+                      className="h-7 w-7 shrink-0 rounded-lg object-cover sm:h-10 sm:w-10"
+                    />
+                  ) : (
+                    <div className="h-7 w-7 shrink-0 rounded-lg bg-base-200 sm:h-10 sm:w-10" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[11px] font-semibold text-base-content sm:text-xs">{property.title || "Property"}</p>
+                    <p className="text-[11px] font-medium text-primary sm:text-xs">{formatPrice(property.price)}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Selected Property Badge — the marker's own Popup already shows
               image/title/price/View Details on mobile, so this richer
@@ -691,163 +735,22 @@ export default function PropertyMapView() {
             </div>
           )}
 
-          {/* Filter Panel */}
-          {showFilters && (
-          <div className="w-full sm:w-80 max-w-xs sm:max-w-none sm:ml-auto bg-base-100/95 backdrop-blur-sm rounded-xl shadow-xl p-3 sm:p-5 border border-base-300 max-h-[calc(100dvh-140px)] overflow-y-auto text-xs sm:text-sm">
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <h3 className="text-sm sm:text-base font-bold text-base-content">Filters</h3>
+        </div>
+
+        {/* Filter Panel — anchored just above the Filter button, bottom-right,
+            for both mobile and desktop */}
+        {showFilters && (
+          <div className="absolute bottom-[7.5rem] right-4 z-[1000] w-72 max-h-[calc(100dvh-10rem)] overflow-y-auto rounded-xl border border-base-300 bg-base-100/95 p-3 shadow-xl backdrop-blur-sm text-xs sm:w-80 sm:p-5 sm:text-sm">
+            <div className="mb-3 flex items-center justify-between sm:mb-4">
+              <h3 className="text-sm font-bold text-base-content sm:text-base">Filters</h3>
               {hasActiveFilters && (
                 <button
                   onClick={clearFilters}
-                  className="text-[11px] sm:text-xs text-primary hover:text-primary font-medium"
+                  className="text-[11px] font-medium text-primary hover:text-primary sm:text-xs"
                 >
                   Clear All
                 </button>
               )}
-            </div>
-
-            <div className="max-h-[calc(100vh-200px)] overflow-y-auto">
-              {/* Location Filters */}
-              <div className="mb-3 sm:mb-4">
-                <label className="block text-xs sm:text-sm font-medium text-base-content mb-1.5 sm:mb-2">Location</label>
-                <div className="space-y-2">
-                {/* State Input with Autocomplete */}
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="State"
-                    value={locationFilters.state}
-                    onChange={(e) => setLocationFilters({ ...locationFilters, state: e.target.value })}
-                    onFocus={() => setShowSuggestions({ ...showSuggestions, state: true })}
-                    onBlur={() => setTimeout(() => setShowSuggestions({ ...showSuggestions, state: false }), 200)}
-                    className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-base-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  {showSuggestions.state && locationFilters.state && (
-                    <div className="absolute z-50 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                      {uniqueStates
-                        .filter(state => state.toLowerCase().includes(locationFilters.state.toLowerCase()))
-                        .slice(0, 10)
-                        .map((state) => (
-                          <button
-                            key={state}
-                            type="button"
-                            onClick={() => {
-                              setLocationFilters({ ...locationFilters, state });
-                              setShowSuggestions({ ...showSuggestions, state: false });
-                            }}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-base-200 transition-colors"
-                          >
-                            {state}
-                          </button>
-                        ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* City Input with Autocomplete - using API search */}
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="City"
-                    value={locationFilters.city}
-                    onChange={(e) => setLocationFilters({ ...locationFilters, city: e.target.value })}
-                    onFocus={() => setShowSuggestions({ ...showSuggestions, city: true })}
-                    onBlur={() => setTimeout(() => setShowSuggestions({ ...showSuggestions, city: false }), 200)}
-                    className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-base-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  {showSuggestions.city && locationFilters.city && (
-                    <div className="absolute z-50 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                      {locationSuggestions && locationSuggestions.length > 0 ? (
-                        locationSuggestions
-                          .filter(loc => loc.type === 'city' || loc.city)
-                          .slice(0, 10)
-                          .map((loc) => (
-                            <button
-                              key={loc.displayName}
-                              type="button"
-                              onClick={() => {
-                                setLocationFilters({ ...locationFilters, city: loc.city || loc.name, state: loc.state || locationFilters.state });
-                                setShowSuggestions({ ...showSuggestions, city: false });
-                              }}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-base-200 transition-colors"
-                            >
-                              {loc.city || loc.name}, {loc.state}
-                            </button>
-                          ))
-                      ) : (
-                        uniqueCities
-                          .filter(city => city.toLowerCase().includes(locationFilters.city.toLowerCase()))
-                          .slice(0, 10)
-                          .map((city) => (
-                            <button
-                              key={city}
-                              type="button"
-                              onClick={() => {
-                                setLocationFilters({ ...locationFilters, city });
-                                setShowSuggestions({ ...showSuggestions, city: false });
-                              }}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-base-200 transition-colors"
-                            >
-                              {city}
-                            </button>
-                          ))
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Area/Locality Input with Autocomplete - using API search */}
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Area/Locality"
-                    value={locationFilters.area}
-                    onChange={(e) => setLocationFilters({ ...locationFilters, area: e.target.value })}
-                    onFocus={() => setShowSuggestions({ ...showSuggestions, area: true })}
-                    onBlur={() => setTimeout(() => setShowSuggestions({ ...showSuggestions, area: false }), 200)}
-                    className="w-full px-2.5 py-1.5 sm:px-3 sm:py-2 border border-base-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  {showSuggestions.area && locationFilters.area && (
-                    <div className="absolute z-50 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                      {locationSuggestions && locationSuggestions.length > 0 ? (
-                        locationSuggestions
-                          .filter(loc => loc.type === 'locality' || loc.locality)
-                          .slice(0, 10)
-                          .map((loc) => (
-                            <button
-                              key={loc.displayName}
-                              type="button"
-                              onClick={() => {
-                                setLocationFilters({ ...locationFilters, area: loc.locality || loc.name, city: loc.city || locationFilters.city, state: loc.state || locationFilters.state });
-                                setShowSuggestions({ ...showSuggestions, area: false });
-                              }}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-base-200 transition-colors"
-                            >
-                              {loc.locality || loc.name}, {loc.city}
-                            </button>
-                          ))
-                      ) : (
-                        uniqueLocalities
-                          .filter(locality => locality.toLowerCase().includes(locationFilters.area.toLowerCase()))
-                          .slice(0, 10)
-                          .map((locality) => (
-                            <button
-                              key={locality}
-                              type="button"
-                              onClick={() => {
-                                setLocationFilters({ ...locationFilters, area: locality });
-                                setShowSuggestions({ ...showSuggestions, area: false });
-                              }}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-base-200 transition-colors"
-                            >
-                              {locality}
-                            </button>
-                          ))
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
 
             {/* Price Filter */}
@@ -894,49 +797,42 @@ export default function PropertyMapView() {
               </div>
             </div>
 
-            {/* Amenity Filters — always visible/toggleable; amenities only load
-                once a property has been selected as the search anchor */}
-            <div className="mb-3 sm:mb-4 pt-3 sm:pt-4 border-t border-base-200">
-              <label className="block text-xs sm:text-sm font-medium text-base-content mb-2 sm:mb-3">Nearby Amenities</label>
-              <div className="space-y-1.5 sm:space-y-2">
-                {Object.entries(AMENITY_CONFIG).map(([type, config]) => (
-                  <label key={type} className="flex items-center gap-2 sm:gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={amenityFilters[type]}
-                      onChange={(e) => setAmenityFilters({ ...amenityFilters, [type]: e.target.checked })}
-                      className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border-base-300 text-primary focus:ring-primary"
-                    />
-                    <span className="text-xs sm:text-sm text-base-content flex items-center gap-1.5 sm:gap-2">
-                      <span>{config.label === "Schools" ? "🏫" : config.label === "Hospitals" ? "🏥" : config.label === "Metro" ? "🚇" : "🏬"}</span>
-                      {config.label}
-                    </span>
-                  </label>
-                ))}
-              </div>
-              {!amenitiesAnchor && (
-                <p className="text-xs text-base-content/50 mt-2">Select a property to load nearby amenities.</p>
-              )}
-              {amenitiesLoading && (
-                <p className="text-xs text-base-content/60 mt-2">Loading amenities...</p>
-              )}
-              {!amenitiesLoading && amenitiesError && (
-                <p className="text-xs text-error mt-2">Couldn't load nearby amenities.</p>
-              )}
-              {!amenitiesLoading && !amenitiesError && amenitiesData?.length > 0 && (
-                <p className="text-xs text-base-content/60 mt-2">{amenitiesData.length} amenities found</p>
-              )}
-            </div>
-
             {/* Results Count */}
             <div className="pt-3 border-t border-base-200">
               <p className="text-sm text-base-content/70">
                 Showing <span className="font-semibold text-base-content">{properties.length}</span> properties
               </p>
             </div>
-            </div>
           </div>
-          )}
+        )}
+
+        {/* Filter + live-location — compact floating buttons, bottom-right */}
+        <div className="absolute bottom-4 right-4 z-[1000] flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={handleLocateMe}
+            disabled={isLocating}
+            aria-label="Go to my location"
+            className="grid size-11 place-items-center rounded-full border border-base-300 bg-base-100/95 shadow-lg backdrop-blur-sm transition-colors hover:bg-base-100 disabled:opacity-70"
+          >
+            {isLocating ? (
+              <Loader2 className="size-5 animate-spin text-primary" />
+            ) : (
+              <LocateFixed className="size-5 text-primary" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowFilters(!showFilters)}
+            aria-label="Filters"
+            className="relative grid size-11 place-items-center rounded-full border border-base-300 bg-base-100/95 shadow-lg backdrop-blur-sm transition-colors hover:bg-base-100"
+          >
+            <SlidersHorizontal className="size-5 text-primary" />
+            {hasActiveFilters && (
+              <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-primary ring-2 ring-base-100" />
+            )}
+          </button>
         </div>
       </div>
 

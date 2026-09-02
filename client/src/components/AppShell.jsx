@@ -460,6 +460,7 @@ export default function AppShell({
   lockPageScroll = false,
   hideHero = false,
   hideBottomNav = false,
+  hideMobileHeader = false,
   marketplaceSearch = "",
   onMarketplaceSearchChange,
   onCreateProperty,
@@ -844,7 +845,7 @@ export default function AppShell({
           : "min-h-screen bg-[radial-gradient(circle_at_20%_20%,hsl(var(--p)/0.16),transparent_45%),radial-gradient(circle_at_85%_15%,hsl(var(--s)/0.18),transparent_35%),radial-gradient(circle_at_80%_85%,hsl(var(--a)/0.18),transparent_45%)] bg-base-200"
       }
     >
-      <header className={isMarketplaceShell ? "sticky top-0 z-30 border-b border-base-300 bg-base-100/95 backdrop-blur" : "sticky top-0 z-30 border-b border-base-300/70 bg-base-100/75 backdrop-blur-2xl"}>
+      <header className={`${hideMobileHeader ? "hidden xl:block " : ""}${isMarketplaceShell ? "sticky top-0 z-30 border-b border-base-300 bg-base-100/95 backdrop-blur" : "sticky top-0 z-30 border-b border-base-300/70 bg-base-100/75 backdrop-blur-2xl"}`}>
         <div className={`mx-auto px-4 py-3 sm:px-6 ${isMarketplaceShell ? "max-w-[1440px]" : "max-w-7xl"}`}>
           {isMarketplaceShell ? (
             <>
@@ -1113,12 +1114,12 @@ export default function AppShell({
       </header>
 
       <main
-        className={`mx-auto w-full px-4 pt-6 sm:px-6 ${isMarketplaceShell ? "max-w-[1440px]" : "max-w-7xl"} ${
+        className={`mx-auto w-full ${hideMobileHeader ? "px-0 pt-0 xl:px-4 xl:pt-6" : "px-4 pt-6 sm:px-6"} ${isMarketplaceShell ? "max-w-[1440px]" : "max-w-7xl"} ${
           lockPageScroll ? "xl:flex xl:h-[calc(100dvh-4.75rem)] xl:flex-col xl:overflow-hidden" : "pb-24 md:pb-8"
         }`}
       >
         {!hideHero ? (
-          <section className="glass-wrap mb-5 p-5 sm:p-6">
+          <section className={`glass-wrap mb-5 p-5 sm:p-6 ${hideMobileHeader ? "hidden xl:block" : ""}`}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <h1 className="hero-title break-words text-2xl sm:text-3xl md:text-4xl">{title}</h1>
               {actions ? <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:justify-end">{actions}</div> : null}
