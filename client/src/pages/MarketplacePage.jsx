@@ -136,6 +136,8 @@ const ROLE_RECOMMENDED_OPTIONS = {
   Builder: ["BUILDER_PROJECT"],
 };
 
+const COMPOSER_STEPS = ["type", "details", "photos", "review"];
+
 const POST_TYPE_DEFINITIONS = {
   PROPERTY_SALE: {
     label: "List Property for Sale",
@@ -990,14 +992,10 @@ export default function MarketplacePage() {
     },
   });
 
-  // The wizard's steps, collapsed from the old 6. Requirement posts (which
-  // don't need photos) get a 3-step flow; everything else is 4.
-  const composerSteps = useMemo(() => {
-    const base = ["type", "details", "photos", "review"];
-    return getPostTypeConfig(draft.postType).requiresMedia
-      ? base
-      : base.filter((key) => key !== "photos");
-  }, [draft.postType]);
+  // The wizard's steps, collapsed from the old 6. Every post type gets the
+  // photo step — it's just optional (skippable) for requirement posts,
+  // enforced by stepValid rather than by hiding the step.
+  const composerSteps = COMPOSER_STEPS;
   const totalComposerSteps = composerSteps.length;
   const stepKey = composerSteps[composerStep - 1] || "type";
 
@@ -2588,7 +2586,9 @@ export default function MarketplacePage() {
                         disabled={!stepValid}
                         onClick={() => setComposerStep((prev) => Math.min(totalComposerSteps, prev + 1))}
                       >
-                        Next
+                        {stepKey === "photos" && composerMedia.length === 0 && !getPostTypeConfig(draft.postType).requiresMedia
+                          ? "Skip for now"
+                          : "Next"}
                       </button>
                     )}
                   </>
