@@ -254,7 +254,10 @@ export default function MarketplacePage() {
   const authUser = authData?.data?.user || authData?.data || null;
   const activeRoleRaw = String(authUser?.activeRole || authUser?.primaryRole || "Buyer");
   const activeRole = activeRoleRaw.charAt(0).toUpperCase() + activeRoleRaw.slice(1).toLowerCase();
-  const recommendedPostTypes = ROLE_RECOMMENDED_OPTIONS[activeRole] || ["PROPERTY_SALE"];
+  const recommendedPostTypes = useMemo(
+    () => ROLE_RECOMMENDED_OPTIONS[activeRole] || ["PROPERTY_SALE"],
+    [activeRole]
+  );
   const availablePostTypes = ALL_CREATE_POST_TYPES;
 
   const [search, setSearch] = useState(() => searchParams.get("search") || "");
