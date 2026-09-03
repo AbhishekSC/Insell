@@ -719,7 +719,7 @@ export default function AppShell({
     });
 
     return () => unsubscribe?.();
-  }, [authUser?._id, queryClient]);
+  }, [authUser?._id, queryClient, navigate]);
 
   // Fetch search suggestions with debounce
   useEffect(() => {
