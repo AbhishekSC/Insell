@@ -47,6 +47,11 @@ const notificationSchema = new mongoose.Schema(
         "offer_accepted",
         "offer_declined",
         "review_received",
+        "visit_requested",
+        "visit_confirmed",
+        "visit_rescheduled",
+        "visit_declined",
+        "visit_cancelled",
       ],
     },
     message: {
@@ -90,6 +95,10 @@ const notificationSchema = new mongoose.Schema(
     offer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Offer",
+    },
+    visitRequest: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "VisitRequest",
     },
     // Message request fields
     messageRequest: {
