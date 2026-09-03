@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Loader2, X } from "lucide-react";
+import { Heart, Loader2, X } from "lucide-react";
 import UserAvatar from "./UserAvatar";
 
 export default function UserListModal({ isOpen, onClose, title, users, isLoading, onNavigate, emptyMessage = "Nobody here yet." }) {
@@ -46,7 +46,7 @@ export default function UserListModal({ isOpen, onClose, title, users, isLoading
                       name={user.fullName}
                       sizeClass="size-11"
                     />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-base-content">
                         {user.fullName || "Unknown User"}
                       </p>
@@ -54,6 +54,9 @@ export default function UserListModal({ isOpen, onClose, title, users, isLoading
                         <p className="truncate text-xs text-base-content/60">{user.city}</p>
                       ) : null}
                     </div>
+                    {user.liked ? (
+                      <Heart className="size-4 shrink-0 fill-error text-error" aria-label="Liked" />
+                    ) : null}
                   </Link>
                 </li>
               ))}

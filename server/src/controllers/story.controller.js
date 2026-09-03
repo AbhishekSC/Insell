@@ -268,6 +268,50 @@ export const getStoryLikes = async (req, res) => {
   }
 };
 
+// Story viewers, most-recent-first (viewedBy is append-only) — each entry is
+// flagged with `liked` so the owner's viewer list can show a heart next to
+// whoever also liked the story, same as Instagram's story viewer list.
+export const getStoryViewers = async (req, res) => {
+  try {
+    const { storyId } = req.params;
+    const userId = req.user._id;
+
+    const story = await Story.findById(storyId).populate("viewedBy", "fullName profilePic city");
+
+    if (!story) {
+      return res.status(404).json({
+        success: false,
+        message: "Story not found",
+      });
+    }
+
+    if (String(story.author) !== String(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the story owner can view its viewers",
+      });
+    }
+
+    const likedIds = new Set(story.likedBy.map((id) => String(id)));
+    const viewers = [...story.viewedBy].reverse().map((viewer) => ({
+      ...viewer.toObject(),
+      liked: likedIds.has(String(viewer._id)),
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: { viewers },
+    });
+  } catch (error) {
+    logger.error("Error fetching story viewers:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch story viewers",
+      error: error.message,
+    });
+  }
+};
+
 // Delete a story
 export const deleteStory = async (req, res) => {
   try {
