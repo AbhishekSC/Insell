@@ -157,6 +157,41 @@ describe("createPropertyPost — current behaviour", () => {
     expect(res.body.data.post.status).toBe("DRAFT");
   });
 
+  it("persists agricultural-land specifics under postMeta.land", async () => {
+    const res = await create(broker, {
+      postType: "AGRICULTURAL_LISTING",
+      listingType: "Sell",
+      title: "5 acre farm land",
+      city: "Indore",
+      price: 20000000,
+      status: "PUBLISHED",
+      postMeta: {
+        land: { landArea: 5, landAreaUnit: "Acre", soilType: "Black Soil", waterAvailability: "Borewell", roadAccess: true },
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const post = res.body.data.post;
+    expect(post.postType).toBe("AGRICULTURAL_LISTING");
+    expect(post.postMeta.land.landArea).toBe(5);
+    expect(post.postMeta.land.soilType).toBe("Black Soil");
+    expect(post.postMeta.land.roadAccess).toBe(true);
+  });
+
+  it("persists commercial specifics under postMeta.commercial", async () => {
+    const res = await create(broker, {
+      postType: "COMMERCIAL_LISTING",
+      listingType: "Sell",
+      title: "Office space MG Road",
+      city: "Indore",
+      price: 12000000,
+      status: "PUBLISHED",
+      postMeta: { commercial: { commercialType: "Office", carpetArea: 1500, floorNumber: 3, washrooms: 2 } },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.body.data.post.postMeta.commercial.commercialType).toBe("Office");
+    expect(res.body.data.post.postMeta.commercial.carpetArea).toBe(1500);
+  });
+
   it("Broker can create PROPERTY_RENT and it keeps the requested type", async () => {
     const res = await create(broker, {
       postType: "PROPERTY_RENT",

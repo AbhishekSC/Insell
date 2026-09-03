@@ -47,6 +47,8 @@ import CompareToggleButton from "../components/CompareToggleButton";
 import CompareFloatingBar from "../components/CompareFloatingBar";
 import FullscreenMediaViewer from "../components/FullscreenMediaViewer";
 import { buildPropertyDetailBadges } from "../lib/propertyDetailBadges";
+import PostTypeFields from "../components/PostTypeFields";
+import { getPostTypeConfig, META_ONLY_FIELDS } from "../config/postTypeConfig";
 import { toggleCompareSelection } from "../lib/compareSelection";
 import ReportPostModal from "../components/ReportPostModal";
 import { getCustomBadgeClasses } from "../lib/badgeColors";
@@ -119,10 +121,6 @@ const CITIES = [
   "Surat",
   "Other",
 ];
-const FURNISHING_OPTIONS = ["Furnished", "Semi-Furnished", "Unfurnished"];
-const OCCUPANCY_OPTIONS = ["Single", "Double", "Shared", "Any"];
-const GENDER_OPTIONS = ["Any", "Male", "Female"];
-const TENANT_OPTIONS = ["Family", "Bachelors", "Students", "Any"];
 
 const ROLE_RECOMMENDED_OPTIONS = {
   Buyer: ["REQUIREMENT_BUY"],
@@ -529,6 +527,18 @@ export default function MarketplacePage() {
     launchDate: "",
     brochureUrl: "",
     investmentThesis: "",
+    // Agricultural-land + commercial specifics — persisted under
+    // postMeta.land / postMeta.commercial (see createPost payload builder).
+    landArea: "",
+    landAreaUnit: "",
+    soilType: "",
+    waterAvailability: "",
+    roadAccess: false,
+    electricityAvailable: false,
+    commercialType: "",
+    carpetArea: "",
+    floorNumber: "",
+    washrooms: "",
   });
 
   const [citySuggestions, setCitySuggestions] = useState([]);
@@ -851,6 +861,8 @@ export default function MarketplacePage() {
     const requirement = post.postMeta?.requirement || {};
     const project = post.postMeta?.project || {};
     const investment = post.postMeta?.investment || {};
+    const land = post.postMeta?.land || {};
+    const commercial = post.postMeta?.commercial || {};
     return {
       postType: post.postType || "PROPERTY_SALE",
       listingType: post.listingType || "Sell",
@@ -888,6 +900,16 @@ export default function MarketplacePage() {
       launchDate: project.launchDate || "",
       brochureUrl: project.brochureUrl || "",
       investmentThesis: investment.thesis || "",
+      landArea: land.landArea || "",
+      landAreaUnit: land.landAreaUnit || "",
+      soilType: land.soilType || "",
+      waterAvailability: land.waterAvailability || "",
+      roadAccess: Boolean(land.roadAccess),
+      electricityAvailable: Boolean(land.electricityAvailable),
+      commercialType: commercial.commercialType || "",
+      carpetArea: commercial.carpetArea || "",
+      floorNumber: commercial.floorNumber || "",
+      washrooms: commercial.washrooms || "",
       status: "DRAFT",
     };
   };
@@ -958,6 +980,20 @@ export default function MarketplacePage() {
         },
         investment: {
           thesis: draft.investmentThesis || "",
+        },
+        land: {
+          landArea: Number(draft.landArea || 0),
+          landAreaUnit: draft.landAreaUnit || "",
+          soilType: draft.soilType || "",
+          waterAvailability: draft.waterAvailability || "",
+          roadAccess: Boolean(draft.roadAccess),
+          electricityAvailable: Boolean(draft.electricityAvailable),
+        },
+        commercial: {
+          commercialType: draft.commercialType || "",
+          carpetArea: Number(draft.carpetArea || 0),
+          floorNumber: Number(draft.floorNumber || 0),
+          washrooms: Number(draft.washrooms || 0),
         },
       };
 
@@ -1248,12 +1284,11 @@ export default function MarketplacePage() {
   const stepValid = useMemo(() => {
     if (composerStep === 1) return Boolean(draft.postType);
     if (composerStep === 2) {
-      const requiresMedia = !String(draft.postType || "").startsWith("REQUIREMENT_");
-      return requiresMedia ? Boolean(composerMedia.length) : true;
+      return getPostTypeConfig(draft.postType).requiresMedia ? Boolean(composerMedia.length) : true;
     }
     if (composerStep === 3) return Boolean(String(draft.title || "").trim());
     return true;
-  }, [composerMedia.length, composerStep, draft.listingType, draft.postType, draft.title]);
+  }, [composerMedia.length, composerStep, draft.postType, draft.title]);
 
   const resetComposer = () => {
     setIsComposerOpen(false);
@@ -1297,6 +1332,16 @@ export default function MarketplacePage() {
       launchDate: "",
       brochureUrl: "",
       investmentThesis: "",
+      landArea: "",
+      landAreaUnit: "",
+      soilType: "",
+      waterAvailability: "",
+      roadAccess: false,
+      electricityAvailable: false,
+      commercialType: "",
+      carpetArea: "",
+      floorNumber: "",
+      washrooms: "",
     }));
   };
 
@@ -2309,129 +2354,14 @@ export default function MarketplacePage() {
                       <textarea className="textarea textarea-bordered min-h-20 border-base-300" value={draft.caption} onChange={(event) => updateDraft("caption", event.target.value)} />
                     </label>
 
-                    {String(draft.postType || "").startsWith("REQUIREMENT_") ? (
-                      <>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Budget Min</span>
-                          <input type="number" className="input input-bordered border-base-300" value={draft.budgetMin} onChange={(event) => updateDraft("budgetMin", event.target.value)} />
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Budget Max</span>
-                          <input type="number" className="input input-bordered border-base-300" value={draft.budgetMax} onChange={(event) => updateDraft("budgetMax", event.target.value)} />
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Preferred Move-in Date</span>
-                          <input type="date" className="input input-bordered border-base-300" value={draft.moveInDate} onChange={(event) => updateDraft("moveInDate", event.target.value)} />
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Property Preference</span>
-                          <select className="select select-bordered border-base-300" value={draft.requirementPropertyType} onChange={(event) => updateDraft("requirementPropertyType", event.target.value)}>
-                            <option value="">Select type</option>
-                            <option value="PG">PG</option>
-                            <option value="Room">Room</option>
-                            <option value="Flat">Flat</option>
-                            <option value="Shared Flat">Shared Flat</option>
-                            <option value="Independent House">Independent House</option>
-                            <option value="Villa">Villa</option>
-                          </select>
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Furnishing Preference</span>
-                          <select className="select select-bordered border-base-300" value={draft.furnishedPreference} onChange={(event) => updateDraft("furnishedPreference", event.target.value)}>
-                            <option value="">Select option</option>
-                            {FURNISHING_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Occupancy</span>
-                          <select className="select select-bordered border-base-300" value={draft.occupancyPreference} onChange={(event) => updateDraft("occupancyPreference", event.target.value)}>
-                            <option value="">Select option</option>
-                            {OCCUPANCY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Gender Preference</span>
-                          <select className="select select-bordered border-base-300" value={draft.genderPreference} onChange={(event) => updateDraft("genderPreference", event.target.value)}>
-                            <option value="">Select option</option>
-                            {GENDER_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Occupation</span>
-                          <select className="select select-bordered border-base-300" value={draft.occupation} onChange={(event) => updateDraft("occupation", event.target.value)}>
-                            <option value="">Select option</option>
-                            <option value="Student">Student</option>
-                            <option value="Working Professional">Working Professional</option>
-                            <option value="Business Owner">Business Owner</option>
-                            <option value="Other">Other</option>
-                          </select>
-                        </label>
-                        <label className="form-control sm:col-span-2">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Amenities Needed (optional)</span>
-                          <input className="input input-bordered border-base-300" placeholder="Gym, security, power backup" value={draft.amenitiesText} onChange={(event) => updateDraft("amenitiesText", event.target.value)} />
-                        </label>
-                      </>
-                    ) : (
-                      <>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Price</span>
-                          <input type="number" className="input input-bordered border-base-300" value={draft.price} onChange={(event) => updateDraft("price", event.target.value)} />
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Area (sqft)</span>
-                          <input type="number" className="input input-bordered border-base-300" value={draft.areaSqft} onChange={(event) => updateDraft("areaSqft", event.target.value)} />
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Bedrooms</span>
-                          <input type="number" className="input input-bordered border-base-300" value={draft.bedrooms} onChange={(event) => updateDraft("bedrooms", event.target.value)} />
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Bathrooms</span>
-                          <input type="number" className="input input-bordered border-base-300" value={draft.bathrooms} onChange={(event) => updateDraft("bathrooms", event.target.value)} />
-                        </label>
-
-                        {draft.postType === "PROPERTY_RENT" ? (
-                          <>
-                            <label className="form-control">
-                              <span className="label-text mb-1 text-xs text-base-content/60">Monthly Rent</span>
-                              <input type="number" className="input input-bordered border-base-300" value={draft.price} onChange={(event) => updateDraft("price", event.target.value)} />
-                            </label>
-                            <label className="form-control">
-                              <span className="label-text mb-1 text-xs text-base-content/60">Deposit Amount</span>
-                              <input type="number" className="input input-bordered border-base-300" value={draft.depositAmount} onChange={(event) => updateDraft("depositAmount", event.target.value)} />
-                            </label>
-                            <label className="form-control">
-                              <span className="label-text mb-1 text-xs text-base-content/60">Availability Date</span>
-                              <input type="date" className="input input-bordered border-base-300" value={draft.availableFromDate} onChange={(event) => updateDraft("availableFromDate", event.target.value)} />
-                            </label>
-                            <label className="form-control">
-                              <span className="label-text mb-1 text-xs text-base-content/60">Tenant Preference</span>
-                              <select className="select select-bordered border-base-300" value={draft.tenantType} onChange={(event) => updateDraft("tenantType", event.target.value)}>
-                                <option value="">Select option</option>
-                                {TENANT_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                              </select>
-                            </label>
-                          </>
-                        ) : null}
-                      </>
-                    )}
-
-                    {draft.postType === "BUILDER_PROJECT" ? (
-                      <>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Project Name</span>
-                          <input className="input input-bordered border-base-300" value={draft.projectName} onChange={(event) => updateDraft("projectName", event.target.value)} />
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Launch Date</span>
-                          <input type="date" className="input input-bordered border-base-300" value={draft.launchDate} onChange={(event) => updateDraft("launchDate", event.target.value)} />
-                        </label>
-                        <label className="form-control sm:col-span-2">
-                          <span className="label-text mb-1 text-xs text-base-content/60">RERA Number</span>
-                          <input className="input input-bordered border-base-300" value={draft.reraNumber} onChange={(event) => updateDraft("reraNumber", event.target.value)} />
-                        </label>
-                      </>
-                    ) : null}
+                    <div className="sm:col-span-2">
+                      <PostTypeFields
+                        postType={draft.postType}
+                        draft={draft}
+                        updateDraft={updateDraft}
+                        priceLabel={getPostTypeConfig(draft.postType).priceLabel}
+                      />
+                    </div>
                   </div>
                 </div>
               ) : null}
