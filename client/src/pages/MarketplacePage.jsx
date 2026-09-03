@@ -846,7 +846,16 @@ export default function MarketplacePage() {
     if (newestInFeed > 0) setFeedLoadedAt(new Date(newestInFeed));
   }, [data]);
 
+  // /posts/latest returns the newest PUBLISHED post platform-wide, ignoring
+  // any feed filter. That's only a meaningful "there are new posts" signal
+  // for the unfiltered, recency-relevant views — on "Following" (friends
+  // only) or "Near Me" (geo-filtered) or any category chip, the newest
+  // global post is almost never in-scope, so the banner would be stuck on
+  // permanently and clicking it (a re-fetch of the filtered feed) could
+  // never clear it.
+  const newPostsBannerEligible = activeCategory === "For You" || activeCategory === "Recent";
   const hasNewPosts = Boolean(
+    newPostsBannerEligible &&
     latestFeedPost?.latestCreatedAt &&
     feedLoadedAt &&
     new Date(latestFeedPost.latestCreatedAt).getTime() > feedLoadedAt.getTime()
