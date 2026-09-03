@@ -47,6 +47,8 @@ import CompareToggleButton from "../components/CompareToggleButton";
 import CompareFloatingBar from "../components/CompareFloatingBar";
 import FullscreenMediaViewer from "../components/FullscreenMediaViewer";
 import { buildPropertyDetailBadges } from "../lib/propertyDetailBadges";
+import PostTypeFields from "../components/PostTypeFields";
+import { getPostTypeConfig, META_ONLY_FIELDS } from "../config/postTypeConfig";
 import { toggleCompareSelection } from "../lib/compareSelection";
 import ReportPostModal from "../components/ReportPostModal";
 import { getCustomBadgeClasses } from "../lib/badgeColors";
@@ -119,10 +121,6 @@ const CITIES = [
   "Surat",
   "Other",
 ];
-const FURNISHING_OPTIONS = ["Furnished", "Semi-Furnished", "Unfurnished"];
-const OCCUPANCY_OPTIONS = ["Single", "Double", "Shared", "Any"];
-const GENDER_OPTIONS = ["Any", "Male", "Female"];
-const TENANT_OPTIONS = ["Family", "Bachelors", "Students", "Any"];
 
 const ROLE_RECOMMENDED_OPTIONS = {
   Buyer: ["REQUIREMENT_BUY"],
@@ -240,6 +238,17 @@ function getListingBadge(post) {
   if (postType === "BUILDER_PROJECT") return "Project";
   if (postType === "INVESTMENT_OPPORTUNITY") return "Investment";
   if (postType === "OPEN_HOUSE_EVENT") return "Open House";
+  // Commercial / agricultural can be either sale or rent — derive from
+  // listingType instead of falling through to the raw "Sell" string.
+  if (postType === "AGRICULTURAL_LISTING") {
+    return String(post.listingType || "").toLowerCase() === "rent" ? "Land for Lease" : "Land for Sale";
+  }
+  if (postType === "COMMERCIAL_LISTING") {
+    return String(post.listingType || "").toLowerCase() === "rent" ? "For Rent" : "For Sale";
+  }
+  const listing = String(post.listingType || "").toLowerCase();
+  if (listing === "sell") return "For Sale";
+  if (listing === "rent") return "For Rent";
   if (post.listingType) return post.listingType;
   if (Number(post.price || 0) > 30000000) return "Luxury";
   return "Featured";
@@ -488,7 +497,12 @@ export default function MarketplacePage() {
     Number(appliedFilters.budgetMax || 0) > 0;
 
   const [isComposerOpen, setIsComposerOpen] = useState(false);
+  // 1-based index into the dynamic `composerSteps` list below — the flow has
+  // fewer steps for requirement posts (which skip the photo step).
   const [composerStep, setComposerStep] = useState(1);
+  // null while editing; "DRAFT" / "PUBLISHED" once the post is saved, which
+  // swaps the wizard body for the success screen.
+  const [composerResult, setComposerResult] = useState(null);
   const [showDraftsList, setShowDraftsList] = useState(false);
   const [editingDraftId, setEditingDraftId] = useState(null);
   const [draftToDelete, setDraftToDelete] = useState(null);
@@ -529,6 +543,18 @@ export default function MarketplacePage() {
     launchDate: "",
     brochureUrl: "",
     investmentThesis: "",
+    // Agricultural-land + commercial specifics — persisted under
+    // postMeta.land / postMeta.commercial (see createPost payload builder).
+    landArea: "",
+    landAreaUnit: "",
+    soilType: "",
+    waterAvailability: "",
+    roadAccess: false,
+    electricityAvailable: false,
+    commercialType: "",
+    carpetArea: "",
+    floorNumber: "",
+    washrooms: "",
   });
 
   const [citySuggestions, setCitySuggestions] = useState([]);
@@ -820,7 +846,16 @@ export default function MarketplacePage() {
     if (newestInFeed > 0) setFeedLoadedAt(new Date(newestInFeed));
   }, [data]);
 
+  // /posts/latest returns the newest PUBLISHED post platform-wide, ignoring
+  // any feed filter. That's only a meaningful "there are new posts" signal
+  // for the unfiltered, recency-relevant views — on "Following" (friends
+  // only) or "Near Me" (geo-filtered) or any category chip, the newest
+  // global post is almost never in-scope, so the banner would be stuck on
+  // permanently and clicking it (a re-fetch of the filtered feed) could
+  // never clear it.
+  const newPostsBannerEligible = activeCategory === "For You" || activeCategory === "Recent";
   const hasNewPosts = Boolean(
+    newPostsBannerEligible &&
     latestFeedPost?.latestCreatedAt &&
     feedLoadedAt &&
     new Date(latestFeedPost.latestCreatedAt).getTime() > feedLoadedAt.getTime()
@@ -851,6 +886,8 @@ export default function MarketplacePage() {
     const requirement = post.postMeta?.requirement || {};
     const project = post.postMeta?.project || {};
     const investment = post.postMeta?.investment || {};
+    const land = post.postMeta?.land || {};
+    const commercial = post.postMeta?.commercial || {};
     return {
       postType: post.postType || "PROPERTY_SALE",
       listingType: post.listingType || "Sell",
@@ -888,6 +925,16 @@ export default function MarketplacePage() {
       launchDate: project.launchDate || "",
       brochureUrl: project.brochureUrl || "",
       investmentThesis: investment.thesis || "",
+      landArea: land.landArea || "",
+      landAreaUnit: land.landAreaUnit || "",
+      soilType: land.soilType || "",
+      waterAvailability: land.waterAvailability || "",
+      roadAccess: Boolean(land.roadAccess),
+      electricityAvailable: Boolean(land.electricityAvailable),
+      commercialType: commercial.commercialType || "",
+      carpetArea: commercial.carpetArea || "",
+      floorNumber: commercial.floorNumber || "",
+      washrooms: commercial.washrooms || "",
       status: "DRAFT",
     };
   };
@@ -896,6 +943,7 @@ export default function MarketplacePage() {
     setDraft(mapPostToDraftState(post));
     setEditingDraftId(post._id);
     setShowDraftsList(false);
+    setComposerResult(null);
     setComposerStep(1);
   };
 
@@ -923,54 +971,96 @@ export default function MarketplacePage() {
     },
   });
 
+  // The wizard's steps, collapsed from the old 6. Requirement posts (which
+  // don't need photos) get a 3-step flow; everything else is 4.
+  const composerSteps = useMemo(() => {
+    const base = ["type", "details", "photos", "review"];
+    return getPostTypeConfig(draft.postType).requiresMedia
+      ? base
+      : base.filter((key) => key !== "photos");
+  }, [draft.postType]);
+  const totalComposerSteps = composerSteps.length;
+  const stepKey = composerSteps[composerStep - 1] || "type";
+
+  // Silent-autosave bookkeeping (logic lives in the effect below createPost).
+  const [autosaveState, setAutosaveState] = useState("idle"); // idle | saving | saved
+  const autosaveInFlight = useRef(false);
+  const lastAutosaveSnapshot = useRef("");
+
+  // Shared by the explicit Save/Publish action and the silent autosave —
+  // both send the identical field set, only `status` differs.
+  const buildComposerPayload = (status) => {
+    const isRequirement = String(draft.postType || "").startsWith("REQUIREMENT_");
+    const mediaUrls = String(draft.mediaUrls || "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    const postMeta = {
+      requirement: {
+        furnishedPreference: draft.furnishedPreference || "",
+        parkingRequired: Boolean(draft.parkingRequired),
+        amenitiesText: draft.amenitiesText || "",
+        possessionDate: draft.possessionDate || "",
+        loanRequired: Boolean(draft.loanRequired),
+        moveInDate: draft.moveInDate || "",
+        availableFromDate: draft.availableFromDate || "",
+        leaseDurationMonths: Number(draft.leaseDurationMonths || 0),
+        budgetMin: Number(draft.budgetMin || 0),
+        budgetMax: Number(draft.budgetMax || 0),
+        occupancyPreference: draft.occupancyPreference || "",
+        genderPreference: draft.genderPreference || "",
+        requirementPropertyType: draft.requirementPropertyType || "",
+        depositAmount: Number(draft.depositAmount || 0),
+        tenantType: draft.tenantType || "",
+        occupation: draft.occupation || "",
+      },
+      project: {
+        projectName: draft.projectName || "",
+        launchDate: draft.launchDate || "",
+        reraNumber: draft.reraNumber || "",
+        brochureUrl: draft.brochureUrl || "",
+      },
+      investment: {
+        thesis: draft.investmentThesis || "",
+      },
+      land: {
+        landArea: Number(draft.landArea || 0),
+        landAreaUnit: draft.landAreaUnit || "",
+        soilType: draft.soilType || "",
+        waterAvailability: draft.waterAvailability || "",
+        roadAccess: Boolean(draft.roadAccess),
+        electricityAvailable: Boolean(draft.electricityAvailable),
+      },
+      commercial: {
+        commercialType: draft.commercialType || "",
+        carpetArea: Number(draft.carpetArea || 0),
+        floorNumber: Number(draft.floorNumber || 0),
+        washrooms: Number(draft.washrooms || 0),
+      },
+    };
+
+    return {
+      ...draft,
+      status,
+      price: isRequirement ? Number(draft.budgetMax || draft.price || 0) : Number(draft.price || 0),
+      mediaUrls,
+      postType: draft.postType,
+      postMeta,
+      latitude: draft.latitude,
+      longitude: draft.longitude,
+    };
+  };
+
   const { mutate: createPost, isPending: creating } = useMutation({
     mutationFn: async (statusOverride) => {
-      const isRequirement = String(draft.postType || "").startsWith("REQUIREMENT_");
-      const mediaUrls = String(draft.mediaUrls || "")
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean);
-
-      const postMeta = {
-        requirement: {
-          furnishedPreference: draft.furnishedPreference || "",
-          parkingRequired: Boolean(draft.parkingRequired),
-          amenitiesText: draft.amenitiesText || "",
-          possessionDate: draft.possessionDate || "",
-          loanRequired: Boolean(draft.loanRequired),
-          moveInDate: draft.moveInDate || "",
-          availableFromDate: draft.availableFromDate || "",
-          leaseDurationMonths: Number(draft.leaseDurationMonths || 0),
-          budgetMin: Number(draft.budgetMin || 0),
-          budgetMax: Number(draft.budgetMax || 0),
-          occupancyPreference: draft.occupancyPreference || "",
-          genderPreference: draft.genderPreference || "",
-          requirementPropertyType: draft.requirementPropertyType || "",
-          depositAmount: Number(draft.depositAmount || 0),
-          tenantType: draft.tenantType || "",
-          occupation: draft.occupation || "",
-        },
-        project: {
-          projectName: draft.projectName || "",
-          launchDate: draft.launchDate || "",
-          reraNumber: draft.reraNumber || "",
-          brochureUrl: draft.brochureUrl || "",
-        },
-        investment: {
-          thesis: draft.investmentThesis || "",
-        },
-      };
-
-      const payload = {
-        ...draft,
-        status: statusOverride || "PUBLISHED",
-        price: isRequirement ? Number(draft.budgetMax || draft.price || 0) : Number(draft.price || 0),
-        mediaUrls,
-        postType: draft.postType,
-        postMeta,
-        latitude: draft.latitude,
-        longitude: draft.longitude,
-      };
+      // If a background autosave is mid-flight it may still be creating the
+      // draft — wait for it so we PUT to that draft instead of POSTing a
+      // duplicate.
+      for (let i = 0; i < 50 && autosaveInFlight.current; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      const payload = buildComposerPayload(statusOverride || "PUBLISHED");
       // Resuming a saved draft updates that same post instead of creating
       // a duplicate — updatePropertyPost accepts the identical field set.
       const response = editingDraftId
@@ -1017,7 +1107,7 @@ export default function MarketplacePage() {
         queryClient.invalidateQueries({ queryKey: ["myDrafts"] });
       }
 
-      setComposerStep(6);
+      setComposerResult(data?.status === "DRAFT" ? "DRAFT" : "PUBLISHED");
 
       if (isPostHogEnabled()) {
         posthog.capture(data?.status === "DRAFT" ? "post_draft_saved" : "post_created", {
@@ -1031,6 +1121,52 @@ export default function MarketplacePage() {
       toast.error(error?.response?.data?.message || "Failed to create post");
     },
   });
+
+  // --- Silent autosave --------------------------------------------------
+  // Once the post has a title, changes are persisted as a DRAFT in the
+  // background so a closed tab / back-navigation never loses work. The first
+  // save creates the draft and captures its id into editingDraftId; every
+  // save after that updates the same post. No toasts, no step changes.
+  const { mutateAsync: runAutosave } = useMutation({
+    mutationFn: async ({ payload, draftId }) => {
+      const response = draftId
+        ? await axiosInstance.put(`/posts/${draftId}`, payload)
+        : await axiosInstance.post("/posts", payload);
+      return response.data?.data?.post;
+    },
+  });
+
+  useEffect(() => {
+    if (!isComposerOpen || showDraftsList || composerResult || creating) return;
+    // Don't autosave until the user is actually filling in the post.
+    if (stepKey === "type") return;
+    if (!String(draft.title || "").trim()) return;
+
+    const snapshot = JSON.stringify(buildComposerPayload("DRAFT"));
+    if (snapshot === lastAutosaveSnapshot.current) return;
+
+    const timer = setTimeout(async () => {
+      if (autosaveInFlight.current) return;
+      autosaveInFlight.current = true;
+      setAutosaveState("saving");
+      try {
+        const payload = buildComposerPayload("DRAFT");
+        const saved = await runAutosave({ payload, draftId: editingDraftId });
+        if (saved?._id && !editingDraftId) setEditingDraftId(saved._id);
+        lastAutosaveSnapshot.current = snapshot;
+        setAutosaveState("saved");
+        queryClient.invalidateQueries({ queryKey: ["myDrafts"] });
+      } catch {
+        // Silent — an explicit Save/Publish still surfaces real errors.
+        setAutosaveState("idle");
+      } finally {
+        autosaveInFlight.current = false;
+      }
+    }, 2500);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, isComposerOpen, showDraftsList, composerResult, creating, stepKey, editingDraftId]);
 
   const [mediaUploadProgress, setMediaUploadProgress] = useState(0);
 
@@ -1246,20 +1382,23 @@ export default function MarketplacePage() {
   const updateDraft = (field, value) => setDraft((prev) => ({ ...prev, [field]: value }));
 
   const stepValid = useMemo(() => {
-    if (composerStep === 1) return Boolean(draft.postType);
-    if (composerStep === 2) {
-      const requiresMedia = !String(draft.postType || "").startsWith("REQUIREMENT_");
-      return requiresMedia ? Boolean(composerMedia.length) : true;
+    if (stepKey === "type") return Boolean(draft.postType);
+    if (stepKey === "details") return Boolean(String(draft.title || "").trim());
+    if (stepKey === "photos") {
+      return getPostTypeConfig(draft.postType).requiresMedia ? Boolean(composerMedia.length) : true;
     }
-    if (composerStep === 3) return Boolean(String(draft.title || "").trim());
     return true;
-  }, [composerMedia.length, composerStep, draft.listingType, draft.postType, draft.title]);
+  }, [composerMedia.length, stepKey, draft.postType, draft.title]);
 
   const resetComposer = () => {
     setIsComposerOpen(false);
     setComposerStep(1);
+    setComposerResult(null);
     setShowDraftsList(false);
     setEditingDraftId(null);
+    setAutosaveState("idle");
+    lastAutosaveSnapshot.current = "";
+    autosaveInFlight.current = false;
     const defaultPostType = recommendedPostTypes[0] || "PROPERTY_SALE";
     const defaults = POST_TYPE_DEFINITIONS[defaultPostType] || POST_TYPE_DEFINITIONS.PROPERTY_SALE;
     setDraft((prev) => ({
@@ -1297,6 +1436,16 @@ export default function MarketplacePage() {
       launchDate: "",
       brochureUrl: "",
       investmentThesis: "",
+      landArea: "",
+      landAreaUnit: "",
+      soilType: "",
+      waterAvailability: "",
+      roadAccess: false,
+      electricityAvailable: false,
+      commercialType: "",
+      carpetArea: "",
+      floorNumber: "",
+      washrooms: "",
     }));
   };
 
@@ -1855,11 +2004,20 @@ export default function MarketplacePage() {
                     Create Post
                   </p>
                   <h3 className="mt-2 text-2xl font-black text-base-content">
-                    {showDraftsList ? "Your Drafts" : `Step ${composerStep} of 6`}
+                    {showDraftsList
+                      ? "Your Drafts"
+                      : composerResult
+                        ? (composerResult === "DRAFT" ? "Saved as draft" : "Post published")
+                        : `Step ${composerStep} of ${totalComposerSteps}`}
                   </h3>
+                  {!showDraftsList && !composerResult && autosaveState !== "idle" && (
+                    <p className="mt-1 text-xs text-base-content/50">
+                      {autosaveState === "saving" ? "Saving draft…" : "Draft saved"}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {composerStep === 1 && !showDraftsList && (
+                  {stepKey === "type" && !showDraftsList && !composerResult && (
                     <button
                       type="button"
                       className="btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200"
@@ -1881,8 +2039,8 @@ export default function MarketplacePage() {
                   <button type="button" className="btn btn-sm btn-circle btn-ghost" onClick={resetComposer}><X className="size-4" /></button>
                 </div>
               </div>
-              {!showDraftsList && (
-                <progress className="progress progress-primary mt-3 h-2 w-full" value={composerStep} max="6" />
+              {!showDraftsList && !composerResult && (
+                <progress className="progress progress-primary mt-3 h-2 w-full" value={composerStep} max={totalComposerSteps} />
               )}
             </div>
 
@@ -1940,7 +2098,18 @@ export default function MarketplacePage() {
                     </div>
                   )}
                 </div>
-              ) : composerStep === 1 ? (
+              ) : composerResult ? (
+                <div className="rounded-2xl border border-success/30 bg-success/10 p-6 text-center">
+                  <p className="text-2xl font-black text-success">
+                    {composerResult === "DRAFT" ? "Saved as Draft" : "Post Published"}
+                  </p>
+                  <p className="mt-2 text-sm text-base-content/70">
+                    {composerResult === "DRAFT"
+                      ? "Find it under My Drafts on your profile whenever you're ready to publish."
+                      : "Your post is now live and discoverable."}
+                  </p>
+                </div>
+              ) : stepKey === "type" ? (
                 <div>
                   <p className="text-sm font-semibold text-base-content/70">What would you like to post? Recommended for {activeRole}</p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -1998,7 +2167,7 @@ export default function MarketplacePage() {
                 </div>
               ) : null}
 
-              {composerStep === 2 ? (
+              {stepKey === "photos" && !composerResult ? (
                 <div>
                   <p className="text-sm font-semibold text-base-content/70">Upload media (Max 5 files)</p>
                   <div
@@ -2104,7 +2273,7 @@ export default function MarketplacePage() {
                 </div>
               ) : null}
 
-              {composerStep === 3 ? (
+              {stepKey === "details" && !composerResult ? (
                 <div>
                   <p className="text-sm font-semibold text-base-content/70">Add intent-specific details</p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -2309,136 +2478,21 @@ export default function MarketplacePage() {
                       <textarea className="textarea textarea-bordered min-h-20 border-base-300" value={draft.caption} onChange={(event) => updateDraft("caption", event.target.value)} />
                     </label>
 
-                    {String(draft.postType || "").startsWith("REQUIREMENT_") ? (
-                      <>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Budget Min</span>
-                          <input type="number" className="input input-bordered border-base-300" value={draft.budgetMin} onChange={(event) => updateDraft("budgetMin", event.target.value)} />
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Budget Max</span>
-                          <input type="number" className="input input-bordered border-base-300" value={draft.budgetMax} onChange={(event) => updateDraft("budgetMax", event.target.value)} />
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Preferred Move-in Date</span>
-                          <input type="date" className="input input-bordered border-base-300" value={draft.moveInDate} onChange={(event) => updateDraft("moveInDate", event.target.value)} />
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Property Preference</span>
-                          <select className="select select-bordered border-base-300" value={draft.requirementPropertyType} onChange={(event) => updateDraft("requirementPropertyType", event.target.value)}>
-                            <option value="">Select type</option>
-                            <option value="PG">PG</option>
-                            <option value="Room">Room</option>
-                            <option value="Flat">Flat</option>
-                            <option value="Shared Flat">Shared Flat</option>
-                            <option value="Independent House">Independent House</option>
-                            <option value="Villa">Villa</option>
-                          </select>
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Furnishing Preference</span>
-                          <select className="select select-bordered border-base-300" value={draft.furnishedPreference} onChange={(event) => updateDraft("furnishedPreference", event.target.value)}>
-                            <option value="">Select option</option>
-                            {FURNISHING_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Occupancy</span>
-                          <select className="select select-bordered border-base-300" value={draft.occupancyPreference} onChange={(event) => updateDraft("occupancyPreference", event.target.value)}>
-                            <option value="">Select option</option>
-                            {OCCUPANCY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Gender Preference</span>
-                          <select className="select select-bordered border-base-300" value={draft.genderPreference} onChange={(event) => updateDraft("genderPreference", event.target.value)}>
-                            <option value="">Select option</option>
-                            {GENDER_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Occupation</span>
-                          <select className="select select-bordered border-base-300" value={draft.occupation} onChange={(event) => updateDraft("occupation", event.target.value)}>
-                            <option value="">Select option</option>
-                            <option value="Student">Student</option>
-                            <option value="Working Professional">Working Professional</option>
-                            <option value="Business Owner">Business Owner</option>
-                            <option value="Other">Other</option>
-                          </select>
-                        </label>
-                        <label className="form-control sm:col-span-2">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Amenities Needed (optional)</span>
-                          <input className="input input-bordered border-base-300" placeholder="Gym, security, power backup" value={draft.amenitiesText} onChange={(event) => updateDraft("amenitiesText", event.target.value)} />
-                        </label>
-                      </>
-                    ) : (
-                      <>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Price</span>
-                          <input type="number" className="input input-bordered border-base-300" value={draft.price} onChange={(event) => updateDraft("price", event.target.value)} />
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Area (sqft)</span>
-                          <input type="number" className="input input-bordered border-base-300" value={draft.areaSqft} onChange={(event) => updateDraft("areaSqft", event.target.value)} />
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Bedrooms</span>
-                          <input type="number" className="input input-bordered border-base-300" value={draft.bedrooms} onChange={(event) => updateDraft("bedrooms", event.target.value)} />
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Bathrooms</span>
-                          <input type="number" className="input input-bordered border-base-300" value={draft.bathrooms} onChange={(event) => updateDraft("bathrooms", event.target.value)} />
-                        </label>
-
-                        {draft.postType === "PROPERTY_RENT" ? (
-                          <>
-                            <label className="form-control">
-                              <span className="label-text mb-1 text-xs text-base-content/60">Monthly Rent</span>
-                              <input type="number" className="input input-bordered border-base-300" value={draft.price} onChange={(event) => updateDraft("price", event.target.value)} />
-                            </label>
-                            <label className="form-control">
-                              <span className="label-text mb-1 text-xs text-base-content/60">Deposit Amount</span>
-                              <input type="number" className="input input-bordered border-base-300" value={draft.depositAmount} onChange={(event) => updateDraft("depositAmount", event.target.value)} />
-                            </label>
-                            <label className="form-control">
-                              <span className="label-text mb-1 text-xs text-base-content/60">Availability Date</span>
-                              <input type="date" className="input input-bordered border-base-300" value={draft.availableFromDate} onChange={(event) => updateDraft("availableFromDate", event.target.value)} />
-                            </label>
-                            <label className="form-control">
-                              <span className="label-text mb-1 text-xs text-base-content/60">Tenant Preference</span>
-                              <select className="select select-bordered border-base-300" value={draft.tenantType} onChange={(event) => updateDraft("tenantType", event.target.value)}>
-                                <option value="">Select option</option>
-                                {TENANT_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                              </select>
-                            </label>
-                          </>
-                        ) : null}
-                      </>
-                    )}
-
-                    {draft.postType === "BUILDER_PROJECT" ? (
-                      <>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Project Name</span>
-                          <input className="input input-bordered border-base-300" value={draft.projectName} onChange={(event) => updateDraft("projectName", event.target.value)} />
-                        </label>
-                        <label className="form-control">
-                          <span className="label-text mb-1 text-xs text-base-content/60">Launch Date</span>
-                          <input type="date" className="input input-bordered border-base-300" value={draft.launchDate} onChange={(event) => updateDraft("launchDate", event.target.value)} />
-                        </label>
-                        <label className="form-control sm:col-span-2">
-                          <span className="label-text mb-1 text-xs text-base-content/60">RERA Number</span>
-                          <input className="input input-bordered border-base-300" value={draft.reraNumber} onChange={(event) => updateDraft("reraNumber", event.target.value)} />
-                        </label>
-                      </>
-                    ) : null}
+                    <div className="sm:col-span-2">
+                      <PostTypeFields
+                        postType={draft.postType}
+                        draft={draft}
+                        updateDraft={updateDraft}
+                        priceLabel={getPostTypeConfig(draft.postType).priceLabel}
+                      />
+                    </div>
                   </div>
                 </div>
               ) : null}
 
-              {composerStep === 4 ? (
+              {stepKey === "review" && !composerResult ? (
                 <div>
-                  <p className="text-sm font-semibold text-base-content/70">Preview your post</p>
+                  <p className="text-sm font-semibold text-base-content/70">Review &amp; publish</p>
                   <article className="mt-4 overflow-hidden rounded-2xl border border-base-300">
                     {composerMedia.length > 0 && isVideoUrl(composerMedia[0]) ? (
                       <video src={composerMedia[0]} alt="Preview" className="h-64 w-full object-cover" controls />
@@ -2449,66 +2503,68 @@ export default function MarketplacePage() {
                       <p className="text-xs text-base-content/60">{getListingBadge(draft)} · {draft.propertyType || draft.requirementPropertyType || "Real Estate"}</p>
                       <p className="mt-1 text-xl font-bold text-base-content">{draft.title || "Untitled post"}</p>
                       <p className="mt-1 text-sm text-base-content/70">{draft.caption || "No description added."}</p>
+                      <p className="mt-2 text-xs text-base-content/60">
+                        {[draft.city, draft.locality].filter(Boolean).join(", ") || "No location set"}
+                      </p>
                     </div>
                   </article>
-                </div>
-              ) : null}
-
-              {composerStep === 5 ? (
-                <div className="rounded-2xl border border-primary/30 bg-primary/10 p-6 text-center">
-                  <p className="text-2xl font-black text-base-content">Ready to Publish</p>
-                  <p className="mt-2 text-sm text-base-content/70">Your post will immediately appear in the marketplace feed.</p>
-                </div>
-              ) : null}
-
-              {composerStep === 6 ? (
-                <div className="rounded-2xl border border-success/30 bg-success/10 p-6 text-center">
-                  <p className="text-2xl font-black text-success">
-                    {draft.status === "DRAFT" ? "Saved as Draft" : "Post Published"}
-                  </p>
-                  <p className="mt-2 text-sm text-base-content/70">
-                    {draft.status === "DRAFT"
-                      ? "Find it under My Drafts on your profile whenever you're ready to publish."
-                      : "Your post is now live and discoverable."}
+                  <p className="mt-3 text-xs text-base-content/60">
+                    Publishing makes this post immediately visible in the marketplace feed. Save as a draft to finish later.
                   </p>
                 </div>
               ) : null}
 
               <div className="mt-6 flex items-center justify-between">
-                {showDraftsList ? null : (
-                <button type="button" className="btn btn-ghost" disabled={composerStep === 1 || composerStep === 6} onClick={() => setComposerStep((prev) => Math.max(1, prev - 1))}>Back</button>
-                )}
+                {composerResult ? (
+                  <button type="button" className="btn border-none bg-primary text-white hover:bg-primary ml-auto" onClick={resetComposer}>Done</button>
+                ) : showDraftsList ? null : (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      disabled={composerStep === 1}
+                      onClick={() => setComposerStep((prev) => Math.max(1, prev - 1))}
+                    >
+                      Back
+                    </button>
 
-                {showDraftsList ? null : composerStep < 5 ? (
-                  <button type="button" className="btn border-none bg-primary text-white hover:bg-primary" disabled={!stepValid} onClick={() => setComposerStep((prev) => Math.min(5, prev + 1))}>Next</button>
-                ) : composerStep === 5 ? (
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="btn btn-outline"
-                      disabled={creating}
-                      onClick={() => {
-                        setDraft((prev) => ({ ...prev, status: "DRAFT" }));
-                        createPost("DRAFT");
-                      }}
-                    >
-                      Save as Draft
-                    </button>
-                    <button
-                      type="button"
-                      className="btn border-none bg-primary text-white hover:bg-primary"
-                      disabled={creating}
-                      onClick={() => {
-                        setDraft((prev) => ({ ...prev, status: "PUBLISHED" }));
-                        createPost("PUBLISHED");
-                      }}
-                    >
-                      <Send className="size-4" />
-                      {creating ? "Publishing..." : "Publish"}
-                    </button>
-                  </div>
-                ) : (
-                  <button type="button" className="btn border-none bg-primary text-white hover:bg-primary" onClick={resetComposer}>Done</button>
+                    {stepKey === "review" ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-outline"
+                          disabled={creating}
+                          onClick={() => {
+                            setDraft((prev) => ({ ...prev, status: "DRAFT" }));
+                            createPost("DRAFT");
+                          }}
+                        >
+                          Save as Draft
+                        </button>
+                        <button
+                          type="button"
+                          className="btn border-none bg-primary text-white hover:bg-primary"
+                          disabled={creating}
+                          onClick={() => {
+                            setDraft((prev) => ({ ...prev, status: "PUBLISHED" }));
+                            createPost("PUBLISHED");
+                          }}
+                        >
+                          <Send className="size-4" />
+                          {creating ? "Publishing..." : "Publish"}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn border-none bg-primary text-white hover:bg-primary"
+                        disabled={!stepValid}
+                        onClick={() => setComposerStep((prev) => Math.min(totalComposerSteps, prev + 1))}
+                      >
+                        Next
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
