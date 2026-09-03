@@ -207,6 +207,61 @@ describe("createPropertyPost — current behaviour", () => {
   });
 });
 
+describe("typed postMeta schema", () => {
+  it("casts string numbers/booleans in known meta branches", async () => {
+    const res = await create(broker, {
+      postType: "AGRICULTURAL_LISTING",
+      title: "Cast test",
+      city: "Indore",
+      status: "PUBLISHED",
+      postMeta: { land: { landArea: "12", roadAccess: "true", electricityAvailable: "false" } },
+    });
+    expect(res.statusCode).toBe(201);
+    const fresh = await PropertyPost.findById(res.body.data.post._id).lean();
+    expect(fresh.postMeta.land.landArea).toBe(12);
+    expect(fresh.postMeta.land.roadAccess).toBe(true);
+    expect(fresh.postMeta.land.electricityAvailable).toBe(false);
+  });
+
+  it("keeps unknown meta keys instead of dropping them (strict:false)", async () => {
+    const res = await create(broker, {
+      postType: "COMMERCIAL_LISTING",
+      title: "Unknown key test",
+      city: "Indore",
+      status: "PUBLISHED",
+      postMeta: { commercial: { commercialType: "Shop" }, facing: "East", roi: 8, amenities: ["Lift", "Parking"] },
+    });
+    expect(res.statusCode).toBe(201);
+    const fresh = await PropertyPost.findById(res.body.data.post._id).lean();
+    expect(fresh.postMeta.facing).toBe("East");
+    expect(fresh.postMeta.roi).toBe(8);
+    expect(fresh.postMeta.amenities).toEqual(["Lift", "Parking"]);
+  });
+
+  it("round-trips a legacy-shaped postMeta on re-save without data loss", async () => {
+    // Simulate a doc written before the typed schema: flat keys, no branches.
+    const raw = await PropertyPost.collection.insertOne({
+      author: seller._id,
+      postType: "PROPERTY_SALE",
+      title: "Legacy doc",
+      status: "PUBLISHED",
+      price: 100,
+      postMeta: { furnishing: "Semi Furnished", ageOfProperty: "5 years", possessionStatus: "Ready" },
+    });
+    createdPostIds.push(raw.insertedId);
+
+    const res = fakeRes();
+    await updatePropertyPost(
+      { user: seller, params: { id: raw.insertedId }, body: { caption: "touched", postMeta: { furnishing: "Semi Furnished", ageOfProperty: "5 years", possessionStatus: "Ready" } } },
+      res
+    );
+    expect(res.statusCode).toBe(200);
+    const fresh = await PropertyPost.findById(raw.insertedId).lean();
+    expect(fresh.postMeta.furnishing).toBe("Semi Furnished");
+    expect(fresh.postMeta.possessionStatus).toBe("Ready");
+  });
+});
+
 describe("updatePropertyPost — current behaviour", () => {
   it("updates an existing draft in place without creating a duplicate", async () => {
     const createRes = await create(seller, {

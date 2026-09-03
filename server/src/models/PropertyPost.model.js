@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { POST_TYPES } from "../utils/postPolicy.js";
+import { PostMetaSchema } from "./postMeta.schema.js";
 
 const postTypeValues = Object.values(POST_TYPES);
 const statusValues = ["DRAFT", "PUBLISHED", "ARCHIVED"];
@@ -211,8 +212,8 @@ const propertyPostSchema = new mongoose.Schema(
       min: 0,
     },
     postMeta: {
-      type: mongoose.Schema.Types.Mixed,
-      default: {},
+      type: PostMetaSchema,
+      default: () => ({}),
     },
     isDeleted: {
       type: Boolean,
