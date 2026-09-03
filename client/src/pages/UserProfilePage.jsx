@@ -118,7 +118,6 @@ export default function UserProfilePage() {
   const [newImageFiles, setNewImageFiles] = useState([]);
   const [newImagePreviews, setNewImagePreviews] = useState([]);
   const [removedImageUrls, setRemovedImageUrls] = useState([]);
-  const [postCarouselIndex, setPostCarouselIndex] = useState({});
   // Shared across both the Posts and Saved grids — comparing a mix of your
   // own listings and saved ones is a reasonable use case, same as
   // Marketplace's single feed grid.
@@ -853,26 +852,9 @@ export default function UserProfilePage() {
                         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                           {posts.map((post) => {
                             const media = normalizeMedia(post);
-                            const currentIndex = postCarouselIndex[post._id] || 0;
                             const badge = getListingBadge(post);
                             const detailBadges = buildPropertyDetailBadges(post);
 
-                            const handlePrevImage = (e) => {
-                              e.stopPropagation();
-                              setPostCarouselIndex(prev => ({
-                                ...prev,
-                                [post._id]: (prev[post._id] || 0) > 0 ? (prev[post._id] || 0) - 1 : media.length - 1
-                              }));
-                            };
-                            
-                            const handleNextImage = (e) => {
-                              e.stopPropagation();
-                              setPostCarouselIndex(prev => ({
-                                ...prev,
-                                [post._id]: (prev[post._id] || 0) < media.length - 1 ? (prev[post._id] || 0) + 1 : 0
-                              }));
-                            };
-                            
                             const handleDoubleClickMedia = (event) => {
                               event.stopPropagation();
                               toggleLike(post._id);
@@ -887,9 +869,6 @@ export default function UserProfilePage() {
                                 key={post._id}
                                 post={post}
                                 media={media}
-                                imageIndex={currentIndex}
-                                onPrevImage={handlePrevImage}
-                                onNextImage={handleNextImage}
                                 onDoubleClickMedia={handleDoubleClickMedia}
                                 mediaHeightClass="aspect-square"
                                 mediaOverlay={
@@ -1110,25 +1089,8 @@ export default function UserProfilePage() {
                         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                           {bookmarks.map((post) => {
                             const media = normalizeMedia(post);
-                            const currentIndex = postCarouselIndex[post._id] || 0;
                             const badge = getListingBadge(post);
                             const detailBadges = buildPropertyDetailBadges(post);
-
-                            const handlePrevImage = (e) => {
-                              e.stopPropagation();
-                              setPostCarouselIndex(prev => ({
-                                ...prev,
-                                [post._id]: (prev[post._id] || 0) > 0 ? (prev[post._id] || 0) - 1 : media.length - 1
-                              }));
-                            };
-
-                            const handleNextImage = (e) => {
-                              e.stopPropagation();
-                              setPostCarouselIndex(prev => ({
-                                ...prev,
-                                [post._id]: (prev[post._id] || 0) < media.length - 1 ? (prev[post._id] || 0) + 1 : 0
-                              }));
-                            };
 
                             const isOwnPost = post.author?._id && String(post.author._id) === String(authUser?._id);
 
@@ -1146,9 +1108,6 @@ export default function UserProfilePage() {
                                 key={post._id}
                                 post={post}
                                 media={media}
-                                imageIndex={currentIndex}
-                                onPrevImage={handlePrevImage}
-                                onNextImage={handleNextImage}
                                 onDoubleClickMedia={handleDoubleClickMedia}
                                 mediaHeightClass="aspect-square"
                                 mediaOverlay={
