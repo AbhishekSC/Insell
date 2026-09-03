@@ -20,14 +20,20 @@ function firstImage(post) {
 // GET /posts/:id/similar (scored server-side on type/location/price) and
 // renders a horizontally-scrollable strip of compact cards.
 export default function SimilarProperties({ postId }) {
+  // Non-critical enhancement — if the endpoint is unavailable (e.g. an older
+  // backend during a rolling deploy) just render nothing, no error toast.
   const { data, isLoading } = useQuery({
     queryKey: ["similarProperties", postId],
     queryFn: async () => {
-      const res = await axiosInstance.get(`/posts/${postId}/similar`, { params: { limit: 10 } });
+      const res = await axiosInstance.get(`/posts/${postId}/similar`, {
+        params: { limit: 10 },
+        skipErrorToast: true,
+      });
       return res.data?.data?.posts || [];
     },
     enabled: Boolean(postId),
     staleTime: 1000 * 60 * 5,
+    retry: false,
   });
 
   if (isLoading) {

@@ -113,10 +113,15 @@ function getListingBadge(post) {
     return listingType === "rent" || listingType === "lease" ? "Rented" : "Sold";
   }
   if (post?.customBadge) return post.customBadge;
+  const postType = String(post?.postType || "").toUpperCase();
+  if (postType === "AGRICULTURAL_LISTING") {
+    return post?.listingType?.toLowerCase() === "rent" ? "Land for Lease" : "Land for Sale";
+  }
   const listingType = post?.listingType?.toLowerCase();
   if (listingType === "rent") return "For Rent";
   if (listingType === "lease") return "For Lease";
   if (listingType === "buy") return "Wanted";
+  if (listingType === "sell") return "For Sale";
   if (listingType) return titleCase(post.listingType);
   return "For Sale";
 }
