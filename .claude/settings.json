@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp /private/tmp/claude-501/-Users-apple-Desktop-Abhi-data-insell/29daa629-7de3-4ec6-ad82-5a430014ab31/scratchpad/mint-jwt.mjs /Users/apple/Desktop/Abhi-data/insell/server/mint-jwt-tmp.mjs)",
+      "Bash(node mint-jwt-tmp.mjs)",
+      "Bash(rm mint-jwt-tmp.mjs)",
+      "Read(//tmp/**)"
+    ]
+  }
+}

@@ -486,7 +486,12 @@ export default function MarketplacePage() {
     Number(appliedFilters.budgetMax || 0) > 0;
 
   const [isComposerOpen, setIsComposerOpen] = useState(false);
+  // 1-based index into the dynamic `composerSteps` list below — the flow has
+  // fewer steps for requirement posts (which skip the photo step).
   const [composerStep, setComposerStep] = useState(1);
+  // null while editing; "DRAFT" / "PUBLISHED" once the post is saved, which
+  // swaps the wizard body for the success screen.
+  const [composerResult, setComposerResult] = useState(null);
   const [showDraftsList, setShowDraftsList] = useState(false);
   const [editingDraftId, setEditingDraftId] = useState(null);
   const [draftToDelete, setDraftToDelete] = useState(null);
@@ -918,6 +923,7 @@ export default function MarketplacePage() {
     setDraft(mapPostToDraftState(post));
     setEditingDraftId(post._id);
     setShowDraftsList(false);
+    setComposerResult(null);
     setComposerStep(1);
   };
 
@@ -1053,7 +1059,7 @@ export default function MarketplacePage() {
         queryClient.invalidateQueries({ queryKey: ["myDrafts"] });
       }
 
-      setComposerStep(6);
+      setComposerResult(data?.status === "DRAFT" ? "DRAFT" : "PUBLISHED");
 
       if (isPostHogEnabled()) {
         posthog.capture(data?.status === "DRAFT" ? "post_draft_saved" : "post_created", {
@@ -1281,18 +1287,30 @@ export default function MarketplacePage() {
 
   const updateDraft = (field, value) => setDraft((prev) => ({ ...prev, [field]: value }));
 
+  // The wizard's steps, collapsed from the old 6. Requirement posts (which
+  // don't need photos) get a 3-step flow; everything else is 4.
+  const composerSteps = useMemo(() => {
+    const base = ["type", "details", "photos", "review"];
+    return getPostTypeConfig(draft.postType).requiresMedia
+      ? base
+      : base.filter((key) => key !== "photos");
+  }, [draft.postType]);
+  const totalComposerSteps = composerSteps.length;
+  const stepKey = composerSteps[composerStep - 1] || "type";
+
   const stepValid = useMemo(() => {
-    if (composerStep === 1) return Boolean(draft.postType);
-    if (composerStep === 2) {
+    if (stepKey === "type") return Boolean(draft.postType);
+    if (stepKey === "details") return Boolean(String(draft.title || "").trim());
+    if (stepKey === "photos") {
       return getPostTypeConfig(draft.postType).requiresMedia ? Boolean(composerMedia.length) : true;
     }
-    if (composerStep === 3) return Boolean(String(draft.title || "").trim());
     return true;
-  }, [composerMedia.length, composerStep, draft.postType, draft.title]);
+  }, [composerMedia.length, stepKey, draft.postType, draft.title]);
 
   const resetComposer = () => {
     setIsComposerOpen(false);
     setComposerStep(1);
+    setComposerResult(null);
     setShowDraftsList(false);
     setEditingDraftId(null);
     const defaultPostType = recommendedPostTypes[0] || "PROPERTY_SALE";
@@ -1900,11 +1918,15 @@ export default function MarketplacePage() {
                     Create Post
                   </p>
                   <h3 className="mt-2 text-2xl font-black text-base-content">
-                    {showDraftsList ? "Your Drafts" : `Step ${composerStep} of 6`}
+                    {showDraftsList
+                      ? "Your Drafts"
+                      : composerResult
+                        ? (composerResult === "DRAFT" ? "Saved as draft" : "Post published")
+                        : `Step ${composerStep} of ${totalComposerSteps}`}
                   </h3>
                 </div>
                 <div className="flex items-center gap-2">
-                  {composerStep === 1 && !showDraftsList && (
+                  {stepKey === "type" && !showDraftsList && !composerResult && (
                     <button
                       type="button"
                       className="btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200"
@@ -1926,8 +1948,8 @@ export default function MarketplacePage() {
                   <button type="button" className="btn btn-sm btn-circle btn-ghost" onClick={resetComposer}><X className="size-4" /></button>
                 </div>
               </div>
-              {!showDraftsList && (
-                <progress className="progress progress-primary mt-3 h-2 w-full" value={composerStep} max="6" />
+              {!showDraftsList && !composerResult && (
+                <progress className="progress progress-primary mt-3 h-2 w-full" value={composerStep} max={totalComposerSteps} />
               )}
             </div>
 
@@ -1985,7 +2007,18 @@ export default function MarketplacePage() {
                     </div>
                   )}
                 </div>
-              ) : composerStep === 1 ? (
+              ) : composerResult ? (
+                <div className="rounded-2xl border border-success/30 bg-success/10 p-6 text-center">
+                  <p className="text-2xl font-black text-success">
+                    {composerResult === "DRAFT" ? "Saved as Draft" : "Post Published"}
+                  </p>
+                  <p className="mt-2 text-sm text-base-content/70">
+                    {composerResult === "DRAFT"
+                      ? "Find it under My Drafts on your profile whenever you're ready to publish."
+                      : "Your post is now live and discoverable."}
+                  </p>
+                </div>
+              ) : stepKey === "type" ? (
                 <div>
                   <p className="text-sm font-semibold text-base-content/70">What would you like to post? Recommended for {activeRole}</p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -2043,7 +2076,7 @@ export default function MarketplacePage() {
                 </div>
               ) : null}
 
-              {composerStep === 2 ? (
+              {stepKey === "photos" && !composerResult ? (
                 <div>
                   <p className="text-sm font-semibold text-base-content/70">Upload media (Max 5 files)</p>
                   <div
@@ -2149,7 +2182,7 @@ export default function MarketplacePage() {
                 </div>
               ) : null}
 
-              {composerStep === 3 ? (
+              {stepKey === "details" && !composerResult ? (
                 <div>
                   <p className="text-sm font-semibold text-base-content/70">Add intent-specific details</p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -2366,9 +2399,9 @@ export default function MarketplacePage() {
                 </div>
               ) : null}
 
-              {composerStep === 4 ? (
+              {stepKey === "review" && !composerResult ? (
                 <div>
-                  <p className="text-sm font-semibold text-base-content/70">Preview your post</p>
+                  <p className="text-sm font-semibold text-base-content/70">Review &amp; publish</p>
                   <article className="mt-4 overflow-hidden rounded-2xl border border-base-300">
                     {composerMedia.length > 0 && isVideoUrl(composerMedia[0]) ? (
                       <video src={composerMedia[0]} alt="Preview" className="h-64 w-full object-cover" controls />
@@ -2379,66 +2412,68 @@ export default function MarketplacePage() {
                       <p className="text-xs text-base-content/60">{getListingBadge(draft)} · {draft.propertyType || draft.requirementPropertyType || "Real Estate"}</p>
                       <p className="mt-1 text-xl font-bold text-base-content">{draft.title || "Untitled post"}</p>
                       <p className="mt-1 text-sm text-base-content/70">{draft.caption || "No description added."}</p>
+                      <p className="mt-2 text-xs text-base-content/60">
+                        {[draft.city, draft.locality].filter(Boolean).join(", ") || "No location set"}
+                      </p>
                     </div>
                   </article>
-                </div>
-              ) : null}
-
-              {composerStep === 5 ? (
-                <div className="rounded-2xl border border-primary/30 bg-primary/10 p-6 text-center">
-                  <p className="text-2xl font-black text-base-content">Ready to Publish</p>
-                  <p className="mt-2 text-sm text-base-content/70">Your post will immediately appear in the marketplace feed.</p>
-                </div>
-              ) : null}
-
-              {composerStep === 6 ? (
-                <div className="rounded-2xl border border-success/30 bg-success/10 p-6 text-center">
-                  <p className="text-2xl font-black text-success">
-                    {draft.status === "DRAFT" ? "Saved as Draft" : "Post Published"}
-                  </p>
-                  <p className="mt-2 text-sm text-base-content/70">
-                    {draft.status === "DRAFT"
-                      ? "Find it under My Drafts on your profile whenever you're ready to publish."
-                      : "Your post is now live and discoverable."}
+                  <p className="mt-3 text-xs text-base-content/60">
+                    Publishing makes this post immediately visible in the marketplace feed. Save as a draft to finish later.
                   </p>
                 </div>
               ) : null}
 
               <div className="mt-6 flex items-center justify-between">
-                {showDraftsList ? null : (
-                <button type="button" className="btn btn-ghost" disabled={composerStep === 1 || composerStep === 6} onClick={() => setComposerStep((prev) => Math.max(1, prev - 1))}>Back</button>
-                )}
+                {composerResult ? (
+                  <button type="button" className="btn border-none bg-primary text-white hover:bg-primary ml-auto" onClick={resetComposer}>Done</button>
+                ) : showDraftsList ? null : (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      disabled={composerStep === 1}
+                      onClick={() => setComposerStep((prev) => Math.max(1, prev - 1))}
+                    >
+                      Back
+                    </button>
 
-                {showDraftsList ? null : composerStep < 5 ? (
-                  <button type="button" className="btn border-none bg-primary text-white hover:bg-primary" disabled={!stepValid} onClick={() => setComposerStep((prev) => Math.min(5, prev + 1))}>Next</button>
-                ) : composerStep === 5 ? (
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="btn btn-outline"
-                      disabled={creating}
-                      onClick={() => {
-                        setDraft((prev) => ({ ...prev, status: "DRAFT" }));
-                        createPost("DRAFT");
-                      }}
-                    >
-                      Save as Draft
-                    </button>
-                    <button
-                      type="button"
-                      className="btn border-none bg-primary text-white hover:bg-primary"
-                      disabled={creating}
-                      onClick={() => {
-                        setDraft((prev) => ({ ...prev, status: "PUBLISHED" }));
-                        createPost("PUBLISHED");
-                      }}
-                    >
-                      <Send className="size-4" />
-                      {creating ? "Publishing..." : "Publish"}
-                    </button>
-                  </div>
-                ) : (
-                  <button type="button" className="btn border-none bg-primary text-white hover:bg-primary" onClick={resetComposer}>Done</button>
+                    {stepKey === "review" ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-outline"
+                          disabled={creating}
+                          onClick={() => {
+                            setDraft((prev) => ({ ...prev, status: "DRAFT" }));
+                            createPost("DRAFT");
+                          }}
+                        >
+                          Save as Draft
+                        </button>
+                        <button
+                          type="button"
+                          className="btn border-none bg-primary text-white hover:bg-primary"
+                          disabled={creating}
+                          onClick={() => {
+                            setDraft((prev) => ({ ...prev, status: "PUBLISHED" }));
+                            createPost("PUBLISHED");
+                          }}
+                        >
+                          <Send className="size-4" />
+                          {creating ? "Publishing..." : "Publish"}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn border-none bg-primary text-white hover:bg-primary"
+                        disabled={!stepValid}
+                        onClick={() => setComposerStep((prev) => Math.min(totalComposerSteps, prev + 1))}
+                      >
+                        Next
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
