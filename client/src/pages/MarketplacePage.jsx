@@ -951,68 +951,85 @@ export default function MarketplacePage() {
     },
   });
 
+  // Silent-autosave bookkeeping (logic lives in the effect below createPost).
+  const [autosaveState, setAutosaveState] = useState("idle"); // idle | saving | saved
+  const autosaveInFlight = useRef(false);
+  const lastAutosaveSnapshot = useRef("");
+
+  // Shared by the explicit Save/Publish action and the silent autosave —
+  // both send the identical field set, only `status` differs.
+  const buildComposerPayload = (status) => {
+    const isRequirement = String(draft.postType || "").startsWith("REQUIREMENT_");
+    const mediaUrls = String(draft.mediaUrls || "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    const postMeta = {
+      requirement: {
+        furnishedPreference: draft.furnishedPreference || "",
+        parkingRequired: Boolean(draft.parkingRequired),
+        amenitiesText: draft.amenitiesText || "",
+        possessionDate: draft.possessionDate || "",
+        loanRequired: Boolean(draft.loanRequired),
+        moveInDate: draft.moveInDate || "",
+        availableFromDate: draft.availableFromDate || "",
+        leaseDurationMonths: Number(draft.leaseDurationMonths || 0),
+        budgetMin: Number(draft.budgetMin || 0),
+        budgetMax: Number(draft.budgetMax || 0),
+        occupancyPreference: draft.occupancyPreference || "",
+        genderPreference: draft.genderPreference || "",
+        requirementPropertyType: draft.requirementPropertyType || "",
+        depositAmount: Number(draft.depositAmount || 0),
+        tenantType: draft.tenantType || "",
+        occupation: draft.occupation || "",
+      },
+      project: {
+        projectName: draft.projectName || "",
+        launchDate: draft.launchDate || "",
+        reraNumber: draft.reraNumber || "",
+        brochureUrl: draft.brochureUrl || "",
+      },
+      investment: {
+        thesis: draft.investmentThesis || "",
+      },
+      land: {
+        landArea: Number(draft.landArea || 0),
+        landAreaUnit: draft.landAreaUnit || "",
+        soilType: draft.soilType || "",
+        waterAvailability: draft.waterAvailability || "",
+        roadAccess: Boolean(draft.roadAccess),
+        electricityAvailable: Boolean(draft.electricityAvailable),
+      },
+      commercial: {
+        commercialType: draft.commercialType || "",
+        carpetArea: Number(draft.carpetArea || 0),
+        floorNumber: Number(draft.floorNumber || 0),
+        washrooms: Number(draft.washrooms || 0),
+      },
+    };
+
+    return {
+      ...draft,
+      status,
+      price: isRequirement ? Number(draft.budgetMax || draft.price || 0) : Number(draft.price || 0),
+      mediaUrls,
+      postType: draft.postType,
+      postMeta,
+      latitude: draft.latitude,
+      longitude: draft.longitude,
+    };
+  };
+
   const { mutate: createPost, isPending: creating } = useMutation({
     mutationFn: async (statusOverride) => {
-      const isRequirement = String(draft.postType || "").startsWith("REQUIREMENT_");
-      const mediaUrls = String(draft.mediaUrls || "")
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean);
-
-      const postMeta = {
-        requirement: {
-          furnishedPreference: draft.furnishedPreference || "",
-          parkingRequired: Boolean(draft.parkingRequired),
-          amenitiesText: draft.amenitiesText || "",
-          possessionDate: draft.possessionDate || "",
-          loanRequired: Boolean(draft.loanRequired),
-          moveInDate: draft.moveInDate || "",
-          availableFromDate: draft.availableFromDate || "",
-          leaseDurationMonths: Number(draft.leaseDurationMonths || 0),
-          budgetMin: Number(draft.budgetMin || 0),
-          budgetMax: Number(draft.budgetMax || 0),
-          occupancyPreference: draft.occupancyPreference || "",
-          genderPreference: draft.genderPreference || "",
-          requirementPropertyType: draft.requirementPropertyType || "",
-          depositAmount: Number(draft.depositAmount || 0),
-          tenantType: draft.tenantType || "",
-          occupation: draft.occupation || "",
-        },
-        project: {
-          projectName: draft.projectName || "",
-          launchDate: draft.launchDate || "",
-          reraNumber: draft.reraNumber || "",
-          brochureUrl: draft.brochureUrl || "",
-        },
-        investment: {
-          thesis: draft.investmentThesis || "",
-        },
-        land: {
-          landArea: Number(draft.landArea || 0),
-          landAreaUnit: draft.landAreaUnit || "",
-          soilType: draft.soilType || "",
-          waterAvailability: draft.waterAvailability || "",
-          roadAccess: Boolean(draft.roadAccess),
-          electricityAvailable: Boolean(draft.electricityAvailable),
-        },
-        commercial: {
-          commercialType: draft.commercialType || "",
-          carpetArea: Number(draft.carpetArea || 0),
-          floorNumber: Number(draft.floorNumber || 0),
-          washrooms: Number(draft.washrooms || 0),
-        },
-      };
-
-      const payload = {
-        ...draft,
-        status: statusOverride || "PUBLISHED",
-        price: isRequirement ? Number(draft.budgetMax || draft.price || 0) : Number(draft.price || 0),
-        mediaUrls,
-        postType: draft.postType,
-        postMeta,
-        latitude: draft.latitude,
-        longitude: draft.longitude,
-      };
+      // If a background autosave is mid-flight it may still be creating the
+      // draft — wait for it so we PUT to that draft instead of POSTing a
+      // duplicate.
+      for (let i = 0; i < 50 && autosaveInFlight.current; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      const payload = buildComposerPayload(statusOverride || "PUBLISHED");
       // Resuming a saved draft updates that same post instead of creating
       // a duplicate — updatePropertyPost accepts the identical field set.
       const response = editingDraftId
@@ -1073,6 +1090,52 @@ export default function MarketplacePage() {
       toast.error(error?.response?.data?.message || "Failed to create post");
     },
   });
+
+  // --- Silent autosave --------------------------------------------------
+  // Once the post has a title, changes are persisted as a DRAFT in the
+  // background so a closed tab / back-navigation never loses work. The first
+  // save creates the draft and captures its id into editingDraftId; every
+  // save after that updates the same post. No toasts, no step changes.
+  const { mutateAsync: runAutosave } = useMutation({
+    mutationFn: async ({ payload, draftId }) => {
+      const response = draftId
+        ? await axiosInstance.put(`/posts/${draftId}`, payload)
+        : await axiosInstance.post("/posts", payload);
+      return response.data?.data?.post;
+    },
+  });
+
+  useEffect(() => {
+    if (!isComposerOpen || showDraftsList || composerResult || creating) return;
+    // Don't autosave until the user is actually filling in the post.
+    if (stepKey === "type") return;
+    if (!String(draft.title || "").trim()) return;
+
+    const snapshot = JSON.stringify(buildComposerPayload("DRAFT"));
+    if (snapshot === lastAutosaveSnapshot.current) return;
+
+    const timer = setTimeout(async () => {
+      if (autosaveInFlight.current) return;
+      autosaveInFlight.current = true;
+      setAutosaveState("saving");
+      try {
+        const payload = buildComposerPayload("DRAFT");
+        const saved = await runAutosave({ payload, draftId: editingDraftId });
+        if (saved?._id && !editingDraftId) setEditingDraftId(saved._id);
+        lastAutosaveSnapshot.current = snapshot;
+        setAutosaveState("saved");
+        queryClient.invalidateQueries({ queryKey: ["myDrafts"] });
+      } catch {
+        // Silent — an explicit Save/Publish still surfaces real errors.
+        setAutosaveState("idle");
+      } finally {
+        autosaveInFlight.current = false;
+      }
+    }, 2500);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, isComposerOpen, showDraftsList, composerResult, creating, stepKey, editingDraftId]);
 
   const [mediaUploadProgress, setMediaUploadProgress] = useState(0);
 
@@ -1313,6 +1376,9 @@ export default function MarketplacePage() {
     setComposerResult(null);
     setShowDraftsList(false);
     setEditingDraftId(null);
+    setAutosaveState("idle");
+    lastAutosaveSnapshot.current = "";
+    autosaveInFlight.current = false;
     const defaultPostType = recommendedPostTypes[0] || "PROPERTY_SALE";
     const defaults = POST_TYPE_DEFINITIONS[defaultPostType] || POST_TYPE_DEFINITIONS.PROPERTY_SALE;
     setDraft((prev) => ({
@@ -1924,6 +1990,11 @@ export default function MarketplacePage() {
                         ? (composerResult === "DRAFT" ? "Saved as draft" : "Post published")
                         : `Step ${composerStep} of ${totalComposerSteps}`}
                   </h3>
+                  {!showDraftsList && !composerResult && autosaveState !== "idle" && (
+                    <p className="mt-1 text-xs text-base-content/50">
+                      {autosaveState === "saving" ? "Saving draft…" : "Draft saved"}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {stepKey === "type" && !showDraftsList && !composerResult && (
