@@ -91,17 +91,41 @@ describe("createPropertyPost — current behaviour", () => {
     expect(post.priceHistory[0].price).toBe(8500000);
   });
 
-  it("falls back to the role's default post type when the role can't create the requested type", async () => {
-    // A Tenant can only create REQUIREMENT_RENT — asking for PROPERTY_SALE
-    // is silently downgraded rather than rejected.
+  it("honours the requested post type regardless of role (no role gating)", async () => {
+    // Post creation is not gated by role anymore — a "Tenant" can still
+    // create a PROPERTY_SALE listing if they ask for one.
     const res = await create(tenant, {
       postType: "PROPERTY_SALE",
-      title: "Tenant tries to list for sale",
+      title: "Tenant lists a flat for sale",
       city: "Indore",
       status: "PUBLISHED",
     });
     expect(res.statusCode).toBe(201);
-    expect(res.body.data.post.postType).toBe("REQUIREMENT_RENT");
+    expect(res.body.data.post.postType).toBe("PROPERTY_SALE");
+  });
+
+  it("falls back to a default post type when none is supplied", async () => {
+    const res = await create(tenant, {
+      title: "No type given",
+      city: "Indore",
+      status: "PUBLISHED",
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.body.data.post.postType).toBeTruthy();
+  });
+
+  it("lets a Seller create an AGRICULTURAL_LISTING without downgrading the type", async () => {
+    const res = await create(seller, {
+      postType: "AGRICULTURAL_LISTING",
+      listingType: "Sell",
+      title: "Seller lists farm land",
+      city: "Indore",
+      price: 3000000,
+      status: "PUBLISHED",
+      postMeta: { land: { landArea: 3, landAreaUnit: "Acre" } },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.body.data.post.postType).toBe("AGRICULTURAL_LISTING");
   });
 
   it("creates a REQUIREMENT_RENT post for a Tenant with no media and no price", async () => {

@@ -13,8 +13,16 @@ export function buildPropertyDetailBadges(post, activeRole) {
 
   const land = post.postMeta?.land || {};
   const commercial = post.postMeta?.commercial || {};
-  const isLand = String(post.postType || "").toUpperCase() === "AGRICULTURAL_LISTING";
-  const isCommercial = String(post.postType || "").toUpperCase() === "COMMERCIAL_LISTING";
+  const postTypeUpper = String(post.postType || "").toUpperCase();
+  // Also treat a post as land/commercial when it carries that meta even if
+  // postType is a legacy PROPERTY_SALE (older posts predate roles being
+  // allowed to create these types).
+  const isLand = postTypeUpper === "AGRICULTURAL_LISTING"
+    || Number(land.landArea) > 0
+    || post.propertyType === "Agricultural Land";
+  const isCommercial = postTypeUpper === "COMMERCIAL_LISTING"
+    || Boolean(commercial.commercialType)
+    || Number(commercial.carpetArea) > 0;
 
   if (isLand) {
     if (land.landArea) details.push({ label: `${land.landArea} ${land.landAreaUnit || ""}`.trim(), color: "bg-slate-100", textColor: "text-slate-700" });

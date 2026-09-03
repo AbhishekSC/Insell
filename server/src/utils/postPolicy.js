@@ -72,11 +72,12 @@ export function getAllowedPostTypesForRole(role) {
   return ROLE_POST_POLICY[normalized] || [POST_TYPES.PROPERTY_SALE];
 }
 
+// Post creation is not gated by role — this app only distinguishes admin vs
+// user, and someone selling land, an office or their flat is all just "a
+// user creating a listing". Any recognised post type is allowed for anyone;
+// the role still only decides which type is pre-selected/recommended.
 export function canRoleCreatePostType(role, postType) {
-  const allowed = getAllowedPostTypesForRole(role);
-  const normalizedPostType = normalizePostType(postType);
-  if (!normalizedPostType) return false;
-  return allowed.includes(normalizedPostType);
+  return Boolean(normalizePostType(postType));
 }
 
 export function getPostTypeDefaults(postType) {

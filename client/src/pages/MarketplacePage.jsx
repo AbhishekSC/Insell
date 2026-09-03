@@ -238,6 +238,17 @@ function getListingBadge(post) {
   if (postType === "BUILDER_PROJECT") return "Project";
   if (postType === "INVESTMENT_OPPORTUNITY") return "Investment";
   if (postType === "OPEN_HOUSE_EVENT") return "Open House";
+  // Commercial / agricultural can be either sale or rent — derive from
+  // listingType instead of falling through to the raw "Sell" string.
+  if (postType === "AGRICULTURAL_LISTING") {
+    return String(post.listingType || "").toLowerCase() === "rent" ? "Land for Lease" : "Land for Sale";
+  }
+  if (postType === "COMMERCIAL_LISTING") {
+    return String(post.listingType || "").toLowerCase() === "rent" ? "For Rent" : "For Sale";
+  }
+  const listing = String(post.listingType || "").toLowerCase();
+  if (listing === "sell") return "For Sale";
+  if (listing === "rent") return "For Rent";
   if (post.listingType) return post.listingType;
   if (Number(post.price || 0) > 30000000) return "Luxury";
   return "Featured";
