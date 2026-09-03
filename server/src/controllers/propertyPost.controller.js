@@ -1169,7 +1169,10 @@ export async function getPropertyPostById(req, res) {
     }
 
     const post = await PropertyPost.findById(postId)
-      .populate("author", "fullName profilePic activeRole primaryRole city isVerified mobileNumber friends")
+      .populate(
+        "author",
+        "fullName profilePic activeRole primaryRole city isVerified mobileNumber friends lastActiveAt responseRate ratingAvg ratingCount"
+      )
       .lean();
 
     if (!post || post.isDeleted) {
@@ -1206,6 +1209,81 @@ export async function getPropertyPostById(req, res) {
   } catch (error) {
     logger.error("Error fetching property post:", error);
     return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
+// "More listings like this" for the property detail page. Scores other
+// published posts against the reference post on intent, type, location and
+// price, and returns the top few. A simple in-memory scorer over a capped
+// candidate set — fine at current scale, revisit if the catalogue gets large.
+export async function getSimilarProperties(req, res) {
+  try {
+    const { id } = req.params;
+    const limit = Math.min(Number(req.query.limit) || 8, 20);
+
+    const ref = await PropertyPost.findById(id).select("postType propertyType city locality price bedrooms author").lean();
+    if (!ref) {
+      return sendErrorResponse(res, 404, "Post not found");
+    }
+
+    const priceLo = ref.price > 0 ? ref.price * 0.6 : 0;
+    const priceHi = ref.price > 0 ? ref.price * 1.6 : Number.MAX_SAFE_INTEGER;
+
+    const candidates = await PropertyPost.find({
+      _id: { $ne: ref._id },
+      isDeleted: { $ne: true },
+      isBlocked: { $ne: true },
+      status: "PUBLISHED",
+      visibility: "PUBLIC",
+      $or: [
+        { postType: ref.postType },
+        { propertyType: ref.propertyType },
+        { city: ref.city || "__none__" },
+        { price: { $gte: priceLo, $lte: priceHi } },
+      ],
+    })
+      .sort({ createdAt: -1 })
+      .limit(120)
+      .populate("author", "fullName profilePic isVerified")
+      .lean();
+
+    const currentUserId = req.user?._id ? String(req.user._id) : "";
+
+    const scored = candidates
+      .map((p) => {
+        let score = 0;
+        if (p.postType && p.postType === ref.postType) score += 35;
+        if (p.propertyType && p.propertyType === ref.propertyType) score += 20;
+        if (ref.city && p.city && p.city.toLowerCase() === ref.city.toLowerCase()) score += 25;
+        if (ref.locality && p.locality && p.locality.toLowerCase() === ref.locality.toLowerCase()) score += 15;
+        if (ref.price > 0 && p.price > 0) {
+          const diff = Math.abs(p.price - ref.price) / ref.price;
+          if (diff <= 0.1) score += 25;
+          else if (diff <= 0.25) score += 15;
+          else if (diff <= 0.5) score += 6;
+        }
+        if (ref.bedrooms > 0 && p.bedrooms === ref.bedrooms) score += 8;
+        return { ...p, similarityScore: score };
+      })
+      .filter((p) => p.similarityScore > 0)
+      .sort((a, b) => b.similarityScore - a.similarityScore)
+      .slice(0, limit)
+      .map((p) => {
+        const likedBy = Array.isArray(p.likedBy) ? p.likedBy.map(String) : [];
+        const savedBy = Array.isArray(p.savedBy) ? p.savedBy.map(String) : [];
+        return {
+          ...p,
+          likesCount: likedBy.length,
+          savesCount: savedBy.length,
+          isLikedByMe: currentUserId ? likedBy.includes(currentUserId) : false,
+          isSavedByMe: currentUserId ? savedBy.includes(currentUserId) : false,
+        };
+      });
+
+    return sendSuccessResponse(res, 200, "Similar properties retrieved", { posts: scored });
+  } catch (error) {
+    logger.error("Error in getSimilarProperties:", error);
+    return sendErrorResponse(res, 500, "Failed to retrieve similar properties");
   }
 }
 
