@@ -951,6 +951,17 @@ export default function MarketplacePage() {
     },
   });
 
+  // The wizard's steps, collapsed from the old 6. Requirement posts (which
+  // don't need photos) get a 3-step flow; everything else is 4.
+  const composerSteps = useMemo(() => {
+    const base = ["type", "details", "photos", "review"];
+    return getPostTypeConfig(draft.postType).requiresMedia
+      ? base
+      : base.filter((key) => key !== "photos");
+  }, [draft.postType]);
+  const totalComposerSteps = composerSteps.length;
+  const stepKey = composerSteps[composerStep - 1] || "type";
+
   // Silent-autosave bookkeeping (logic lives in the effect below createPost).
   const [autosaveState, setAutosaveState] = useState("idle"); // idle | saving | saved
   const autosaveInFlight = useRef(false);
@@ -1349,17 +1360,6 @@ export default function MarketplacePage() {
   );
 
   const updateDraft = (field, value) => setDraft((prev) => ({ ...prev, [field]: value }));
-
-  // The wizard's steps, collapsed from the old 6. Requirement posts (which
-  // don't need photos) get a 3-step flow; everything else is 4.
-  const composerSteps = useMemo(() => {
-    const base = ["type", "details", "photos", "review"];
-    return getPostTypeConfig(draft.postType).requiresMedia
-      ? base
-      : base.filter((key) => key !== "photos");
-  }, [draft.postType]);
-  const totalComposerSteps = composerSteps.length;
-  const stepKey = composerSteps[composerStep - 1] || "type";
 
   const stepValid = useMemo(() => {
     if (stepKey === "type") return Boolean(draft.postType);
