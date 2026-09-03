@@ -46,9 +46,13 @@ import ClampedCaption from "../components/ClampedCaption";
 import CompareToggleButton from "../components/CompareToggleButton";
 import CompareFloatingBar from "../components/CompareFloatingBar";
 import FullscreenMediaViewer from "../components/FullscreenMediaViewer";
+import ScrollTopButton from "../components/ScrollTopButton";
+import { useScrollRestoration } from "../hooks/useScrollRestoration";
 import { buildPropertyDetailBadges } from "../lib/propertyDetailBadges";
+import { getPriceContextBadges } from "../lib/priceContextBadges";
 import PostTypeFields from "../components/PostTypeFields";
-import { getPostTypeConfig, META_ONLY_FIELDS } from "../config/postTypeConfig";
+import { getPostTypeConfig } from "../config/postTypeConfig";
+import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { toggleCompareSelection } from "../lib/compareSelection";
 import ReportPostModal from "../components/ReportPostModal";
 import { getCustomBadgeClasses } from "../lib/badgeColors";
@@ -274,7 +278,6 @@ export default function MarketplacePage() {
   const [searchAuthorId, setSearchAuthorId] = useState(null);
   const [activeCategory, setActiveCategory] = useState("For You");
   const [selectedTrendingLocation, setSelectedTrendingLocation] = useState(null);
-  const [carouselIndex, setCarouselIndex] = useState({});
   const [likedBurstPostId, setLikedBurstPostId] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [selectedPostForComments, setSelectedPostForComments] = useState(null);
@@ -710,7 +713,9 @@ export default function MarketplacePage() {
       if (entries[0].isIntersecting && hasNextPage) {
         fetchNextPage();
       }
-    }, { threshold: 0.1, rootMargin: '100px' });
+      // Fire ~2 cards before the sentinel is actually visible so the next
+      // page is usually already in place by the time the user gets there.
+    }, { threshold: 0, rootMargin: '1200px' });
 
     if (node) observerRef.current.observe(node);
   }, [isFetchingNextPage, hasNextPage, fetchNextPage]);
@@ -802,6 +807,15 @@ export default function MarketplacePage() {
       }));
   }, [activeCategory, appliedFilters, authUser?.city, data]);
 
+  // Remember where the user was in the feed so tapping a card and coming
+  // back doesn't dump them at the top. Keyed by the feed's filter signature;
+  // disabled while a non-feed section (chat/communities/…) is showing.
+  const feedScrollKey =
+    activeSection === "marketplace"
+      ? [activeCategory, search, searchType, queryListingType || "all", queryPropertyType || "all", appliedFilters.city || "", appliedFilters.locality || ""].join("|")
+      : null;
+  useScrollRestoration(feedScrollKey, !isLoading && posts.length > 0);
+
   // Lightweight polling for "is there something new" — checks just the newest
   // post's id/timestamp every 30s instead of re-running the full feed query,
   // and only while this tab is visible/focused (React Query's default
@@ -865,6 +879,11 @@ export default function MarketplacePage() {
     queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  const { distance: pullDistance, refreshing: pullRefreshing, threshold: pullThreshold } = usePullToRefresh(
+    () => queryClient.invalidateQueries({ queryKey: ["propertyFeed"] }),
+    { enabled: activeSection === "marketplace" && !isComposerOpen }
+  );
 
   const { data: draftsListData, isLoading: isDraftsListLoading } = useQuery({
     queryKey: ["myDrafts", authUser?._id],
@@ -1569,6 +1588,18 @@ export default function MarketplacePage() {
               onReset={() => setAppliedFilters(filters)}
             />
 
+            {(pullDistance > 0 || pullRefreshing) && (
+              <div
+                className="flex items-center justify-center overflow-hidden text-primary"
+                style={{ height: pullDistance }}
+              >
+                <RefreshCw
+                  className={`size-5 ${pullRefreshing ? "animate-spin" : ""}`}
+                  style={pullRefreshing ? undefined : { transform: `rotate(${(pullDistance / pullThreshold) * 270}deg)`, opacity: Math.min(1, pullDistance / pullThreshold) }}
+                />
+              </div>
+            )}
+
             {hasNewPosts && (
               <div className="sticky top-2 z-10 mt-4 flex justify-center">
                 <button
@@ -1593,29 +1624,13 @@ export default function MarketplacePage() {
             ) : (
               <div className="mt-4 grid gap-5 2xl:grid-cols-2">
                 {posts.map((post) => {
-                  const imageIndex = Number(carouselIndex[post._id] || 0);
                   const badge = getListingBadge(post);
                   const postType = String(post.postType || "").toUpperCase();
                   const isRequirement = postType.startsWith("REQUIREMENT_");
                   const requirementTitle = post.title || (postType === "REQUIREMENT_RENT" ? "Looking for Rental Property" : "Looking to Buy Property");
 
-                  const handlePrevImage = (e) => {
-                    e.stopPropagation();
-                    setCarouselIndex(prev => ({
-                      ...prev,
-                      [post._id]: (prev[post._id] || 0) > 0 ? (prev[post._id] || 0) - 1 : post.media.length - 1
-                    }));
-                  };
-                  
-                  const handleNextImage = (e) => {
-                    e.stopPropagation();
-                    setCarouselIndex(prev => ({
-                      ...prev,
-                      [post._id]: (prev[post._id] || 0) < post.media.length - 1 ? (prev[post._id] || 0) + 1 : 0
-                    }));
-                  };
-
                   const detailBadges = buildPropertyDetailBadges(post, activeRole);
+                  const priceContextBadges = isRequirement ? [] : getPriceContextBadges(post);
 
                   const handleDoubleClickMedia = (event) => {
                     event.stopPropagation();
@@ -1631,9 +1646,6 @@ export default function MarketplacePage() {
                       key={post._id}
                       post={post}
                       media={post.media}
-                      imageIndex={imageIndex}
-                      onPrevImage={handlePrevImage}
-                      onNextImage={handleNextImage}
                       onDoubleClickMedia={handleDoubleClickMedia}
                       badge={badge}
                       badgeClassName={
@@ -1701,6 +1713,18 @@ export default function MarketplacePage() {
                             {formatMoney(post.price).replace("₹", "")}
                             {activeRole === "Tenant" && <span className="text-sm font-normal text-base-content/60">/mo</span>}
                           </p>
+                          {priceContextBadges.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                              {priceContextBadges.map((badge) => (
+                                <span
+                                  key={badge.key}
+                                  className={`rounded-full ${badge.color} px-2 py-0.5 text-[11px] font-semibold ${badge.textColor}`}
+                                >
+                                  {badge.label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                           <p className="line-clamp-1 text-base font-semibold text-base-content">{isRequirement ? requirementTitle : post.title || "Premium Listing"}</p>
                           <div className="flex items-center gap-2 text-xs text-base-content/60">
                             <MapPin className="size-3" />
@@ -1984,9 +2008,12 @@ export default function MarketplacePage() {
           duplicate nav — same component renders identically on every page. */}
 
       {activeSection === "marketplace" && (
-        <button type="button" className="btn btn-circle fixed bottom-24 right-5 z-40 h-14 w-14 border-none bg-primary text-white shadow-xl hover:bg-primary xl:hidden" onClick={() => setIsComposerOpen(true)}>
-          <Plus className="size-6" />
-        </button>
+        <>
+          <button type="button" className="btn btn-circle fixed bottom-24 right-5 z-40 h-14 w-14 border-none bg-primary text-white shadow-xl hover:bg-primary xl:hidden" onClick={() => setIsComposerOpen(true)}>
+            <Plus className="size-6" />
+          </button>
+          <ScrollTopButton className="bottom-40 right-6 xl:bottom-8 xl:right-8" />
+        </>
       )}
 
       <CompareFloatingBar selected={selectedForComparison} />

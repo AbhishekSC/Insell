@@ -45,6 +45,8 @@ import OfferHistoryTimeline from "../components/OfferHistoryTimeline";
 import PriceHistoryChart from "../components/PriceHistoryChart";
 import ReviewModal from "../components/ReviewModal";
 import { getCustomBadgeClasses } from "../lib/badgeColors";
+import { getSellerTrustSignals } from "../lib/trustSignals";
+import SimilarProperties from "../components/SimilarProperties";
 import axiosInstance from "../lib/axios";
 import AppShell from "../components/AppShell";
 import { addRecentlyViewed } from "../utils/recentlyViewed";
@@ -111,10 +113,15 @@ function getListingBadge(post) {
     return listingType === "rent" || listingType === "lease" ? "Rented" : "Sold";
   }
   if (post?.customBadge) return post.customBadge;
+  const postType = String(post?.postType || "").toUpperCase();
+  if (postType === "AGRICULTURAL_LISTING") {
+    return post?.listingType?.toLowerCase() === "rent" ? "Land for Lease" : "Land for Sale";
+  }
   const listingType = post?.listingType?.toLowerCase();
   if (listingType === "rent") return "For Rent";
   if (listingType === "lease") return "For Lease";
   if (listingType === "buy") return "Wanted";
+  if (listingType === "sell") return "For Sale";
   if (listingType) return titleCase(post.listingType);
   return "For Sale";
 }
@@ -1036,6 +1043,10 @@ export default function PropertyDetailPage() {
                   </div>
                 </div>
               </Section>
+
+              {!String(postData?.postType || "").startsWith("REQUIREMENT_") && (
+                <SimilarProperties postId={id} />
+              )}
             </div>
 
             {/* Sidebar */}
@@ -1075,6 +1086,22 @@ export default function PropertyDetailPage() {
                       )}
                     </div>
                   </Link>
+
+                  {(() => {
+                    const trust = getSellerTrustSignals(postData.author);
+                    return trust.length > 0 ? (
+                      <div className="mb-6 -mt-2 flex flex-wrap gap-1.5">
+                        {trust.map((s) => (
+                          <span
+                            key={s.key}
+                            className={`rounded-full ${s.color} px-2.5 py-1 text-[11px] font-semibold ${s.textColor}`}
+                          >
+                            {s.label}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
 
                   <div className="space-y-3">
                     {postData.author?.mobileNumber && (
