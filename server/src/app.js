@@ -64,6 +64,13 @@ app.use(
   })
 );
 
+// Lightweight liveness probe — no DB, no auth. Used by the external
+// keep-alive ping (see .github/workflows/keep-alive.yml) and any uptime
+// monitor.
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", uptime: process.uptime(), ts: Date.now() });
+});
+
 app.use("/api", routes);
 app.use(notFoundHandler);
 if (isSentryEnabled()) {
