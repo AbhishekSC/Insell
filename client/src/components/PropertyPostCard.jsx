@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Heart, Eye, MessageCircle, Bookmark, Phone, ChevronLeft, ChevronRight, Volume2, VolumeX, Building2, Share2 } from "lucide-react";
+import { Heart, Eye, MessageCircle, Bookmark, Phone, Volume2, VolumeX, Building2, Share2 } from "lucide-react";
 import PostAuthorLink from "./PostAuthorLink";
 import { useStoryOverlay } from "../context/StoryOverlayContext";
+import { lqipUrl, cardImageUrl } from "../lib/cloudinaryImage";
 
 function isVideoUrl(url) {
   if (!url) return false;
@@ -19,6 +20,32 @@ function relativeDate(dateString) {
   return `${days}d ago`;
 }
 
+// One image inside the swipeable gallery — blur-up placeholder that fades to
+// the right-sized Cloudinary variant on load.
+function GalleryImage({ src, alt, onDoubleClick }) {
+  const [loaded, setLoaded] = useState(false);
+  const lqip = lqipUrl(src);
+  useEffect(() => {
+    setLoaded(false);
+  }, [src]);
+  return (
+    <>
+      {lqip && !loaded && (
+        <img src={lqip} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-110 object-cover blur-xl" />
+      )}
+      <img
+        src={cardImageUrl(src)}
+        alt={alt || "Property"}
+        loading="lazy"
+        onLoad={() => setLoaded(true)}
+        onError={() => setLoaded(true)}
+        onDoubleClick={onDoubleClick}
+        className={`relative h-full w-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
+      />
+    </>
+  );
+}
+
 // Shared property card used by the marketplace feed and the profile page's
 // Posts/Saved grids. Page-specific behavior (role-based detail badges,
 // requirement-post layout, friend-gated contact, report vs. edit/delete
@@ -29,9 +56,6 @@ function relativeDate(dateString) {
 export default function PropertyPostCard({
   post,
   media = [],
-  imageIndex = 0,
-  onPrevImage,
-  onNextImage,
   onDoubleClickMedia,
   badge,
   badgeClassName,
@@ -59,32 +83,45 @@ export default function PropertyPostCard({
   mediaOverlay,
 }) {
   const [isMuted, setIsMuted] = useState(true);
-  const image = media[imageIndex] || media[0];
-  const isVideo = isVideoUrl(image);
-  const hasMultipleImages = media.length > 1;
-
-  // Autoplay depends on two independent signals — actually scrolled into
-  // view, AND no story/highlight viewer currently covering the screen (that
-  // overlay sits on top without changing this card's own scroll visibility,
-  // so the IntersectionObserver alone never notices it's now hidden).
-  const videoElRef = useRef(null);
-  const isIntersectingRef = useRef(false);
   const { isActive: isStoryOverlayActive } = useStoryOverlay();
 
-  const applyVideoPlayState = () => {
-    const el = videoElRef.current;
-    if (!el) return;
-    if (isIntersectingRef.current && !isStoryOverlayActive) {
-      el.play().catch(() => {});
-    } else {
-      el.pause();
-    }
+  // Instagram-style swipeable gallery: every media item is a snap slide in a
+  // horizontally-scrolling strip. `activeIdx` follows the swipe; the arrows
+  // (desktop hover only) just scroll it by one.
+  const slides = Array.isArray(media) ? media.filter(Boolean) : [];
+  const hasMultiple = slides.length > 1;
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [cardInView, setCardInView] = useState(false);
+  const scrollerRef = useRef(null);
+  const videoRefs = useRef([]);
+
+  const activeMedia = slides[activeIdx] || slides[0];
+  const activeIsVideo = isVideoUrl(activeMedia);
+
+  const handleScroll = () => {
+    const el = scrollerRef.current;
+    if (!el || !el.clientWidth) return;
+    const idx = Math.max(0, Math.min(slides.length - 1, Math.round(el.scrollLeft / el.clientWidth)));
+    setActiveIdx((prev) => (prev === idx ? prev : idx));
   };
 
+  // Only the centred slide's video plays, and only while the card is on
+  // screen and no story/highlight viewer is covering it.
   useEffect(() => {
-    applyVideoPlayState();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isStoryOverlayActive]);
+    videoRefs.current.forEach((v, i) => {
+      if (!v) return;
+      if (i === activeIdx && cardInView && !isStoryOverlayActive) v.play().catch(() => {});
+      else v.pause();
+    });
+  }, [activeIdx, cardInView, isStoryOverlayActive]);
+
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return undefined;
+    const obs = new IntersectionObserver(([entry]) => setCardInView(entry.isIntersecting), { threshold: 0.5 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   return (
     <article
@@ -94,70 +131,44 @@ export default function PropertyPostCard({
       <div className="relative overflow-hidden">
         {requirementBlock ? (
           requirementBlock
-        ) : image ? (
-          isVideo ? (
-            <video
-              src={image}
-              className={`${mediaHeightClass} w-full object-cover`}
-              muted={isMuted}
-              loop
-              playsInline
-              // Instagram-style feed playback: no player chrome, autoplay
-              // (muted, browsers require that) while scrolled into view and
-              // no story viewer is open, pause otherwise. Full controls
-              // still show in the "Full screen" viewer.
-              ref={(el) => {
-                videoElRef.current = el;
-                if (!el) return;
-                const observer = new IntersectionObserver(
-                  ([entry]) => {
-                    isIntersectingRef.current = entry.isIntersecting;
-                    applyVideoPlayState();
-                  },
-                  { threshold: 0.5 }
-                );
-                observer.observe(el);
-                return () => observer.disconnect();
-              }}
-              onDoubleClick={onDoubleClickMedia}
-            />
-          ) : (
-            <>
-              <img
-                src={image}
-                alt={post.title || "Property"}
-                className={`${mediaHeightClass} w-full object-cover`}
-                loading="lazy"
-                onDoubleClick={onDoubleClickMedia}
-              />
-              {hasMultipleImages && (
-                <>
-                  <button
-                    type="button"
-                    onClick={onPrevImage}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white transition-opacity hover:bg-black/70"
-                  >
-                    <ChevronLeft className="size-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onNextImage}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white transition-opacity hover:bg-black/70"
-                  >
-                    <ChevronRight className="size-4" />
-                  </button>
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                    {media.map((_, idx) => (
-                      <div
-                        key={idx}
-                        className={`h-1.5 w-1.5 rounded-full transition-colors ${idx === imageIndex ? "bg-white" : "bg-white/50"}`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-            </>
-          )
+        ) : slides.length ? (
+          <>
+            <div
+              ref={scrollerRef}
+              onScroll={handleScroll}
+              className={`flex ${mediaHeightClass} w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
+            >
+              {slides.map((m, i) => (
+                <div key={i} className="relative h-full w-full shrink-0 snap-center bg-base-200">
+                  {isVideoUrl(m) ? (
+                    <video
+                      ref={(el) => { videoRefs.current[i] = el; }}
+                      src={m}
+                      className="h-full w-full object-cover"
+                      muted={isMuted}
+                      loop
+                      playsInline
+                      preload="metadata"
+                      onDoubleClick={onDoubleClickMedia}
+                    />
+                  ) : (
+                    <GalleryImage src={m} alt={post.title} onDoubleClick={onDoubleClickMedia} />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {hasMultiple && (
+              <div className="pointer-events-none absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1">
+                {slides.map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`h-1.5 rounded-full transition-all ${idx === activeIdx ? "w-4 bg-white" : "w-1.5 bg-white/60"}`}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         ) : (
           <div className={`flex ${mediaHeightClass} w-full items-center justify-center bg-base-200 text-base-content/40`}>
             <Building2 className="size-10" />
@@ -190,7 +201,7 @@ export default function PropertyPostCard({
         </div>
 
         <div className="absolute right-3 bottom-3 flex items-center gap-2">
-          {isVideo && (
+          {activeIsVideo && (
             <button
               type="button"
               className="size-8 rounded-full flex items-center justify-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75 transition-opacity"
@@ -218,13 +229,13 @@ export default function PropertyPostCard({
           )}
         </div>
 
-        {image && onFullscreen && (
+        {activeMedia && onFullscreen && (
           <button
             type="button"
             className="btn btn-xs absolute bottom-2 left-2 border-none bg-black/55 text-white hover:bg-black/65"
             onClick={(event) => {
               event.stopPropagation();
-              onFullscreen(image);
+              onFullscreen(activeMedia);
             }}
           >
             Full screen

@@ -9,6 +9,7 @@ import {
   getPropertyFeed,
   getPropertyMediaUploadSignature,
   getPropertyPostById,
+  getSimilarProperties,
   incrementViewCount,
   reportPost,
   togglePropertyPostLike,
@@ -23,6 +24,7 @@ const router = new express.Router();
 router.get("/", verifyUser, requireVerified, getPropertyFeed);
 router.get("/latest", verifyUser, requireVerified, getLatestFeedPost);
 router.get("/:id", verifyUser, requireVerified, getPropertyPostById);
+router.get("/:id/similar", verifyUser, requireVerified, getSimilarProperties);
 router.get("/:id/analytics", verifyUser, requireVerified, getPropertyAnalytics);
 router.post("/", verifyUser, requireVerified, createPropertyPost);
 router.post("/compare", verifyUser, requireVerified, compareProperties);
