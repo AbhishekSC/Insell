@@ -41,6 +41,7 @@ import toast from "react-hot-toast";
 import ShareModal from "../components/ShareModal";
 import ReportPostModal from "../components/ReportPostModal";
 import OfferModal from "../components/OfferModal";
+import VisitScheduler from "../components/VisitScheduler";
 import OfferHistoryTimeline from "../components/OfferHistoryTimeline";
 import PriceHistoryChart from "../components/PriceHistoryChart";
 import ReviewModal from "../components/ReviewModal";
@@ -1211,6 +1212,9 @@ export default function PropertyDetailPage() {
                       Make an Offer
                     </button>
                   )}
+
+                  <VisitScheduler post={postData} authUser={authUser} isOwner={isOwner} />
+
 
                   {!isOwner && myOffer && ["pending", "countered"].includes(myOffer.status) && (
                     <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">

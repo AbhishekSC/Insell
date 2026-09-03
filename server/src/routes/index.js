@@ -21,6 +21,7 @@ import amenitiesRoutes from "./amenities.route.js";
 import locationRoutes from "./location.route.js";
 import adminRoutes from "./admin.route.js";
 import offerRoutes from "./offer.routes.js";
+import visitRequestRoutes from "./visitRequest.routes.js";
 import reviewRoutes from "./review.routes.js";
 import feedbackRoutes from "./feedback.route.js";
 
@@ -49,6 +50,7 @@ router.use("/amenities", amenitiesRoutes);
 router.use("/location", locationRoutes);
 router.use("/admin", adminRoutes);
 router.use("/offers", offerRoutes);
+router.use("/visits", visitRequestRoutes);
 router.use("/reviews", reviewRoutes);
 router.use("/feedback", feedbackRoutes);
 
