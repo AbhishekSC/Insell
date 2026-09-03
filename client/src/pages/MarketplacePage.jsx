@@ -1301,7 +1301,8 @@ export default function MarketplacePage() {
     <AppShell
       hideHero
       lockPageScroll={activeSection === "chat" || (activeSection === "communities" && Boolean(selectedCommunity))}
-      hideMobileHeader={activeSection === "chat"}
+      hideMobileHeader={activeSection === "chat" || (activeSection === "communities" && Boolean(selectedCommunity))}
+      autoHideHeaderOnScroll={activeSection === "marketplace"}
       title="Marketplace"
       subtitle="Social-first discovery"
       marketplaceSearch={search}
@@ -1373,13 +1374,11 @@ export default function MarketplacePage() {
 
           <main
             className={`min-w-0 flex-1 bg-transparent xl:h-[calc(100dvh-7.1rem)] xl:overflow-y-auto xl:rounded-2xl xl:p-1 xl:pb-6 ${
-              activeSection === "chat"
+              activeSection === "chat" || (activeSection === "communities" && selectedCommunity)
                 ? "h-[calc(100dvh-4rem)] overflow-hidden rounded-none p-0"
-                : activeSection === "communities" && selectedCommunity
-                  ? "h-[calc(100dvh-9rem)] overflow-hidden rounded-2xl p-1 pb-6"
-                  : activeSection === "communities"
-                    ? "rounded-2xl p-1 pb-6 xl:h-[calc(100dvh-9rem)] xl:overflow-hidden"
-                    : "rounded-2xl p-1 pb-6"
+                : activeSection === "communities"
+                  ? "rounded-2xl p-1 pb-6 xl:h-[calc(100dvh-9rem)] xl:overflow-hidden"
+                  : "rounded-2xl p-1 pb-6"
             }`}
           >
             {activeSection === "marketplace" ? (

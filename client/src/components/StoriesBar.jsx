@@ -233,6 +233,7 @@ export function StoryViewer({
 }) {
   const [progress, setProgress] = useState(0);
   const [showLikes, setShowLikes] = useState(false);
+  const [showViewers, setShowViewers] = useState(false);
   const [showSaveToHighlight, setShowSaveToHighlight] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const queryClient = useQueryClient();
@@ -284,6 +285,16 @@ export function StoryViewer({
     },
   });
 
+  const { data: viewersData, isLoading: isLoadingViewers } = useQuery({
+    queryKey: ["storyViewers", story._id],
+    enabled: showViewers,
+    retry: false,
+    queryFn: async () => {
+      const response = await axiosInstance.get(`/stories/${story._id}/viewers`);
+      return response.data?.data?.viewers || [];
+    },
+  });
+
   // Auto-advance after 5 seconds — paused while the likes list or the save-to-
   // highlight modal is open, so those flows can't get yanked out from under you
   useEffect(() => {
@@ -291,7 +302,7 @@ export function StoryViewer({
   }, [story]);
 
   useEffect(() => {
-    if (showLikes || showSaveToHighlight || showRemoveConfirm || isRemoving) {
+    if (showLikes || showViewers || showSaveToHighlight || showRemoveConfirm || isRemoving) {
       return undefined;
     }
 
@@ -306,7 +317,7 @@ export function StoryViewer({
     }, 100);
 
     return () => clearInterval(interval);
-  }, [story, onNext, showLikes, showSaveToHighlight, showRemoveConfirm, isRemoving]);
+  }, [story, onNext, showLikes, showViewers, showSaveToHighlight, showRemoveConfirm, isRemoving]);
 
   const isVideo = story.mediaType === "video";
 
@@ -426,10 +437,21 @@ export function StoryViewer({
 
           {/* Engagement */}
           <div className="absolute bottom-4 right-4 flex items-center gap-4 text-white">
-            <div className="flex items-center gap-1">
-              <Eye className="size-4" />
-              <span className="text-xs">{story.viewCount}</span>
-            </div>
+            {isOwnStory ? (
+              <button
+                type="button"
+                onClick={() => setShowViewers(true)}
+                className="flex items-center gap-1 transition-opacity hover:opacity-75"
+              >
+                <Eye className="size-4" />
+                <span className="text-xs underline underline-offset-2">{story.viewCount}</span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-1">
+                <Eye className="size-4" />
+                <span className="text-xs">{story.viewCount}</span>
+              </div>
+            )}
             {isOwnStory && highlightId ? (
               <button
                 type="button"
@@ -489,6 +511,17 @@ export function StoryViewer({
           users={likesData}
           isLoading={isLoadingLikes}
           emptyMessage="No likes yet."
+        />
+      ) : null}
+
+      {isOwnStory ? (
+        <UserListModal
+          isOpen={showViewers}
+          onClose={() => setShowViewers(false)}
+          title="Viewers"
+          users={viewersData}
+          isLoading={isLoadingViewers}
+          emptyMessage="No views yet."
         />
       ) : null}
 

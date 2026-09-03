@@ -461,6 +461,7 @@ export default function AppShell({
   hideHero = false,
   hideBottomNav = false,
   hideMobileHeader = false,
+  autoHideHeaderOnScroll = false,
   marketplaceSearch = "",
   onMarketplaceSearchChange,
   onCreateProperty,
@@ -492,6 +493,52 @@ export default function AppShell({
   const queryClient = useQueryClient();
   const previousRequestCountRef = useRef(0);
   const { unreadCount, streamClient, currentUserId } = useStreamContext();
+
+  // Mobile-only: hide the top navbar while scrolling down the feed, reveal
+  // it again on scroll up. Uses `transform: translateY` on a `fixed` header
+  // (compositor-only, GPU-accelerated) rather than animating `max-height`
+  // (which forces layout recalculation every frame and looks janky) — and
+  // reads scroll position in a rAF loop so state updates can't outpace the
+  // browser's paint cycle. A spacer reserves the header's measured height so
+  // content doesn't jump when it comes out of normal flow.
+  const [headerHiddenByScroll, setHeaderHiddenByScroll] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const headerRef = useRef(null);
+  const lastScrollYRef = useRef(0);
+  const scrollTickingRef = useRef(false);
+
+  useEffect(() => {
+    if (!autoHideHeaderOnScroll) return;
+    const handleScroll = () => {
+      if (scrollTickingRef.current) return;
+      scrollTickingRef.current = true;
+      requestAnimationFrame(() => {
+        const currentY = window.scrollY;
+        const delta = currentY - lastScrollYRef.current;
+        if (currentY < 64) {
+          setHeaderHiddenByScroll(false);
+        } else if (delta > 8) {
+          setHeaderHiddenByScroll(true);
+        } else if (delta < -8) {
+          setHeaderHiddenByScroll(false);
+        }
+        lastScrollYRef.current = currentY;
+        scrollTickingRef.current = false;
+      });
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [autoHideHeaderOnScroll]);
+
+  useEffect(() => {
+    if (!autoHideHeaderOnScroll || !headerRef.current) return;
+    const el = headerRef.current;
+    const updateHeight = () => setHeaderHeight(el.offsetHeight);
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [autoHideHeaderOnScroll]);
 
   // Drives the menu item: "blocked" (permission denied — only fixable in
   // browser settings), "enabled" (permission granted AND we have a token
@@ -845,7 +892,14 @@ export default function AppShell({
           : "min-h-screen bg-[radial-gradient(circle_at_20%_20%,hsl(var(--p)/0.16),transparent_45%),radial-gradient(circle_at_85%_15%,hsl(var(--s)/0.18),transparent_35%),radial-gradient(circle_at_80%_85%,hsl(var(--a)/0.18),transparent_45%)] bg-base-200"
       }
     >
-      <header className={`${hideMobileHeader ? "hidden xl:block " : ""}${isMarketplaceShell ? "sticky top-0 z-30 border-b border-base-300 bg-base-100/95 backdrop-blur" : "sticky top-0 z-30 border-b border-base-300/70 bg-base-100/75 backdrop-blur-2xl"}`}>
+      <header
+        ref={headerRef}
+        className={`${hideMobileHeader ? "hidden xl:block " : ""}z-30 ${autoHideHeaderOnScroll ? "fixed inset-x-0 top-0 xl:sticky" : "sticky top-0"} ${isMarketplaceShell ? "border-b border-base-300 bg-base-100/95 backdrop-blur" : "border-b border-base-300/70 bg-base-100/75 backdrop-blur-2xl"} ${
+          autoHideHeaderOnScroll
+            ? `transition-transform duration-300 ease-out will-change-transform xl:!translate-y-0 ${headerHiddenByScroll ? "-translate-y-full" : "translate-y-0"}`
+            : ""
+        }`}
+      >
         <div className={`mx-auto px-4 py-3 sm:px-6 ${isMarketplaceShell ? "max-w-[1440px]" : "max-w-7xl"}`}>
           {isMarketplaceShell ? (
             <>
@@ -1112,6 +1166,13 @@ export default function AppShell({
           )}
         </div>
       </header>
+
+      {/* Reserves the fixed header's height so content doesn't jump when it
+          comes out of normal flow — only needed below xl, where the header
+          switches from `sticky` (still in-flow) to `fixed`. */}
+      {autoHideHeaderOnScroll && (
+        <div className="xl:hidden" style={{ height: headerHeight }} />
+      )}
 
       <main
         className={`mx-auto w-full ${hideMobileHeader ? "px-0 pt-0 xl:px-4 xl:pt-6" : "px-4 pt-6 sm:px-6"} ${isMarketplaceShell ? "max-w-[1440px]" : "max-w-7xl"} ${

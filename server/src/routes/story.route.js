@@ -8,6 +8,7 @@ import {
   uploadStoryMedia,
   toggleStoryLike,
   getStoryLikes,
+  getStoryViewers,
 } from "../controllers/story.controller.js";
 import { verifyUser, requireVerified } from "../middlewares/auth.middleware.js";
 import { uploadStoryMedia as upload } from "../middlewares/upload.middleware.js";
@@ -38,6 +39,9 @@ router.post("/:storyId/like", toggleStoryLike);
 
 // Get the users who liked a story (story owner only)
 router.get("/:storyId/likes", getStoryLikes);
+
+// Get the users who viewed a story, most-recent-first (story owner only)
+router.get("/:storyId/viewers", getStoryViewers);
 
 // Delete a story
 router.delete("/:storyId", deleteStory);
