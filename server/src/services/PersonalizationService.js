@@ -45,12 +45,13 @@ class PersonalizationService {
   static calculatePropertyScore(property, user, userBehavior = {}) {
     let score = 0;
     const weights = {
-      location: 25,
-      budget: 20,
-      propertyType: 20,
-      engagement: 20,
-      following: 10,
-      contentFeatures: 5, // New: content-based filtering
+      location: 22,
+      budget: 18,
+      propertyType: 16, // Apartment / Villa / Commercial / Agricultural Land / ...
+      postType: 12,     // PROPERTY_SALE / PROPERTY_RENT / AGRICULTURAL_LISTING / ...
+      engagement: 18,
+      following: 9,
+      contentFeatures: 5, // content-based filtering
     };
 
     // Location-based scoring
@@ -59,8 +60,11 @@ class PersonalizationService {
     // Budget-based scoring
     score += this.getBudgetScore(property, userBehavior) * (weights.budget / 100);
 
-    // Property type scoring
+    // Property type scoring (physical type)
     score += this.getPropertyTypeScore(property, userBehavior) * (weights.propertyType / 100);
+
+    // Post type scoring (listing intent — sale vs rent vs land vs project…)
+    score += this.getPostTypeScore(property, userBehavior) * (weights.postType / 100);
 
     // Engagement history scoring
     score += this.getEngagementScore(property, userBehavior) * (weights.engagement / 100);
@@ -173,6 +177,25 @@ class PersonalizationService {
   }
 
   /**
+   * Score a property by how well its postType (listing intent — sale, rent,
+   * agricultural land, builder project, requirement, …) matches the types the
+   * user has been engaging with. Mirrors getPropertyTypeScore.
+   */
+  static getPostTypeScore(property, userBehavior) {
+    const preferences = userBehavior.preferredPostTypes;
+    if (!preferences || preferences.length === 0) {
+      return 50; // Neutral — no signal yet (or a pre-upgrade cached behavior blob)
+    }
+
+    const match = preferences.find(pref => pref.type === property.postType);
+    if (match) {
+      return Math.min(100, match.score + 50);
+    }
+
+    return 30; // Non-preferred intent
+  }
+
+  /**
    * Calculate engagement score based on similar properties user has engaged with
    */
   static getEngagementScore(property, userBehavior) {
@@ -184,9 +207,10 @@ class PersonalizationService {
     const similarProperties = userBehavior.engagedProperties.filter(engaged => {
       const priceSimilarity = Math.abs((engaged.price - property.price) / (engaged.price || 1)) < 0.3;
       const typeMatch = engaged.propertyType === property.propertyType;
+      const postTypeMatch = Boolean(engaged.postType) && engaged.postType === property.postType;
       const locationMatch = engaged.city === property.city;
 
-      return priceSimilarity || typeMatch || locationMatch;
+      return priceSimilarity || typeMatch || postTypeMatch || locationMatch;
     });
 
     // Score based on number of similar engaged properties
@@ -342,6 +366,22 @@ class PersonalizationService {
 
       logger.info(`🏠 [RECOMMENDATION] Preferred property types: ${preferredPropertyTypes.slice(0, 5).map(pt => `${pt.type}(${pt.score.toFixed(1)})`).join(', ')}`);
 
+      // Preferred post types (listing intent) — same weighting as property
+      // types. Ignores blank/legacy postTypes so it only kicks in once there
+      // is a real signal.
+      const postTypeCounts = {};
+      engagedProperties.forEach(property => {
+        const type = property.postType;
+        if (!type) return;
+        postTypeCounts[type] = (postTypeCounts[type] || 0) + (property.weight || 1);
+      });
+
+      const preferredPostTypes = Object.entries(postTypeCounts)
+        .map(([type, count]) => ({ type, score: Math.min(100, count * 10) }))
+        .sort((a, b) => b.score - a.score);
+
+      logger.info(`🧭 [RECOMMENDATION] Preferred post types: ${preferredPostTypes.slice(0, 5).map(pt => `${pt.type}(${pt.score.toFixed(1)})`).join(', ')}`);
+
       // Extract comment analytics for enhanced personalization
       const commentKeywords = commentAnalytics.commonKeywords || [];
       const commentIntents = commentAnalytics.detectedIntents || [];
@@ -362,6 +402,7 @@ class PersonalizationService {
         engagedProperties,
         typicalPriceRange,
         preferredPropertyTypes,
+        preferredPostTypes,
         totalEngagements: engagedProperties.length,
         isVerified: user.isVerified || false,
         // New comment-based analytics

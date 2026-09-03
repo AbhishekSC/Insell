@@ -11,10 +11,35 @@
 export function buildPropertyDetailBadges(post, activeRole) {
   const details = [];
 
-  if (post.bedrooms) details.push({ label: `${post.bedrooms} BHK`, color: "bg-slate-100", textColor: "text-slate-700" });
-  if (post.bathrooms) details.push({ label: `${post.bathrooms} Baths`, color: "bg-slate-100", textColor: "text-slate-700" });
-  if (post.areaSqft) details.push({ label: `${Number(post.areaSqft)} sqft`, color: "bg-slate-100", textColor: "text-slate-700" });
-  if (post.propertyType) details.push({ label: post.propertyType, color: "bg-slate-100", textColor: "text-slate-700" });
+  const land = post.postMeta?.land || {};
+  const commercial = post.postMeta?.commercial || {};
+  const postTypeUpper = String(post.postType || "").toUpperCase();
+  // Also treat a post as land/commercial when it carries that meta even if
+  // postType is a legacy PROPERTY_SALE (older posts predate roles being
+  // allowed to create these types).
+  const isLand = postTypeUpper === "AGRICULTURAL_LISTING"
+    || Number(land.landArea) > 0
+    || post.propertyType === "Agricultural Land";
+  const isCommercial = postTypeUpper === "COMMERCIAL_LISTING"
+    || Boolean(commercial.commercialType)
+    || Number(commercial.carpetArea) > 0;
+
+  if (isLand) {
+    if (land.landArea) details.push({ label: `${land.landArea} ${land.landAreaUnit || ""}`.trim(), color: "bg-slate-100", textColor: "text-slate-700" });
+    if (land.soilType) details.push({ label: land.soilType, color: "bg-slate-100", textColor: "text-slate-700" });
+    if (land.waterAvailability) details.push({ label: land.waterAvailability, color: "bg-blue-50", textColor: "text-blue-700" });
+    if (land.roadAccess) details.push({ label: "Road Access", color: "bg-slate-100", textColor: "text-slate-700" });
+  } else if (isCommercial) {
+    if (commercial.commercialType) details.push({ label: commercial.commercialType, color: "bg-slate-100", textColor: "text-slate-700" });
+    if (commercial.carpetArea) details.push({ label: `${Number(commercial.carpetArea)} sqft carpet`, color: "bg-slate-100", textColor: "text-slate-700" });
+    if (commercial.floorNumber) details.push({ label: `Floor ${commercial.floorNumber}`, color: "bg-slate-100", textColor: "text-slate-700" });
+    if (post.areaSqft) details.push({ label: `${Number(post.areaSqft)} sqft`, color: "bg-slate-100", textColor: "text-slate-700" });
+  } else {
+    if (post.bedrooms) details.push({ label: `${post.bedrooms} BHK`, color: "bg-slate-100", textColor: "text-slate-700" });
+    if (post.bathrooms) details.push({ label: `${post.bathrooms} Baths`, color: "bg-slate-100", textColor: "text-slate-700" });
+    if (post.areaSqft) details.push({ label: `${Number(post.areaSqft)} sqft`, color: "bg-slate-100", textColor: "text-slate-700" });
+    if (post.propertyType) details.push({ label: post.propertyType, color: "bg-slate-100", textColor: "text-slate-700" });
+  }
 
   if (activeRole === "Tenant") {
     if (post.postMeta?.furnishing) details.push({ label: post.postMeta.furnishing, color: "bg-indigo-50", textColor: "text-indigo-700" });
