@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, Check, Loader2, X } from "lucide-react";
+import { CalendarClock, Check, Loader2, Plus, X } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 
@@ -21,34 +21,62 @@ const defaultSlot = (plusDays, hour) => {
   return toLocalInput(d);
 };
 
-function SlotPicker({ title, initial, submitLabel, isPending, onClose, onSubmit }) {
-  const [slots, setSlots] = useState(initial || [defaultSlot(2, 11), "", ""]);
+function SlotPicker({ title, submitLabel, isPending, onClose, onSubmit }) {
+  const [slots, setSlots] = useState([defaultSlot(2, 11)]);
   const [note, setNote] = useState("");
   const chosen = slots.map((s) => s && new Date(s)).filter((d) => d && !Number.isNaN(d.getTime()) && d.getTime() > Date.now());
 
+  const setAt = (i, v) => setSlots((prev) => prev.map((x, j) => (j === i ? v : x)));
+  const addSlot = () => setSlots((prev) => (prev.length < 3 ? [...prev, defaultSlot(prev.length + 2, 11)] : prev));
+  const removeSlot = (i) => setSlots((prev) => prev.filter((_, j) => j !== i));
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4" onClick={onClose}>
-      <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-base-100 p-6 shadow-xl sm:max-w-md sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-base-100 p-5 shadow-xl sm:max-w-md sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-base-content">{title}</h3>
           <button type="button" className="btn btn-sm btn-circle btn-ghost" onClick={onClose}><X className="size-4" /></button>
         </div>
-        <p className="mt-1 text-sm text-base-content/60">Offer up to 3 times that work for you.</p>
-        <div className="mt-4 space-y-2">
+        <p className="mt-1 text-sm text-base-content/60">
+          Pick a time you can visit. Add a couple of alternatives so the owner can choose one that works for both of you.
+        </p>
+
+        <div className="mt-4 space-y-3">
           {slots.map((s, i) => (
-            <input
-              key={i}
-              type="datetime-local"
-              value={s}
-              min={toLocalInput(new Date())}
-              onChange={(e) => setSlots((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))}
-              className="input input-bordered w-full border-base-300"
-            />
+            <div key={i}>
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-xs font-medium text-base-content/60">
+                  {i === 0 ? "Preferred time" : `Alternative ${i}`}
+                </span>
+                {i > 0 && (
+                  <button type="button" className="text-xs text-error hover:underline" onClick={() => removeSlot(i)}>
+                    Remove
+                  </button>
+                )}
+              </div>
+              <input
+                type="datetime-local"
+                value={s}
+                min={toLocalInput(new Date())}
+                onChange={(e) => setAt(i, e.target.value)}
+                className="input input-bordered w-full border-base-300"
+              />
+            </div>
           ))}
+          {slots.length < 3 && (
+            <button
+              type="button"
+              onClick={addSlot}
+              className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+            >
+              <Plus className="size-4" /> Add another time
+            </button>
+          )}
         </div>
+
         <textarea
-          className="textarea textarea-bordered mt-3 min-h-16 w-full border-base-300"
-          placeholder="Note (optional)"
+          className="textarea textarea-bordered mt-4 min-h-16 w-full border-base-300"
+          placeholder="Note for the owner (optional)"
           maxLength={500}
           value={note}
           onChange={(e) => setNote(e.target.value)}
@@ -89,8 +117,10 @@ function VisitCard({ visit, meId, isOwner, onAct, pending }) {
 
       {active && (
         <>
-          <p className="mt-2 text-xs text-base-content/60">Proposed times</p>
-          <div className="mt-1 flex flex-wrap gap-1.5">
+          <p className="mt-3 text-xs font-medium text-base-content/60">
+            {myTurn ? "Pick a time to confirm" : "Proposed times"}
+          </p>
+          <div className="mt-1.5 space-y-1.5">
             {visit.proposedSlots.map((s) => {
               const val = new Date(s).toISOString();
               const picked = confirmSlot === val;
@@ -100,8 +130,13 @@ function VisitCard({ visit, meId, isOwner, onAct, pending }) {
                   type="button"
                   disabled={!myTurn}
                   onClick={() => setConfirmSlot(picked ? "" : val)}
-                  className={`rounded-full border px-2.5 py-1 text-xs ${picked ? "border-primary bg-primary/10 text-primary" : "border-base-300 text-base-content/80"} ${myTurn ? "" : "opacity-60"}`}
+                  className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition ${
+                    picked ? "border-primary bg-primary/10 text-primary" : "border-base-300 text-base-content/80 hover:border-primary/40"
+                  } ${myTurn ? "" : "cursor-default opacity-70"}`}
                 >
+                  <span className={`grid size-4 shrink-0 place-items-center rounded-full border ${picked ? "border-primary bg-primary text-white" : "border-base-300"}`}>
+                    {picked && <Check className="size-3" />}
+                  </span>
                   {fmt(s)}
                 </button>
               );
@@ -109,23 +144,25 @@ function VisitCard({ visit, meId, isOwner, onAct, pending }) {
           </div>
 
           {myTurn ? (
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 space-y-2">
               <button
                 type="button"
-                className="btn btn-sm flex-1 border-none bg-success text-white hover:bg-success"
+                className="btn btn-sm w-full border-none bg-success text-white hover:bg-success disabled:bg-base-300 disabled:text-base-content/40"
                 disabled={pending || !confirmSlot}
                 onClick={() => onAct(visit._id, { action: "confirm", slot: confirmSlot })}
               >
-                <Check className="size-4" /> Confirm
+                <Check className="size-4" /> {confirmSlot ? "Confirm this time" : "Select a time above"}
               </button>
-              <button type="button" className="btn btn-sm border-base-300" onClick={() => setShowPropose(true)}>
-                Propose new time
-              </button>
-              {isOwner && (
-                <button type="button" className="btn btn-sm btn-ghost text-error" disabled={pending} onClick={() => onAct(visit._id, { action: "decline" })}>
-                  Decline
+              <div className="flex gap-2">
+                <button type="button" className="btn btn-sm flex-1 border-base-300" onClick={() => setShowPropose(true)}>
+                  Propose new time
                 </button>
-              )}
+                {isOwner && (
+                  <button type="button" className="btn btn-sm flex-1 border-error/40 text-error hover:bg-error/10" disabled={pending} onClick={() => onAct(visit._id, { action: "decline" })}>
+                    Decline
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             <p className="mt-3 text-xs text-base-content/60">Waiting for {isOwner ? "the visitor" : "the owner"} to respond.</p>
@@ -136,7 +173,7 @@ function VisitCard({ visit, meId, isOwner, onAct, pending }) {
       {!isOwner && ["PENDING", "RESCHEDULE_PROPOSED", "CONFIRMED"].includes(visit.status) && (
         <button
           type="button"
-          className="mt-2 w-full text-center text-xs font-medium text-error hover:text-error"
+          className="mt-3 w-full text-center text-xs font-medium text-error hover:underline"
           disabled={pending}
           onClick={() => onAct(visit._id, { action: "cancel" })}
         >
