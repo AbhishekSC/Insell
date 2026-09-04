@@ -2013,8 +2013,15 @@ export default function MarketplacePage() {
             </div>
 
             <div className="mt-4 rounded-xl border border-base-300 bg-base-100 p-3">
-              <div className="mb-2">
+              <div className="mb-2 flex items-center justify-between">
                 <p className="text-sm font-bold text-base-content">Recommended for You</p>
+                <button
+                  type="button"
+                  className="btn btn-xs border border-base-300 bg-base-100 text-primary hover:bg-primary/10"
+                  onClick={() => navigate("/recommended")}
+                >
+                  View all
+                </button>
               </div>
               <div className="space-y-2">
                 {personalizedRecommendations.length > 0 ? (

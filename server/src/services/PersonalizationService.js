@@ -1115,25 +1115,39 @@ class PersonalizationService {
   static async getRecommendationCandidates(userId, user, limit) {
     const baseMatch = { author: { $ne: userId }, status: "PUBLISHED", visibility: "PUBLIC" };
     const authorSelect = "fullName profilePic activeRole primaryRole city isVerified";
-    const minPool = Math.max(limit * 5, 20); // enough headroom for seen-filter + diversity caps
-    // Newest-first when we have to cap — bias the pool toward fresh inventory;
-    // stage 2 re-ranks by the full blend anyway.
+    // The local pool only needs enough headroom for the seen-filter + diversity
+    // walk to have room — NOT `limit × 5`. A small catalogue can legitimately
+    // have, say, 18 good local listings; demanding 20 threw all 18 away and
+    // served the national catalogue instead (the bug this replaces).
+    const workable = Math.max(limit, 8);
+    // Newest-first when we have to cap — bias toward fresh inventory; stage 2
+    // re-ranks by the full blend anyway.
     const load = (extra) =>
       PropertyPost.find({ ...baseMatch, ...extra })
         .populate("author", authorSelect)
         .sort({ createdAt: -1 })
         .limit(RECO_CANDIDATE_CAP)
         .lean();
+    const dedupById = (arr) => {
+      const seen = new Set();
+      return arr.filter((p) => {
+        const k = String(p._id);
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+    };
 
     const { point, source } = this.resolveUserPoint(user);
+    const cityRaw = (user?.city || user?.locationDetails?.city || user?.homeBase || "").trim();
+    const cityMatch = cityRaw ? { city: new RegExp(escapeRegExp(cityRaw), "i") } : null;
 
-    let pool = [];
+    // 1 — the local pool: nearest-first within the radius, else a city-string
+    // match, else nothing.
+    let local = [];
     let strategy = "national";
-
     if (point) {
-      // $near needs the 2dsphere index and skips coordless posts — fine, those
-      // come back via the city-string tier if the geo pool is too thin.
-      pool = await PropertyPost.find({
+      local = await PropertyPost.find({
         ...baseMatch,
         location: { $near: { $geometry: { type: "Point", coordinates: point }, $maxDistance: RECO_NEAR_METERS } },
       })
@@ -1141,25 +1155,24 @@ class PersonalizationService {
         .limit(RECO_CANDIDATE_CAP)
         .lean();
       strategy = `geo:${source}`;
+    } else if (cityMatch) {
+      local = await load(cityMatch);
+      strategy = "city";
     }
 
-    if (pool.length < minPool) {
-      const city = (user?.city || user?.locationDetails?.city || user?.homeBase || "").trim();
-      if (city) {
-        const cityPool = await load({ city: new RegExp(escapeRegExp(city), "i") });
-        if (cityPool.length > pool.length) {
-          pool = cityPool;
-          strategy = "city";
-        }
-      }
-    }
+    // 2 — enough local inventory: rank within it, done. This is the common
+    // path for any user with a resolvable location in a served city.
+    if (local.length >= workable) return { pool: local, strategy };
 
-    if (pool.length < minPool) {
-      pool = await load({});
-      strategy = "national";
-    }
-
-    return { pool, strategy };
+    // 3 — thin locally: keep every local candidate, then top up so the
+    // diversity walk isn't starved. Stage-2 scoring gives far-away top-ups a
+    // low location score, so they sink below the local ones on their own — a
+    // Pune user still sees their few Pune listings first, then the rest.
+    const topUp = await load({});
+    return {
+      pool: dedupById([...local, ...topUp]),
+      strategy: local.length ? `${strategy}+topup` : "national",
+    };
   }
 
   /**
