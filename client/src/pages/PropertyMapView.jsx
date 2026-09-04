@@ -521,45 +521,37 @@ export default function PropertyMapView() {
                 key={property._id}
                 position={[property.latitude, property.longitude]}
                 icon={createPinIcon(isSel)}
-                eventHandlers={{
-                  click: () => {
-                    if (isMobile && isSel) {
-                      navigate(`/property/${property._id}`);
-                    } else {
-                      handleMarkerClick(property);
-                    }
-                  },
-                }}
+                eventHandlers={{ click: () => handleMarkerClick(property) }}
               >
-                <Tooltip
-                  direction="top"
-                  offset={[0, -6]}
-                  opacity={1}
-                  permanent={isMobile && isSel}
-                  interactive={isMobile && isSel}
-                  className="pin-price-tooltip"
-                >
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => isMobile && isSel && navigate(`/property/${property._id}`)}
-                  >
+                {!isMobile && (
+                  <Tooltip direction="top" offset={[0, -6]} opacity={1} className="pin-price-tooltip">
                     <span className="font-bold text-primary">{formatPrice(property.price)}</span>
                     {(property.locality || property.city) && (
                       <span className="block text-[10px] text-base-content/60">
                         {property.locality || property.city}
                       </span>
                     )}
-                    {isMobile && isSel && (
-                      <span className="mt-0.5 block text-[10px] font-semibold text-primary">View details ›</span>
-                    )}
-                  </div>
-                </Tooltip>
-                {!isMobile && (
+                  </Tooltip>
+                )}
                 <Popup
-                  maxWidth={200}
+                  maxWidth={isMobile ? 180 : 200}
                   className="custom-popup"
                 >
+                  {isMobile ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/property/${property._id}`)}
+                      className="block w-[150px] p-1.5 text-left"
+                    >
+                      <span className="block text-sm font-bold text-primary">{formatPrice(property.price)}</span>
+                      {(property.locality || property.city) && (
+                        <span className="block text-[11px] text-base-content/60">
+                          {property.locality || property.city}
+                        </span>
+                      )}
+                      <span className="mt-1 block text-[11px] font-semibold text-primary">View details ›</span>
+                    </button>
+                  ) : (
                   <div className="p-0 w-[172px]">
                     {property.mediaUrls?.[0] && (
                       <img
@@ -612,8 +604,8 @@ export default function PropertyMapView() {
                       </button>
                     </div>
                   </div>
+                  )}
                 </Popup>
-                )}
               </Marker>
               );
             })}
@@ -625,40 +617,29 @@ export default function PropertyMapView() {
               <Marker
                 position={[deepLinkedProperty.latitude, deepLinkedProperty.longitude]}
                 icon={createPinIcon(true)}
-                eventHandlers={{
-                  click: () => {
-                    if (isMobile && selectedProperty?._id === deepLinkedProperty._id) {
-                      navigate(`/property/${deepLinkedProperty._id}`);
-                    } else {
-                      handleMarkerClick(deepLinkedProperty);
-                    }
-                  },
-                }}
+                eventHandlers={{ click: () => handleMarkerClick(deepLinkedProperty) }}
               >
-                <Tooltip
-                  direction="top"
-                  offset={[0, -6]}
-                  opacity={1}
-                  permanent={isMobile && selectedProperty?._id === deepLinkedProperty._id}
-                  interactive={isMobile && selectedProperty?._id === deepLinkedProperty._id}
-                  className="pin-price-tooltip"
-                >
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() =>
-                      isMobile && selectedProperty?._id === deepLinkedProperty._id &&
-                      navigate(`/property/${deepLinkedProperty._id}`)
-                    }
-                  >
-                    <span className="font-bold text-primary">{formatPrice(deepLinkedProperty.price)}</span>
-                    {isMobile && selectedProperty?._id === deepLinkedProperty._id && (
-                      <span className="mt-0.5 block text-[10px] font-semibold text-primary">View details ›</span>
-                    )}
-                  </div>
-                </Tooltip>
                 {!isMobile && (
-                <Popup maxWidth={200}>
+                  <Tooltip direction="top" offset={[0, -6]} opacity={1} className="pin-price-tooltip">
+                    <span className="font-bold text-primary">{formatPrice(deepLinkedProperty.price)}</span>
+                  </Tooltip>
+                )}
+                <Popup maxWidth={isMobile ? 180 : 200}>
+                  {isMobile ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/property/${deepLinkedProperty._id}`)}
+                      className="block w-[150px] p-1.5 text-left"
+                    >
+                      <span className="block text-sm font-bold text-primary">{formatPrice(deepLinkedProperty.price)}</span>
+                      {distanceToFocusKm != null && (
+                        <span className="block text-[11px] font-semibold" style={{ color: YOU_ARE_HERE_COLOR }}>
+                          {formatKm(distanceToFocusKm)} from you
+                        </span>
+                      )}
+                      <span className="mt-1 block text-[11px] font-semibold text-primary">View details ›</span>
+                    </button>
+                  ) : (
                   <div className="p-2 w-[172px]">
                     <h3 className="text-xs font-bold text-base-content mb-1 line-clamp-2">{deepLinkedProperty.title || "Property"}</h3>
                     <p className="text-sm font-bold text-primary mb-1">{formatPrice(deepLinkedProperty.price)}</p>
@@ -672,8 +653,8 @@ export default function PropertyMapView() {
                       <Home className="size-3" /> View Details
                     </button>
                   </div>
+                  )}
                 </Popup>
-                )}
               </Marker>
             )}
 
