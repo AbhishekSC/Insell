@@ -21,6 +21,7 @@ import { NotificationChannel } from "../services/NotificationService.js";
 import Offer from "../models/Offer.model.js";
 import { closeActiveOffersForPost } from "./offer.controller.js";
 import { cloudinaryInstance } from "../config/cloudinary.js";
+import { centroidForCity } from "../utils/cityCentroids.js";
 
 const PROPERTY_MEDIA_FOLDER = "property-media";
 const PROPERTY_MEDIA_ALLOWED_FORMATS = "jpg,jpeg,png,webp,gif,mp4,webm,mov";
@@ -439,9 +440,11 @@ export async function getPropertyFeed(req, res) {
     // Generate cache key based on query parameters
     const cacheKey = `property:feed:${page}:${limit}:${query}:${listingType}:${propertyType}:${postType}:${authorId}:${savedBy}:${category}:${currentUserId}`;
     
-    // Try to get from cache (only for first page without complex filters)
+    // Try to get from cache (only for first page without complex filters).
+    // "Near Me" is never cached — its result depends on the request's live
+    // lat/lon, which isn't in the cache key.
     try {
-      if (page === 1 && !query && !authorId && !savedBy) {
+      if (page === 1 && !query && !authorId && !savedBy && category !== "near me") {
         const cachedData = await redisClient.get(cacheKey);
         if (cachedData) {
           logger.info("Cache hit for property feed");
@@ -526,27 +529,9 @@ export async function getPropertyFeed(req, res) {
           }
           break;
         case "near me":
-          // Prefer real coordinates (a ~50km bounding box around the user's
-          // last-known lat/lon) over city-string matching — this also covers
-          // users near a city border, or whose profile city doesn't exactly
-          // match how the post's city was typed in. Falls back to the old
-          // city regex when the user has no stored coordinates yet.
-          if (currentUserId) {
-            const User = (await import("../models/User.model.js")).default;
-            const currentUser = await User.findById(currentUserId).select("city locationDetails").lean();
-            const userLat = currentUser?.locationDetails?.latitude;
-            const userLon = currentUser?.locationDetails?.longitude;
-
-            if (userLat != null && userLon != null) {
-              const RADIUS_KM = 50;
-              const latDelta = RADIUS_KM / 111;
-              const lonDelta = RADIUS_KM / (111 * Math.cos((userLat * Math.PI) / 180) || 1);
-              filter.latitude = { $gte: userLat - latDelta, $lte: userLat + latDelta };
-              filter.longitude = { $gte: userLon - lonDelta, $lte: userLon + lonDelta };
-            } else if (currentUser?.city) {
-              filter.city = { $regex: new RegExp(currentUser.city, "i") };
-            }
-          }
+          // Handled entirely by getNearMeFeed (a $geoNear pipeline with a
+          // city-string fallback) — see the early return just below the
+          // switch.
           break;
         case "luxury":
           // Only show posts with price > 30,000,000
@@ -632,6 +617,10 @@ export async function getPropertyFeed(req, res) {
         ],
       }).select("_id").lean();
       return verifiedUsers.map(u => String(u._id));
+    }
+
+    if (category === "near me") {
+      return await getNearMeFeed(req, res, { filter, page, limit, skip, currentUserId });
     }
 
     const [posts, total] = await Promise.all([
@@ -733,6 +722,187 @@ export async function getPropertyFeed(req, res) {
   } catch (error) {
     logger.error("Error fetching property feed:", error);
     return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
+// --- "Near Me" feed -------------------------------------------------------
+//
+// Distinct enough from the shared feed that it gets its own path:
+//   1. resolve the user's location — fresh browser GPS from the request wins,
+//      then a recent saved location, then the profile city centroid;
+//   2. with a point: one $geoNear pass (≤100 km), availability-filtered,
+//      then bucketed into distance bands and ranked within each band by
+//      recency + quality (no learned weights yet — kept explainable);
+//   3. no point: fall back to city-string, then everything, and say so.
+//
+// The response carries `meta` describing what actually happened so the UI
+// can show an honest "Showing properties within N km" banner and per-post
+// "~12 km" vs "12.4 km away".
+
+const NEAR_ME_MAX_METERS = 100_000;
+const NEAR_ME_BANDS_KM = [5, 15, 30, 50, 100];
+const SAVED_LOCATION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+function nearMeBand(distanceKm) {
+  for (let i = 0; i < NEAR_ME_BANDS_KM.length; i += 1) {
+    if (distanceKm <= NEAR_ME_BANDS_KM[i]) return i;
+  }
+  return NEAR_ME_BANDS_KM.length;
+}
+
+// 0..100, breaks ties inside a distance band. Recency-led with a light
+// quality nudge; deliberately simple until there's click/save data to learn
+// real weights from.
+function nearMeWithinBandScore(post) {
+  const ageDays = Math.max(0, (Date.now() - new Date(post.createdAt).getTime()) / 86_400_000);
+  const recency = 55 * Math.pow(0.5, ageDays / 14); // 14-day half-life
+
+  let quality = 0;
+  if (Array.isArray(post.mediaUrls) && post.mediaUrls.length > 0) quality += 15;
+  const likes = Array.isArray(post.likedBy) ? post.likedBy.length : 0;
+  const saves = Array.isArray(post.savedBy) ? post.savedBy.length : 0;
+  quality += Math.min(20, likes * 2 + saves * 3);
+  if (post.locationPrecision === "exact") quality += 10;
+
+  return recency + quality;
+}
+
+function decorateForUser(post, currentUserId) {
+  const likedBy = Array.isArray(post.likedBy) ? post.likedBy.map(String) : [];
+  const savedBy = Array.isArray(post.savedBy) ? post.savedBy.map(String) : [];
+  return {
+    ...post,
+    likesCount: likedBy.length,
+    savesCount: savedBy.length,
+    isLikedByMe: currentUserId ? likedBy.includes(currentUserId) : false,
+    isSavedByMe: currentUserId ? savedBy.includes(currentUserId) : false,
+  };
+}
+
+async function getNearMeFeed(req, res, { filter, page, limit, skip, currentUserId }) {
+  try {
+    // Available listings only — a Sold/Rented place isn't "near me" in any
+    // useful sense. This is a filter, not a ranking penalty.
+    const geoQuery = { ...filter, offerStatus: { $ne: "ACCEPTED" } };
+
+    // 1 — resolve the user's point.
+    const qLat = Number(req.query.lat);
+    const qLon = Number(req.query.lon);
+    const hasFreshGps = Number.isFinite(qLat) && Number.isFinite(qLon)
+      && Math.abs(qLat) <= 90 && Math.abs(qLon) <= 180;
+
+    let point = null;
+    let pointSource = null;
+    let profileCity = "";
+
+    if (hasFreshGps) {
+      point = [qLon, qLat];
+      pointSource = "gps";
+    }
+
+    if (currentUserId) {
+      const User = (await import("../models/User.model.js")).default;
+      const me = await User.findById(currentUserId).select("city homeBase locationDetails").lean();
+      profileCity = me?.city || me?.homeBase || me?.locationDetails?.city || "";
+      if (!point) {
+        const ld = me?.locationDetails;
+        const savedAt = ld?.capturedAt ? new Date(ld.capturedAt).getTime() : 0;
+        const isRecent = savedAt && Date.now() - savedAt < SAVED_LOCATION_MAX_AGE_MS;
+        if (Number.isFinite(ld?.latitude) && Number.isFinite(ld?.longitude) && (isRecent || !ld?.capturedAt)) {
+          point = [ld.longitude, ld.latitude];
+          pointSource = "saved";
+        } else if (ld?.city || profileCity) {
+          const c = centroidForCity(ld?.city || profileCity);
+          if (c) {
+            point = c;
+            pointSource = "city";
+          }
+        }
+      }
+    }
+
+    // 2 — geo path.
+    if (point) {
+      const rows = await PropertyPost.aggregate([
+        {
+          $geoNear: {
+            near: { type: "Point", coordinates: point },
+            distanceField: "distanceMeters",
+            maxDistance: NEAR_ME_MAX_METERS,
+            spherical: true,
+            query: geoQuery,
+          },
+        },
+        { $limit: 300 },
+      ]);
+
+      const scored = rows
+        .map((post) => {
+          const distanceKm = post.distanceMeters / 1000;
+          return {
+            ...decorateForUser(post, currentUserId),
+            distanceKm: Math.round(distanceKm * 10) / 10,
+            _band: nearMeBand(distanceKm),
+            _score: nearMeWithinBandScore(post),
+          };
+        })
+        .sort((a, b) =>
+          a._band - b._band
+          || b._score - a._score
+          || new Date(b.createdAt) - new Date(a.createdAt)
+          || String(b._id).localeCompare(String(a._id))
+        );
+
+      const total = scored.length;
+      const pageItems = scored.slice(skip, skip + limit);
+      await PropertyPost.populate(pageItems, {
+        path: "author",
+        select: "fullName profilePic activeRole primaryRole city isVerified",
+      });
+      pageItems.forEach((p) => { delete p._band; delete p._score; delete p.distanceMeters; delete p.location; });
+
+      const farthestKm = scored.length ? scored[Math.min(scored.length, skip + limit) - 1].distanceKm : 0;
+      const radiusKm = NEAR_ME_BANDS_KM.find((b) => b >= farthestKm) || 100;
+
+      return sendSuccessResponse(res, 200, "Property feed fetched successfully", {
+        posts: pageItems,
+        pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
+        meta: { nearMe: { mode: "geo", pointSource, radiusKm, withinRadius: total } },
+      });
+    }
+
+    // 3 — no usable point: city-string, then everything.
+    let cityFilter = geoQuery;
+    let mode = "all";
+    if (profileCity) {
+      const escaped = profileCity.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      cityFilter = { ...geoQuery, city: { $regex: new RegExp(escaped, "i") } };
+      mode = "city";
+    }
+
+    let [posts, total] = await Promise.all([
+      PropertyPost.find(cityFilter).sort({ createdAt: -1 }).skip(skip).limit(limit)
+        .populate("author", "fullName profilePic activeRole primaryRole city isVerified").lean(),
+      PropertyPost.countDocuments(cityFilter),
+    ]);
+
+    if (mode === "city" && total === 0) {
+      mode = "all";
+      [posts, total] = await Promise.all([
+        PropertyPost.find(geoQuery).sort({ createdAt: -1 }).skip(skip).limit(limit)
+          .populate("author", "fullName profilePic activeRole primaryRole city isVerified").lean(),
+        PropertyPost.countDocuments(geoQuery),
+      ]);
+    }
+
+    return sendSuccessResponse(res, 200, "Property feed fetched successfully", {
+      posts: posts.map((p) => decorateForUser(p, currentUserId)),
+      pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
+      meta: { nearMe: { mode, city: mode === "city" ? profileCity : undefined } },
+    });
+  } catch (error) {
+    logger.error("Error in getNearMeFeed:", error);
+    return sendErrorResponse(res, 500, "Failed to load nearby properties");
   }
 }
 

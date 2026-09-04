@@ -53,6 +53,7 @@ import { getPriceContextBadges } from "../lib/priceContextBadges";
 import PostTypeFields from "../components/PostTypeFields";
 import { getPostTypeConfig } from "../config/postTypeConfig";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
+import { useLiveLocation } from "../hooks/useLiveLocation";
 import { toggleCompareSelection } from "../lib/compareSelection";
 import ReportPostModal from "../components/ReportPostModal";
 import { getCustomBadgeClasses } from "../lib/badgeColors";
@@ -206,6 +207,39 @@ const ALL_CREATE_POST_TYPES = [
   "INVESTMENT_OPPORTUNITY",
   "OPEN_HOUSE_EVENT",
 ];
+
+function relativeTimeShort(when) {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(when).getTime()) / 60000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.round(hrs / 24)}d ago`;
+}
+
+// Distance pill for a post in "Near Me" — colour tracks proximity (same
+// bands the server ranks by), `~` marks a city-centroid approximation.
+function distancePill(post) {
+  if (typeof post.distanceKm !== "number") return null;
+  const km = post.distanceKm;
+  const approx = post.locationPrecision === "approx";
+  const prefix = approx ? "~" : "";
+  const dist = km < 1 ? `${Math.round(km * 1000)} m` : `${km} km`;
+
+  let label = `${prefix}${dist} away`;
+  let className = "bg-slate-100 text-slate-600";
+  if (km <= 1 && !approx) {
+    label = "In your area";
+    className = "bg-emerald-600 text-white";
+  } else if (km <= 3) {
+    className = "bg-emerald-100 text-emerald-700";
+  } else if (km <= 10) {
+    className = "bg-primary/10 text-primary";
+  } else if (km <= 25) {
+    className = "bg-amber-100 text-amber-700";
+  }
+  return { label, className };
+}
 
 function formatMoney(value) {
   const amount = Number(value || 0);
@@ -671,26 +705,57 @@ export default function MarketplacePage() {
     return null;
   }, [activeCategory, appliedFilters.propertyType]);
 
+  const isNearMe = activeCategory === "Near Me";
+  const { location: liveLocation, freshness: liveFreshness, status: liveLocStatus, refresh: refreshLocation, checkPermission: checkLocPermission } = useLiveLocation();
+  const nearMeCoords = isNearMe && liveLocation?.lat
+    ? { lat: liveLocation.lat, lon: liveLocation.lon, accuracy: liveLocation.accuracyMeters }
+    : null;
+
+  // On opening Near Me: silently re-capture only if the saved fix isn't
+  // fresh AND geolocation is already granted. Never prompts on its own —
+  // that's what the 📍 button and the "Update location" link are for.
+  useEffect(() => {
+    if (!isNearMe || liveLocStatus !== "idle" || liveFreshness === "fresh") return;
+    let cancelled = false;
+    (async () => {
+      const perm = await checkLocPermission();
+      if (!cancelled && perm === "granted") refreshLocation();
+    })();
+    return () => { cancelled = true; };
+  }, [isNearMe, liveLocStatus, liveFreshness, checkLocPermission, refreshLocation]);
+
   const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ["propertyFeed", activeCategory, search, searchType, searchAuthorId, queryListingType || "all", queryPropertyType || "all"],
+    queryKey: [
+      "propertyFeed", activeCategory, search, searchType, searchAuthorId,
+      queryListingType || "all", queryPropertyType || "all",
+      nearMeCoords ? `${nearMeCoords.lat.toFixed(3)},${nearMeCoords.lon.toFixed(3)}` : "no-geo",
+    ],
     queryFn: async ({ pageParam = 1 }) => {
       const params = new URLSearchParams();
       params.set("page", String(pageParam));
       params.set("limit", "12");
-      
+
       // Handle author-specific search
       if (searchType === 'author' && searchAuthorId) {
         params.set("authorId", searchAuthorId);
       } else if (search.trim()) {
         params.set("q", search.trim());
       }
-      
+
       if (queryListingType) params.set("listingType", queryListingType);
       if (queryPropertyType) params.set("propertyType", queryPropertyType);
-      
+
       // Add category filter
       if (activeCategory && activeCategory !== "For You") {
         params.set("category", activeCategory.toLowerCase());
+      }
+
+      // Fresh browser location for Near Me — the server prefers this over the
+      // saved / city location.
+      if (isNearMe && nearMeCoords) {
+        params.set("lat", String(nearMeCoords.lat));
+        params.set("lon", String(nearMeCoords.lon));
+        if (nearMeCoords.accuracy) params.set("accuracy", String(nearMeCoords.accuracy));
       }
 
       const response = await axiosInstance.get(`/posts?${params.toString()}`);
@@ -702,7 +767,10 @@ export default function MarketplacePage() {
       return current < total ? current + 1 : undefined;
     },
     initialPageParam: 1,
-    enabled: Boolean(authUser?._id),
+    // Only hold the first Near Me fetch if we have NO location at all and one
+    // is being captured. With a saved location we query straight away and
+    // just re-query when a fresher fix lands (the queryKey carries coords).
+    enabled: Boolean(authUser?._id) && !(isNearMe && !liveLocation?.lat && liveLocStatus === "locating"),
   });
 
   // Infinite scroll implementation
@@ -790,13 +858,10 @@ export default function MarketplacePage() {
         const verifiedOk = activeCategory === "Verified" ? verifiedRole : true;
         const luxuryOk = activeCategory === "Luxury" ? Number(post.price || 0) > 30000000 : true;
         const investmentOk = activeCategory === "Investment" ? Number(post.areaSqft || 0) >= 2000 : true;
-        const nearMeOk = activeCategory === "Near Me"
-          ? authUser?.city
-            ? String(post.city || "").toLowerCase().includes(String(authUser.city).toLowerCase())
-            : true
-          : true;
-
-        return cityOk && localityOk && minOk && maxOk && verifiedOk && luxuryOk && investmentOk && nearMeOk;
+        // "Near Me" is filtered + distance-ranked entirely server-side (a
+        // $geoNear pipeline) — no client-side location filter, and its order
+        // must be preserved (see the sort below).
+        return cityOk && localityOk && minOk && maxOk && verifiedOk && luxuryOk && investmentOk;
       })
       .sort((a, b) => {
         if (activeCategory !== "Recent") return 0;
@@ -808,6 +873,23 @@ export default function MarketplacePage() {
         likesCount: Number(post.likesCount || 0),
       }));
   }, [activeCategory, appliedFilters, authUser?.city, data]);
+
+  const nearMeMeta = data?.pages?.[0]?.meta?.nearMe || null;
+  const nearMeInfo = useMemo(() => {
+    if (!isNearMe || !nearMeMeta) return "";
+    if (nearMeMeta.mode === "geo") {
+      const where = nearMeMeta.pointSource === "gps" ? "you"
+        : nearMeMeta.pointSource === "saved" ? (liveLocation?.city || "your saved location")
+        : "your city";
+      const n = nearMeMeta.withinRadius;
+      const age = liveLocation?.capturedAt ? ` · updated ${relativeTimeShort(liveLocation.capturedAt)}` : "";
+      return `${n} listing${n === 1 ? "" : "s"} within ${nearMeMeta.radiusKm} km of ${where}${nearMeMeta.pointSource !== "gps" ? age : ""}`;
+    }
+    if (nearMeMeta.mode === "city") {
+      return `Showing listings in ${nearMeMeta.city || "your city"} — turn on location for distance-sorted results`;
+    }
+    return "Showing all listings — add your location to see what's nearby";
+  }, [isNearMe, nearMeMeta, liveLocation]);
 
   // Remember where the user was in the feed so tapping a card and coming
   // back doesn't dump them at the top. Keyed by the feed's filter signature;
@@ -1611,6 +1693,23 @@ export default function MarketplacePage() {
               </div>
             )}
 
+            {isNearMe && !isLoading && nearMeInfo && (
+              <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-base-300 bg-base-100 px-3 py-2 text-xs text-base-content/70">
+                <MapPin className="size-3.5 text-primary" />
+                <span>{nearMeInfo}</span>
+                {liveFreshness !== "fresh" && (
+                  <button
+                    type="button"
+                    className="font-semibold text-primary hover:underline disabled:opacity-50"
+                    disabled={liveLocStatus === "locating"}
+                    onClick={() => refreshLocation()}
+                  >
+                    {liveLocStatus === "locating" ? "Updating…" : "Update location"}
+                  </button>
+                )}
+              </div>
+            )}
+
             {isLoading ? (
               <div className="mt-4 grid gap-4 xl:grid-cols-2">
                 {[1, 2, 3, 4].map((item) => (
@@ -1618,7 +1717,13 @@ export default function MarketplacePage() {
                 ))}
               </div>
             ) : posts.length === 0 ? (
-              <div className="mt-4 rounded-2xl border border-base-300 bg-base-100 p-8 text-center text-sm text-base-content/60">No listings found with current preferences.</div>
+              <div className="mt-4 rounded-2xl border border-base-300 bg-base-100 p-8 text-center text-sm text-base-content/60">
+                {isNearMe
+                  ? liveLocStatus === "denied" && !liveLocation?.lat
+                    ? "Location access is off and we have no saved location. Enable it in your browser, or use the search bar to pick a city."
+                    : "No listings near you right now. Try a wider search or a specific city."
+                  : "No listings found with current preferences."}
+              </div>
             ) : (
               <div className="mt-4 grid gap-5 2xl:grid-cols-2">
                 {posts.map((post) => {
@@ -1629,6 +1734,7 @@ export default function MarketplacePage() {
 
                   const detailBadges = buildPropertyDetailBadges(post, activeRole);
                   const priceContextBadges = isRequirement ? [] : getPriceContextBadges(post);
+                  const distPill = distancePill(post);
 
                   const handleDoubleClickMedia = (event) => {
                     event.stopPropagation();
@@ -1711,8 +1817,14 @@ export default function MarketplacePage() {
                             {formatMoney(post.price).replace("₹", "")}
                             {activeRole === "Tenant" && <span className="text-sm font-normal text-base-content/60">/mo</span>}
                           </p>
-                          {priceContextBadges.length > 0 && (
+                          {(priceContextBadges.length > 0 || distPill) && (
                             <div className="flex flex-wrap gap-1.5 mt-1">
+                              {distPill && (
+                                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${distPill.className}`}>
+                                  <MapPin className="size-3" />
+                                  {distPill.label}
+                                </span>
+                              )}
                               {priceContextBadges.map((badge) => (
                                 <span
                                   key={badge.key}

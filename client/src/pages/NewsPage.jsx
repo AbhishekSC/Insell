@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import AppShell from "../components/AppShell";
 import axiosInstance from "../lib/axios";
-import { getAutoDetectedCity } from "../utils/geolocation";
+import { useLiveLocation } from "../hooks/useLiveLocation";
 
 const POPULAR_CITIES = [
   { id: "all", label: "All India" },
@@ -99,7 +99,9 @@ export default function NewsPage() {
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [selectedCity, setSelectedCity] = useState(initialCity);
   const [searchInput, setSearchInput] = useState("");
-  const [isLocating, setIsLocating] = useState(false);
+
+  const { location: liveLocation, refresh: refreshLocation, status: liveLocStatus } = useLiveLocation();
+  const isLocating = liveLocStatus === "locating";
 
   const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
@@ -121,17 +123,13 @@ export default function NewsPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Automatically detect user location if no city is explicitly passed in URL or profile
+  // Prefer the shared last-known location's city when nothing explicit is set.
   useEffect(() => {
     const hasExplicitCity = searchParams.get("city");
-    if (!hasExplicitCity && (!userCity || userCity === "all")) {
-      getAutoDetectedCity().then((detected) => {
-        if (detected) {
-          setSelectedCity(detected);
-        }
-      });
+    if (!hasExplicitCity && liveLocation?.city && (selectedCity === "all" || !selectedCity)) {
+      setSelectedCity(liveLocation.city);
     }
-  }, [userCity, searchParams]);
+  }, [liveLocation?.city, searchParams, selectedCity]);
 
   const { data: newsResponse, isLoading, error, refetch } = useQuery({
     queryKey: ["trendingNews", selectedCategory, selectedCity],
@@ -213,20 +211,13 @@ export default function NewsPage() {
   };
 
   const handleDetectLocation = async () => {
-    setIsLocating(true);
-    try {
-      const detected = await getAutoDetectedCity();
-      if (detected) {
-        handleCitySelect(detected);
-      } else if (userCity) {
-        handleCitySelect(userCity);
-      }
-    } catch {
-      if (userCity) {
-        handleCitySelect(userCity);
-      }
-    } finally {
-      setIsLocating(false);
+    const r = await refreshLocation();
+    if (r?.ok && r.city) {
+      handleCitySelect(r.city);
+    } else if (liveLocation?.city) {
+      handleCitySelect(liveLocation.city);
+    } else if (userCity) {
+      handleCitySelect(userCity);
     }
   };
 

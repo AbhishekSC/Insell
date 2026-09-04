@@ -506,9 +506,26 @@ const publishedPostFilter = {
 export async function updateUserLocation(req, res) {
   try {
     const currentUserId = req.user._id;
-    const { latitude, longitude, country, countryCode, city, state, address, formattedAddress } = req.body || {};
+    const { latitude, longitude, country, countryCode, city, state, address, formattedAddress, accuracyMeters, source } = req.body || {};
+
+    const hasCoords = latitude !== undefined && longitude !== undefined
+      && Number.isFinite(Number(latitude)) && Number.isFinite(Number(longitude))
+      && Math.abs(Number(latitude)) <= 90 && Math.abs(Number(longitude)) <= 180;
+
+    if ((latitude !== undefined || longitude !== undefined) && !hasCoords) {
+      return sendErrorResponse(res, 400, "Invalid coordinates");
+    }
 
     const locationDetails = {};
+    // When we get coordinates, stamp when + how — the "Near Me" feed treats a
+    // saved location older than 30 days as stale and falls back to the city.
+    if (hasCoords) {
+      locationDetails.capturedAt = new Date();
+      locationDetails.source = ["gps", "manual", "ip"].includes(source) ? source : "gps";
+      if (Number.isFinite(Number(accuracyMeters)) && Number(accuracyMeters) > 0) {
+        locationDetails.accuracyMeters = Math.round(Number(accuracyMeters));
+      }
+    }
     if (latitude !== undefined) locationDetails.latitude = latitude;
     if (longitude !== undefined) locationDetails.longitude = longitude;
     if (country !== undefined) locationDetails.country = country;
