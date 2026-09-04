@@ -1147,15 +1147,22 @@ class PersonalizationService {
     let local = [];
     let strategy = "national";
     if (point) {
-      local = await PropertyPost.find({
-        ...baseMatch,
-        location: { $near: { $geometry: { type: "Point", coordinates: point }, $maxDistance: RECO_NEAR_METERS } },
-      })
-        .populate("author", authorSelect)
-        .limit(RECO_CANDIDATE_CAP)
-        .lean();
-      strategy = `geo:${source}`;
-    } else if (cityMatch) {
+      try {
+        local = await PropertyPost.find({
+          ...baseMatch,
+          location: { $near: { $geometry: { type: "Point", coordinates: point }, $maxDistance: RECO_NEAR_METERS } },
+        })
+          .populate("author", authorSelect)
+          .limit(RECO_CANDIDATE_CAP)
+          .lean();
+        strategy = `geo:${source}`;
+      } catch (err) {
+        // e.g. the 2dsphere index is missing on a fresh deploy, or a bad point.
+        // Degrade to the city-string match rather than to an empty pool.
+        logger.warn(`[RECOMMENDATIONS] $near failed, falling back to city match: ${err.message}`);
+      }
+    }
+    if (local.length === 0 && cityMatch) {
       local = await load(cityMatch);
       strategy = "city";
     }
@@ -1164,10 +1171,10 @@ class PersonalizationService {
     // path for any user with a resolvable location in a served city.
     if (local.length >= workable) return { pool: local, strategy };
 
-    // 3 — thin locally: keep every local candidate, then top up so the
-    // diversity walk isn't starved. Stage-2 scoring gives far-away top-ups a
-    // low location score, so they sink below the local ones on their own — a
-    // Pune user still sees their few Pune listings first, then the rest.
+    // 3 — thin locally: keep every local candidate, then top up from the wider
+    // catalogue so the diversity walk isn't starved. Stage-2 scoring gives the
+    // far-away top-ups a low location score, so they sink below the local ones
+    // on their own — a Pune user still sees their few Pune listings first.
     const topUp = await load({});
     return {
       pool: dedupById([...local, ...topUp]),
