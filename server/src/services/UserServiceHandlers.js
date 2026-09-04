@@ -509,6 +509,9 @@ export async function updateUserLocation(req, res) {
     const { latitude, longitude, country, countryCode, city, state, address, formattedAddress } = req.body || {};
 
     const locationDetails = {};
+    // When we get coordinates, stamp when — the "Near Me" feed treats a
+    // saved location older than 30 days as stale and falls back to the city.
+    if (latitude !== undefined && longitude !== undefined) locationDetails.capturedAt = new Date();
     if (latitude !== undefined) locationDetails.latitude = latitude;
     if (longitude !== undefined) locationDetails.longitude = longitude;
     if (country !== undefined) locationDetails.country = country;

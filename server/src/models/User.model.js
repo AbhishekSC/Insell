@@ -193,6 +193,9 @@ const userSchema = new mongoose.Schema(
       type: {
         latitude: Number,
         longitude: Number,
+        // When the coordinates were captured — used by the "Near Me" feed to
+        // decide whether a saved location is still fresh enough to trust.
+        capturedAt: Date,
         country: String,
         countryCode: String,
         city: String,

@@ -101,6 +101,19 @@ const propertyPostSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
+    // GeoJSON mirror of latitude/longitude, kept in sync by the pre-save hook
+    // below. This is what the 2dsphere index and $geoNear query use.
+    // `locationPrecision` records how the coordinates were obtained so the UI
+    // can avoid showing fake precision ("~12 km" vs "12.4 km away").
+    location: {
+      type: { type: String, enum: ["Point"], default: undefined },
+      coordinates: { type: [Number], default: undefined }, // [longitude, latitude]
+    },
+    locationPrecision: {
+      type: String,
+      enum: ["exact", "approx", null],
+      default: null,
+    },
     price: {
       type: Number,
       min: 0,
@@ -258,6 +271,24 @@ const propertyPostSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Keep the GeoJSON `location` in lockstep with latitude/longitude on every
+// write. When both are present it's a real Point; when they're cleared the
+// field is unset so it doesn't match geo queries as [0,0] off Africa.
+propertyPostSchema.pre("save", function syncLocation(next) {
+  if (this.isModified("latitude") || this.isModified("longitude")) {
+    const lat = this.latitude;
+    const lon = this.longitude;
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      this.location = { type: "Point", coordinates: [lon, lat] };
+      if (!this.locationPrecision) this.locationPrecision = "exact";
+    } else {
+      this.location = undefined;
+    }
+  }
+  next();
+});
+
+propertyPostSchema.index({ location: "2dsphere" });
 propertyPostSchema.index({ createdAt: -1 });
 // Matches the marketplace feed's base filter (getFeedPosts in
 // propertyPost.controller.js: isDeleted/isBlocked excluded, sorted by

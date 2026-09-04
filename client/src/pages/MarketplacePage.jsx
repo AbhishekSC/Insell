@@ -53,6 +53,7 @@ import { getPriceContextBadges } from "../lib/priceContextBadges";
 import PostTypeFields from "../components/PostTypeFields";
 import { getPostTypeConfig } from "../config/postTypeConfig";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
+import { useNearMeLocation } from "../hooks/useNearMeLocation";
 import { toggleCompareSelection } from "../lib/compareSelection";
 import ReportPostModal from "../components/ReportPostModal";
 import { getCustomBadgeClasses } from "../lib/badgeColors";
@@ -671,26 +672,42 @@ export default function MarketplacePage() {
     return null;
   }, [activeCategory, appliedFilters.propertyType]);
 
+  const isNearMe = activeCategory === "Near Me";
+  const nearMe = useNearMeLocation(isNearMe);
+  const nearMeCoords = isNearMe ? nearMe.coords : null;
+
   const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ["propertyFeed", activeCategory, search, searchType, searchAuthorId, queryListingType || "all", queryPropertyType || "all"],
+    queryKey: [
+      "propertyFeed", activeCategory, search, searchType, searchAuthorId,
+      queryListingType || "all", queryPropertyType || "all",
+      nearMeCoords ? `${nearMeCoords.lat.toFixed(3)},${nearMeCoords.lon.toFixed(3)}` : "no-geo",
+    ],
     queryFn: async ({ pageParam = 1 }) => {
       const params = new URLSearchParams();
       params.set("page", String(pageParam));
       params.set("limit", "12");
-      
+
       // Handle author-specific search
       if (searchType === 'author' && searchAuthorId) {
         params.set("authorId", searchAuthorId);
       } else if (search.trim()) {
         params.set("q", search.trim());
       }
-      
+
       if (queryListingType) params.set("listingType", queryListingType);
       if (queryPropertyType) params.set("propertyType", queryPropertyType);
-      
+
       // Add category filter
       if (activeCategory && activeCategory !== "For You") {
         params.set("category", activeCategory.toLowerCase());
+      }
+
+      // Fresh browser location for Near Me — the server prefers this over the
+      // saved / city location.
+      if (isNearMe && nearMeCoords) {
+        params.set("lat", String(nearMeCoords.lat));
+        params.set("lon", String(nearMeCoords.lon));
+        if (nearMeCoords.accuracy) params.set("accuracy", String(nearMeCoords.accuracy));
       }
 
       const response = await axiosInstance.get(`/posts?${params.toString()}`);
@@ -702,7 +719,10 @@ export default function MarketplacePage() {
       return current < total ? current + 1 : undefined;
     },
     initialPageParam: 1,
-    enabled: Boolean(authUser?._id),
+    // On Near Me, wait for the geolocation attempt to settle (grant/deny/
+    // timeout) before the first fetch — avoids a saved-location result
+    // flashing then being replaced a moment later.
+    enabled: Boolean(authUser?._id) && (!isNearMe || nearMe.status !== "loading"),
   });
 
   // Infinite scroll implementation
@@ -790,13 +810,10 @@ export default function MarketplacePage() {
         const verifiedOk = activeCategory === "Verified" ? verifiedRole : true;
         const luxuryOk = activeCategory === "Luxury" ? Number(post.price || 0) > 30000000 : true;
         const investmentOk = activeCategory === "Investment" ? Number(post.areaSqft || 0) >= 2000 : true;
-        const nearMeOk = activeCategory === "Near Me"
-          ? authUser?.city
-            ? String(post.city || "").toLowerCase().includes(String(authUser.city).toLowerCase())
-            : true
-          : true;
-
-        return cityOk && localityOk && minOk && maxOk && verifiedOk && luxuryOk && investmentOk && nearMeOk;
+        // "Near Me" is filtered + distance-ranked entirely server-side (a
+        // $geoNear pipeline) — no client-side location filter, and its order
+        // must be preserved (see the sort below).
+        return cityOk && localityOk && minOk && maxOk && verifiedOk && luxuryOk && investmentOk;
       })
       .sort((a, b) => {
         if (activeCategory !== "Recent") return 0;
@@ -808,6 +825,22 @@ export default function MarketplacePage() {
         likesCount: Number(post.likesCount || 0),
       }));
   }, [activeCategory, appliedFilters, authUser?.city, data]);
+
+  const nearMeMeta = data?.pages?.[0]?.meta?.nearMe || null;
+  const nearMeInfo = useMemo(() => {
+    if (!isNearMe || !nearMeMeta) return "";
+    if (nearMeMeta.mode === "geo") {
+      const src = nearMeMeta.pointSource === "gps" ? "you"
+        : nearMeMeta.pointSource === "saved" ? "your saved location"
+        : "your city";
+      const n = nearMeMeta.withinRadius;
+      return `${n} listing${n === 1 ? "" : "s"} within ${nearMeMeta.radiusKm} km of ${src}`;
+    }
+    if (nearMeMeta.mode === "city") {
+      return `Showing listings in ${nearMeMeta.city || "your city"} — turn on location for distance-sorted results`;
+    }
+    return "Showing all listings — add your location to see what's nearby";
+  }, [isNearMe, nearMeMeta]);
 
   // Remember where the user was in the feed so tapping a card and coming
   // back doesn't dump them at the top. Keyed by the feed's filter signature;
@@ -1611,6 +1644,13 @@ export default function MarketplacePage() {
               </div>
             )}
 
+            {isNearMe && !isLoading && nearMeInfo && (
+              <div className="mt-4 flex items-center gap-2 rounded-xl border border-base-300 bg-base-100 px-3 py-2 text-xs text-base-content/70">
+                <MapPin className="size-3.5 text-primary" />
+                <span>{nearMeInfo}</span>
+              </div>
+            )}
+
             {isLoading ? (
               <div className="mt-4 grid gap-4 xl:grid-cols-2">
                 {[1, 2, 3, 4].map((item) => (
@@ -1618,7 +1658,13 @@ export default function MarketplacePage() {
                 ))}
               </div>
             ) : posts.length === 0 ? (
-              <div className="mt-4 rounded-2xl border border-base-300 bg-base-100 p-8 text-center text-sm text-base-content/60">No listings found with current preferences.</div>
+              <div className="mt-4 rounded-2xl border border-base-300 bg-base-100 p-8 text-center text-sm text-base-content/60">
+                {isNearMe
+                  ? nearMe.status === "denied"
+                    ? "Location access is off, so we can't show nearby listings. Enable it in your browser, or use the search bar to pick a city."
+                    : "No listings near you right now. Try a wider search or a specific city."
+                  : "No listings found with current preferences."}
+              </div>
             ) : (
               <div className="mt-4 grid gap-5 2xl:grid-cols-2">
                 {posts.map((post) => {
@@ -1726,6 +1772,12 @@ export default function MarketplacePage() {
                           <p className="line-clamp-1 text-base font-semibold text-base-content">{isRequirement ? requirementTitle : post.title || "Premium Listing"}</p>
                           <div className="flex items-center gap-2 text-xs text-base-content/60">
                             <MapPin className="size-3" />
+                            {typeof post.distanceKm === "number" && (
+                              <span className="font-semibold text-primary">
+                                {post.locationPrecision === "approx" ? "~" : ""}
+                                {post.distanceKm < 1 ? `${Math.round(post.distanceKm * 1000)} m` : `${post.distanceKm} km`} away
+                              </span>
+                            )}
                             <span>{post.city || "City"}</span>
                             {post.locality && <><span>·</span><span>{post.locality}</span></>}
                             {post.latitude && post.longitude && (
