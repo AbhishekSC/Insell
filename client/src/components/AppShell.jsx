@@ -24,6 +24,7 @@ import {
   Plus,
   Search,
   ShieldCheck,
+  Sparkles,
   Sun,
   TrendingUp,
   UserCircle,
@@ -475,6 +476,7 @@ export default function AppShell({
     location.pathname.startsWith("/users/") ||
     location.pathname.startsWith("/news") ||
     location.pathname.startsWith("/trending-localities") ||
+    location.pathname.startsWith("/recommended") ||
     location.pathname.startsWith("/discover-communities") ||
     location.pathname.startsWith("/requested-communities") ||
     location.pathname.startsWith("/property/") ||
@@ -1239,6 +1241,14 @@ export default function AppShell({
                     </Link>
                     {item.section === "communities" ? (
                       <>
+                        <Link
+                          to="/recommended"
+                          onClick={() => setShowMobileMenu(false)}
+                          className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-base-content/70 hover:bg-base-200"
+                        >
+                          <Sparkles className="size-5" />
+                          Recommended for You
+                        </Link>
                         <Link
                           to="/trending-localities"
                           onClick={() => setShowMobileMenu(false)}
