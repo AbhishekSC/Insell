@@ -1792,8 +1792,15 @@ export default function MarketplacePage() {
                             {formatMoney(post.price).replace("₹", "")}
                             {activeRole === "Tenant" && <span className="text-sm font-normal text-base-content/60">/mo</span>}
                           </p>
-                          {priceContextBadges.length > 0 && (
+                          {(priceContextBadges.length > 0 || typeof post.distanceKm === "number") && (
                             <div className="flex flex-wrap gap-1.5 mt-1">
+                              {typeof post.distanceKm === "number" && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary">
+                                  <MapPin className="size-3" />
+                                  {post.locationPrecision === "approx" ? "~" : ""}
+                                  {post.distanceKm < 1 ? `${Math.round(post.distanceKm * 1000)} m` : `${post.distanceKm} km`} away
+                                </span>
+                              )}
                               {priceContextBadges.map((badge) => (
                                 <span
                                   key={badge.key}
@@ -1807,12 +1814,6 @@ export default function MarketplacePage() {
                           <p className="line-clamp-1 text-base font-semibold text-base-content">{isRequirement ? requirementTitle : post.title || "Premium Listing"}</p>
                           <div className="flex items-center gap-2 text-xs text-base-content/60">
                             <MapPin className="size-3" />
-                            {typeof post.distanceKm === "number" && (
-                              <span className="font-semibold text-primary">
-                                {post.locationPrecision === "approx" ? "~" : ""}
-                                {post.distanceKm < 1 ? `${Math.round(post.distanceKm * 1000)} m` : `${post.distanceKm} km`} away
-                              </span>
-                            )}
                             <span>{post.city || "City"}</span>
                             {post.locality && <><span>·</span><span>{post.locality}</span></>}
                             {post.latitude && post.longitude && (
