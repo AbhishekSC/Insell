@@ -18,6 +18,7 @@ import MarketplaceDetailPage from "./pages/MarketplaceDetailPage";
 import PropertyDetailPage from "./pages/PropertyDetailPage";
 import NewsPage from "./pages/NewsPage";
 import TrendingLocalitiesPage from "./pages/TrendingLocalitiesPage";
+import RecommendedForYouPage from "./pages/RecommendedForYouPage";
 import DiscoverCommunitiesPage from "./pages/DiscoverCommunitiesPage";
 import RequestedCommunitiesPage from "./pages/RequestedCommunitiesPage";
 import ActivityPage from "./pages/ActivityPage";
@@ -252,6 +253,10 @@ function App() {
         <Route
           path="/trending-localities"
           element={guard(<TrendingLocalitiesPage />)}
+        />
+        <Route
+          path="/recommended"
+          element={guard(<RecommendedForYouPage />)}
         />
         <Route
           path="/discover-communities"
