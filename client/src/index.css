@@ -937,3 +937,23 @@
 .leaflet-tooltip.pin-price-tooltip::before {
 	border-top-color: oklch(var(--b3) / 0.8);
 }
+.leaflet-tooltip-interactive.pin-price-tooltip,
+.leaflet-tooltip-interactive.pin-price-tooltip * {
+	cursor: pointer;
+}
+
+/* Map View — compact mobile popup on a property pin (price + locality only) */
+.leaflet-popup.map-mini-popup .leaflet-popup-content-wrapper {
+	border-radius: 12px;
+	padding: 0;
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+.leaflet-popup.map-mini-popup .leaflet-popup-content {
+	margin: 8px 12px;
+	min-width: 0;
+	width: auto !important;
+	line-height: 1.2;
+}
+.leaflet-popup.map-mini-popup .leaflet-popup-tip {
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
