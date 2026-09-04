@@ -1,12 +1,33 @@
 import VisitRequest from "../models/VisitRequest.model.js";
+import VisitUsage from "../models/VisitUsage.model.js";
 import PropertyPost from "../models/PropertyPost.model.js";
+import User from "../models/User.model.js";
 import { sendErrorResponse, sendSuccessResponse } from "../utils/responseHandler.js";
+import { sendGenericEmail } from "../utils/emailClient.js";
 import { logger } from "../utils/logger.js";
+import { planFor, istDayBucket, nextIstMidnight } from "../config/plans.js";
 import * as NotificationService from "../services/NotificationService.js";
 import { NotificationChannel } from "../services/NotificationService.js";
 
 const ACTIVE_STATUSES = ["PENDING", "RESCHEDULE_PROPOSED"];
 const ALL_CHANNELS = [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE];
+// A confirmed visit blocks any other confirmed visit involving the same two
+// people that starts within this window either side — you can't be in two
+// places at once, and owners shouldn't double-book a slot.
+const VISIT_CONFLICT_MS = 90 * 60 * 1000;
+
+// Give back a daily-quota slot reserved in createVisitRequest when the visit
+// didn't actually get created (dup requestId, or a later failure).
+async function refundVisitUsage(user, dateBucket) {
+  try {
+    await VisitUsage.updateOne(
+      { user, dateBucket, count: { $gt: 0 } },
+      { $inc: { count: -1 } }
+    );
+  } catch (e) {
+    logger.error("visit usage refund failed (non-fatal):", e);
+  }
+}
 
 function parseSlots(raw) {
   if (!Array.isArray(raw)) return [];
@@ -59,6 +80,45 @@ export async function createVisitRequest(req, res) {
     const existing = await VisitRequest.findOne({ post: postId, requester: requesterId, status: { $in: ACTIVE_STATUSES.concat("CONFIRMED") } });
     if (existing) return sendErrorResponse(res, 409, "You already have an open visit request on this listing");
 
+    // Rate limits — entitlement-driven (see config/plans.js), not `if isPremium`.
+    const plan = planFor(req.user);
+
+    // Cap on how many visits you can have in flight at once.
+    const activeCount = await VisitRequest.countDocuments({ requester: requesterId, status: { $in: ACTIVE_STATUSES } });
+    if (activeCount >= plan.activeVisitRequests) {
+      return sendErrorResponse(
+        res,
+        429,
+        `You have ${activeCount} visit requests still awaiting a reply. Close some out before sending more.`,
+        { code: "VISIT_LIMIT_REACHED", scope: "active", limit: plan.activeVisitRequests, plan: plan.key }
+      );
+    }
+
+    // Daily cap — reserved atomically so a double-submit can't slip past it.
+    // The conditional filter only matches while count is under the cap; once
+    // it's at the cap the upsert races the unique index and throws 11000.
+    const dateBucket = istDayBucket();
+    let reserved = false;
+    try {
+      const usage = await VisitUsage.findOneAndUpdate(
+        { user: requesterId, dateBucket, count: { $lt: plan.dailyVisitRequests } },
+        { $inc: { count: 1 } },
+        { upsert: true, new: true }
+      );
+      reserved = !!usage;
+    } catch (err) {
+      if (err?.code !== 11000) throw err;
+      reserved = false;
+    }
+    if (!reserved) {
+      return sendErrorResponse(
+        res,
+        429,
+        `You've hit today's limit of ${plan.dailyVisitRequests} visit requests. It resets at midnight.`,
+        { code: "VISIT_LIMIT_REACHED", scope: "daily", limit: plan.dailyVisitRequests, plan: plan.key, resetAt: nextIstMidnight() }
+      );
+    }
+
     let visit;
     try {
       visit = await VisitRequest.create({
@@ -75,8 +135,12 @@ export async function createVisitRequest(req, res) {
     } catch (err) {
       if (err?.code === 11000) {
         const winner = await VisitRequest.findOne({ post: postId, requester: requesterId, "history.requestId": requestId });
-        if (winner) return sendSuccessResponse(res, 200, "Visit request already submitted", { visit: winner });
+        if (winner) {
+          await refundVisitUsage(requesterId, dateBucket);
+          return sendSuccessResponse(res, 200, "Visit request already submitted", { visit: winner });
+        }
       }
+      await refundVisitUsage(requesterId, dateBucket);
       throw err;
     }
 
@@ -160,12 +224,37 @@ export async function respondToVisitRequest(req, res) {
       const ok = slot instanceof Date && !Number.isNaN(slot.getTime())
         && visit.proposedSlots.some((s) => new Date(s).getTime() === slot.getTime());
       if (!ok) return sendErrorResponse(res, 400, "Pick one of the proposed slots to confirm");
+
+      // Neither party can have another confirmed visit overlapping this slot.
+      const conflict = await VisitRequest.findOne({
+        _id: { $ne: visit._id },
+        status: "CONFIRMED",
+        confirmedSlot: {
+          $gte: new Date(slot.getTime() - VISIT_CONFLICT_MS),
+          $lte: new Date(slot.getTime() + VISIT_CONFLICT_MS),
+        },
+        $or: [
+          { requester: visit.requester }, { owner: visit.requester },
+          { requester: visit.owner }, { owner: visit.owner },
+        ],
+      }).select("confirmedSlot");
+      if (conflict) {
+        return sendErrorResponse(
+          res,
+          409,
+          `That time clashes with another confirmed visit around ${fmtSlot(conflict.confirmedSlot)}. Pick a different slot.`,
+          { code: "VISIT_TIME_CONFLICT" }
+        );
+      }
+
       visit.status = "CONFIRMED";
       visit.confirmedSlot = slot;
       visit.lastActionBy = userId;
       visit.history.push({ action: "confirm", actorRole, by: userId, slot, message, requestId });
       await visit.save();
       await notify(counterpartyId, userId, "visit_confirmed", `Visit confirmed for ${fmtSlot(slot)}`, `${req.user.fullName} confirmed the visit for "${visit.post.title}" on ${fmtSlot(slot)}`, visit, req.user.fullName);
+      // Both sides get an email once — fire-and-forget, outside any txn.
+      sendVisitConfirmationEmails(visit, slot).catch((e) => logger.error("visit confirmation email failed (non-fatal):", e));
       return sendSuccessResponse(res, 200, "Visit confirmed", { visit });
     }
 
@@ -193,6 +282,71 @@ async function notify(recipientId, actorId, type, title, msg, visit, actorName) 
     data: { propertyPost: visit.post._id || visit.post, visitRequest: visit._id, url: `/property/${visit.post._id || visit.post}` },
     channels: ALL_CHANNELS,
   }).catch((e) => logger.error("visit notify failed (non-fatal):", e));
+}
+
+function visitEmailHtml({ heading, greeting, body, when, mode, property }) {
+  const modeLabel = mode === "VIDEO" ? "Video call" : "In-person visit";
+  return `
+  <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${heading}</title></head>
+  <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+        <div style="background: white; display: inline-block; padding: 10px 18px; border-radius: 8px;">
+          <img src="https://insell-fe.vercel.app/logo-email.png" alt="NearMySpace" style="height: 32px; display: block;" />
+        </div>
+        <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">${heading}</p>
+      </div>
+      <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+        <p style="margin: 0 0 20px 0;">${greeting}</p>
+        <p style="margin: 0 0 20px 0;">${body}</p>
+        <div style="background: white; border: 2px dashed #10b981; padding: 20px; border-radius: 8px; margin: 24px 0;">
+          <p style="margin: 0 0 6px 0;"><strong>Property:</strong> ${property}</p>
+          <p style="margin: 0 0 6px 0;"><strong>When:</strong> ${when}</p>
+          <p style="margin: 0;"><strong>Type:</strong> ${modeLabel}</p>
+        </div>
+        <p style="margin: 30px 0 0 0; color: #666; font-size: 14px;">Best regards,<br>The NearMySpace Team</p>
+      </div>
+      <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+        <p style="margin: 0;">© 2026 NearMySpace. All rights reserved.</p>
+      </div>
+    </div>
+  </body></html>`;
+}
+
+async function sendVisitConfirmationEmails(visit, slot) {
+  if (process.env.NODE_ENV === "test") return;
+  const [requester, owner] = await Promise.all([
+    User.findById(visit.requester).select("fullName email").lean(),
+    User.findById(visit.owner).select("fullName email").lean(),
+  ]);
+  const property = visit.post?.title || "the property";
+  const when = fmtSlot(slot);
+  const jobs = [];
+  if (requester?.email) {
+    jobs.push(sendGenericEmail({
+      email: requester.email,
+      subject: `Visit confirmed — ${property}`,
+      htmlContent: visitEmailHtml({
+        heading: "Your visit is confirmed",
+        greeting: `Hi ${requester.fullName || "there"},`,
+        body: `Your visit for <strong>${property}</strong> is confirmed. The owner is expecting you at the time below.`,
+        when, mode: visit.mode, property,
+      }),
+    }));
+  }
+  if (owner?.email) {
+    jobs.push(sendGenericEmail({
+      email: owner.email,
+      subject: `Visit confirmed — ${property}`,
+      htmlContent: visitEmailHtml({
+        heading: "A visit is confirmed",
+        greeting: `Hi ${owner.fullName || "there"},`,
+        body: `${requester?.fullName || "A buyer"} will visit <strong>${property}</strong> at the time below.`,
+        when, mode: visit.mode, property,
+      }),
+    }));
+  }
+  await Promise.allSettled(jobs);
 }
 
 // GET /visits/posts/:postId/visits — owner sees all, requester sees own.

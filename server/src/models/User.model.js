@@ -246,6 +246,13 @@ const userSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    // No subscription system yet — nothing sets this. It exists so plan
+    // limits (see config/plans.js) are entitlement-driven from day one; a
+    // future Stripe webhook just flips this.
+    isPremium: {
+      type: Boolean,
+      default: false,
+    },
     blockedAt: {
       type: Date,
       default: null,

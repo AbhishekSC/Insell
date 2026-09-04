@@ -4,7 +4,9 @@ import { beforeAll, afterAll, beforeEach, describe, it, expect } from "vitest";
 import User from "../src/models/User.model.js";
 import PropertyPost from "../src/models/PropertyPost.model.js";
 import VisitRequest from "../src/models/VisitRequest.model.js";
+import VisitUsage from "../src/models/VisitUsage.model.js";
 import Notification from "../src/models/Notification.model.js";
+import { istDayBucket } from "../src/config/plans.js";
 import {
   createVisitRequest,
   respondToVisitRequest,
@@ -32,7 +34,8 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  await VisitRequest.deleteMany({ owner: owner._id });
+  await VisitRequest.deleteMany({ $or: [{ owner: { $in: [owner._id, other._id] } }, { requester: { $in: [visitor._id, other._id] } }] });
+  await VisitUsage.deleteMany({ user: { $in: [owner._id, visitor._id, other._id] } });
   await Notification.deleteMany({ recipient: { $in: [owner._id, visitor._id] } });
   if (post) await PropertyPost.deleteOne({ _id: post._id });
   post = await PropertyPost.create({ author: owner._id, title: "Visit test flat", price: 5000000, status: "PUBLISHED" });
@@ -40,6 +43,7 @@ beforeEach(async () => {
 
 afterAll(async () => {
   const ids = [owner._id, visitor._id, other._id];
+  await VisitUsage.deleteMany({ user: { $in: ids } });
   await VisitRequest.deleteMany({ owner: { $in: ids } });
   await Notification.deleteMany({ recipient: { $in: ids } });
   await PropertyPost.deleteMany({ author: { $in: ids } });
@@ -153,6 +157,57 @@ describe("respondToVisitRequest", () => {
   it("a stranger can't act on the request", async () => {
     const res = await respond(other, visitId, { action: "decline" });
     expect(res.statusCode).toBe(403);
+  });
+});
+
+describe("rate limits", () => {
+  // Extra published listings so one visitor can send several requests.
+  async function createOn(user, postId, body) {
+    const res = fakeRes();
+    await createVisitRequest({ params: { postId: String(postId) }, body, user }, res);
+    return res;
+  }
+
+  it("blocks the 3rd visit request in a day for a FREE user, with a machine-readable code", async () => {
+    const p1 = await PropertyPost.create({ author: other._id, title: "L1", price: 1, status: "PUBLISHED" });
+    const p2 = await PropertyPost.create({ author: other._id, title: "L2", price: 1, status: "PUBLISHED" });
+    const p3 = await PropertyPost.create({ author: other._id, title: "L3", price: 1, status: "PUBLISHED" });
+
+    expect((await createOn(visitor, p1._id, { slots: [soon(2)] })).statusCode).toBe(201);
+    expect((await createOn(visitor, p2._id, { slots: [soon(2)] })).statusCode).toBe(201);
+    const blocked = await createOn(visitor, p3._id, { slots: [soon(2)] });
+    expect(blocked.statusCode).toBe(429);
+    expect(blocked.body.missingFields.code).toBe("VISIT_LIMIT_REACHED");
+    expect(blocked.body.missingFields.scope).toBe("daily");
+    expect(await VisitRequest.countDocuments({ requester: visitor._id })).toBe(2);
+
+    await PropertyPost.deleteMany({ _id: { $in: [p1._id, p2._id, p3._id] } });
+  });
+
+  it("an idempotent retry doesn't consume a second daily slot", async () => {
+    const p1 = await PropertyPost.create({ author: other._id, title: "R1", price: 1, status: "PUBLISHED" });
+    const rid = "limit-idem-1";
+    await createOn(visitor, p1._id, { slots: [soon(2)], requestId: rid });
+    await createOn(visitor, p1._id, { slots: [soon(2)], requestId: rid });
+    const usage = await VisitUsage.findOne({ user: visitor._id, dateBucket: istDayBucket() });
+    expect(usage.count).toBe(1);
+    await PropertyPost.deleteOne({ _id: p1._id });
+  });
+
+  it("rejects a confirm that overlaps another confirmed visit for the same person", async () => {
+    const slot = soon(2, 11);
+    const p1 = await PropertyPost.create({ author: other._id, title: "C1", price: 1, status: "PUBLISHED" });
+    const p2 = await PropertyPost.create({ author: other._id, title: "C2", price: 1, status: "PUBLISHED" });
+
+    const v1 = await createOn(visitor, p1._id, { slots: [slot] });
+    await respond(other, v1.body.data.visit._id, { action: "confirm", slot });
+
+    const v2 = await createOn(visitor, p2._id, { slots: [soon(2, 11)] });
+    const res = await respond(other, v2.body.data.visit._id, { action: "confirm", slot: soon(2, 11) });
+    expect(res.statusCode).toBe(409);
+    expect(res.body.missingFields.code).toBe("VISIT_TIME_CONFLICT");
+
+    await PropertyPost.deleteMany({ _id: { $in: [p1._id, p2._id] } });
   });
 });
 
