@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, Check, Loader2, Plus, X } from "lucide-react";
+import { CalendarClock, Check, Loader2, Plus, Sparkles, X } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 
@@ -89,6 +89,49 @@ function SlotPicker({ title, submitLabel, isPending, onClose, onSubmit }) {
         >
           {isPending ? <Loader2 className="size-4 animate-spin" /> : submitLabel}
         </button>
+      </div>
+    </div>
+  );
+}
+
+function fmtResetIn(resetAt) {
+  if (!resetAt) return "at midnight";
+  const ms = new Date(resetAt).getTime() - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) return "shortly";
+  const h = Math.floor(ms / 3_600_000);
+  const m = Math.round((ms % 3_600_000) / 60_000);
+  if (h >= 1) return `in ${h}h ${m}m`;
+  return `in ${m}m`;
+}
+
+// Shown when the server returns 429 VISIT_LIMIT_REACHED. There's no paid plan
+// yet, so the upgrade CTA is honestly disabled — no fake checkout.
+function VisitLimitModal({ info, onClose }) {
+  const daily = info?.scope === "daily";
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4" onClick={onClose}>
+      <div className="w-full rounded-t-2xl bg-base-100 p-5 shadow-xl sm:max-w-md sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-base-content">
+            {daily ? "Daily visit limit reached" : "Too many open visit requests"}
+          </h3>
+          <button type="button" className="btn btn-sm btn-circle btn-ghost" onClick={onClose}><X className="size-4" /></button>
+        </div>
+        <p className="mt-2 text-sm text-base-content/70">
+          {daily
+            ? `You've sent ${info?.limit ?? 2} visit requests today. Your limit resets ${fmtResetIn(info?.resetAt)}.`
+            : `You can have ${info?.limit ?? 5} visit requests awaiting a reply at once. Confirm, cancel, or wait on the ones you've already sent.`}
+        </p>
+        <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-primary">
+            <Sparkles className="size-4" /> More visits with Premium
+          </p>
+          <p className="mt-1 text-xs text-base-content/60">Higher daily and open-request limits are coming soon.</p>
+          <button type="button" className="btn btn-sm mt-3 w-full border-none bg-primary/40 text-white" disabled>
+            Upgrade — Coming Soon
+          </button>
+        </div>
+        <button type="button" className="btn btn-sm btn-ghost mt-3 w-full" onClick={onClose}>Got it</button>
       </div>
     </div>
   );
@@ -199,6 +242,7 @@ export default function VisitScheduler({ post, authUser, isOwner }) {
   const postId = post?._id;
   const meId = authUser?._id;
   const [showRequest, setShowRequest] = useState(false);
+  const [limitInfo, setLimitInfo] = useState(null);
 
   const isRequirement = String(post?.postType || "").startsWith("REQUIREMENT_");
 
@@ -220,7 +264,15 @@ export default function VisitScheduler({ post, authUser, isOwner }) {
       return res.data?.data?.visit;
     },
     onSuccess: () => { toast.success("Visit request sent"); setShowRequest(false); invalidate(); },
-    onError: (e) => toast.error(e?.response?.data?.message || "Couldn't send visit request"),
+    onError: (e) => {
+      const meta = e?.response?.data?.missingFields || {};
+      if (e?.response?.status === 429 && meta.code === "VISIT_LIMIT_REACHED") {
+        setShowRequest(false);
+        setLimitInfo(meta);
+        return;
+      }
+      toast.error(e?.response?.data?.message || "Couldn't send visit request");
+    },
   });
 
   const { mutate: act, isPending: acting } = useMutation({
@@ -229,7 +281,15 @@ export default function VisitScheduler({ post, authUser, isOwner }) {
       return res.data?.data?.visit;
     },
     onSuccess: (v) => { toast.success(v?.status === "CONFIRMED" ? "Visit confirmed" : "Updated"); invalidate(); },
-    onError: (e) => toast.error(e?.response?.data?.message || "Couldn't update visit"),
+    onError: (e) => {
+      const code = e?.response?.data?.missingFields?.code;
+      if (code === "VISIT_TIME_CONFLICT") {
+        toast.error(e?.response?.data?.message || "That time clashes with another confirmed visit");
+        invalidate();
+        return;
+      }
+      toast.error(e?.response?.data?.message || "Couldn't update visit");
+    },
   });
 
   const onAct = (visitId, body) => act({ visitId, body });
@@ -282,6 +342,7 @@ export default function VisitScheduler({ post, authUser, isOwner }) {
           onSubmit={createVisit}
         />
       )}
+      {limitInfo && <VisitLimitModal info={limitInfo} onClose={() => setLimitInfo(null)} />}
     </>
   );
 }
