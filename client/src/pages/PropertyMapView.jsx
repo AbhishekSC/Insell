@@ -153,6 +153,18 @@ export default function PropertyMapView() {
   // Separate from selectedProperty on purpose: closing the selected-property
   // card shouldn't also wipe the amenity markers/radius off the map.
   const [amenitiesAnchor, setAmenitiesAnchor] = useState(null);
+
+  // On phones we don't open the big Leaflet popup — first tap on a pin shows a
+  // compact price tooltip, a second tap on the same pin opens the detail page.
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const onChange = (e) => setIsMobile(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
   const [showPropertyList, setShowPropertyList] = useState(false);
   // All amenity types are always shown on the map now that the toggle UI
   // has been removed from the Filters panel — kept as a plain object since
@@ -502,23 +514,41 @@ export default function PropertyMapView() {
               </>
             )}
 
-            {properties.map((property) => (
+            {properties.map((property) => {
+              const isSel = selectedProperty?._id === property._id;
+              return (
               <Marker
                 key={property._id}
                 position={[property.latitude, property.longitude]}
-                icon={createPinIcon(selectedProperty?._id === property._id)}
+                icon={createPinIcon(isSel)}
                 eventHandlers={{
-                  click: () => handleMarkerClick(property),
+                  click: () => {
+                    if (isMobile && isSel) {
+                      navigate(`/property/${property._id}`);
+                    } else {
+                      handleMarkerClick(property);
+                    }
+                  },
                 }}
               >
-                <Tooltip direction="top" offset={[0, -6]} opacity={1} className="pin-price-tooltip">
+                <Tooltip
+                  direction="top"
+                  offset={[0, -6]}
+                  opacity={1}
+                  permanent={isMobile && isSel}
+                  className="pin-price-tooltip"
+                >
                   <span className="font-bold text-primary">{formatPrice(property.price)}</span>
                   {(property.locality || property.city) && (
                     <span className="block text-[10px] text-base-content/60">
                       {property.locality || property.city}
                     </span>
                   )}
+                  {isMobile && isSel && (
+                    <span className="mt-0.5 block text-[10px] font-semibold text-primary">Tap again for details ›</span>
+                  )}
                 </Tooltip>
+                {!isMobile && (
                 <Popup
                   maxWidth={200}
                   className="custom-popup"
@@ -576,8 +606,10 @@ export default function PropertyMapView() {
                     </div>
                   </div>
                 </Popup>
+                )}
               </Marker>
-            ))}
+              );
+            })}
 
             {/* Deep-linked property that isn't in the map's 100-item list —
                 render its marker so "Live Location" always lands on a pin. */}
@@ -586,11 +618,29 @@ export default function PropertyMapView() {
               <Marker
                 position={[deepLinkedProperty.latitude, deepLinkedProperty.longitude]}
                 icon={createPinIcon(true)}
-                eventHandlers={{ click: () => handleMarkerClick(deepLinkedProperty) }}
+                eventHandlers={{
+                  click: () => {
+                    if (isMobile && selectedProperty?._id === deepLinkedProperty._id) {
+                      navigate(`/property/${deepLinkedProperty._id}`);
+                    } else {
+                      handleMarkerClick(deepLinkedProperty);
+                    }
+                  },
+                }}
               >
-                <Tooltip direction="top" offset={[0, -6]} opacity={1} className="pin-price-tooltip">
+                <Tooltip
+                  direction="top"
+                  offset={[0, -6]}
+                  opacity={1}
+                  permanent={isMobile && selectedProperty?._id === deepLinkedProperty._id}
+                  className="pin-price-tooltip"
+                >
                   <span className="font-bold text-primary">{formatPrice(deepLinkedProperty.price)}</span>
+                  {isMobile && selectedProperty?._id === deepLinkedProperty._id && (
+                    <span className="mt-0.5 block text-[10px] font-semibold text-primary">Tap again for details ›</span>
+                  )}
                 </Tooltip>
+                {!isMobile && (
                 <Popup maxWidth={200}>
                   <div className="p-2 w-[172px]">
                     <h3 className="text-xs font-bold text-base-content mb-1 line-clamp-2">{deepLinkedProperty.title || "Property"}</h3>
@@ -606,6 +656,7 @@ export default function PropertyMapView() {
                     </button>
                   </div>
                 </Popup>
+                )}
               </Marker>
             )}
 
