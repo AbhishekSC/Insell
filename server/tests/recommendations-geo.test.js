@@ -60,6 +60,12 @@ beforeAll(async () => {
   await mk("Delhi B", DEL, 8);
   // 9 listings at REMOTE — above `workable` (8), below the old `limit×5` (15).
   for (let i = 0; i < 9; i++) await mk(`Remote ${i}`, REMOTE, i);
+  // a deleted and an admin-blocked listing right in the cluster — must never
+  // be recommended (their detail page 404s).
+  const del = await mk("Deleted one", REMOTE, 1);
+  await PropertyPost.updateOne({ _id: del._id }, { $set: { isDeleted: true } });
+  const blk = await mk("Blocked one", REMOTE, 1);
+  await PropertyPost.updateOne({ _id: blk._id }, { $set: { isBlocked: true } });
   // 4 listings at REMOTE2 — below `workable`, forces the top-up path.
   for (let i = 0; i < 4; i++) await mk(`Remote2 ${i}`, REMOTE2, i);
 });
@@ -128,6 +134,15 @@ describe("recommendation retrieval — location gate", () => {
     expect(strategy).toBe("geo:gps+topup");
     expect(mine(pool).filter((t) => t.startsWith("Remote2"))).toHaveLength(4);
     expect(pool.length).toBeGreaterThan(4); // topped up with non-local inventory
+  });
+
+  it("never surfaces deleted or admin-blocked listings", async () => {
+    const { pool } = await PersonalizationService.getRecommendationCandidates(
+      String(remoteOkUser._id), remoteOkUser.toObject(), 3
+    );
+    const titles = mine(pool);
+    expect(titles).not.toContain("Deleted one");
+    expect(titles).not.toContain("Blocked one");
   });
 
   it("excludes the user's own listings", async () => {

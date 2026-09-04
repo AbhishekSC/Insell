@@ -17,6 +17,17 @@ function escapeRegExp(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// A post is only eligible for personalization if it's live AND not removed by
+// its owner (isDeleted) or taken down by an admin / report action (isBlocked).
+// Every feed query in propertyPost.controller.js applies this — recommendations
+// must too, or they surface listings whose detail page 404s.
+const LIVE_POST_MATCH = {
+  status: "PUBLISHED",
+  visibility: "PUBLIC",
+  isDeleted: { $ne: true },
+  isBlocked: { $ne: true },
+};
+
 const PERSONALIZATION_CACHE_TTL_BASE = 10 * 60; // 10 minutes base
 const PERSONALIZATION_CACHE_KEY = (userId, type) => `personalization:${type}:${userId}`;
 const SEEN_POSTS_KEY = (userId) => `personalization:seen:${userId}`;
@@ -607,10 +618,7 @@ class PersonalizationService {
       logger.info(`💬 [TRENDING LOCATIONS] Comment analytics - Keywords: [${[...commentKeywords].slice(0, 5).join(', ')}], PropertyInterests: [${commentPropertyInterests.join(', ')}], DominantIntent: ${dominantIntent}`);
 
       // Get all published properties with more details for better scoring
-      const properties = await PropertyPost.find({
-        status: "PUBLISHED",
-        visibility: "PUBLIC",
-      })
+      const properties = await PropertyPost.find({ ...LIVE_POST_MATCH })
         .select("city location price propertyType createdAt postMeta")
         .limit(1000)
         .lean();
@@ -846,10 +854,7 @@ class PersonalizationService {
       logger.info(`💬 [TRENDING LOCALITIES] Comment analytics - Keywords: [${[...commentKeywords].slice(0, 5).join(', ')}], PropertyInterests: [${commentPropertyInterests.join(', ')}], DominantIntent: ${dominantIntent}`);
 
       // Get all published properties with locality data
-      const properties = await PropertyPost.find({
-        status: "PUBLISHED",
-        visibility: "PUBLIC",
-      })
+      const properties = await PropertyPost.find({ ...LIVE_POST_MATCH })
         .select("city locality location price propertyType createdAt postMeta")
         .limit(1000)
         .lean();
@@ -1113,7 +1118,7 @@ class PersonalizationService {
    * a hard budget gate over-prunes when price history is sparse or noisy.
    */
   static async getRecommendationCandidates(userId, user, limit) {
-    const baseMatch = { author: { $ne: userId }, status: "PUBLISHED", visibility: "PUBLIC" };
+    const baseMatch = { ...LIVE_POST_MATCH, author: { $ne: userId } };
     const authorSelect = "fullName profilePic activeRole primaryRole city isVerified";
     // The local pool only needs enough headroom for the seen-filter + diversity
     // walk to have room — NOT `limit × 5`. A small catalogue can legitimately
@@ -1476,10 +1481,9 @@ class PersonalizationService {
       };
 
       const similarProperties = await PropertyPost.find({
+        ...LIVE_POST_MATCH,
         _id: { $ne: propertyId },
         author: { $ne: userId },
-        status: "PUBLISHED",
-        visibility: "PUBLIC",
         $or: [
           { propertyType: referenceProperty.propertyType },
           { city: referenceProperty.city },
