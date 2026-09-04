@@ -35,7 +35,7 @@ import axiosInstance from "../lib/axios";
 import { clearAuthToken } from "../lib/authToken";
 import { useStreamContext } from "../context/StreamProvider";
 import { useTheme } from "../context/ThemeProvider";
-import { getFullLocationDetails } from "../utils/geolocation";
+import { useLiveLocation } from "../hooks/useLiveLocation";
 import { enablePushNotifications, disablePushNotifications, getNotificationPermissionState, hasRegisteredPushToken, isPushNotificationsConfigured, listenForForegroundMessages } from "../lib/firebase";
 import logoMobile from "../assets/brand/logo-mobile.png";
 import logoDesktop from "../assets/brand/logo-desktop.png";
@@ -582,28 +582,18 @@ export default function AppShell({
     },
   });
 
-  const { mutate: shareLocation, isPending: isSharingLocation } = useMutation({
-    mutationFn: async () => {
-      const locationData = await getFullLocationDetails();
-      const response = await axiosInstance.patch("/users/location", locationData);
-      return response.data;
-    },
-    onSuccess: (response) => {
-      const user = response?.data?.user;
-      queryClient.setQueryData(["authUser"], (prev) => {
-        const prevData = prev?.data?.user || prev?.data || {};
-        return { status: "success", data: { user: { ...prevData, ...user } } };
-      });
-      toast.success("Location updated — your feed will now be more personalized to you");
-    },
-    onError: (err) => {
-      if (err?.code === 1 || err?.message?.toLowerCase().includes("denied")) {
-        toast.error("Location permission denied — enable it in your browser settings to personalize your feed");
-      } else {
-        toast.error(err?.response?.data?.message || "Couldn't get your location, please try again");
-      }
-    },
-  });
+  const { refresh: refreshLiveLocation, status: liveLocationStatus } = useLiveLocation();
+  const isSharingLocation = liveLocationStatus === "locating";
+  const shareLocation = async () => {
+    const r = await refreshLiveLocation();
+    if (r?.ok) {
+      toast.success("Location updated — your feed and news will use it");
+    } else if (r?.denied) {
+      toast.error("Location permission denied — enable it in your browser settings");
+    } else {
+      toast.error("Couldn't get your location, please try again");
+    }
+  };
 
   const [marketSearch, setMarketSearch] = useState(marketplaceSearch);
   const [searchFocused, setSearchFocused] = useState(false);

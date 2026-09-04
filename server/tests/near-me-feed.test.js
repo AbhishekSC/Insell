@@ -74,10 +74,13 @@ describe("Near Me feed — geo path", () => {
   });
 
   it("prefers fresh GPS from the request over the saved location", async () => {
-    // Point the GPS at Delhi — nothing should be within 100km
+    // Point the request GPS far from the viewer's saved Mumbai location — the
+    // Mumbai fixtures must NOT come back, and meta says the point was the GPS.
     const res = await feed({ lat: 28.7041, lon: 77.1025, limit: 50 });
-    expect(res.body.data.posts.length).toBe(0);
-    expect(res.body.data.meta.nearMe.mode).toBe("geo");
+    expect(res.body.data.meta.nearMe.pointSource).toBe("gps");
+    const titles = res.body.data.posts.map((p) => p.title);
+    expect(titles).not.toContain("Near 2km");
+    expect(titles).not.toContain("Near 12km");
   });
 });
 

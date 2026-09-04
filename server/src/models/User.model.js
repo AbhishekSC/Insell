@@ -189,13 +189,17 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    // The user's LAST KNOWN, user-approved location — not necessarily where
+    // they are right now. Only PATCH /users/location writes this; every
+    // location-aware feature (Near Me feed, News, Map, personalization) reads
+    // it. `capturedAt` + `source` let consumers decide how much to trust it.
     locationDetails: {
       type: {
         latitude: Number,
         longitude: Number,
-        // When the coordinates were captured — used by the "Near Me" feed to
-        // decide whether a saved location is still fresh enough to trust.
         capturedAt: Date,
+        source: { type: String, enum: ["gps", "manual", "ip", null], default: null },
+        accuracyMeters: Number,
         country: String,
         countryCode: String,
         city: String,

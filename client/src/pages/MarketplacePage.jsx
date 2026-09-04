@@ -53,7 +53,7 @@ import { getPriceContextBadges } from "../lib/priceContextBadges";
 import PostTypeFields from "../components/PostTypeFields";
 import { getPostTypeConfig } from "../config/postTypeConfig";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
-import { useNearMeLocation } from "../hooks/useNearMeLocation";
+import { useLiveLocation } from "../hooks/useLiveLocation";
 import { toggleCompareSelection } from "../lib/compareSelection";
 import ReportPostModal from "../components/ReportPostModal";
 import { getCustomBadgeClasses } from "../lib/badgeColors";
@@ -207,6 +207,15 @@ const ALL_CREATE_POST_TYPES = [
   "INVESTMENT_OPPORTUNITY",
   "OPEN_HOUSE_EVENT",
 ];
+
+function relativeTimeShort(when) {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(when).getTime()) / 60000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.round(hrs / 24)}d ago`;
+}
 
 function formatMoney(value) {
   const amount = Number(value || 0);
@@ -673,8 +682,23 @@ export default function MarketplacePage() {
   }, [activeCategory, appliedFilters.propertyType]);
 
   const isNearMe = activeCategory === "Near Me";
-  const nearMe = useNearMeLocation(isNearMe);
-  const nearMeCoords = isNearMe ? nearMe.coords : null;
+  const { location: liveLocation, freshness: liveFreshness, status: liveLocStatus, refresh: refreshLocation, checkPermission: checkLocPermission } = useLiveLocation();
+  const nearMeCoords = isNearMe && liveLocation?.lat
+    ? { lat: liveLocation.lat, lon: liveLocation.lon, accuracy: liveLocation.accuracyMeters }
+    : null;
+
+  // On opening Near Me: silently re-capture only if the saved fix isn't
+  // fresh AND geolocation is already granted. Never prompts on its own —
+  // that's what the 📍 button and the "Update location" link are for.
+  useEffect(() => {
+    if (!isNearMe || liveLocStatus !== "idle" || liveFreshness === "fresh") return;
+    let cancelled = false;
+    (async () => {
+      const perm = await checkLocPermission();
+      if (!cancelled && perm === "granted") refreshLocation();
+    })();
+    return () => { cancelled = true; };
+  }, [isNearMe, liveLocStatus, liveFreshness, checkLocPermission, refreshLocation]);
 
   const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: [
@@ -719,10 +743,10 @@ export default function MarketplacePage() {
       return current < total ? current + 1 : undefined;
     },
     initialPageParam: 1,
-    // On Near Me, wait for the geolocation attempt to settle (grant/deny/
-    // timeout) before the first fetch — avoids a saved-location result
-    // flashing then being replaced a moment later.
-    enabled: Boolean(authUser?._id) && (!isNearMe || nearMe.status !== "loading"),
+    // Only hold the first Near Me fetch if we have NO location at all and one
+    // is being captured. With a saved location we query straight away and
+    // just re-query when a fresher fix lands (the queryKey carries coords).
+    enabled: Boolean(authUser?._id) && !(isNearMe && !liveLocation?.lat && liveLocStatus === "locating"),
   });
 
   // Infinite scroll implementation
@@ -830,17 +854,18 @@ export default function MarketplacePage() {
   const nearMeInfo = useMemo(() => {
     if (!isNearMe || !nearMeMeta) return "";
     if (nearMeMeta.mode === "geo") {
-      const src = nearMeMeta.pointSource === "gps" ? "you"
-        : nearMeMeta.pointSource === "saved" ? "your saved location"
+      const where = nearMeMeta.pointSource === "gps" ? "you"
+        : nearMeMeta.pointSource === "saved" ? (liveLocation?.city || "your saved location")
         : "your city";
       const n = nearMeMeta.withinRadius;
-      return `${n} listing${n === 1 ? "" : "s"} within ${nearMeMeta.radiusKm} km of ${src}`;
+      const age = liveLocation?.capturedAt ? ` · updated ${relativeTimeShort(liveLocation.capturedAt)}` : "";
+      return `${n} listing${n === 1 ? "" : "s"} within ${nearMeMeta.radiusKm} km of ${where}${nearMeMeta.pointSource !== "gps" ? age : ""}`;
     }
     if (nearMeMeta.mode === "city") {
       return `Showing listings in ${nearMeMeta.city || "your city"} — turn on location for distance-sorted results`;
     }
     return "Showing all listings — add your location to see what's nearby";
-  }, [isNearMe, nearMeMeta]);
+  }, [isNearMe, nearMeMeta, liveLocation]);
 
   // Remember where the user was in the feed so tapping a card and coming
   // back doesn't dump them at the top. Keyed by the feed's filter signature;
@@ -1645,9 +1670,19 @@ export default function MarketplacePage() {
             )}
 
             {isNearMe && !isLoading && nearMeInfo && (
-              <div className="mt-4 flex items-center gap-2 rounded-xl border border-base-300 bg-base-100 px-3 py-2 text-xs text-base-content/70">
+              <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-base-300 bg-base-100 px-3 py-2 text-xs text-base-content/70">
                 <MapPin className="size-3.5 text-primary" />
                 <span>{nearMeInfo}</span>
+                {liveFreshness !== "fresh" && (
+                  <button
+                    type="button"
+                    className="font-semibold text-primary hover:underline disabled:opacity-50"
+                    disabled={liveLocStatus === "locating"}
+                    onClick={() => refreshLocation()}
+                  >
+                    {liveLocStatus === "locating" ? "Updating…" : "Update location"}
+                  </button>
+                )}
               </div>
             )}
 
@@ -1660,8 +1695,8 @@ export default function MarketplacePage() {
             ) : posts.length === 0 ? (
               <div className="mt-4 rounded-2xl border border-base-300 bg-base-100 p-8 text-center text-sm text-base-content/60">
                 {isNearMe
-                  ? nearMe.status === "denied"
-                    ? "Location access is off, so we can't show nearby listings. Enable it in your browser, or use the search bar to pick a city."
+                  ? liveLocStatus === "denied" && !liveLocation?.lat
+                    ? "Location access is off and we have no saved location. Enable it in your browser, or use the search bar to pick a city."
                     : "No listings near you right now. Try a wider search or a specific city."
                   : "No listings found with current preferences."}
               </div>
