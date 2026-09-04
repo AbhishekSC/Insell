@@ -937,3 +937,7 @@
 .leaflet-tooltip.pin-price-tooltip::before {
 	border-top-color: oklch(var(--b3) / 0.8);
 }
+.leaflet-tooltip-interactive.pin-price-tooltip,
+.leaflet-tooltip-interactive.pin-price-tooltip * {
+	cursor: pointer;
+}

@@ -536,17 +536,24 @@ export default function PropertyMapView() {
                   offset={[0, -6]}
                   opacity={1}
                   permanent={isMobile && isSel}
+                  interactive={isMobile && isSel}
                   className="pin-price-tooltip"
                 >
-                  <span className="font-bold text-primary">{formatPrice(property.price)}</span>
-                  {(property.locality || property.city) && (
-                    <span className="block text-[10px] text-base-content/60">
-                      {property.locality || property.city}
-                    </span>
-                  )}
-                  {isMobile && isSel && (
-                    <span className="mt-0.5 block text-[10px] font-semibold text-primary">Tap again for details ›</span>
-                  )}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => isMobile && isSel && navigate(`/property/${property._id}`)}
+                  >
+                    <span className="font-bold text-primary">{formatPrice(property.price)}</span>
+                    {(property.locality || property.city) && (
+                      <span className="block text-[10px] text-base-content/60">
+                        {property.locality || property.city}
+                      </span>
+                    )}
+                    {isMobile && isSel && (
+                      <span className="mt-0.5 block text-[10px] font-semibold text-primary">View details ›</span>
+                    )}
+                  </div>
                 </Tooltip>
                 {!isMobile && (
                 <Popup
@@ -633,12 +640,22 @@ export default function PropertyMapView() {
                   offset={[0, -6]}
                   opacity={1}
                   permanent={isMobile && selectedProperty?._id === deepLinkedProperty._id}
+                  interactive={isMobile && selectedProperty?._id === deepLinkedProperty._id}
                   className="pin-price-tooltip"
                 >
-                  <span className="font-bold text-primary">{formatPrice(deepLinkedProperty.price)}</span>
-                  {isMobile && selectedProperty?._id === deepLinkedProperty._id && (
-                    <span className="mt-0.5 block text-[10px] font-semibold text-primary">Tap again for details ›</span>
-                  )}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() =>
+                      isMobile && selectedProperty?._id === deepLinkedProperty._id &&
+                      navigate(`/property/${deepLinkedProperty._id}`)
+                    }
+                  >
+                    <span className="font-bold text-primary">{formatPrice(deepLinkedProperty.price)}</span>
+                    {isMobile && selectedProperty?._id === deepLinkedProperty._id && (
+                      <span className="mt-0.5 block text-[10px] font-semibold text-primary">View details ›</span>
+                    )}
+                  </div>
                 </Tooltip>
                 {!isMobile && (
                 <Popup maxWidth={200}>
