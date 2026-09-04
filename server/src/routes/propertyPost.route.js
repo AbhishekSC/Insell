@@ -8,6 +8,9 @@ import {
   getPropertyAnalytics,
   getPropertyFeed,
   getPropertyMediaUploadSignature,
+  getCardSignals,
+  getPriceInsight,
+  getPriceSuggestion,
   getPropertyPostById,
   getSimilarProperties,
   incrementViewCount,
@@ -23,8 +26,12 @@ const router = new express.Router();
 
 router.get("/", verifyUser, requireVerified, getPropertyFeed);
 router.get("/latest", verifyUser, requireVerified, getLatestFeedPost);
+// Static paths before the "/:id" catch-all so they don't resolve as an id.
+router.get("/price-suggestion", verifyUser, requireVerified, getPriceSuggestion);
+router.post("/card-signals", verifyUser, requireVerified, getCardSignals);
 router.get("/:id", verifyUser, requireVerified, getPropertyPostById);
 router.get("/:id/similar", verifyUser, requireVerified, getSimilarProperties);
+router.get("/:id/price-insight", verifyUser, requireVerified, getPriceInsight);
 router.get("/:id/analytics", verifyUser, requireVerified, getPropertyAnalytics);
 router.post("/", verifyUser, requireVerified, createPropertyPost);
 router.post("/compare", verifyUser, requireVerified, compareProperties);

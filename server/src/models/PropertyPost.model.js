@@ -219,6 +219,15 @@ const propertyPostSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    // Cumulative count of visit requests ever raised on this listing — a
+    // demand signal shown on the card ("3 visits requested"). Incremented in
+    // visitRequest.controller.js on create; never decremented (a withdrawn
+    // request was still real interest).
+    visitRequestCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     engagementScore: {
       type: Number,
       default: 0,

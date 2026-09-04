@@ -14,6 +14,163 @@ import {
 const ACTIVITY_CACHE_TTL = 5 * 60; // 5 minutes
 const ACTIVITY_CACHE_KEY = (userId) => `activity:${userId}`;
 
+// --- Progressive onboarding -------------------------------------------------
+// One preference question at a time, surfaced in the feed. Order = cheapest
+// signal first. We stop asking a question after MAX_SKIPS dismissals and wait
+// PROMPT_COOLDOWN_MS between any two prompts so it never nags.
+const PREFERENCE_PROMPTS = {
+  intent: {
+    key: "intent",
+    kind: "choice",
+    question: "Are you looking to buy or rent?",
+    options: [
+      { value: "Buy", label: "Buy" },
+      { value: "Rent", label: "Rent" },
+    ],
+  },
+  budget: {
+    key: "budget",
+    kind: "range",
+    question: "What's your budget?",
+    hint: "Roughly — it just helps us filter.",
+  },
+  areas: {
+    key: "areas",
+    kind: "chips-free",
+    question: "Which areas are you interested in?",
+    hint: "Add a few localities.",
+  },
+  types: {
+    key: "types",
+    kind: "chips",
+    question: "What kind of property?",
+    options: ["Apartment", "Independent House", "Villa", "Plot", "Agricultural Land", "Commercial"].map((v) => ({ value: v, label: v })),
+  },
+};
+const PREFERENCE_PROMPT_ORDER = ["intent", "budget", "areas", "types"];
+const PREFERENCE_PROMPT_COOLDOWN_MS = 20 * 60 * 60 * 1000; // ~once a day
+const PREFERENCE_MAX_SKIPS = 3;
+const PREFERENCE_DONE_THRESHOLD = 3; // answered this many → mark onboarded
+
+function preferenceAnsweredState(user) {
+  return {
+    intent: Boolean(String(user.listingIntent || "").trim()),
+    budget: Number(user.budgetMax) > 0 || Number(user.budgetMin) > 0,
+    areas: Array.isArray(user.preferredLocalities) && user.preferredLocalities.length > 0,
+    types: Array.isArray(user.propertyTypePreferences) && user.propertyTypePreferences.length > 0,
+  };
+}
+
+// GET /users/preference-prompt — the next question to ask, or { prompt: null }
+export async function getPreferencePrompt(req, res) {
+  try {
+    const user = await User.findById(req.user._id)
+      .select("isOnboarded listingIntent budgetMin budgetMax preferredLocalities propertyTypePreferences preferenceHints")
+      .lean();
+    if (!user) return sendErrorResponse(res, 404, "User not found");
+
+    const hints = user.preferenceHints || {};
+    if (user.isOnboarded) return sendSuccessResponse(res, 200, "No prompt", { prompt: null });
+
+    const lastAt = hints.lastPromptAt ? new Date(hints.lastPromptAt).getTime() : 0;
+    if (lastAt && Date.now() - lastAt < PREFERENCE_PROMPT_COOLDOWN_MS) {
+      return sendSuccessResponse(res, 200, "Cooling down", { prompt: null });
+    }
+
+    const answeredNow = preferenceAnsweredState(user);
+    const answeredKeys = new Set(hints.answered || []);
+    const skipped = hints.skipped || {};
+
+    for (const key of PREFERENCE_PROMPT_ORDER) {
+      if (answeredNow[key] || answeredKeys.has(key)) continue;
+      if ((Number(skipped[key]) || 0) >= PREFERENCE_MAX_SKIPS) continue;
+      return sendSuccessResponse(res, 200, "Prompt ready", { prompt: PREFERENCE_PROMPTS[key] });
+    }
+    return sendSuccessResponse(res, 200, "No prompt", { prompt: null });
+  } catch (error) {
+    logger.error("Error in getPreferencePrompt:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
+// POST /users/preference-prompt  { key, value?, skip? }
+export async function answerPreferencePrompt(req, res) {
+  try {
+    const { key, value, skip } = req.body || {};
+    if (!PREFERENCE_PROMPT_ORDER.includes(key)) {
+      return sendErrorResponse(res, 400, "Unknown prompt");
+    }
+
+    const set = { "preferenceHints.lastPromptAt": new Date() };
+    const update = { $set: set };
+
+    if (skip) {
+      update.$inc = { [`preferenceHints.skipped.${key}`]: 1 };
+    } else {
+      switch (key) {
+        case "intent": {
+          const v = ["Buy", "Rent"].includes(String(value)) ? String(value) : null;
+          if (!v) return sendErrorResponse(res, 400, "Pick Buy or Rent");
+          set.listingIntent = v;
+          break;
+        }
+        case "budget": {
+          const min = Math.max(0, Math.round(Number(value?.min) || 0));
+          const max = Math.max(0, Math.round(Number(value?.max) || 0));
+          if (!min && !max) return sendErrorResponse(res, 400, "Enter a budget");
+          set.budgetMin = min;
+          set.budgetMax = max || min;
+          break;
+        }
+        case "areas": {
+          const arr = (Array.isArray(value) ? value : [])
+            .map((s) => String(s || "").trim())
+            .filter(Boolean)
+            .slice(0, 8);
+          if (!arr.length) return sendErrorResponse(res, 400, "Add at least one area");
+          set.preferredLocalities = arr;
+          break;
+        }
+        case "types": {
+          const arr = (Array.isArray(value) ? value : [])
+            .map((s) => String(s || "").trim())
+            .filter(Boolean)
+            .slice(0, 6);
+          if (!arr.length) return sendErrorResponse(res, 400, "Pick at least one type");
+          set.propertyTypePreferences = arr;
+          break;
+        }
+        default:
+          return sendErrorResponse(res, 400, "Unknown prompt");
+      }
+      update.$addToSet = { "preferenceHints.answered": key };
+    }
+
+    const user = await User.findByIdAndUpdate(req.user._id, update, { new: true });
+    if (!user) return sendErrorResponse(res, 404, "User not found");
+
+    // Enough answered → stop prompting entirely.
+    const answeredCount = (user.preferenceHints?.answered || []).length;
+    if (!user.isOnboarded && answeredCount >= PREFERENCE_DONE_THRESHOLD) {
+      user.isOnboarded = true;
+      await user.save();
+    }
+
+    // New stated preferences must reach the recommender on the next request.
+    try {
+      const { default: PersonalizationService } = await import("./PersonalizationService.js");
+      await PersonalizationService.invalidatePersonalizationCache(req.user._id);
+    } catch (e) {
+      logger.warn("preference prompt: cache bust failed (non-fatal):", e?.message);
+    }
+
+    return sendSuccessResponse(res, 200, skip ? "Skipped" : "Saved", { user: sanitizeUserData(user) });
+  } catch (error) {
+    logger.error("Error in answerPreferencePrompt:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
 export async function updateMyProfile(req, res) {
   try {
     const currentUserId = req.user._id;

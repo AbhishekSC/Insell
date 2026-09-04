@@ -148,6 +148,15 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    // Progressive onboarding — we ask one preference question at a time in the
+    // feed instead of a blocking wizard. This tracks what's been asked so we
+    // don't nag: `answered` lists resolved prompt keys, `skipped` counts
+    // dismissals per key (we stop after 3), `lastPromptAt` enforces a cooldown.
+    preferenceHints: {
+      answered: { type: [String], default: [] },
+      skipped: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+      lastPromptAt: { type: Date, default: null },
+    },
     roleProfiles: {
       type: mongoose.Schema.Types.Mixed,
       default: {},

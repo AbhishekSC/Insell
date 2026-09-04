@@ -33,6 +33,7 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  ThumbsDown,
   TrendingUp,
   Upload,
   UserCircle,
@@ -50,7 +51,11 @@ import ScrollTopButton from "../components/ScrollTopButton";
 import { useScrollRestoration } from "../hooks/useScrollRestoration";
 import { buildPropertyDetailBadges } from "../lib/propertyDetailBadges";
 import { getPriceContextBadges } from "../lib/priceContextBadges";
+import { getPropertySignals, toneClass } from "../lib/propertySignalBadges";
+import PreferencePrompt from "../components/PreferencePrompt";
+import { trackRecoEvent } from "../lib/recoEvents";
 import PostTypeFields from "../components/PostTypeFields";
+import PriceSuggestion from "../components/PriceSuggestion";
 import { getPostTypeConfig } from "../config/postTypeConfig";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { useLiveLocation } from "../hooks/useLiveLocation";
@@ -337,6 +342,7 @@ export default function MarketplacePage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [postToShare, setPostToShare] = useState(null);
   const [selectedForComparison, setSelectedForComparison] = useState([]);
+  const [dismissedRecs, setDismissedRecs] = useState(() => new Set());
   const [postMenuAnchor, setPostMenuAnchor] = useState(null); // { post, top, left }
   const [reportTargetPost, setReportTargetPost] = useState(null);
   const [reportSubmitted, setReportSubmitted] = useState(false);
@@ -873,6 +879,21 @@ export default function MarketplacePage() {
         likesCount: Number(post.likesCount || 0),
       }));
   }, [activeCategory, appliedFilters, authUser?.city, data]);
+
+  // Batch the extras the feed payload doesn't carry (price-vs-area verdict,
+  // live offer count) in one call for all visible cards.
+  const visiblePostIds = useMemo(() => posts.map((p) => String(p._id)), [posts]);
+  const { data: cardSignals = {} } = useQuery({
+    queryKey: ["cardSignals", visiblePostIds],
+    queryFn: async () => {
+      if (visiblePostIds.length === 0) return {};
+      const res = await axiosInstance.post("/posts/card-signals", { ids: visiblePostIds.slice(0, 40) }, { skipErrorToast: true });
+      return res.data?.data?.signals || {};
+    },
+    enabled: visiblePostIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
 
   const nearMeMeta = data?.pages?.[0]?.meta?.nearMe || null;
   const nearMeInfo = useMemo(() => {
@@ -1725,6 +1746,8 @@ export default function MarketplacePage() {
                   : "No listings found with current preferences."}
               </div>
             ) : (
+              <>
+              <PreferencePrompt />
               <div className="mt-4 grid gap-5 2xl:grid-cols-2">
                 {posts.map((post) => {
                   const badge = getListingBadge(post);
@@ -1734,6 +1757,18 @@ export default function MarketplacePage() {
 
                   const detailBadges = buildPropertyDetailBadges(post, activeRole);
                   const priceContextBadges = isRequirement ? [] : getPriceContextBadges(post);
+                  const sig = cardSignals[String(post._id)] || {};
+                  const postWithSignals = { ...post, activeOfferCount: sig.activeOffers };
+                  const insightBadge = !isRequirement && sig.priceInsight
+                    ? sig.priceInsight.verdict === "below"
+                      ? { key: "insight", label: `${Math.abs(sig.priceInsight.deltaPct)}% below area avg`, tone: "good" }
+                      : sig.priceInsight.verdict === "above"
+                        ? { key: "insight", label: `${sig.priceInsight.deltaPct}% above area avg`, tone: "warn" }
+                        : null
+                    : null;
+                  const signalBadges = isRequirement
+                    ? []
+                    : [...(insightBadge ? [insightBadge] : []), ...getPropertySignals(postWithSignals, { context: "feed" })].slice(0, 7);
                   const distPill = distancePill(post);
 
                   const handleDoubleClickMedia = (event) => {
@@ -1866,6 +1901,18 @@ export default function MarketplacePage() {
                               ))}
                             </div>
                           )}
+                          {signalBadges.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {signalBadges.map((s) => (
+                                <span
+                                  key={s.key}
+                                  className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${toneClass(s.tone)}`}
+                                >
+                                  {s.label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                           {post.postMeta?.moveInDate && activeRole === "Tenant" && (
                             <p className="text-xs text-base-content/70">Move-in: {new Date(post.postMeta.moveInDate).toLocaleDateString()}</p>
                           )}
@@ -1890,6 +1937,7 @@ export default function MarketplacePage() {
                   );
                 })}
               </div>
+              </>
             )}
 
             {/* Infinite scroll sentinel */}
@@ -2024,20 +2072,46 @@ export default function MarketplacePage() {
                 </button>
               </div>
               <div className="space-y-2">
-                {personalizedRecommendations.length > 0 ? (
-                  personalizedRecommendations.slice(0, 3).map((post) => (
-                    <button
-                      key={`rec-${post._id}`}
-                      type="button"
-                      className="flex w-full items-center gap-2 rounded-lg border border-base-300 p-2 text-left hover:bg-base-200"
-                      onClick={() => navigate(`/property/${post._id}`)}
-                    >
-                      <img src={post.mediaUrls?.[0] || post.media?.[0]} alt={post.title || "Recommendation"} className="h-12 w-16 rounded-md object-cover" />
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold text-base-content">{post.title || "Property"}</p>
-                        <p className="truncate text-[11px] text-base-content/60">{formatMoney(post.price)} · {post.city || "India"}</p>
-                      </div>
-                    </button>
+                {personalizedRecommendations.filter((p) => !dismissedRecs.has(String(p._id))).length > 0 ? (
+                  personalizedRecommendations
+                    .filter((p) => !dismissedRecs.has(String(p._id)))
+                    .slice(0, 3)
+                    .map((post, i) => (
+                    <div key={`rec-${post._id}`} className="group flex items-center gap-1 rounded-lg border border-base-300 p-2 hover:bg-base-200">
+                      <button
+                        type="button"
+                        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                        onClick={() => {
+                          trackRecoEvent({ post: String(post._id), event: "click", position: i, context: "sidebar", scores: { personalization: post.personalizationScore, final: post.finalScore } });
+                          navigate(`/property/${post._id}`);
+                        }}
+                      >
+                        <img src={post.mediaUrls?.[0] || post.media?.[0]} alt={post.title || "Recommendation"} className="h-12 w-16 rounded-md object-cover" />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="truncate text-xs font-semibold text-base-content">{post.title || "Property"}</p>
+                            {Math.round(post.personalizationScore) >= 55 && (
+                              <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+                                {Math.round(post.personalizationScore)}%
+                              </span>
+                            )}
+                          </div>
+                          <p className="truncate text-[11px] text-base-content/60">{formatMoney(post.price)} · {post.city || "India"}</p>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-xs btn-circle text-base-content/30 opacity-0 transition group-hover:opacity-100 hover:text-error"
+                        aria-label="Not interested"
+                        onClick={() => {
+                          trackRecoEvent({ post: String(post._id), event: "dismiss", reason: "not_interested", context: "sidebar" });
+                          setDismissedRecs((prev) => new Set(prev).add(String(post._id)));
+                          setTimeout(() => queryClient.invalidateQueries({ queryKey: ["personalizedRecommendations"] }), 400);
+                        }}
+                      >
+                        <ThumbsDown className="size-3.5" />
+                      </button>
+                    </div>
                   ))
                 ) : (
                   <p className="text-xs text-base-content/60 text-center py-2">No recommendations yet</p>
@@ -2629,6 +2703,7 @@ export default function MarketplacePage() {
                         updateDraft={updateDraft}
                         priceLabel={getPostTypeConfig(draft.postType).priceLabel}
                       />
+                      {!String(draft.postType || "").toUpperCase().startsWith("REQUIREMENT_") && <PriceSuggestion draft={draft} />}
                     </div>
                   </div>
                 </div>

@@ -32,6 +32,10 @@ const PERSONALIZATION_CACHE_TTL_BASE = 10 * 60; // 10 minutes base
 const PERSONALIZATION_CACHE_KEY = (userId, type) => `personalization:${type}:${userId}`;
 const SEEN_POSTS_KEY = (userId) => `personalization:seen:${userId}`;
 const SEEN_POSTS_TTL_SECONDS = 24 * 60 * 60; // rotate seen posts back into the pool after 24h
+// Deliberately NOT under the `personalization:*` namespace — invalidatePersonalizationCache
+// wipes that, and a "not interested" must outlive a preference change.
+const SUPPRESS_KEY = (userId) => `reco:suppress:${userId}`;
+const SUPPRESS_TTL_SECONDS = 45 * 24 * 60 * 60; // a dismissed post stays hidden ~6 weeks
 
 // Weights for blending the final "For You" ranking score. Kept as named
 // constants (rather than scattered magic numbers) so they're easy to tune.
@@ -123,6 +127,17 @@ class PersonalizationService {
    * who never granted geolocation, or a property with no coordinates).
    */
   static getLocationScore(property, user) {
+    // Stated preference wins: if the user named localities (onboarding) and
+    // this listing is in one of them, that's the strongest possible location
+    // signal — stronger than raw distance.
+    const wantedAreas = (user.preferredLocalities || [])
+      .map((s) => String(s || "").toLowerCase().trim())
+      .filter(Boolean);
+    if (wantedAreas.length) {
+      const hay = `${property.locality || ""} ${property.city || ""} ${property.address || ""}`.toLowerCase();
+      if (wantedAreas.some((a) => hay.includes(a))) return 100;
+    }
+
     const userLat = user.locationDetails?.latitude;
     const userLon = user.locationDetails?.longitude;
     const propertyLat = property.latitude;
@@ -505,6 +520,140 @@ class PersonalizationService {
     } catch (error) {
       logger.warn("Failed to invalidate personalization cache:", error);
     }
+  }
+
+  // Post ids the user dismissed ("not interested") — hard-excluded from
+  // recommendations until they roll out of the window. Source of truth is the
+  // RecoEvent collection (durable, works without Redis); Redis is only a cache.
+  static async getSuppressedPostIds(userId) {
+    try {
+      const cached = await redisClient.get(SUPPRESS_KEY(userId));
+      if (cached) return new Set(JSON.parse(cached));
+    } catch { /* redis optional — fall through to Mongo */ }
+
+    try {
+      const { default: RecoEvent } = await import("../models/RecoEvent.model.js");
+      const since = new Date(Date.now() - SUPPRESS_TTL_SECONDS * 1000);
+      const ids = (await RecoEvent.distinct("post", {
+        user: userId,
+        event: "dismiss",
+        createdAt: { $gte: since },
+      })).map(String);
+      try {
+        await redisClient.setEx(SUPPRESS_KEY(userId), 3600, JSON.stringify(ids));
+      } catch { /* redis optional */ }
+      return new Set(ids);
+    } catch (error) {
+      logger.warn("Failed to read suppressed reco posts:", error);
+      return new Set();
+    }
+  }
+
+  // What the user has told us they DON'T want, derived from dismiss reasons in
+  // the last 45 days: property types (wrong_type), localities (wrong_area) and
+  // a price ceiling (too_expensive). Used as a demotion in scoring.
+  static async getNegativePreferences(userId) {
+    try {
+      const { default: RecoEvent } = await import("../models/RecoEvent.model.js");
+      const since = new Date(Date.now() - SUPPRESS_TTL_SECONDS * 1000);
+      const events = await RecoEvent.find({
+        user: userId,
+        event: "dismiss",
+        reason: { $in: ["too_expensive", "wrong_area", "wrong_type"] },
+        createdAt: { $gte: since },
+      })
+        .select("post reason")
+        .lean();
+      if (!events.length) return {};
+
+      const postIds = [...new Set(events.map((e) => String(e.post)))];
+      const posts = await PropertyPost.find({ _id: { $in: postIds } })
+        .select("propertyType city locality price")
+        .lean();
+      const byId = new Map(posts.map((p) => [String(p._id), p]));
+
+      const rejectedTypes = new Set();
+      const rejectedAreas = new Set();
+      let priceCeiling = Infinity;
+      for (const e of events) {
+        const p = byId.get(String(e.post));
+        if (!p) continue;
+        if (e.reason === "wrong_type" && p.propertyType) rejectedTypes.add(String(p.propertyType).toLowerCase());
+        if (e.reason === "wrong_area") {
+          if (p.locality) rejectedAreas.add(String(p.locality).toLowerCase());
+          if (p.city) rejectedAreas.add(String(p.city).toLowerCase());
+        }
+        if (e.reason === "too_expensive" && Number(p.price) > 0) priceCeiling = Math.min(priceCeiling, Number(p.price));
+      }
+      return {
+        rejectedTypes: [...rejectedTypes],
+        rejectedAreas: [...rejectedAreas],
+        priceCeiling: Number.isFinite(priceCeiling) ? Math.round(priceCeiling * 0.95) : null,
+      };
+    } catch (error) {
+      logger.warn("Failed to derive negative preferences:", error);
+      return {};
+    }
+  }
+
+  // Multiplier (≤1) to demote a candidate that hits a negative preference.
+  static negativePreferencePenalty(property, neg = {}) {
+    let mult = 1;
+    const type = String(property.propertyType || "").toLowerCase();
+    if (neg.rejectedTypes?.length && neg.rejectedTypes.includes(type)) mult *= 0.35;
+    if (neg.rejectedAreas?.length) {
+      const hay = `${property.locality || ""} ${property.city || ""}`.toLowerCase();
+      if (neg.rejectedAreas.some((a) => a && hay.includes(a))) mult *= 0.35;
+    }
+    if (neg.priceCeiling && Number(property.price) >= neg.priceCeiling) mult *= 0.55;
+    return mult;
+  }
+
+  // Persist a batch of recommendation events (impressions + interactions) and
+  // apply the immediate side effect of a "dismiss": drop the Redis suppression
+  // cache so the Mongo-derived exclusion + negative preferences take effect now.
+  static async recordRecoEvents(userId, events) {
+    if (!Array.isArray(events) || events.length === 0) return { inserted: 0 };
+    const { default: RecoEvent, RECO_EVENTS } = await import("../models/RecoEvent.model.js");
+
+    const clean = events
+      .filter((e) => e && RECO_EVENTS.includes(e.event) && e.post)
+      .slice(0, 100)
+      .map((e) => ({
+        user: userId,
+        post: e.post,
+        event: e.event,
+        position: Number.isFinite(Number(e.position)) ? Number(e.position) : null,
+        strategy: String(e.strategy || "").slice(0, 40),
+        context: String(e.context || "").slice(0, 20),
+        reason: String(e.reason || "").slice(0, 40),
+        scores: e.scores && typeof e.scores === "object" ? {
+          personalization: Number(e.scores.personalization) || undefined,
+          comment: Number(e.scores.comment) || undefined,
+          recency: Number(e.scores.recency) || undefined,
+          popularity: Number(e.scores.popularity) || undefined,
+          final: Number(e.scores.final) || undefined,
+        } : undefined,
+      }));
+
+    if (clean.length === 0) return { inserted: 0 };
+    try {
+      await RecoEvent.insertMany(clean, { ordered: false });
+    } catch (err) {
+      logger.warn("recordRecoEvents insert partial/failed (non-fatal):", err?.message);
+    }
+
+    // Side effect of dismissals: bust the caches so the (now-persisted) dismiss
+    // events reshape the next recommendations pull immediately.
+    const dismissals = clean.filter((e) => e.event === "dismiss");
+    if (dismissals.length) {
+      try {
+        await redisClient.del(SUPPRESS_KEY(userId));
+      } catch { /* redis optional */ }
+      this.invalidatePersonalizationCache(userId).catch(() => {});
+    }
+
+    return { inserted: clean.length, suppressed: dismissals.length };
   }
 
   /**
@@ -1119,7 +1268,7 @@ class PersonalizationService {
    */
   static async getRecommendationCandidates(userId, user, limit) {
     const baseMatch = { ...LIVE_POST_MATCH, author: { $ne: userId } };
-    const authorSelect = "fullName profilePic activeRole primaryRole city isVerified";
+    const authorSelect = "fullName profilePic activeRole primaryRole city isVerified ratingAvg ratingCount responseRate";
     // The local pool only needs enough headroom for the seen-filter + diversity
     // walk to have room — NOT `limit × 5`. A small catalogue can legitimately
     // have, say, 18 good local listings; demanding 20 threw all 18 away and
@@ -1190,6 +1339,34 @@ class PersonalizationService {
   /**
    * Get personalized property recommendations for a user
    */
+  // Merge stated preferences (onboarding) into the inferred behaviour blob.
+  // Stated wins: an explicit budget replaces the inferred price range, named
+  // property types get a solid baseline score. Preferred localities are read
+  // straight off `user` in getLocationScore, so nothing to do here for those.
+  static applyStatedPreferences(user, behavior = {}) {
+    const b = { ...behavior };
+
+    const bMin = Number(user?.budgetMin) || 0;
+    const bMax = Number(user?.budgetMax) || 0;
+    if (bMax > 0) {
+      b.typicalPriceRange = { min: bMin > 0 ? bMin * 0.9 : 0, max: bMax * 1.15 };
+      b.budgetIsStated = true;
+    }
+
+    const wantedTypes = (user?.propertyTypePreferences || [])
+      .map((s) => String(s || "").trim())
+      .filter(Boolean);
+    if (wantedTypes.length) {
+      const scores = new Map((b.preferredPropertyTypes || []).map((p) => [p.type, p.score]));
+      wantedTypes.forEach((t) => scores.set(t, Math.max(scores.get(t) || 0, 45)));
+      b.preferredPropertyTypes = [...scores.entries()]
+        .map(([type, score]) => ({ type, score }))
+        .sort((a, c) => c.score - a.score);
+    }
+
+    return b;
+  }
+
   static async getPersonalizedRecommendations(userId, limit = 20) {
     try {
       logger.info(`🎯 [PERSONALIZED RECOMMENDATIONS] Starting personalized recommendations for user ID: ${userId}, limit: ${limit}`);
@@ -1197,16 +1374,26 @@ class PersonalizationService {
       if (!user) return [];
 
       logger.info(`👤 [PERSONALIZED RECOMMENDATIONS] User found - City: ${user.city}, Verified: ${user.isVerified}`);
-      const [userBehavior, recentlySeenIds] = await Promise.all([
+      const [rawBehavior, recentlySeenIds, suppressedIds, negativePrefs] = await Promise.all([
         this.getUserBehavior(userId),
         this.getRecentlySeenPostIds(userId),
+        this.getSuppressedPostIds(userId),
+        this.getNegativePreferences(userId),
       ]);
+      // Fold in what the user *told* us (progressive onboarding) on top of what
+      // we inferred from their behaviour — stated preferences are the stronger
+      // signal, so they win where they exist.
+      const userBehavior = this.applyStatedPreferences(user, rawBehavior);
 
       // Stage 1 — retrieval: a location-relevant candidate pool, not the
       // entire catalog. Tiered fallbacks keep it from ever coming back empty.
-      const { pool: properties, strategy } = await this.getRecommendationCandidates(userId, user, limit);
+      const { pool: rawPool, strategy } = await this.getRecommendationCandidates(userId, user, limit);
+      // Drop anything the user dismissed with "not interested".
+      const properties = suppressedIds.size
+        ? rawPool.filter((p) => !suppressedIds.has(String(p._id)))
+        : rawPool;
 
-      logger.info(`📊 [PERSONALIZED RECOMMENDATIONS] Retrieval strategy "${strategy}" → ${properties.length} candidates to score`);
+      logger.info(`📊 [PERSONALIZED RECOMMENDATIONS] Retrieval "${strategy}" → ${rawPool.length} candidates, ${properties.length} after suppression`);
 
       // Score each property, blending preference-match (personalization +
       // comment signals) with objective quality signals (recency, popularity)
@@ -1223,11 +1410,15 @@ class PersonalizationService {
         const savesCount = Array.isArray(property.savedBy) ? property.savedBy.length : 0;
         const popularityScore = Math.min(100, likesCount * 2 + savesCount * 3 + (property.commentCount || 0) * 1.5);
 
-        const finalScore =
+        const blended =
           personalizationScore * FEED_SCORE_WEIGHTS.personalization +
           commentScore * FEED_SCORE_WEIGHTS.comment +
           recencyScore * FEED_SCORE_WEIGHTS.recency +
           popularityScore * FEED_SCORE_WEIGHTS.popularity;
+
+        // Demote (don't hard-exclude) candidates that hit a dismiss-reason:
+        // wrong type / wrong area / above the "too expensive" ceiling.
+        const negMult = this.negativePreferencePenalty(property, negativePrefs);
 
         return {
           ...property,
@@ -1235,7 +1426,8 @@ class PersonalizationService {
           commentScore,
           recencyScore,
           popularityScore,
-          finalScore
+          negMult,
+          finalScore: blended * negMult,
         };
       });
 
@@ -1491,7 +1683,7 @@ class PersonalizationService {
         ],
         price: { $gte: priceRange.min, $lte: priceRange.max }
       })
-        .populate("author", "fullName profilePic activeRole primaryRole city isVerified")
+        .populate("author", "fullName profilePic activeRole primaryRole city isVerified ratingAvg ratingCount responseRate")
         .limit(limit * 2)
         .lean();
 

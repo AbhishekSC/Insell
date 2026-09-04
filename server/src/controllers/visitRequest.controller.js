@@ -144,6 +144,11 @@ export async function createVisitRequest(req, res) {
       throw err;
     }
 
+    // Demand counter for the card — best-effort, never blocks the response.
+    PropertyPost.updateOne({ _id: postId }, { $inc: { visitRequestCount: 1 } }).catch((e) =>
+      logger.error("visitRequestCount bump failed (non-fatal):", e)
+    );
+
     await NotificationService.send({
       recipientId: post.author,
       actorId: requesterId,

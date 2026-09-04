@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, Circle, Polyline, useMap } from "react-leaflet";
 import { MapPin, Bed, Bath, Square, Building2, Home, Filter, X, SlidersHorizontal, GraduationCap, Hospital, Train, ShoppingBag, ChevronDown, ArrowLeft, Search, LocateFixed, Loader2 } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -43,24 +43,24 @@ const youAreHereIcon = L.divIcon({
   iconAnchor: [10, 10],
 });
 
-// Custom marker icon — selected property gets a distinct color so it's
-// obvious which pin the open popup/card belongs to among many markers.
-const createCustomIcon = (price, isSelected = false) => {
-  const formattedPrice = new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(price).replace("₹", "").replace(",", "");
-
+// Small teardrop pin. Price + details live in a hover tooltip / click popup
+// instead of a fat always-on price pill (which overlapped badly when zoomed
+// out). Selected property gets a distinct colour.
+const createPinIcon = (isSelected = false) => {
+  const fill = isSelected ? "#f59e0b" : "#2563eb";
   return L.divIcon({
-    className: "custom-marker",
+    className: "property-pin",
     html: `
-      <div class="${isSelected ? "bg-warning" : "bg-primary"} text-white px-3 py-2 rounded-full shadow-lg text-xs font-bold whitespace-nowrap${isSelected ? " ring-2 ring-white" : ""}">
-        ₹${formattedPrice}
-      </div>
+      <svg width="26" height="34" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg">
+        <path d="M13 0C5.82 0 0 5.82 0 13c0 9.75 13 21 13 21s13-11.25 13-21C26 5.82 20.18 0 13 0z"
+          fill="${fill}" stroke="#ffffff" stroke-width="2"/>
+        <circle cx="13" cy="13" r="4.5" fill="#ffffff"/>
+      </svg>
     `,
-    iconSize: [80, 30],
-    iconAnchor: [40, 15],
+    iconSize: [26, 34],
+    iconAnchor: [13, 34],
+    popupAnchor: [0, -30],
+    tooltipAnchor: [0, -30],
   });
 };
 
@@ -506,11 +506,19 @@ export default function PropertyMapView() {
               <Marker
                 key={property._id}
                 position={[property.latitude, property.longitude]}
-                icon={createCustomIcon(property.price, selectedProperty?._id === property._id)}
+                icon={createPinIcon(selectedProperty?._id === property._id)}
                 eventHandlers={{
                   click: () => handleMarkerClick(property),
                 }}
               >
+                <Tooltip direction="top" offset={[0, -6]} opacity={1} className="pin-price-tooltip">
+                  <span className="font-bold text-primary">{formatPrice(property.price)}</span>
+                  {(property.locality || property.city) && (
+                    <span className="block text-[10px] text-base-content/60">
+                      {property.locality || property.city}
+                    </span>
+                  )}
+                </Tooltip>
                 <Popup
                   maxWidth={200}
                   className="custom-popup"
@@ -577,9 +585,12 @@ export default function PropertyMapView() {
               && !properties.some((p) => p._id === deepLinkedProperty._id) && (
               <Marker
                 position={[deepLinkedProperty.latitude, deepLinkedProperty.longitude]}
-                icon={createCustomIcon(deepLinkedProperty.price, true)}
+                icon={createPinIcon(true)}
                 eventHandlers={{ click: () => handleMarkerClick(deepLinkedProperty) }}
               >
+                <Tooltip direction="top" offset={[0, -6]} opacity={1} className="pin-price-tooltip">
+                  <span className="font-bold text-primary">{formatPrice(deepLinkedProperty.price)}</span>
+                </Tooltip>
                 <Popup maxWidth={200}>
                   <div className="p-2 w-[172px]">
                     <h3 className="text-xs font-bold text-base-content mb-1 line-clamp-2">{deepLinkedProperty.title || "Property"}</h3>

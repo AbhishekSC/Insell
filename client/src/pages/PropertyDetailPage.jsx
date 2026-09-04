@@ -44,13 +44,16 @@ import OfferModal from "../components/OfferModal";
 import VisitScheduler from "../components/VisitScheduler";
 import OfferHistoryTimeline from "../components/OfferHistoryTimeline";
 import PriceHistoryChart from "../components/PriceHistoryChart";
+import ListingPerformance from "../components/ListingPerformance";
 import ReviewModal from "../components/ReviewModal";
 import { getCustomBadgeClasses } from "../lib/badgeColors";
 import { getSellerTrustSignals } from "../lib/trustSignals";
+import { getPropertySignals, toneClass } from "../lib/propertySignalBadges";
 import SimilarProperties from "../components/SimilarProperties";
 import axiosInstance from "../lib/axios";
 import AppShell from "../components/AppShell";
 import { addRecentlyViewed } from "../utils/recentlyViewed";
+import { notePropertyView } from "../hooks/usePreferencePrompt";
 
 function normalizeMediaUrls(raw) {
   if (Array.isArray(raw)) {
@@ -252,6 +255,18 @@ export default function PropertyDetailPage() {
     retry: 1,
   });
 
+  const isRequirementPost = String(postData?.postType || "").toUpperCase().startsWith("REQUIREMENT_");
+  const { data: priceInsight } = useQuery({
+    queryKey: ["priceInsight", id],
+    queryFn: async () => {
+      const res = await axiosInstance.get(`/posts/${id}/price-insight`, { skipErrorToast: true });
+      return res.data?.data?.insight || null;
+    },
+    enabled: Boolean(id && postData && !isRequirementPost && postData.price > 0),
+    retry: false,
+    staleTime: 30 * 60 * 1000,
+  });
+
   const { mutate: toggleSave } = useMutation({
     mutationFn: async (postId) => {
       const response = await axiosInstance.post(`/posts/${postId}/save`);
@@ -413,6 +428,7 @@ export default function PropertyDetailPage() {
       axiosInstance.post(`/posts/${id}/view`).catch(() => {
         // Non-critical — view count is best-effort.
       });
+      notePropertyView(); // feeds the progressive-onboarding "shown enough listings" gate
     }
   }, [id]);
 
@@ -484,6 +500,51 @@ export default function PropertyDetailPage() {
   const projectStatus = flatMeta.projectStatus || "";
   const maintenanceCharges = flatMeta.maintenanceCharges;
   const bookingAmount = flatMeta.bookingAmount;
+
+  const signalBadges = getPropertySignals(postData, { context: "detail" });
+
+  // Nearest transit stop from the already-fetched /amenities/nearby data.
+  // Our "metro" bucket is Geoapify's public_transport.{subway,train,tram} —
+  // in most of India that's a mainline railway station, not a metro, so read
+  // the real category and say which it is.
+  const nearestTransit = (amenitiesResult?.items || [])
+    .filter((a) => a.type === "metro")
+    .sort((a, b) => (a.distance || 0) - (b.distance || 0))[0];
+  const transitKind = (() => {
+    const cats = Array.isArray(nearestTransit?.tags?.categories) ? nearestTransit.tags.categories.join(" ") : "";
+    if (/subway|metro/i.test(cats)) return "metro station";
+    if (/tram/i.test(cats)) return "tram stop";
+    if (/train|railway|rail/i.test(cats)) return "railway station";
+    return "station";
+  })();
+  const transitBadge = nearestTransit
+    ? {
+        key: "transit",
+        label: (() => {
+          const d =
+            nearestTransit.distance >= 1000
+              ? `${(nearestTransit.distance / 1000).toFixed(1)} km`
+              : `${nearestTransit.distance} m`;
+          const name = String(nearestTransit.name || "").trim();
+          const named = /station|metro|junction|halt|terminus/i.test(name);
+          return named ? `${d} from ${name}` : `${d} from ${name} ${transitKind}`;
+        })(),
+        tone: "info",
+      }
+    : null;
+
+  const priceInsightBadge = priceInsight?.available
+    ? priceInsight.verdict === "below"
+      ? { key: "insight", label: `${Math.abs(priceInsight.deltaPct)}% below area average`, tone: "good" }
+      : priceInsight.verdict === "above"
+        ? { key: "insight", label: `${priceInsight.deltaPct}% above area average`, tone: "warn" }
+        : { key: "insight", label: "Priced around the area average", tone: "neutral" }
+    : null;
+  const allSignalBadges = [
+    ...(priceInsightBadge ? [priceInsightBadge] : []),
+    ...(transitBadge ? [transitBadge] : []),
+    ...signalBadges,
+  ];
 
   const specs = [
     postData.bedrooms ? { icon: Bed, value: postData.bedrooms, label: "Bedrooms", tone: "bg-primary/10 text-primary" } : null,
@@ -708,6 +769,15 @@ export default function PropertyDetailPage() {
                         </span>
                       )}
                     </div>
+                    {allSignalBadges.length > 0 && (
+                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                        {allSignalBadges.map((s) => (
+                          <span key={s.key} className={`rounded-full px-2.5 py-1 text-xs font-semibold ${toneClass(s.tone)}`}>
+                            {s.label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-3xl md:text-4xl font-bold text-primary">{formatMoney(postData.price)}</p>
@@ -764,6 +834,13 @@ export default function PropertyDetailPage() {
                   </div>
                 )}
               </Section>
+
+              {/* Listing performance — owner only */}
+              {isOwner && !postData.isDeleted && (
+                <div className="mt-4">
+                  <ListingPerformance post={postData} />
+                </div>
+              )}
 
               {/* Offers Received — owner only */}
               {isOwner && postOffers.length > 0 && (
