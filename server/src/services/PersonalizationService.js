@@ -2,6 +2,20 @@ import PropertyPost from "../models/PropertyPost.model.js";
 import User from "../models/User.model.js";
 import { redisClient } from "../config/redis.js";
 import { logger } from "../utils/logger.js";
+import { centroidForCity } from "../utils/cityCentroids.js";
+
+// Real estate demand is geographically bound — a buyer in Pune will not take a
+// Chennai listing however well it matches on price/type. So recommendations
+// are two-stage: RETRIEVAL narrows to a location-relevant candidate pool
+// (with tiered fallbacks so it's never empty), then the existing weighted
+// blend RANKS within it.
+const RECO_NEAR_METERS = 150_000; // ~150 km: a metro plus its satellite towns
+const RECO_CANDIDATE_CAP = 400; // most we pull into memory to score
+const SAVED_LOCATION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // trust a saved point for 30 days
+
+function escapeRegExp(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 const PERSONALIZATION_CACHE_TTL_BASE = 10 * 60; // 10 minutes base
 const PERSONALIZATION_CACHE_KEY = (userId, type) => `personalization:${type}:${userId}`;
@@ -112,7 +126,9 @@ class PersonalizationService {
       return 15;
     }
 
-    if (!user.city || !property.city) return 0;
+    // No coordinates and no city on one side — we can't say anything about
+    // proximity, so stay neutral rather than punishing the property with a 0.
+    if (!user.city || !property.city) return 50;
 
     const userCity = user.city.toLowerCase();
     const propertyCity = property.city.toLowerCase();
@@ -1069,6 +1085,84 @@ class PersonalizationService {
   }
 
   /**
+   * Resolve the point to centre recommendations on, mirroring the Near Me
+   * feed's precedence: a recent saved/GPS location on the profile, else a
+   * centroid for the user's city string, else nothing.
+   * @returns {{ point: [number, number] | null, source: string | null }}
+   */
+  static resolveUserPoint(user) {
+    const ld = user?.locationDetails || {};
+    if (Number.isFinite(ld.latitude) && Number.isFinite(ld.longitude)) {
+      const savedAt = ld.capturedAt ? new Date(ld.capturedAt).getTime() : 0;
+      const fresh = !ld.capturedAt || Date.now() - savedAt < SAVED_LOCATION_MAX_AGE_MS;
+      if (fresh) {
+        return { point: [ld.longitude, ld.latitude], source: ld.source === "gps" ? "gps" : "saved" };
+      }
+    }
+    const centroid = centroidForCity(ld.city || user?.city || user?.homeBase);
+    if (centroid) return { point: centroid, source: "city" };
+    return { point: null, source: null };
+  }
+
+  /**
+   * Stage 1 of recommendations — retrieval. Returns a candidate pool that is
+   * location-relevant where we can tell, falling back step by step so a user
+   * in a thin market (or with no location at all) still gets candidates:
+   *   geo (≤150 km)  →  city-string match  →  whole catalog
+   * Budget/type/behaviour stay as *ranking* signals (stage 2), not filters —
+   * a hard budget gate over-prunes when price history is sparse or noisy.
+   */
+  static async getRecommendationCandidates(userId, user, limit) {
+    const baseMatch = { author: { $ne: userId }, status: "PUBLISHED", visibility: "PUBLIC" };
+    const authorSelect = "fullName profilePic activeRole primaryRole city isVerified";
+    const minPool = Math.max(limit * 5, 20); // enough headroom for seen-filter + diversity caps
+    // Newest-first when we have to cap — bias the pool toward fresh inventory;
+    // stage 2 re-ranks by the full blend anyway.
+    const load = (extra) =>
+      PropertyPost.find({ ...baseMatch, ...extra })
+        .populate("author", authorSelect)
+        .sort({ createdAt: -1 })
+        .limit(RECO_CANDIDATE_CAP)
+        .lean();
+
+    const { point, source } = this.resolveUserPoint(user);
+
+    let pool = [];
+    let strategy = "national";
+
+    if (point) {
+      // $near needs the 2dsphere index and skips coordless posts — fine, those
+      // come back via the city-string tier if the geo pool is too thin.
+      pool = await PropertyPost.find({
+        ...baseMatch,
+        location: { $near: { $geometry: { type: "Point", coordinates: point }, $maxDistance: RECO_NEAR_METERS } },
+      })
+        .populate("author", authorSelect)
+        .limit(RECO_CANDIDATE_CAP)
+        .lean();
+      strategy = `geo:${source}`;
+    }
+
+    if (pool.length < minPool) {
+      const city = (user?.city || user?.locationDetails?.city || user?.homeBase || "").trim();
+      if (city) {
+        const cityPool = await load({ city: new RegExp(escapeRegExp(city), "i") });
+        if (cityPool.length > pool.length) {
+          pool = cityPool;
+          strategy = "city";
+        }
+      }
+    }
+
+    if (pool.length < minPool) {
+      pool = await load({});
+      strategy = "national";
+    }
+
+    return { pool, strategy };
+  }
+
+  /**
    * Get personalized property recommendations for a user
    */
   static async getPersonalizedRecommendations(userId, limit = 20) {
@@ -1083,16 +1177,11 @@ class PersonalizationService {
         this.getRecentlySeenPostIds(userId),
       ]);
 
-      // Get all published properties (excluding user's own posts)
-      const properties = await PropertyPost.find({
-        author: { $ne: userId },
-        status: "PUBLISHED",
-        visibility: "PUBLIC"
-      })
-        .populate("author", "fullName profilePic activeRole primaryRole city isVerified")
-        .lean();
+      // Stage 1 — retrieval: a location-relevant candidate pool, not the
+      // entire catalog. Tiered fallbacks keep it from ever coming back empty.
+      const { pool: properties, strategy } = await this.getRecommendationCandidates(userId, user, limit);
 
-      logger.info(`📊 [PERSONALIZED RECOMMENDATIONS] Found ${properties.length} properties to analyze`);
+      logger.info(`📊 [PERSONALIZED RECOMMENDATIONS] Retrieval strategy "${strategy}" → ${properties.length} candidates to score`);
 
       // Score each property, blending preference-match (personalization +
       // comment signals) with objective quality signals (recency, popularity)
