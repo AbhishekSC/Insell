@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from "react-leaflet";
 import { MapPin, Bed, Bath, Square, Building2, Home, Filter, X, SlidersHorizontal, GraduationCap, Hospital, Train, ShoppingBag, ChevronDown, ArrowLeft, Search, LocateFixed, Loader2 } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -8,6 +8,40 @@ import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import MobileBottomNav from "../components/MobileBottomNav";
+import { useLiveLocation } from "../hooks/useLiveLocation";
+
+// Great-circle distance in km.
+function haversineKm(a, b) {
+  if (!a || !b) return null;
+  const R = 6371;
+  const dLat = ((b[0] - a[0]) * Math.PI) / 180;
+  const dLon = ((b[1] - a[1]) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a[0] * Math.PI) / 180) * Math.cos((b[0] * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
+
+function formatKm(km) {
+  if (km == null) return "";
+  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+}
+
+// "You are here" marker — a pulsing red dot, deliberately a different colour
+// from the blue property price pins so it stands out.
+const YOU_ARE_HERE_COLOR = "#dc2626";
+const youAreHereIcon = L.divIcon({
+  className: "you-are-here-marker",
+  html: `
+    <span style="position:relative;display:block;width:20px;height:20px;">
+      <span style="position:absolute;inset:0;border-radius:9999px;background:${YOU_ARE_HERE_COLOR};opacity:.3;animation:yah-pulse 2s ease-out infinite;"></span>
+      <span style="position:absolute;inset:4px;border-radius:9999px;background:${YOU_ARE_HERE_COLOR};border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.5);"></span>
+    </span>
+    <style>@keyframes yah-pulse{0%{transform:scale(1);opacity:.4}70%{transform:scale(2.8);opacity:0}100%{opacity:0}}</style>
+  `,
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+});
 
 // Custom marker icon — selected property gets a distinct color so it's
 // obvious which pin the open popup/card belongs to among many markers.
@@ -97,6 +131,12 @@ export default function PropertyMapView() {
   const [searchParams] = useSearchParams();
   const focusPropertyId = searchParams.get("propertyId");
   const hasAppliedFocusRef = useRef(false);
+
+  const { location: myLoc, refresh: refreshLiveLocation, status: liveLocStatus } = useLiveLocation();
+  const myPoint = useMemo(
+    () => (myLoc?.lat != null && myLoc?.lon != null ? [myLoc.lat, myLoc.lon] : null),
+    [myLoc?.lat, myLoc?.lon]
+  );
   const [mapCenter, setMapCenter] = useState([20.5937, 78.9629]);
   const [mapZoom, setMapZoom] = useState(5);
   const [showFilters, setShowFilters] = useState(false);
@@ -148,6 +188,19 @@ export default function PropertyMapView() {
     },
     enabled: debouncedQuery.length >= 2,
     retry: false, // Don't retry on rate limit errors
+  });
+
+  // When deep-linked from a post's "Live Location" button, fetch that exact
+  // property directly — it might not be in the 100 the map list pulls.
+  const { data: deepLinkedProperty } = useQuery({
+    queryKey: ["mapFocusProperty", focusPropertyId],
+    queryFn: async () => {
+      const res = await axiosInstance.get(`/posts/${focusPropertyId}`, { skipErrorToast: true });
+      return res.data?.data?.post || null;
+    },
+    enabled: Boolean(focusPropertyId),
+    staleTime: 60000,
+    retry: false,
   });
 
   // Fetch nearby amenities when a property is selected — real Geoapify/OpenStreetMap data only.
@@ -222,6 +275,15 @@ export default function PropertyMapView() {
 
   // Calculate map center and zoom based on filtered properties
   const mapView = useMemo(() => {
+    // Deep-linked from a post's "Live Location" (?propertyId=...) — pin this
+    // exact property at street zoom. Highest priority so the shared "recenter
+    // on all properties" logic below can't stomp it once the list loads.
+    const focus = deepLinkedProperty
+      || (focusPropertyId && (data?.posts || []).find((p) => String(p._id) === String(focusPropertyId)));
+    if (focusPropertyId && focus?.latitude != null && focus?.longitude != null) {
+      return { center: [focus.latitude, focus.longitude], zoom: 16 };
+    }
+
     // A place picked from the search bar always wins — it uses the
     // geocoder's own coordinates, so it works even when zero properties
     // happen to be there yet (averaging an empty/mismatched property list
@@ -231,7 +293,8 @@ export default function PropertyMapView() {
     }
 
     if (properties.length === 0) {
-      return { center: [20.5937, 78.9629], zoom: 5 };
+      // Frame on the user's own location if we have one, else the country.
+      return myPoint ? { center: myPoint, zoom: 12 } : { center: [20.5937, 78.9629], zoom: 5 };
     }
 
     // If state is selected, try to find state center
@@ -264,7 +327,7 @@ export default function PropertyMapView() {
     const avgLat = properties.reduce((sum, p) => sum + p.latitude, 0) / properties.length;
     const avgLng = properties.reduce((sum, p) => sum + p.longitude, 0) / properties.length;
     return { center: [avgLat, avgLng], zoom: 10 };
-  }, [properties, locationFilters.state, locationFilters.city, searchSelection]);
+  }, [properties, locationFilters.state, locationFilters.city, searchSelection, focusPropertyId, deepLinkedProperty, data?.posts, myPoint]);
 
   // Update map center when filters change
   useEffect(() => {
@@ -295,17 +358,15 @@ export default function PropertyMapView() {
   // selection on every unrelated re-render.
   useEffect(() => {
     if (!focusPropertyId || hasAppliedFocusRef.current) return;
-    const match = data?.posts?.find((post) => post._id === focusPropertyId);
-    if (!match?.latitude || !match?.longitude) return;
+    const match = deepLinkedProperty
+      || data?.posts?.find((post) => post._id === focusPropertyId);
+    if (match?.latitude == null || match?.longitude == null) return;
     hasAppliedFocusRef.current = true;
-    handleMarkerClick(match);
-    // handleMarkerClick only recenters — it doesn't touch zoom, since a
-    // manual marker click happens while already zoomed in somewhere
-    // reasonable. Landing here fresh from a deep link starts at the
-    // whole-India default (5), so zoom in close on this specific property
-    // (street level) rather than leaving it at a wide, whole-state view.
-    setMapZoom(15);
-  }, [focusPropertyId, data?.posts]);
+    // Centering/zoom is handled by the mapView memo (focus is its top
+    // priority). Here we just select it so the card + amenities populate.
+    setSelectedProperty(match);
+    setAmenitiesAnchor(match);
+  }, [focusPropertyId, deepLinkedProperty, data?.posts]);
 
   const clearFilters = () => {
     setPriceRange({ min: '', max: '' });
@@ -313,38 +374,35 @@ export default function PropertyMapView() {
     setLocationFilters({ state: '', city: '', area: '' });
   };
 
-  const [isLocating, setIsLocating] = useState(false);
-  const handleLocateMe = () => {
+  const isLocating = liveLocStatus === "locating";
+  const handleLocateMe = async () => {
     if (!window.isSecureContext) {
       toast.error("Location needs a secure (https) connection");
       return;
     }
-    if (!navigator.geolocation) {
-      toast.error("Geolocation isn't supported on this device");
-      return;
-    }
-    setIsLocating(true);
     toast.loading("Finding your location...", { id: "locate-me" });
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setMapCenter([position.coords.latitude, position.coords.longitude]);
-        setMapZoom(15);
-        setIsLocating(false);
-        toast.success("Centered on your location", { id: "locate-me" });
-      },
-      (err) => {
-        setIsLocating(false);
-        const message =
-          err.code === err.PERMISSION_DENIED
-            ? "Location permission denied — enable it in your browser settings"
-            : err.code === err.TIMEOUT
-              ? "Timed out finding your location"
-              : "Couldn't access your location";
-        toast.error(message, { id: "locate-me" });
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+    // Goes through the shared live-location service — persists to
+    // user.locationDetails so the pin sticks and every feature stays in sync.
+    const r = await refreshLiveLocation();
+    if (r?.ok) {
+      setMapCenter([r.lat, r.lon]);
+      setMapZoom(15);
+      toast.success("Centered on your location", { id: "locate-me" });
+    } else if (r?.denied) {
+      toast.error("Location permission denied — enable it in your browser settings", { id: "locate-me" });
+    } else {
+      toast.error("Couldn't access your location", { id: "locate-me" });
+    }
   };
+
+
+  // The property currently in focus (deep-linked or clicked) — used for the
+  // "distance from you" line.
+  const focusProperty = selectedProperty || deepLinkedProperty || null;
+  const focusPoint = focusProperty?.latitude != null && focusProperty?.longitude != null
+    ? [focusProperty.latitude, focusProperty.longitude]
+    : null;
+  const distanceToFocusKm = myPoint && focusPoint ? haversineKm(myPoint, focusPoint) : null;
 
   const hasActiveFilters = priceRange.min || priceRange.max || areaRange.min || areaRange.max || 
                            locationFilters.state || locationFilters.city || locationFilters.area;
@@ -398,7 +456,52 @@ export default function PropertyMapView() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <MapViewUpdater center={mapCenter} zoom={mapZoom} />
-            
+
+            {/* "You are here" */}
+            {myPoint && (
+              <>
+                <Marker position={myPoint} icon={youAreHereIcon} zIndexOffset={1000}>
+                  <Popup>
+                    <div className="text-xs font-semibold text-base-content">You are here</div>
+                    {myLoc?.capturedAt && (
+                      <div className="text-[11px] text-base-content/60">
+                        {myLoc.source === "gps" ? "From your device" : "Last saved location"}
+                      </div>
+                    )}
+                  </Popup>
+                </Marker>
+                {myLoc?.accuracyMeters > 0 && myLoc.accuracyMeters < 2000 && (
+                  <Circle center={myPoint} radius={myLoc.accuracyMeters} pathOptions={{ color: YOU_ARE_HERE_COLOR, weight: 1, fillOpacity: 0.06 }} />
+                )}
+              </>
+            )}
+
+            {/* Line + distance to the property you came from Near Me / clicked */}
+            {myPoint && focusPoint && (
+              <>
+                <Polyline
+                  positions={[myPoint, focusPoint]}
+                  pathOptions={{ color: YOU_ARE_HERE_COLOR, weight: 2, dashArray: "6 8", opacity: 0.85 }}
+                >
+                  <Popup>
+                    <div className="text-xs font-semibold" style={{ color: YOU_ARE_HERE_COLOR }}>
+                      {formatKm(distanceToFocusKm)} from you
+                    </div>
+                  </Popup>
+                </Polyline>
+                <Marker
+                  position={[(myPoint[0] + focusPoint[0]) / 2, (myPoint[1] + focusPoint[1]) / 2]}
+                  interactive={false}
+                  icon={L.divIcon({
+                    className: "distance-label",
+                    html: `<span style="background:${YOU_ARE_HERE_COLOR};color:#fff;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.3);">${formatKm(distanceToFocusKm)} away</span>`,
+                    iconSize: [1, 1],
+                    iconAnchor: [0, 0],
+                  })}
+                />
+              </>
+            )}
+
             {properties.map((property) => (
               <Marker
                 key={property._id}
@@ -467,6 +570,33 @@ export default function PropertyMapView() {
                 </Popup>
               </Marker>
             ))}
+
+            {/* Deep-linked property that isn't in the map's 100-item list —
+                render its marker so "Live Location" always lands on a pin. */}
+            {deepLinkedProperty?.latitude != null && deepLinkedProperty?.longitude != null
+              && !properties.some((p) => p._id === deepLinkedProperty._id) && (
+              <Marker
+                position={[deepLinkedProperty.latitude, deepLinkedProperty.longitude]}
+                icon={createCustomIcon(deepLinkedProperty.price, true)}
+                eventHandlers={{ click: () => handleMarkerClick(deepLinkedProperty) }}
+              >
+                <Popup maxWidth={200}>
+                  <div className="p-2 w-[172px]">
+                    <h3 className="text-xs font-bold text-base-content mb-1 line-clamp-2">{deepLinkedProperty.title || "Property"}</h3>
+                    <p className="text-sm font-bold text-primary mb-1">{formatPrice(deepLinkedProperty.price)}</p>
+                    {distanceToFocusKm != null && (
+                      <p className="text-[11px] font-semibold" style={{ color: YOU_ARE_HERE_COLOR }}>{formatKm(distanceToFocusKm)} from you</p>
+                    )}
+                    <button
+                      onClick={(e) => { e.preventDefault(); navigate(`/property/${deepLinkedProperty._id}`); }}
+                      className="mt-1.5 w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs bg-primary text-white rounded-full font-semibold"
+                    >
+                      <Home className="size-3" /> View Details
+                    </button>
+                  </div>
+                </Popup>
+              </Marker>
+            )}
 
             {/* Amenity Markers — tied to amenitiesAnchor, not selectedProperty, so
                 these stay on the map even after the property card is closed */}
@@ -686,7 +816,15 @@ export default function PropertyMapView() {
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] sm:text-xs text-base-content/60 mb-0.5 sm:mb-1">Selected Property</p>
                   <h4 className="text-xs sm:text-sm font-semibold text-base-content truncate">{selectedProperty.title || "Property"}</h4>
-                  <p className="text-[11px] sm:text-xs text-primary font-medium">{formatPrice(selectedProperty.price)}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[11px] sm:text-xs text-primary font-medium">{formatPrice(selectedProperty.price)}</p>
+                    {distanceToFocusKm != null && selectedProperty?._id === focusProperty?._id && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                        <MapPin className="size-2.5" />
+                        {formatKm(distanceToFocusKm)} away
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <button
                   onClick={() => setSelectedProperty(null)}

@@ -135,7 +135,7 @@ export function useLiveLocation() {
       queryClient.invalidateQueries({ queryKey: ["propertyNews"] });
       setStatus("idle");
       setPermission("granted");
-      return { ok: true, city: geo.city };
+      return { ok: true, city: geo.city, lat, lon, accuracyMeters };
     } catch {
       setStatus("error");
       return { ok: false };
