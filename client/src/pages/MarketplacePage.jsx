@@ -217,6 +217,30 @@ function relativeTimeShort(when) {
   return `${Math.round(hrs / 24)}d ago`;
 }
 
+// Distance pill for a post in "Near Me" — colour tracks proximity (same
+// bands the server ranks by), `~` marks a city-centroid approximation.
+function distancePill(post) {
+  if (typeof post.distanceKm !== "number") return null;
+  const km = post.distanceKm;
+  const approx = post.locationPrecision === "approx";
+  const prefix = approx ? "~" : "";
+  const dist = km < 1 ? `${Math.round(km * 1000)} m` : `${km} km`;
+
+  let label = `${prefix}${dist} away`;
+  let className = "bg-slate-100 text-slate-600";
+  if (km <= 1 && !approx) {
+    label = "In your area";
+    className = "bg-emerald-600 text-white";
+  } else if (km <= 3) {
+    className = "bg-emerald-100 text-emerald-700";
+  } else if (km <= 10) {
+    className = "bg-primary/10 text-primary";
+  } else if (km <= 25) {
+    className = "bg-amber-100 text-amber-700";
+  }
+  return { label, className };
+}
+
 function formatMoney(value) {
   const amount = Number(value || 0);
   if (!Number.isFinite(amount) || amount <= 0) return "Price on request";
@@ -1710,6 +1734,7 @@ export default function MarketplacePage() {
 
                   const detailBadges = buildPropertyDetailBadges(post, activeRole);
                   const priceContextBadges = isRequirement ? [] : getPriceContextBadges(post);
+                  const distPill = distancePill(post);
 
                   const handleDoubleClickMedia = (event) => {
                     event.stopPropagation();
@@ -1792,13 +1817,12 @@ export default function MarketplacePage() {
                             {formatMoney(post.price).replace("₹", "")}
                             {activeRole === "Tenant" && <span className="text-sm font-normal text-base-content/60">/mo</span>}
                           </p>
-                          {(priceContextBadges.length > 0 || typeof post.distanceKm === "number") && (
+                          {(priceContextBadges.length > 0 || distPill) && (
                             <div className="flex flex-wrap gap-1.5 mt-1">
-                              {typeof post.distanceKm === "number" && (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary">
+                              {distPill && (
+                                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${distPill.className}`}>
                                   <MapPin className="size-3" />
-                                  {post.locationPrecision === "approx" ? "~" : ""}
-                                  {post.distanceKm < 1 ? `${Math.round(post.distanceKm * 1000)} m` : `${post.distanceKm} km`} away
+                                  {distPill.label}
                                 </span>
                               )}
                               {priceContextBadges.map((badge) => (
