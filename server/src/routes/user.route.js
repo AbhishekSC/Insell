@@ -13,6 +13,8 @@ import {
   getUserPublicProfile,
   getUserFriendsList,
   updateUserLocation,
+  getPreferencePrompt,
+  answerPreferencePrompt,
   registerFcmToken,
   unregisterFcmToken,
   getUserActivity,
@@ -34,6 +36,8 @@ router.get("/:id/friends", getUserFriendsList);
 router.patch("/profile", uploadProfileImage.single("profileImage"), updateMyProfile);
 router.patch("/account", uploadProfileImage.single("profileImage"), updateMyProfile);
 router.patch("/location", updateUserLocation);
+router.get("/preference-prompt", getPreferencePrompt);
+router.post("/preference-prompt", answerPreferencePrompt);
 router.post("/fcm-token", registerFcmToken);
 router.delete("/fcm-token", unregisterFcmToken);
 

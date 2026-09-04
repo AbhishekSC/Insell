@@ -30,6 +30,28 @@ router.get("/recommendations", verifyUser, requireVerified, async (req, res) => 
 });
 
 /**
+ * POST /personalization/events
+ * Batch-record recommendation impressions + interactions (incl. "dismiss",
+ * which also hides that post from future recommendations).
+ * body: { events: [{ post, event, position?, strategy?, context?, reason?, scores? }] }
+ */
+router.post("/events", verifyUser, requireVerified, async (req, res) => {
+  try {
+    if (!req.user?._id) return sendErrorResponse(res, 401, "User not authenticated");
+    const events = Array.isArray(req.body?.events)
+      ? req.body.events
+      : req.body?.event
+        ? [req.body]
+        : [];
+    const result = await PersonalizationService.recordRecoEvents(req.user._id, events);
+    return sendSuccessResponse(res, 200, "Events recorded", result);
+  } catch (error) {
+    console.error("Error in reco events endpoint:", error);
+    return sendErrorResponse(res, 500, "Failed to record events");
+  }
+});
+
+/**
  * GET /personalization/similar-connections
  * Get suggested connections for the current user
  */

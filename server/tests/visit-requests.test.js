@@ -88,6 +88,15 @@ describe("createVisitRequest", () => {
     expect(res.statusCode).toBe(409);
   });
 
+  it("bumps the post's visitRequestCount", async () => {
+    const before = (await PropertyPost.findById(post._id).select("visitRequestCount").lean())?.visitRequestCount || 0;
+    await create(visitor, { slots: [soon(2)] });
+    // the $inc is fire-and-forget — give it a tick
+    await new Promise((r) => setTimeout(r, 150));
+    const after = (await PropertyPost.findById(post._id).select("visitRequestCount").lean())?.visitRequestCount || 0;
+    expect(after).toBe(before + 1);
+  });
+
   it("is idempotent under the same requestId", async () => {
     const rid = "visit-req-1";
     await create(visitor, { slots: [soon(2)], requestId: rid });

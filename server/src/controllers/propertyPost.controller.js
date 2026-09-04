@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import PropertyPost from "../models/PropertyPost.model.js";
 import PostReport, { REPORT_REASON_CODES } from "../models/PostReport.model.js";
 import Notification from "../models/Notification.model.js";
@@ -628,7 +629,7 @@ export async function getPropertyFeed(req, res) {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate("author", "fullName profilePic activeRole primaryRole city isVerified")
+        .populate("author", "fullName profilePic activeRole primaryRole city isVerified ratingAvg ratingCount responseRate")
         .lean(),
       PropertyPost.countDocuments(filter),
     ]);
@@ -857,7 +858,7 @@ async function getNearMeFeed(req, res, { filter, page, limit, skip, currentUserI
       const pageItems = scored.slice(skip, skip + limit);
       await PropertyPost.populate(pageItems, {
         path: "author",
-        select: "fullName profilePic activeRole primaryRole city isVerified",
+        select: "fullName profilePic activeRole primaryRole city isVerified ratingAvg ratingCount responseRate",
       });
       pageItems.forEach((p) => { delete p._band; delete p._score; delete p.distanceMeters; delete p.location; });
 
@@ -882,7 +883,7 @@ async function getNearMeFeed(req, res, { filter, page, limit, skip, currentUserI
 
     let [posts, total] = await Promise.all([
       PropertyPost.find(cityFilter).sort({ createdAt: -1 }).skip(skip).limit(limit)
-        .populate("author", "fullName profilePic activeRole primaryRole city isVerified").lean(),
+        .populate("author", "fullName profilePic activeRole primaryRole city isVerified ratingAvg ratingCount responseRate").lean(),
       PropertyPost.countDocuments(cityFilter),
     ]);
 
@@ -890,7 +891,7 @@ async function getNearMeFeed(req, res, { filter, page, limit, skip, currentUserI
       mode = "all";
       [posts, total] = await Promise.all([
         PropertyPost.find(geoQuery).sort({ createdAt: -1 }).skip(skip).limit(limit)
-          .populate("author", "fullName profilePic activeRole primaryRole city isVerified").lean(),
+          .populate("author", "fullName profilePic activeRole primaryRole city isVerified ratingAvg ratingCount responseRate").lean(),
         PropertyPost.countDocuments(geoQuery),
       ]);
     }
@@ -965,7 +966,7 @@ export async function createPropertyPost(req, res) {
     });
 
     const populated = await PropertyPost.findById(post._id)
-      .populate("author", "fullName profilePic activeRole primaryRole city isVerified")
+      .populate("author", "fullName profilePic activeRole primaryRole city isVerified ratingAvg ratingCount responseRate")
       .lean();
 
     await invalidateDiscoverCache(userId);
@@ -1165,7 +1166,7 @@ export async function updatePropertyPost(req, res) {
     }
 
     const populated = await PropertyPost.findById(post._id)
-      .populate("author", "fullName profilePic activeRole primaryRole city isVerified")
+      .populate("author", "fullName profilePic activeRole primaryRole city isVerified ratingAvg ratingCount responseRate")
       .lean();
 
     await invalidateDiscoverCache(userId);
@@ -1367,6 +1368,20 @@ export async function getPropertyPostById(req, res) {
     const likedBy = Array.isArray(post.likedBy) ? post.likedBy.map((item) => String(item)) : [];
     const savedBy = Array.isArray(post.savedBy) ? post.savedBy.map((item) => String(item)) : [];
 
+    // Card/demand signals — live counts, not denormalized (no drift).
+    const [activeOfferCount, sellerListingCount] = await Promise.all([
+      Offer.countDocuments({ post: post._id, status: { $in: ["pending", "countered"] } }),
+      post.author?._id
+        ? PropertyPost.countDocuments({
+            author: post.author._id,
+            status: "PUBLISHED",
+            visibility: "PUBLIC",
+            isDeleted: { $ne: true },
+            isBlocked: { $ne: true },
+          })
+        : Promise.resolve(0),
+    ]);
+
     return sendSuccessResponse(res, 200, "Property post fetched successfully", {
       post: {
         ...post,
@@ -1374,6 +1389,8 @@ export async function getPropertyPostById(req, res) {
         isLikedByMe: currentUserId ? likedBy.includes(currentUserId) : false,
         savesCount: savedBy.length,
         isSavedByMe: currentUserId ? savedBy.includes(currentUserId) : false,
+        activeOfferCount,
+        sellerListingCount,
       },
     });
   } catch (error) {
@@ -1454,6 +1471,223 @@ export async function getSimilarProperties(req, res) {
   } catch (error) {
     logger.error("Error in getSimilarProperties:", error);
     return sendErrorResponse(res, 500, "Failed to retrieve similar properties");
+  }
+}
+
+// GET /posts/:id/price-insight
+// How this listing's ₹/sqft compares to live listings of the same
+// propertyType in the same city (tightened to the same bedroom count when
+// there's enough of a sample). Powers the "priced below/above the area"
+// badge. Cached per city+type+beds for an hour.
+const PRICE_INSIGHT_MIN_SAMPLE = 4;
+// ₹/sqft sanity bounds differ wildly between a sale price and a monthly rent.
+const PSF_BOUNDS = {
+  buy: { min: 300, max: 500000 },
+  rent: { min: 3, max: 2000 },
+};
+
+function median(nums) {
+  if (!nums.length) return 0;
+  const s = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
+// Is this a rent listing? `postType` is unreliable (legacy default
+// PROPERTY_SALE even on rentals), so also check listingType.
+function intentOf(post) {
+  const lt = String(post?.listingType || "").toLowerCase();
+  const pt = String(post?.postType || "").toUpperCase();
+  return lt === "rent" || lt === "lease" || pt === "PROPERTY_RENT" ? "rent" : "buy";
+}
+
+function subjectPsfOf(post, intent = intentOf(post)) {
+  const area = Number(post.areaSqft) || Number(post.postMeta?.commercial?.carpetArea) || 0;
+  const psf = post.price > 0 && area > 0 ? post.price / area : 0;
+  const b = PSF_BOUNDS[intent] || PSF_BOUNDS.buy;
+  return psf >= b.min && psf <= b.max ? psf : 0;
+}
+
+// Median ₹/sqft of live listings of the same propertyType + intent (buy vs
+// rent — mixing them makes the median meaningless) in the same city, tightened
+// to the same bedroom count when the sample allows. Redis-cached an hour.
+async function priceBenchmarkFor(cityRaw, propertyType, beds, excludeId, intent = "buy") {
+  const cityKey = String(cityRaw || "").toLowerCase().trim();
+  if (!cityKey || !propertyType) return { medianPsf: 0, sampleSize: 0 };
+  const wantRent = intent === "rent";
+  const cacheKey = `price:insight:${cityKey}:${String(propertyType).toLowerCase()}:${Number(beds) || 0}:${wantRent ? "rent" : "buy"}`;
+
+  try {
+    const cached = await redisClient.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+  } catch { /* redis optional */ }
+
+  const rentMatch = { $or: [{ listingType: /^(rent|lease)$/i }, { postType: "PROPERTY_RENT" }] };
+  const buyMatch = { listingType: { $not: /^(rent|lease)$/i }, postType: { $ne: "PROPERTY_RENT" } };
+
+  const rows = await PropertyPost.find({
+    isDeleted: { $ne: true },
+    isBlocked: { $ne: true },
+    status: "PUBLISHED",
+    visibility: "PUBLIC",
+    city: new RegExp(`^${cityKey.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+    propertyType,
+    price: { $gt: 0 },
+    areaSqft: { $gt: 0 },
+    ...(wantRent ? rentMatch : buyMatch),
+  })
+    .select("price areaSqft bedrooms")
+    .limit(500)
+    .lean();
+
+  let pool = rows;
+  if (Number(beds) > 0) {
+    const sameBeds = rows.filter((r) => Number(r.bedrooms) === Number(beds));
+    if (sameBeds.length >= PRICE_INSIGHT_MIN_SAMPLE) pool = sameBeds;
+  }
+  const bounds = PSF_BOUNDS[wantRent ? "rent" : "buy"];
+  const psfs = pool
+    .filter((r) => String(r._id) !== String(excludeId || ""))
+    .map((r) => r.price / r.areaSqft)
+    .filter((v) => Number.isFinite(v) && v >= bounds.min && v <= bounds.max);
+
+  const benchmark = { medianPsf: Math.round(median(psfs)), sampleSize: psfs.length };
+  try {
+    await redisClient.setEx(cacheKey, 3600, JSON.stringify(benchmark));
+  } catch { /* redis optional */ }
+  return benchmark;
+}
+
+function insightFromBenchmark(post, benchmark) {
+  const subjectPsf = subjectPsfOf(post, intentOf(post));
+  if (!subjectPsf || !benchmark || benchmark.sampleSize < PRICE_INSIGHT_MIN_SAMPLE || !benchmark.medianPsf) {
+    return { available: false };
+  }
+  const deltaPct = Math.round(((subjectPsf - benchmark.medianPsf) / benchmark.medianPsf) * 100);
+  return {
+    available: true,
+    subjectPricePerSqft: Math.round(subjectPsf),
+    medianPricePerSqft: benchmark.medianPsf,
+    sampleSize: benchmark.sampleSize,
+    deltaPct,
+    verdict: deltaPct <= -8 ? "below" : deltaPct >= 12 ? "above" : "around",
+  };
+}
+
+// GET /posts/:id/price-insight
+export async function getPriceInsight(req, res) {
+  try {
+    const { id } = req.params;
+    const ref = await PropertyPost.findById(id)
+      .select("city propertyType postType listingType bedrooms price areaSqft postMeta isDeleted")
+      .lean();
+    if (!ref || ref.isDeleted) return sendErrorResponse(res, 404, "Post not found");
+
+    if (!subjectPsfOf(ref) || !ref.city || !ref.propertyType) {
+      return sendSuccessResponse(res, 200, "Not enough data for a price insight", { insight: { available: false } });
+    }
+
+    const benchmark = await priceBenchmarkFor(ref.city, ref.propertyType, ref.bedrooms, ref._id, intentOf(ref));
+    const insight = insightFromBenchmark(ref, benchmark);
+    if (insight.available) {
+      insight.scope = { city: ref.city, propertyType: ref.propertyType, bedrooms: Number(ref.bedrooms) || null };
+    }
+    return sendSuccessResponse(res, 200, "Price insight ready", { insight });
+  } catch (error) {
+    logger.error("Error in getPriceInsight:", error);
+    return sendErrorResponse(res, 500, "Failed to compute price insight");
+  }
+}
+
+// POST /posts/card-signals  { ids: [...] }
+// Batch, feed-friendly extras the card needs but the feed payload doesn't
+// carry: price-vs-area verdict and the live offer count. One call per feed
+// page instead of N.
+export async function getCardSignals(req, res) {
+  try {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.slice(0, 40).filter(Boolean) : [];
+    if (ids.length === 0) return sendSuccessResponse(res, 200, "No ids", { signals: {} });
+
+    const [posts, offerRows] = await Promise.all([
+      PropertyPost.find({ _id: { $in: ids }, isDeleted: { $ne: true } })
+        .select("city propertyType postType listingType bedrooms price areaSqft postMeta")
+        .lean(),
+      Offer.aggregate([
+        { $match: { post: { $in: ids.map((x) => new mongoose.Types.ObjectId(String(x))) }, status: { $in: ["pending", "countered"] } } },
+        { $group: { _id: "$post", n: { $sum: 1 } } },
+      ]),
+    ]);
+
+    const offerCount = new Map(offerRows.map((r) => [String(r._id), r.n]));
+
+    // Benchmark once per distinct {city, type, beds, intent} across the page.
+    const groupKey = (p) =>
+      `${String(p.city || "").toLowerCase().trim()}|${String(p.propertyType || "").toLowerCase()}|${Number(p.bedrooms) || 0}|${intentOf(p)}`;
+    const groups = new Map();
+    for (const p of posts) {
+      if (!subjectPsfOf(p) || !p.city || !p.propertyType) continue;
+      const key = groupKey(p);
+      if (!groups.has(key)) groups.set(key, { city: p.city, propertyType: p.propertyType, beds: Number(p.bedrooms) || 0, intent: intentOf(p) });
+    }
+    const benchmarks = new Map();
+    await Promise.all(
+      [...groups.entries()].map(async ([key, g]) => {
+        benchmarks.set(key, await priceBenchmarkFor(g.city, g.propertyType, g.beds, null, g.intent));
+      })
+    );
+
+    const signals = {};
+    for (const p of posts) {
+      const key = groupKey(p);
+      const insight = insightFromBenchmark(p, benchmarks.get(key));
+      signals[String(p._id)] = {
+        activeOffers: offerCount.get(String(p._id)) || 0,
+        priceInsight: insight.available ? { verdict: insight.verdict, deltaPct: insight.deltaPct } : null,
+      };
+    }
+    return sendSuccessResponse(res, 200, "Card signals ready", { signals });
+  } catch (error) {
+    logger.error("Error in getCardSignals:", error);
+    return sendErrorResponse(res, 500, "Failed to load card signals");
+  }
+}
+
+// GET /posts/price-suggestion?city=&propertyType=&bedrooms=&areaSqft=&intent=buy|rent
+// What similar live listings are priced at — shown while a seller fills in
+// the price on Create Post, so ₹30,000 for a flat gets caught at the source.
+export async function getPriceSuggestion(req, res) {
+  try {
+    const city = String(req.query.city || "").trim();
+    const propertyType = String(req.query.propertyType || "").trim();
+    const bedrooms = Number(req.query.bedrooms) || 0;
+    const areaSqft = Number(req.query.areaSqft) || 0;
+    const intent = String(req.query.intent || "").toLowerCase() === "rent" ? "rent" : "buy";
+
+    if (!city || !propertyType || !areaSqft) {
+      return sendSuccessResponse(res, 200, "Not enough info", { suggestion: { available: false } });
+    }
+
+    const benchmark = await priceBenchmarkFor(city, propertyType, bedrooms, null, intent);
+    if (benchmark.sampleSize < PRICE_INSIGHT_MIN_SAMPLE || !benchmark.medianPsf) {
+      return sendSuccessResponse(res, 200, "Not enough comparable listings", { suggestion: { available: false } });
+    }
+
+    const mid = Math.round(benchmark.medianPsf * areaSqft);
+    return sendSuccessResponse(res, 200, "Price suggestion ready", {
+      suggestion: {
+        available: true,
+        intent,
+        medianPricePerSqft: benchmark.medianPsf,
+        sampleSize: benchmark.sampleSize,
+        mid,
+        low: Math.round(mid * 0.85),
+        high: Math.round(mid * 1.15),
+        scope: { city, propertyType, bedrooms: bedrooms || null },
+      },
+    });
+  } catch (error) {
+    logger.error("Error in getPriceSuggestion:", error);
+    return sendErrorResponse(res, 500, "Failed to compute price suggestion");
   }
 }
 
