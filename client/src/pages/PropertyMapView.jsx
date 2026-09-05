@@ -27,6 +27,21 @@ function formatKm(km) {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 }
 
+// Radius (metres) for the "search area" circle, from Nominatim's own extent
+// for the place — half the bounding box's diagonal. Falls back to a fixed
+// guess per place type when Nominatim didn't return one (e.g. a locality
+// with no polygon on OSM).
+const SEARCH_RADIUS_FALLBACK_KM = { locality: 3, city: 15, state: 80 };
+function searchAreaRadiusMeters(loc) {
+  const [south, north, west, east] = Array.isArray(loc?.boundingbox) ? loc.boundingbox : [];
+  if ([south, north, west, east].every(Number.isFinite)) {
+    const diagonalKm = haversineKm([south, west], [north, east]);
+    if (diagonalKm > 0) return (diagonalKm / 2) * 1000;
+  }
+  const fallbackKm = SEARCH_RADIUS_FALLBACK_KM[loc?.type] ?? SEARCH_RADIUS_FALLBACK_KM.city;
+  return fallbackKm * 1000;
+}
+
 // "You are here" marker — a pulsing red dot, deliberately a different colour
 // from the blue property price pins so it stands out.
 const YOU_ARE_HERE_COLOR = "#dc2626";
@@ -469,6 +484,19 @@ export default function PropertyMapView() {
             />
             <MapViewUpdater center={mapCenter} zoom={mapZoom} />
 
+            {/* Searched place — a soft circle over roughly the area the user
+                searched for, so "these pins belong to Indore" reads visually
+                instead of the pins just floating on the base map. Clears the
+                moment the search box is cleared (searchSelection -> null). */}
+            {searchSelection && (
+              <Circle
+                center={[searchSelection.lat, searchSelection.lng]}
+                radius={searchSelection.radiusMeters}
+                pathOptions={{ color: "#2563eb", weight: 1.5, fillOpacity: 0.06, dashArray: "4 6" }}
+                interactive={false}
+              />
+            )}
+
             {/* "You are here" */}
             {myPoint && (
               <>
@@ -805,6 +833,8 @@ export default function PropertyMapView() {
                             lat: loc.lat,
                             lng: loc.lng,
                             zoom: loc.locality ? 14 : loc.city ? 12 : 8,
+                            radiusMeters: searchAreaRadiusMeters(loc),
+                            label: loc.locality || loc.name,
                           });
                           setShowSuggestions({ ...showSuggestions, area: false });
                         }}
