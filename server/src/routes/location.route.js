@@ -103,6 +103,11 @@ router.get("/search", async (req, res) => {
         locationType = "city";
       }
 
+      // Nominatim's own extent for this place — [south, north, west, east].
+      // Lets the client draw a "this is roughly the area" circle instead of
+      // guessing a fixed radius per place type.
+      const bbox = Array.isArray(result.boundingbox) ? result.boundingbox.map(Number) : null;
+
       return {
         name: address.city || address.town || address.village || address.suburb || address.state_district || result.display_name.split(',')[0],
         state: address.state || "",
@@ -111,6 +116,7 @@ router.get("/search", async (req, res) => {
         displayName: result.display_name,
         lat: parseFloat(result.lat),
         lng: parseFloat(result.lon),
+        boundingbox: bbox && bbox.length === 4 && bbox.every(Number.isFinite) ? bbox : null,
         type: locationType
       };
     });
