@@ -21,4 +21,4 @@ jobs:
       - name: Ping health endpoint
         run: |
           curl -sSf --max-time 30 --retry 2 --retry-delay 5 \
-            "${{ vars.KEEP_ALIVE_URL || 'https://nearmyspace.onrender.com/api/health' }}"
+            "${{ vars.KEEP_ALIVE_URL || 'https://insell-be.onrender.com/api/health' }}"

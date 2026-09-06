@@ -44,6 +44,10 @@ async function startServer() {
   try {
     const PORT = process.env.PORT || 5001;
 
+    if (!process.env.CRON_SECRET) {
+      logger.warn("CRON_SECRET is not set — the stalled-deals nudge endpoint (/api/deals/cron/nudge-stalled) will reject every call with 401.");
+    }
+
     await connectToRedis();
     await connectToMongoDB();
     await testCloudinaryConnection();
