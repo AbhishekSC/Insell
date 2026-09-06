@@ -19,6 +19,7 @@ import PropertyDetailPage from "./pages/PropertyDetailPage";
 import NewsPage from "./pages/NewsPage";
 import TrendingLocalitiesPage from "./pages/TrendingLocalitiesPage";
 import RecommendedForYouPage from "./pages/RecommendedForYouPage";
+import MyDealsPage from "./pages/MyDealsPage";
 import DiscoverCommunitiesPage from "./pages/DiscoverCommunitiesPage";
 import RequestedCommunitiesPage from "./pages/RequestedCommunitiesPage";
 import ActivityPage from "./pages/ActivityPage";
@@ -257,6 +258,10 @@ function App() {
         <Route
           path="/recommended"
           element={guard(<RecommendedForYouPage />)}
+        />
+        <Route
+          path="/deals"
+          element={guard(<MyDealsPage />)}
         />
         <Route
           path="/discover-communities"

@@ -45,6 +45,7 @@ import VisitScheduler from "../components/VisitScheduler";
 import OfferHistoryTimeline from "../components/OfferHistoryTimeline";
 import PriceHistoryChart from "../components/PriceHistoryChart";
 import ListingPerformance from "../components/ListingPerformance";
+import TransactionTracker from "../components/TransactionTracker";
 import ReviewModal from "../components/ReviewModal";
 import { getCustomBadgeClasses } from "../lib/badgeColors";
 import { getSellerTrustSignals } from "../lib/trustSignals";
@@ -366,9 +367,26 @@ export default function PropertyDetailPage() {
     refetchInterval: 6000,
   });
 
+  // The closing tracker — exists once an offer on this post has been accepted.
+  const { data: deal } = useQuery({
+    queryKey: ["deal", id],
+    queryFn: async () => {
+      const res = await axiosInstance.get(`/deals/post/${id}`, { skipErrorToast: true });
+      return res.data?.data?.deal || null;
+    },
+    enabled: Boolean(id && authUser?._id && postData && postData.offerStatus === "ACCEPTED"),
+    retry: false,
+    // Poll only while the deal is still live, so the other party's
+    // confirmations show up without a manual refresh. A completed/cancelled
+    // deal never changes — stop polling it entirely. Interval is generous
+    // (12s) since deal steps aren't second-sensitive like a chat.
+    refetchInterval: (query) => (query.state.data?.status === "ACTIVE" ? 12000 : false),
+  });
+
   const invalidateOfferQueries = () => {
     queryClient.invalidateQueries({ queryKey: ["myOffer", id] });
     queryClient.invalidateQueries({ queryKey: ["postOffers", id] });
+    queryClient.invalidateQueries({ queryKey: ["deal", id] });
   };
 
   const { mutate: submitOffer, isPending: isOfferPending } = useMutation({
@@ -834,6 +852,24 @@ export default function PropertyDetailPage() {
                   </div>
                 )}
               </Section>
+
+              {/* Closing tracker — buyer & seller, once an offer is accepted */}
+              {deal && (
+                <div className="mt-4">
+                  <TransactionTracker
+                    deal={deal}
+                    postId={id}
+                    meId={authUser?._id}
+                    alreadyReviewed={
+                      Boolean(deal?.offer) &&
+                      (myOffer?.reviewedByMe ||
+                        postOffers.some((o) => String(o._id) === String(deal.offer) && o.reviewedByMe) ||
+                        reviewedOfferIds.includes(String(deal.offer)))
+                    }
+                    onReview={(revieweeName) => setReviewModal({ offerId: deal.offer, revieweeName })}
+                  />
+                </div>
+              )}
 
               {/* Listing performance — owner only */}
               {isOwner && !postData.isDeleted && (

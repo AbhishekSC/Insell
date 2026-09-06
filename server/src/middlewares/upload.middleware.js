@@ -218,3 +218,23 @@ export const uploadStoryMedia = multer({
     fileSize: 30 * 1024 * 1024, // 30MB for stories
   },
 });
+
+// Documents on a Deal — agreements, receipts, registration papers.
+const dealDocStorage = createCloudinaryStorage(
+  "deal-documents",
+  ["jpg", "jpeg", "png", "webp", "pdf"],
+  { maxWidth: 2000, maxHeight: 2000, quality: "auto:good", resourceType: "auto" }
+);
+function dealDocFileFilter(_req, file, cb) {
+  const allowed = ["image/png", "image/jpeg", "image/webp", "application/pdf"];
+  if (!allowed.includes(file.mimetype)) {
+    cb(new Error("Only PDF or image documents are allowed"));
+    return;
+  }
+  cb(null, true);
+}
+export const uploadDealDocument = multer({
+  storage: dealDocStorage,
+  fileFilter: dealDocFileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 },
+});

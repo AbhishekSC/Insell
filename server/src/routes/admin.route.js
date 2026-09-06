@@ -1,6 +1,7 @@
 import express from "express";
 import { verifyUser, requireVerified, requireAdmin } from "../middlewares/auth.middleware.js";
 import { uploadAnnouncementImage } from "../middlewares/upload.middleware.js";
+import { getDealStats, adminListDeals, adminResolveDealReports, adminForceCancelDeal } from "../controllers/deal.controller.js";
 import {
   getAdminUsers,
   toggleUserBlock,
@@ -39,6 +40,11 @@ router.get("/live-users-count", getLiveUsersCount);
 
 router.get("/feedback", getAdminFeedback);
 router.post("/feedback/:id/resolve", resolveFeedback);
+
+router.get("/deal-stats", getDealStats);
+router.get("/deals", adminListDeals);
+router.post("/deals/:id/resolve-report", adminResolveDealReports);
+router.post("/deals/:id/force-cancel", adminForceCancelDeal);
 
 router.get("/announcements", getAnnouncements);
 router.post("/announcements", createAnnouncement);

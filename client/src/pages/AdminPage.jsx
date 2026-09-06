@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Eye,
   Flag,
+  Handshake,
   Image as ImageIcon,
   Loader2,
   Megaphone,
@@ -1645,6 +1646,253 @@ function AnnouncementsPanel() {
   );
 }
 
+function Metric({ label, value, sub }) {
+  return (
+    <div className="rounded-xl border border-base-300 bg-base-100 p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-base-content/50">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-base-content">{value ?? "—"}</p>
+      {sub && <p className="text-xs text-base-content/50">{sub}</p>}
+    </div>
+  );
+}
+
+const DEAL_STAGE_LABELS = { agreed: "Agreed", documents: "Documents", agreement: "Agreement", payment: "Payment", registration: "Registration", completed: "Final" };
+
+function PartyLink({ p }) {
+  if (!p?.id) return <span>{p?.name || "—"}</span>;
+  return <Link to={`/users/${p.id}`} className="text-primary hover:underline">{p.name}</Link>;
+}
+
+function DealsPanel() {
+  const queryClient = useQueryClient();
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [listStatus, setListStatus] = useState("");
+  const [listPage, setListPage] = useState(1);
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["adminDealStats"],
+    queryFn: async () => (await axiosInstance.get("/admin/deal-stats")).data?.data?.stats,
+  });
+
+  const { data: list } = useQuery({
+    queryKey: ["adminDealList", listStatus, listPage],
+    queryFn: async () =>
+      (await axiosInstance.get("/admin/deals", { params: { status: listStatus || undefined, page: listPage, limit: 20 } })).data?.data,
+    placeholderData: keepPreviousData,
+  });
+
+  const { mutate: resolve, isPending: isResolving } = useMutation({
+    mutationFn: async (id) => (await axiosInstance.post(`/admin/deals/${id}/resolve-report`)).data,
+    onSuccess: () => { toast.success("Marked resolved"); queryClient.invalidateQueries({ queryKey: ["adminDealStats"] }); },
+    onError: (e) => toast.error(e?.response?.data?.message || "Failed"),
+  });
+  const { mutate: forceCancel, isPending: isCancelling } = useMutation({
+    mutationFn: async ({ id, reason }) => (await axiosInstance.post(`/admin/deals/${id}/force-cancel`, { reason })).data,
+    onSuccess: () => { toast.success("Deal cancelled, both parties notified"); setCancelTarget(null); setCancelReason(""); queryClient.invalidateQueries({ queryKey: ["adminDealStats"] }); },
+    onError: (e) => toast.error(e?.response?.data?.message || "Failed"),
+  });
+
+  if (isLoading) return <div className="grid place-items-center py-16"><Loader2 className="size-6 animate-spin text-primary" /></div>;
+  if (isError || !data) return <p className="rounded-xl border border-base-300 bg-base-100 p-6 text-sm text-base-content/60">Couldn't load deal stats.</p>;
+
+  const s = data;
+  const num = (list, k) => list?.find((x) => x._id === k)?.n || 0;
+  const active = num(s.byStatus, "ACTIVE");
+  const completed = num(s.byStatus, "COMPLETED");
+  const cancelled = num(s.byStatus, "CANCELLED");
+  const stageLabels = DEAL_STAGE_LABELS;
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Metric label="Active" value={active} />
+        <Metric label="Completed" value={completed} />
+        <Metric label="Cancelled" value={cancelled} />
+        <Metric label="Completion rate" value={s.completionRate != null ? `${s.completionRate}%` : "—"} sub={`avg ${s.avgDaysToClose ?? "—"} days to close`} />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-xl border border-base-300 bg-base-100 p-4">
+          <h3 className="mb-3 text-sm font-semibold text-base-content">Active deals by stage</h3>
+          {(s.activeByStage || []).length === 0 ? (
+            <p className="text-sm text-base-content/50">No active deals.</p>
+          ) : (
+            <ul className="space-y-2">
+              {(s.activeByStage || []).sort((a, b) => b.n - a.n).map((row) => (
+                <li key={row._id} className="flex items-center gap-3">
+                  <span className="w-28 shrink-0 text-sm text-base-content/70">{stageLabels[row._id] || row._id}</span>
+                  <span className="h-2 flex-1 rounded-full bg-base-200">
+                    <span className="block h-full rounded-full bg-primary" style={{ width: `${active ? Math.round((row.n / active) * 100) : 0}%` }} />
+                  </span>
+                  <span className="w-8 text-right text-sm font-semibold text-base-content">{row.n}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-base-300 bg-base-100 p-4">
+          <h3 className="mb-3 text-sm font-semibold text-base-content">Top cancellation reasons</h3>
+          {(s.topCancelReasons || []).length === 0 ? (
+            <p className="text-sm text-base-content/50">None recorded.</p>
+          ) : (
+            <ul className="space-y-1.5 text-sm">
+              {s.topCancelReasons.map((r) => (
+                <li key={r._id} className="flex justify-between gap-3">
+                  <span className="truncate text-base-content/70">{r._id}</span>
+                  <span className="shrink-0 font-semibold text-base-content">{r.n}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-base-300 bg-base-100">
+        <div className="flex items-center gap-2 border-b border-base-200 p-4">
+          <ShieldAlert className="size-4 text-error" />
+          <h3 className="text-sm font-semibold text-base-content">Needs attention ({(s.attention || []).length})</h3>
+        </div>
+        {(s.attention || []).length === 0 ? (
+          <p className="p-4 text-sm text-base-content/50">No disputed or reported deals.</p>
+        ) : (
+          <ul className="divide-y divide-base-200">
+            {s.attention.map((d) => (
+              <li key={d._id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link to={`/property/${d.postId}`} className="text-sm font-semibold text-primary hover:underline">{d.title}</Link>
+                    <p className="text-xs text-base-content/60"><PartyLink p={d.buyer} /> ↔ <PartyLink p={d.owner} /> · {d.status.toLowerCase()} · {stageLabels[d.currentStage] || d.currentStage}</p>
+                  </div>
+                  <div className="flex shrink-0 gap-1.5">
+                    {d.disputed && <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">disputed</span>}
+                    {d.openReports.length > 0 && <span className="rounded-full bg-error/15 px-2 py-0.5 text-[11px] font-semibold text-error">{d.openReports.length} report{d.openReports.length > 1 ? "s" : ""}</span>}
+                  </div>
+                </div>
+                {d.openReports.map((r, i) => (
+                  <p key={i} className="mt-1.5 rounded-lg bg-error/5 px-2 py-1 text-xs text-base-content/70">“{r.reason}”</p>
+                ))}
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    className="rounded-lg bg-base-200 px-2.5 py-1 text-xs font-semibold text-base-content/70 hover:bg-base-300 disabled:opacity-50"
+                    disabled={isResolving}
+                    onClick={() => resolve(d._id)}
+                  >
+                    Mark resolved
+                  </button>
+                  {d.status === "ACTIVE" && (
+                    <button
+                      type="button"
+                      className="rounded-lg bg-error/10 px-2.5 py-1 text-xs font-semibold text-error hover:bg-error/20"
+                      onClick={() => setCancelTarget(d)}
+                    >
+                      Force-cancel deal
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* All deals */}
+      <div className="rounded-xl border border-base-300 bg-base-100">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-base-200 p-4">
+          <h3 className="text-sm font-semibold text-base-content">Deals ({list?.pagination?.total ?? "…"})</h3>
+          <select
+            value={listStatus}
+            onChange={(e) => { setListStatus(e.target.value); setListPage(1); }}
+            className="rounded-lg border border-base-300 px-2.5 py-1.5 text-sm outline-none focus:border-primary/30"
+          >
+            <option value="">All statuses</option>
+            <option value="ACTIVE">Active</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead>
+              <tr className="border-b border-base-200 text-left text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                <th className="px-4 py-2.5">Property</th>
+                <th className="px-4 py-2.5">Parties</th>
+                <th className="px-4 py-2.5">Price</th>
+                <th className="px-4 py-2.5">Stage</th>
+                <th className="px-4 py-2.5">Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(list?.deals || []).map((d) => (
+                <tr key={d._id} className="border-b border-base-100 hover:bg-base-200/50">
+                  <td className="px-4 py-2.5">
+                    <Link to={`/property/${d.postId}`} className="font-medium text-primary hover:underline">{d.title}</Link>
+                    <div className="mt-0.5 flex gap-1">
+                      {d.disputed && <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-semibold text-warning">disputed</span>}
+                      {d.openReports > 0 && <span className="rounded bg-error/15 px-1.5 py-0.5 text-[10px] font-semibold text-error">{d.openReports} report{d.openReports > 1 ? "s" : ""}</span>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5 text-base-content/70"><PartyLink p={d.buyer} /> ↔ <PartyLink p={d.owner} /></td>
+                  <td className="px-4 py-2.5 text-base-content/80">₹{Number(d.agreedPrice || 0).toLocaleString("en-IN")}</td>
+                  <td className="px-4 py-2.5">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                      d.status === "COMPLETED" ? "bg-success/10 text-success" : d.status === "CANCELLED" ? "bg-error/10 text-error" : "bg-primary/10 text-primary"
+                    }`}>
+                      {d.status === "ACTIVE" ? (DEAL_STAGE_LABELS[d.currentStage] || d.currentStage) : d.status.toLowerCase()}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-xs text-base-content/50">{new Date(d.updatedAt).toLocaleDateString("en-IN")}</td>
+                </tr>
+              ))}
+              {(list?.deals || []).length === 0 && (
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-base-content/50">No deals.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {(list?.pagination?.totalPages ?? 1) > 1 && (
+          <div className="flex items-center justify-between border-t border-base-200 p-3 text-sm">
+            <button type="button" disabled={listPage <= 1} onClick={() => setListPage((p) => p - 1)} className="rounded-lg bg-base-200 px-3 py-1.5 font-medium disabled:opacity-40">Prev</button>
+            <span className="text-base-content/60">Page {list?.pagination?.page} of {list?.pagination?.totalPages}</span>
+            <button type="button" disabled={listPage >= (list?.pagination?.totalPages ?? 1)} onClick={() => setListPage((p) => p + 1)} className="rounded-lg bg-base-200 px-3 py-1.5 font-medium disabled:opacity-40">Next</button>
+          </div>
+        )}
+      </div>
+
+      {cancelTarget && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={() => setCancelTarget(null)}>
+          <div className="w-full max-w-sm rounded-2xl bg-base-100 p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h4 className="text-base font-semibold text-base-content">Force-cancel “{cancelTarget.title}”?</h4>
+            <p className="mt-1 text-xs text-base-content/60">Both parties are notified, the listing goes back on the market. Can't be undone.</p>
+            <textarea
+              className="textarea textarea-bordered mt-3 min-h-16 w-full border-base-300 text-sm"
+              placeholder="Reason (shown to both parties)"
+              maxLength={500}
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+            />
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                className="rounded-lg bg-error px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                disabled={isCancelling || !cancelReason.trim()}
+                onClick={() => forceCancel({ id: cancelTarget._id, reason: cancelReason })}
+              >
+                Cancel the deal
+              </button>
+              <button type="button" className="rounded-lg bg-base-200 px-3 py-2 text-sm font-semibold text-base-content/70" onClick={() => setCancelTarget(null)}>
+                Keep it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("users");
 
@@ -1696,6 +1944,15 @@ export default function AdminPage() {
         >
           Feedback
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("deals")}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+            activeTab === "deals" ? "bg-primary text-white" : "bg-base-200 text-base-content/70 hover:bg-base-300"
+          }`}
+        >
+          <Handshake className="size-4" /> Deals
+        </button>
       </div>
 
       {activeTab === "users" ? (
@@ -1706,6 +1963,8 @@ export default function AdminPage() {
         <ReportsPanel />
       ) : activeTab === "feedback" ? (
         <FeedbackPanel />
+      ) : activeTab === "deals" ? (
+        <DealsPanel />
       ) : (
         <AnnouncementsPanel />
       )}
