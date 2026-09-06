@@ -491,6 +491,16 @@ export async function respondToOffer(req, res) {
     await User.findByIdAndUpdate(acceptedOffer.buyer, { $addToSet: { friends: acceptedOffer.owner } });
     await User.findByIdAndUpdate(acceptedOffer.owner, { $addToSet: { friends: acceptedOffer.buyer } });
 
+    // Open the closing tracker (agreed → docs → agreement → payment → …).
+    // Best-effort — the accept already succeeded; a missing Deal is created
+    // lazily on the first read of /deals/post/:postId anyway.
+    try {
+      const { ensureDealForOffer } = await import("./deal.controller.js");
+      await ensureDealForOffer(acceptedOffer._id);
+    } catch (e) {
+      logger.error("Failed to open deal for accepted offer (non-fatal):", e);
+    }
+
     return sendSuccessResponse(res, 200, "Offer accepted", { offer: acceptedOffer });
   } catch (error) {
     logger.error("Error responding to offer:", error);

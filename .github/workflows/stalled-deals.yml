@@ -1,0 +1,20 @@
+# Once a day, ask the API to nudge both parties on any deal that's been
+# sitting on the same stage for a week. Auth is a shared secret header
+# (repo secret CRON_SECRET, matching server env CRON_SECRET).
+name: stalled-deals-nudge
+
+on:
+  schedule:
+    - cron: "30 4 * * *" # 10:00 IST daily
+  workflow_dispatch: {}
+
+jobs:
+  nudge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sweep stalled deals
+        run: |
+          curl -sSf --max-time 60 --retry 2 --retry-delay 10 \
+            -X POST \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            "${{ vars.API_BASE_URL || 'https://nearmyspace.onrender.com' }}/api/deals/cron/nudge-stalled"
