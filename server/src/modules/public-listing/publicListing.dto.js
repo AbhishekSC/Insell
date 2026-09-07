@@ -34,6 +34,80 @@ function specsLabel(post) {
   return parts.join(" · ");
 }
 
+function keyDetails(post) {
+  const m = post.postMeta && typeof post.postMeta === "object" && !Array.isArray(post.postMeta) ? post.postMeta : {};
+  const out = [];
+  const add = (label, value) => {
+    if (value !== undefined && value !== null && value !== "" && value !== false) out.push({ label, value: String(value) });
+  };
+  add("Furnishing", m.furnishing);
+  if (m.parking) add("Parking", "Available");
+  add("Facing", m.facing);
+  if (m.floorNumber) add("Floor", m.totalFloors ? `${m.floorNumber} of ${m.totalFloors}` : `${m.floorNumber}`);
+  add("Age", m.ageOfProperty);
+  add("Possession", m.possessionStatus);
+  return out;
+}
+
+function toRelatedCardDTO(post) {
+  const images = (Array.isArray(post.mediaUrls) ? post.mediaUrls : []).filter(Boolean);
+  return {
+    id: String(post._id),
+    title: post.title,
+    priceLabel: priceLabel(post),
+    location: locationLabel(post),
+    coverImage: images.find((u) => !/\/video\/upload\/|\.(mp4|mov|webm|m4v)(\?|$)/i.test(u)) || images[0] || null,
+  };
+}
+
+function toPersonDTO(u) {
+  return {
+    id: String(u._id),
+    name: u.fullName || "Member",
+    avatar: u.profilePic || null,
+    city: u.city || "",
+    isVerified: Boolean(u.isVerified),
+  };
+}
+
+export function toPublicDetailDTO(post, related = [], people = []) {
+  const id = String(post._id);
+  const images = (Array.isArray(post.mediaUrls) ? post.mediaUrls : []).filter(Boolean);
+  return {
+    id,
+    title: post.title,
+    description: post.caption || "",
+    priceLabel: priceLabel(post),
+    price: post.price || 0,
+    postType: post.postType,
+    isRequirement: String(post.postType || "").startsWith("REQUIREMENT_"),
+    locationLabel: locationLabel(post),
+    specsLabel: specsLabel(post),
+    badge: post.customBadge || post.listingType || "",
+    bedrooms: post.bedrooms || 0,
+    bathrooms: post.bathrooms || 0,
+    areaSqft: post.areaSqft || 0,
+    propertyType: post.propertyType || "",
+    images,
+    amenities: Array.isArray(post.postMeta?.amenities) ? post.postMeta.amenities.filter(Boolean).slice(0, 20) : [],
+    keyDetails: keyDetails(post),
+    author: post.author
+      ? {
+          id: String(post.author._id),
+          name: post.author.fullName || "Owner",
+          avatar: post.author.profilePic || null,
+          isVerified: Boolean(post.author.isVerified),
+          city: post.author.city || "",
+        }
+      : null,
+    publishedAt: post.publishedAt || post.createdAt || null,
+    related: related.map(toRelatedCardDTO),
+    people: people.map(toPersonDTO),
+    canonicalUrl: `${SITE_ORIGIN}/p/${id}`,
+    appUrl: `${SITE_ORIGIN}/property/${id}`,
+  };
+}
+
 export function toSharePreviewDTO(post) {
   const id = String(post._id);
   const price = priceLabel(post);

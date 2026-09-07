@@ -62,6 +62,10 @@ export default function LoginPage() {
       if (isPostHogEnabled()) {
         posthog.capture("login_completed");
       }
+      const next = searchParams.get("next");
+      if (next && next.startsWith("/")) {
+        navigate(next);
+      }
     },
     onError: (err) => {
       if (err?.response?.data?.missingFields?.code === "ACCOUNT_BLOCKED") {

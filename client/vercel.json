@@ -1,6 +1,7 @@
 {
   "rewrites": [
     { "source": "/p/:id", "destination": "https://insell-be.onrender.com/p/:id" },
+    { "source": "/u/:id", "destination": "https://insell-be.onrender.com/u/:id" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

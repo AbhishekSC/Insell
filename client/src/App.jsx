@@ -12,10 +12,12 @@ import LiveCallPage from "./pages/LiveCallPage";
 import FriendDetailPage from "./pages/FriendDetailPage";
 import ProfilePage from "./pages/ProfilePage";
 import UserProfilePage from "./pages/UserProfilePage";
+import PublicUserProfilePage from "./pages/PublicUserProfilePage";
 import PropertyToolsPage from "./pages/PropertyToolsPage";
 import MarketplacePage from "./pages/MarketplacePage";
 import MarketplaceDetailPage from "./pages/MarketplaceDetailPage";
 import PropertyDetailPage from "./pages/PropertyDetailPage";
+import PublicPropertyDetailPage from "./pages/PublicPropertyDetailPage";
 import NewsPage from "./pages/NewsPage";
 import TrendingLocalitiesPage from "./pages/TrendingLocalitiesPage";
 import RecommendedForYouPage from "./pages/RecommendedForYouPage";
@@ -238,7 +240,7 @@ function App() {
         />
         <Route
           path="/property/:id"
-          element={guard(<PropertyDetailPage />)}
+          element={authUser ? guard(<PropertyDetailPage />) : <PublicPropertyDetailPage />}
         />
         <Route
           path="/profile"
@@ -246,7 +248,7 @@ function App() {
         />
         <Route
           path="/users/:userId"
-          element={guard(<UserProfilePage />)}
+          element={authUser ? guard(<UserProfilePage />) : <PublicUserProfilePage />}
         />
         <Route
           path="/news"

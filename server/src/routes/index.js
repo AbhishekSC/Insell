@@ -26,6 +26,7 @@ import dealRoutes from "./deal.routes.js";
 import reviewRoutes from "./review.routes.js";
 import feedbackRoutes from "./feedback.route.js";
 import publicListingRoutes from "../modules/public-listing/publicListing.routes.js";
+import publicProfileRoutes from "../modules/public-profile/publicProfile.routes.js";
 import priceAlertRoutes from "../modules/price-alert/priceAlert.routes.js";
 import savedSearchRoutes from "../modules/saved-search/savedSearch.routes.js";
 
@@ -59,6 +60,7 @@ router.use("/deals", dealRoutes);
 router.use("/reviews", reviewRoutes);
 router.use("/feedback", feedbackRoutes);
 router.use("/public", publicListingRoutes);
+router.use("/public", publicProfileRoutes);
 router.use("/price-alerts", priceAlertRoutes);
 router.use("/saved-searches", savedSearchRoutes);
 
