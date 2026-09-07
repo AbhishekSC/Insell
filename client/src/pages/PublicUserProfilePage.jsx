@@ -170,11 +170,11 @@ export default function PublicUserProfilePage() {
                   className="flex w-32 shrink-0 flex-col items-center rounded-xl border border-base-300 p-3 text-center hover:bg-base-200"
                 >
                   <img src={r.avatar || "/favicon.png"} alt="" className="size-14 rounded-full object-cover" />
-                  <span className="mt-2 flex items-center gap-1 truncate text-xs font-semibold text-base-content">
-                    <span className="truncate">{r.name}</span>
+                  <span className="mt-2 flex w-full min-w-0 items-center justify-center gap-1 text-xs font-semibold text-base-content">
+                    <span className="min-w-0 truncate">{r.name}</span>
                     {r.isVerified && <BadgeCheck className="size-3 shrink-0 text-primary" />}
                   </span>
-                  {r.city && <span className="truncate text-[11px] text-base-content/50">{r.city}</span>}
+                  {r.city && <span className="w-full truncate text-[11px] text-base-content/50">{r.city}</span>}
                 </Link>
               ))}
             </div>
