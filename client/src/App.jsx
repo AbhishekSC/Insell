@@ -17,6 +17,7 @@ import PropertyToolsPage from "./pages/PropertyToolsPage";
 import MarketplacePage from "./pages/MarketplacePage";
 import MarketplaceDetailPage from "./pages/MarketplaceDetailPage";
 import PropertyDetailPage from "./pages/PropertyDetailPage";
+import PublicPropertyDetailPage from "./pages/PublicPropertyDetailPage";
 import NewsPage from "./pages/NewsPage";
 import TrendingLocalitiesPage from "./pages/TrendingLocalitiesPage";
 import RecommendedForYouPage from "./pages/RecommendedForYouPage";
@@ -239,7 +240,7 @@ function App() {
         />
         <Route
           path="/property/:id"
-          element={guard(<PropertyDetailPage />)}
+          element={authUser ? guard(<PropertyDetailPage />) : <PublicPropertyDetailPage />}
         />
         <Route
           path="/profile"

@@ -1,7 +1,14 @@
 import mongoose from "mongoose";
 import AppError from "../../exceptions/AppError.js";
-import { toSharePreviewDTO } from "./publicListing.dto.js";
-import { findShareableById, incrementShareCount } from "./publicListing.repository.js";
+import { toSharePreviewDTO, toPublicDetailDTO } from "./publicListing.dto.js";
+import {
+  findShareableById,
+  findPublicDetailById,
+  findRelatedListings,
+  incrementShareCount,
+} from "./publicListing.repository.js";
+
+const RELATED_COUNT = 6;
 
 function assertValidId(id) {
   if (!id || !mongoose.isValidObjectId(id)) {
@@ -18,6 +25,17 @@ export async function getSharePreview(id) {
     throw new AppError("Listing not found", 404);
   }
   return toSharePreviewDTO(post);
+}
+
+// Fuller public view of one listing — used by the logged-out property page.
+export async function getPublicListingDetail(id) {
+  assertValidId(id);
+  const post = await findPublicDetailById(id);
+  if (!post) {
+    throw new AppError("Listing not found", 404);
+  }
+  const related = await findRelatedListings(post, RELATED_COUNT);
+  return toPublicDetailDTO(post, related);
 }
 
 // Best-effort share counter bump. Never blocks the caller.

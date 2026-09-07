@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from "vitest";
 import User from "../src/models/User.model.js";
 import PropertyPost from "../src/models/PropertyPost.model.js";
-import { getListingSharePreview, recordListingShare, renderListingSharePage } from "../src/modules/public-listing/publicListing.controller.js";
+import { getListingSharePreview, getPublicListing, recordListingShare, renderListingSharePage } from "../src/modules/public-listing/publicListing.controller.js";
 
 function fakeRes() {
   return {
@@ -81,6 +81,36 @@ describe("public listing share preview", () => {
 
   it("404s on a malformed id", async () => {
     await expect(run(getListingSharePreview, { params: { id: "not-an-id" } })).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("full public listing detail returns images, specs, owner, key details and related", async () => {
+    published.postMeta = { furnishing: "Semi Furnished", parking: true, amenities: ["Lift", "Power backup"] };
+    published.mediaUrls = ["https://res.cloudinary.com/x/video/upload/v1/c.mov", "https://img/1.jpg", "https://img/2.jpg"];
+    await published.save();
+    // a related listing in the same city / type / price band
+    const rel = await PropertyPost.create({
+      author: owner._id, title: "Nearby 2BHK", price: 6800000, postType: "PROPERTY_SALE",
+      city: "Indore", locality: "Sudama Nagar", status: "PUBLISHED", visibility: "PUBLIC",
+      mediaUrls: ["https://img/r.jpg"],
+    });
+
+    const res = await run(getPublicListing, { params: { id: String(published._id) } });
+    expect(res.statusCode).toBe(200);
+    const l = res.body.data.listing;
+    expect(l.title).toBe("Sunny 2BHK");
+    expect(l.images).toContain("https://img/1.jpg");
+    expect(l.author.name).toBe("Share Owner");
+    expect(l.keyDetails.find((d) => d.label === "Furnishing")?.value).toBe("Semi Furnished");
+    expect(l.keyDetails.find((d) => d.label === "Parking")?.value).toBe("Available");
+    expect(l.amenities).toEqual(["Lift", "Power backup"]);
+    expect(l.related.some((r) => r.id === String(rel._id))).toBe(true);
+    expect(l.appUrl).toMatch(/\/property\/[a-f0-9]{24}$/);
+
+    await PropertyPost.deleteOne({ _id: rel._id });
+  });
+
+  it("full detail 404s on a draft listing", async () => {
+    await expect(run(getPublicListing, { params: { id: String(draft._id) } })).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it("renders an HTML share page with OG tags for a published listing", async () => {

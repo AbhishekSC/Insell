@@ -21,6 +21,10 @@ const PUBLIC_FIELDS = [
   "viewCount",
 ].join(" ");
 
+// A bit more for the full logged-out detail page — still nothing sensitive
+// (no exact coords, no contact number, no viewer/like/save lists).
+const DETAIL_FIELDS = `${PUBLIC_FIELDS} postMeta shareCount`;
+
 const SHAREABLE_FILTER = {
   status: "PUBLISHED",
   visibility: "PUBLIC",
@@ -33,6 +37,42 @@ export async function findShareableById(id) {
     .select(PUBLIC_FIELDS)
     .populate("author", "fullName profilePic")
     .lean();
+}
+
+export async function findPublicDetailById(id) {
+  return PropertyPost.findOne({ _id: id, ...SHAREABLE_FILTER })
+    .select(DETAIL_FIELDS)
+    .populate("author", "fullName profilePic isVerified city")
+    .lean();
+}
+
+// A few other live listings genuinely comparable to this one — same city,
+// same kind, similar price. Never pads with unrelated listings; shows fewer
+// (or none) rather than a ₹90L flat next to a ₹15k PG.
+export async function findRelatedListings(post, limit) {
+  if (!post.city || !(post.price > 0)) return [];
+  const base = { _id: { $ne: post._id }, ...SHAREABLE_FILTER, city: post.city, postType: post.postType };
+
+  const tight = await PropertyPost.find({
+    ...base,
+    price: { $gte: post.price * 0.6, $lte: post.price * 1.6 },
+  })
+    .sort({ publishedAt: -1 })
+    .limit(limit)
+    .select(PUBLIC_FIELDS)
+    .lean();
+  if (tight.length >= limit) return tight;
+
+  const wide = await PropertyPost.find({
+    ...base,
+    _id: { $nin: [post._id, ...tight.map((p) => p._id)] },
+    price: { $gte: post.price * 0.3, $lte: post.price * 3 },
+  })
+    .sort({ publishedAt: -1 })
+    .limit(limit - tight.length)
+    .select(PUBLIC_FIELDS)
+    .lean();
+  return [...tight, ...wide];
 }
 
 export async function incrementShareCount(id) {

@@ -7,6 +7,10 @@ const COPY = {
   posts: (name) => ({ title: "See all listings", body: `Sign up or log in to see everything ${name} has posted.` }),
   connections: (name) => ({ title: "See connections", body: `Sign up or log in to see who ${name} is connected with.` }),
   follow: (name) => ({ title: "Follow on NearMySpace", body: `Sign up or log in to connect with ${name}.` }),
+  contact: (name) => ({ title: "Contact the owner", body: `Sign up or log in to message ${name} about this property.` }),
+  offer: () => ({ title: "Make an offer", body: "Sign up or log in to send the owner an offer." }),
+  save: () => ({ title: "Save this listing", body: "Sign up or log in to save properties and get price alerts." }),
+  visit: () => ({ title: "Request a visit", body: "Sign up or log in to schedule a visit with the owner." }),
   default: () => ({ title: "Join NearMySpace", body: "Sign up or log in to continue." }),
 };
 

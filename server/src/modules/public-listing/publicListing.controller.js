@@ -1,6 +1,6 @@
 import { asyncHandler } from "../../core/asyncHandler.js";
 import { sendSuccessResponse } from "../../utils/responseHandler.js";
-import { getSharePreview, recordShare } from "./publicListing.app.service.js";
+import { getSharePreview, getPublicListingDetail, recordShare } from "./publicListing.app.service.js";
 import { renderSharePage, renderNotFoundPage } from "./publicListing.view.js";
 
 const SITE_ORIGIN = (process.env.CLIENT_URL || "https://insell-fe.vercel.app").replace(/\/$/, "");
@@ -11,6 +11,13 @@ export const getListingSharePreview = asyncHandler(async (req, res) => {
   // Short CDN cache so link crawlers and repeat opens don't hit the DB every time.
   res.set("Cache-Control", "public, max-age=300, s-maxage=600");
   return sendSuccessResponse(res, 200, "Listing preview", { listing: preview });
+});
+
+// GET /api/public/listings/:id  (no auth) — full logged-out listing view
+export const getPublicListing = asyncHandler(async (req, res) => {
+  const listing = await getPublicListingDetail(req.params.id);
+  res.set("Cache-Control", "public, max-age=120, s-maxage=300");
+  return sendSuccessResponse(res, 200, "Listing", { listing });
 });
 
 // POST /api/public/listings/:id/share  (no auth) — fire-and-forget share counter
