@@ -12,6 +12,7 @@ import LiveCallPage from "./pages/LiveCallPage";
 import FriendDetailPage from "./pages/FriendDetailPage";
 import ProfilePage from "./pages/ProfilePage";
 import UserProfilePage from "./pages/UserProfilePage";
+import PublicUserProfilePage from "./pages/PublicUserProfilePage";
 import PropertyToolsPage from "./pages/PropertyToolsPage";
 import MarketplacePage from "./pages/MarketplacePage";
 import MarketplaceDetailPage from "./pages/MarketplaceDetailPage";
@@ -246,7 +247,7 @@ function App() {
         />
         <Route
           path="/users/:userId"
-          element={guard(<UserProfilePage />)}
+          element={authUser ? guard(<UserProfilePage />) : <PublicUserProfilePage />}
         />
         <Route
           path="/news"
