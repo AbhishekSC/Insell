@@ -20,7 +20,8 @@ function formatMoney(amount) {
 
 // Same must-dismiss pattern as AnnouncementNotice/PostModerationNotice —
 // stays up until explicitly closed, refetches instantly on the "price_drop"
-// realtime push (StreamProvider.jsx) instead of polling.
+// / "price_alert" realtime push (StreamProvider.jsx) instead of polling.
+// Covers both the generic liked/saved fan-out and a buyer's own price alert.
 export default function PriceDropNotice({ enabled }) {
   const queryClient = useQueryClient();
 
@@ -28,7 +29,7 @@ export default function PriceDropNotice({ enabled }) {
     queryKey: ["notifications", "priceDrop", "unread"],
     queryFn: async () => {
       const res = await axiosInstance.get("/notifications", {
-        params: { unreadOnly: "true", type: "price_drop" },
+        params: { unreadOnly: "true", type: "price_drop,price_alert" },
       });
       return res.data?.data;
     },
@@ -70,7 +71,11 @@ export default function PriceDropNotice({ enabled }) {
         <h3 className="mt-3 text-lg font-semibold text-base-content">
           {notices.length > 1 ? `${notices.length} price updates` : "Price update"}
         </h3>
-        <p className="mt-1 text-sm text-base-content/60">The price changed on a property you liked or saved.</p>
+        <p className="mt-1 text-sm text-base-content/60">
+          {notices.some((n) => n.type === "price_alert")
+            ? "A property you set a price alert on just dropped."
+            : "The price changed on a property you liked or saved."}
+        </p>
 
         <div className="mt-4 max-h-64 space-y-2 overflow-y-auto">
           {notices.map((notice) => {
