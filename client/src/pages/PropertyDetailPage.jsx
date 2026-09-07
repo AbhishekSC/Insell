@@ -40,6 +40,7 @@ import {
 import toast from "react-hot-toast";
 import ShareModal from "../components/ShareModal";
 import NeighbourhoodSummary from "../components/NeighbourhoodSummary";
+import AmenitiesModal from "../components/AmenitiesModal";
 import PriceAlertButton from "../components/PriceAlertButton";
 import ReportPostModal from "../components/ReportPostModal";
 import OfferModal from "../components/OfferModal";
@@ -133,13 +134,6 @@ function getListingBadge(post) {
   return "For Sale";
 }
 
-const AMENITY_TYPE_META = {
-  schools: { emoji: "🏫", label: "Schools" },
-  hospitals: { emoji: "🏥", label: "Hospitals" },
-  metro: { emoji: "🚇", label: "Metro Stations" },
-  malls: { emoji: "🏬", label: "Malls" },
-};
-
 function Section({ title, icon: Icon, children }) {
   return (
     <div className="bg-base-100 rounded-2xl shadow-sm border border-base-300 p-6 md:p-8">
@@ -184,6 +178,7 @@ export default function PropertyDetailPage() {
   const [isHeroVideoMuted, setIsHeroVideoMuted] = useState(true);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showAmenitiesModal, setShowAmenitiesModal] = useState(false);
   const [reportSubmitted, setReportSubmitted] = useState(false);
   const [offerModal, setOfferModal] = useState(null); // { mode: "offer" | "counter", offerId? }
   const [reviewModal, setReviewModal] = useState(null); // { offerId, revieweeName }
@@ -1096,7 +1091,6 @@ export default function PropertyDetailPage() {
                     />
                   )}
 
-                  <h3 className="text-lg font-semibold text-base-content mb-4">Nearby Amenities</h3>
                   {amenitiesLoading && (
                     <p className="text-sm text-base-content/60">Loading nearby amenities...</p>
                   )}
@@ -1107,19 +1101,17 @@ export default function PropertyDetailPage() {
                     <p className="text-sm text-base-content/50">No amenities found within {amenitiesRadiusKm}km.</p>
                   )}
                   {!amenitiesLoading && !amenitiesError && amenitiesData.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {amenitiesData.slice(0, 8).map((amenity) => (
-                        <div key={amenity.id} className="flex items-center gap-3 p-3 bg-base-200 rounded-lg">
-                          <span className="text-lg">{AMENITY_TYPE_META[amenity.type]?.emoji || "📍"}</span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-base-content truncate">{amenity.name}</p>
-                            <p className="text-xs text-base-content/60">
-                              {AMENITY_TYPE_META[amenity.type]?.label || "Nearby"} · {amenity.distance}m away
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAmenitiesModal(true)}
+                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-base-300 bg-base-100 px-4 py-3 text-sm font-medium text-base-content transition-colors hover:bg-base-200"
+                    >
+                      <span className="flex items-center gap-2">
+                        <MapPin className="size-4 text-primary" />
+                        View all {amenitiesData.length} nearby places
+                      </span>
+                      <span className="text-base-content/40">→</span>
+                    </button>
                   )}
                 </Section>
               )}
@@ -1438,6 +1430,13 @@ export default function PropertyDetailPage() {
         postTitle={postData?.title || "Property"}
         postId={postData?._id}
         postImage={media[0] || ""}
+      />
+
+      <AmenitiesModal
+        open={showAmenitiesModal}
+        onClose={() => setShowAmenitiesModal(false)}
+        items={amenitiesData}
+        radiusKm={amenitiesRadiusKm}
       />
 
       <ReportPostModal

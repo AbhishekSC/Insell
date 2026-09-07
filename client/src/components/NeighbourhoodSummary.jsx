@@ -22,10 +22,10 @@ export default function NeighbourhoodSummary({ items, locality, city, className 
 
   return (
     <div className={`rounded-xl border border-base-300 bg-base-100 p-4 ${className}`}>
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <h4 className="text-sm font-semibold text-base-content">Neighbourhood</h4>
         <span
-          className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${SCORE_TONE(summary.score)}`}
+          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${SCORE_TONE(summary.score)}`}
           title="Based on transit proximity and nearby daily-need amenities"
         >
           {summary.score}/10 · {summary.scoreLabel}

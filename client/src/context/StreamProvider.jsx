@@ -212,9 +212,10 @@ export function StreamProvider({ children }) {
             queryClient.invalidateQueries({ queryKey: ["notifications", "announcement", "unread"] });
           }
 
-          // Pushed via propertyPost.controller.js's notifyPriceDrop — same
+          // Pushed via propertyPost.controller.js's price-change fan-out
+          // ("price_drop") or the price-alert module ("price_alert") — same
           // must-dismiss-modal pattern as the announcement notice above.
-          if (event.type === "price_drop") {
+          if (event.type === "price_drop" || event.type === "price_alert") {
             queryClient.invalidateQueries({ queryKey: ["notifications", "priceDrop", "unread"] });
           }
 

@@ -58,6 +58,7 @@ function ActivityItem({ activity, onNavigateToPost, isOwnActivity = false, onRes
       case "message_request":
         return <MessageSquare className="size-4 text-primary" />;
       case "price_drop":
+      case "price_alert":
         return <IndianRupee className="size-4 text-success" />;
       case "offer_received":
       case "offer_countered":
