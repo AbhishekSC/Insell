@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BadgeCheck, MapPin, Lock, Loader2 } from "lucide-react";
 import axiosInstance from "../lib/axios";
 import LoginPromptModal from "../components/LoginPromptModal";
+import logoDesktop from "../assets/brand/logo-desktop.png";
 
 function Stat({ label, value, onClick }) {
   return (
@@ -58,8 +59,8 @@ export default function PublicUserProfilePage() {
     <div className="min-h-screen bg-base-100">
       {/* Slim top bar for logged-out visitors */}
       <div className="sticky top-0 z-30 flex items-center justify-between border-b border-base-200 bg-base-100/90 px-4 py-3 backdrop-blur">
-        <Link to="/" className="text-lg font-extrabold tracking-tight text-base-content">
-          near<span className="text-primary">my</span>space
+        <Link to="/" aria-label="NearMySpace home" className="flex items-center">
+          <img src={logoDesktop} alt="NearMySpace" className="h-8 w-auto" />
         </Link>
         <div className="flex items-center gap-2">
           <Link to={`/login?next=/users/${userId}`} className="rounded-lg bg-primary px-3.5 py-1.5 text-sm font-semibold text-white">
