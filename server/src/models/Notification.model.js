@@ -42,6 +42,7 @@ const notificationSchema = new mongoose.Schema(
         "admin_announcement",
         "price_drop",
         "price_alert",
+        "saved_search_match",
         "offer_price_changed",
         "offer_received",
         "offer_countered",
@@ -107,6 +108,10 @@ const notificationSchema = new mongoose.Schema(
     deal: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Deal",
+    },
+    savedSearch: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SavedSearch",
     },
     // Message request fields
     messageRequest: {

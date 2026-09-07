@@ -219,6 +219,12 @@ export function StreamProvider({ children }) {
             queryClient.invalidateQueries({ queryKey: ["notifications", "priceDrop", "unread"] });
           }
 
+          // Pushed via saved-search module's notifyMatches — same
+          // must-dismiss-modal pattern.
+          if (event.type === "saved_search_match") {
+            queryClient.invalidateQueries({ queryKey: ["notifications", "savedSearch", "unread"] });
+          }
+
           // Pushed via CommunityServiceHandlers.js's notifyCommunityCallStarted
           // — refetch the Calls page's active-rooms list immediately instead
           // of waiting out its 5s poll. The actual "you have a push" toast is

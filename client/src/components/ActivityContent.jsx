@@ -11,6 +11,7 @@ import {
   MapPin,
   Building2,
   IndianRupee,
+  Bell,
   Trash2,
   Users,
   TrendingUp,
@@ -60,6 +61,8 @@ function ActivityItem({ activity, onNavigateToPost, isOwnActivity = false, onRes
       case "price_drop":
       case "price_alert":
         return <IndianRupee className="size-4 text-success" />;
+      case "saved_search_match":
+        return <Bell className="size-4 text-primary" />;
       case "offer_received":
       case "offer_countered":
         return <TrendingUp className="size-4 text-primary" />;

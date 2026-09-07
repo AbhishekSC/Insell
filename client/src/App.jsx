@@ -20,6 +20,7 @@ import NewsPage from "./pages/NewsPage";
 import TrendingLocalitiesPage from "./pages/TrendingLocalitiesPage";
 import RecommendedForYouPage from "./pages/RecommendedForYouPage";
 import MyDealsPage from "./pages/MyDealsPage";
+import SavedSearchesPage from "./pages/SavedSearchesPage";
 import DiscoverCommunitiesPage from "./pages/DiscoverCommunitiesPage";
 import RequestedCommunitiesPage from "./pages/RequestedCommunitiesPage";
 import ActivityPage from "./pages/ActivityPage";
@@ -262,6 +263,10 @@ function App() {
         <Route
           path="/deals"
           element={guard(<MyDealsPage />)}
+        />
+        <Route
+          path="/saved-searches"
+          element={guard(<SavedSearchesPage />)}
         />
         <Route
           path="/discover-communities"
