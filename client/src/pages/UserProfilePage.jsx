@@ -486,6 +486,21 @@ export default function UserProfilePage() {
   // Shared between the desktop header (auto-width buttons) and the mobile
   // header (equal-width, full-row buttons) so the 5 relationship states
   // don't drift out of sync between the two layouts.
+  const shareProfile = async () => {
+    const url = `${window.location.origin}/users/${userId}`;
+    const name = profileUser?.fullName || "this member";
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `${name} on NearMySpace`, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast.success("Profile link copied");
+      }
+    } catch {
+      /* user cancelled the share sheet — ignore */
+    }
+  };
+
   const renderProfileActions = (buttonClass) => {
     if (isOwnProfile) {
       return (
@@ -493,6 +508,14 @@ export default function UserProfilePage() {
           <Link to="/marketplace?section=profile" className={`btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200 ${buttonClass}`}>
             Edit Profile
           </Link>
+          <button
+            type="button"
+            onClick={shareProfile}
+            className={`btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200 ${buttonClass}`}
+          >
+            <Share2 className="size-4" />
+            Share
+          </button>
           {/* "About" replaces Instagram's "View archive" slot on mobile,
               where About isn't its own visible tab — see the mobile-only
               tab bar below. */}
@@ -513,36 +536,56 @@ export default function UserProfilePage() {
             <MessageCircle className="size-4" />
             Message
           </Link>
-          <button type="button" className={`btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200 ${buttonClass}`}>
+          <button type="button" onClick={shareProfile} className={`btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200 ${buttonClass}`}>
+            <Share2 className="size-4" />
             Share
           </button>
         </>
       );
     }
+    const shareBtn = (
+      <button
+        type="button"
+        onClick={shareProfile}
+        className={`btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200 ${buttonClass}`}
+      >
+        <Share2 className="size-4" />
+        Share
+      </button>
+    );
     if (relationship.connectionStatus === "pending_sent") {
       return (
-        <button type="button" className={`btn btn-sm rounded-full border border-base-300 bg-base-200 text-base-content/60 ${buttonClass}`} disabled>
-          Request Sent
-        </button>
+        <>
+          <button type="button" className={`btn btn-sm rounded-full border border-base-300 bg-base-200 text-base-content/60 ${buttonClass}`} disabled>
+            Request Sent
+          </button>
+          {shareBtn}
+        </>
       );
     }
     if (relationship.connectionStatus === "pending_received") {
       return (
-        <Link to="/connections" className={`btn btn-sm rounded-full border-none bg-primary text-white hover:bg-primary ${buttonClass}`}>
-          Respond to Request
-        </Link>
+        <>
+          <Link to="/connections" className={`btn btn-sm rounded-full border-none bg-primary text-white hover:bg-primary ${buttonClass}`}>
+            Respond to Request
+          </Link>
+          {shareBtn}
+        </>
       );
     }
     return (
-      <button
-        type="button"
-        className={`btn btn-sm rounded-full border-none bg-primary text-white hover:bg-primary ${buttonClass}`}
-        disabled={isConnecting}
-        onClick={() => sendConnectionRequest()}
-      >
-        <UserRoundPlus className="size-4" />
-        {isConnecting ? "Connecting..." : "Connect"}
-      </button>
+      <>
+        <button
+          type="button"
+          className={`btn btn-sm rounded-full border-none bg-primary text-white hover:bg-primary ${buttonClass}`}
+          disabled={isConnecting}
+          onClick={() => sendConnectionRequest()}
+        >
+          <UserRoundPlus className="size-4" />
+          {isConnecting ? "Connecting..." : "Connect"}
+        </button>
+        {shareBtn}
+      </>
     );
   };
 
