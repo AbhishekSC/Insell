@@ -60,7 +60,17 @@ function toRelatedCardDTO(post) {
   };
 }
 
-export function toPublicDetailDTO(post, related = []) {
+function toPersonDTO(u) {
+  return {
+    id: String(u._id),
+    name: u.fullName || "Member",
+    avatar: u.profilePic || null,
+    city: u.city || "",
+    isVerified: Boolean(u.isVerified),
+  };
+}
+
+export function toPublicDetailDTO(post, related = [], people = []) {
   const id = String(post._id);
   const images = (Array.isArray(post.mediaUrls) ? post.mediaUrls : []).filter(Boolean);
   return {
@@ -92,6 +102,7 @@ export function toPublicDetailDTO(post, related = []) {
       : null,
     publishedAt: post.publishedAt || post.createdAt || null,
     related: related.map(toRelatedCardDTO),
+    people: people.map(toPersonDTO),
     canonicalUrl: `${SITE_ORIGIN}/p/${id}`,
     appUrl: `${SITE_ORIGIN}/property/${id}`,
   };

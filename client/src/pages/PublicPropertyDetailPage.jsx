@@ -185,13 +185,17 @@ export default function PublicPropertyDetailPage() {
           </div>
         )}
 
-        {/* Related */}
+        {/* Similar listings — horizontal scroll */}
         {p.related.length > 0 && (
           <div className="mt-10">
             <h2 className="mb-3 text-sm font-semibold text-base-content/70">Similar listings</h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="flex gap-3 overflow-x-auto pb-2">
               {p.related.map((r) => (
-                <Link key={r.id} to={`/property/${r.id}`} className="overflow-hidden rounded-xl border border-base-300 hover:bg-base-200">
+                <Link
+                  key={r.id}
+                  to={`/property/${r.id}`}
+                  className="w-44 shrink-0 overflow-hidden rounded-xl border border-base-300 hover:bg-base-200"
+                >
                   <div className="aspect-[4/3] bg-base-200">
                     {r.coverImage && <img src={r.coverImage} alt={r.title} className="size-full object-cover" />}
                   </div>
@@ -200,6 +204,29 @@ export default function PublicPropertyDetailPage() {
                     <p className="truncate text-xs text-base-content/60">{r.title}</p>
                     {r.location && <p className="truncate text-[11px] text-base-content/40">{r.location}</p>}
                   </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* People you may know */}
+        {p.people?.length > 0 && (
+          <div className="mt-8">
+            <h2 className="mb-3 text-sm font-semibold text-base-content/70">People you may know on NearMySpace</h2>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {p.people.map((u) => (
+                <Link
+                  key={u.id}
+                  to={`/users/${u.id}`}
+                  className="flex w-32 shrink-0 flex-col items-center rounded-xl border border-base-300 p-3 text-center hover:bg-base-200"
+                >
+                  <img src={u.avatar || "/favicon.png"} alt="" className="size-14 rounded-full object-cover" />
+                  <span className="mt-2 flex w-full min-w-0 items-center justify-center gap-1 text-xs font-semibold text-base-content">
+                    <span className="min-w-0 truncate">{u.name}</span>
+                    {u.isVerified && <BadgeCheck className="size-3 shrink-0 text-primary" />}
+                  </span>
+                  {u.city && <span className="w-full truncate text-[11px] text-base-content/50">{u.city}</span>}
                 </Link>
               ))}
             </div>

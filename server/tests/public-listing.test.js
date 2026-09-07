@@ -107,6 +107,7 @@ describe("public listing share preview", () => {
     expect(l.keyDetails.find((d) => d.label === "Parking")?.value).toBe("Available");
     expect(l.amenities).toEqual(["Lift", "Power backup"]);
     expect(l.related.some((r) => r.id === String(rel._id))).toBe(true);
+    expect(Array.isArray(l.people)).toBe(true);
     expect(l.appUrl).toMatch(/\/property\/[a-f0-9]{24}$/);
 
     await PropertyPost.deleteOne({ _id: rel._id });

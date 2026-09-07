@@ -7,8 +7,10 @@ import {
   findRelatedListings,
   incrementShareCount,
 } from "./publicListing.repository.js";
+import { relatedProfiles } from "../public-profile/publicProfile.repository.js";
 
-const RELATED_COUNT = 6;
+const RELATED_COUNT = 8;
+const RELATED_PROFILE_COUNT = 8;
 
 function assertValidId(id) {
   if (!id || !mongoose.isValidObjectId(id)) {
@@ -34,8 +36,13 @@ export async function getPublicListingDetail(id) {
   if (!post) {
     throw new AppError("Listing not found", 404);
   }
-  const related = await findRelatedListings(post, RELATED_COUNT);
-  return toPublicDetailDTO(post, related);
+  const [related, people] = await Promise.all([
+    findRelatedListings(post, RELATED_COUNT),
+    post.author?._id
+      ? relatedProfiles({ _id: post.author._id, city: post.author.city || post.city }, RELATED_PROFILE_COUNT)
+      : Promise.resolve([]),
+  ]);
+  return toPublicDetailDTO(post, related, people);
 }
 
 // Best-effort share counter bump. Never blocks the caller.
