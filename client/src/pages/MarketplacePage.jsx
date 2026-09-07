@@ -16,6 +16,7 @@ import {
   Eye,
   Filter,
   Flag,
+  Handshake,
   Heart,
   Home,
   IndianRupee,
@@ -1640,6 +1641,27 @@ export default function MarketplacePage() {
                         </span>
                       )}
                     </div>
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-1 space-y-1 border-t border-base-300/70 pt-2">
+              {[
+                { to: "/deals", label: "My Deals", icon: Handshake },
+                { to: "/saved-searches", label: "Saved Searches", icon: Bell },
+                { to: "/recommended", label: "Recommended for You", icon: Sparkles },
+              ].map(({ to, label, icon }) => {
+                const NavIcon = icon;
+                return (
+                  <button
+                    key={to}
+                    type="button"
+                    className="btn btn-sm w-full justify-start rounded-lg border-none bg-transparent text-base-content/70 hover:bg-base-200 hover:text-base-content"
+                    onClick={() => navigate(to)}
+                  >
+                    <NavIcon className="size-4" />
                     <span>{label}</span>
                   </button>
                 );
