@@ -1600,7 +1600,20 @@ export default function MarketplacePage() {
           <aside className="hidden w-[220px] rounded-2xl border border-base-200 bg-base-200/90 p-3 pb-6 shadow-sm xl:sticky xl:top-1 xl:flex xl:h-[calc(100dvh-7.1rem)] xl:flex-col xl:overflow-y-auto">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-base-content/60">Navigation</p>
             <div className="mt-2 space-y-1">
-              {(authUser?.isAdmin ? [...LEFT_NAV_ITEMS, ADMIN_NAV_ITEM] : LEFT_NAV_ITEMS).map(({ label, icon, section }) => {
+              {(() => {
+                // Route-only destinations (no marketplace section) slotted in
+                // right after Messages.
+                const items = [];
+                for (const item of LEFT_NAV_ITEMS) {
+                  items.push(item);
+                  if (item.section === "chat") {
+                    items.push({ label: "My Deals", icon: Handshake, to: "/deals" });
+                    items.push({ label: "Saved Searches", icon: Bell, to: "/saved-searches" });
+                  }
+                }
+                if (authUser?.isAdmin) items.push(ADMIN_NAV_ITEM);
+                return items;
+              })().map(({ label, icon, section, to }) => {
                 // Renamed-destructure (`icon: NavIcon`) used only in JSX trips
                 // up this project's no-unused-vars config as a false positive.
                 const NavIcon = icon;
@@ -1619,12 +1632,14 @@ export default function MarketplacePage() {
                     key={label}
                     type="button"
                     className={`btn btn-sm w-full justify-start rounded-lg border-none relative ${
-                      activeSection === section
+                      section && activeSection === section
                         ? "bg-primary/15 text-primary hover:bg-primary/15"
                         : "bg-transparent text-base-content/70 hover:bg-base-200 hover:text-base-content"
                     }`}
                     onClick={() => {
-                      if (section === "map") {
+                      if (to) {
+                        navigate(to);
+                      } else if (section === "map") {
                         navigate("/map-view");
                       } else if (section === "admin") {
                         navigate("/admin");
@@ -1641,27 +1656,6 @@ export default function MarketplacePage() {
                         </span>
                       )}
                     </div>
-                    <span>{label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-1 space-y-1 border-t border-base-300/70 pt-2">
-              {[
-                { to: "/deals", label: "My Deals", icon: Handshake },
-                { to: "/saved-searches", label: "Saved Searches", icon: Bell },
-                { to: "/recommended", label: "Recommended for You", icon: Sparkles },
-              ].map(({ to, label, icon }) => {
-                const NavIcon = icon;
-                return (
-                  <button
-                    key={to}
-                    type="button"
-                    className="btn btn-sm w-full justify-start rounded-lg border-none bg-transparent text-base-content/70 hover:bg-base-200 hover:text-base-content"
-                    onClick={() => navigate(to)}
-                  >
-                    <NavIcon className="size-4" />
                     <span>{label}</span>
                   </button>
                 );
