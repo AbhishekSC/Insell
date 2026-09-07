@@ -487,7 +487,9 @@ export default function UserProfilePage() {
   // header (equal-width, full-row buttons) so the 5 relationship states
   // don't drift out of sync between the two layouts.
   const shareProfile = async () => {
-    const url = `${window.location.origin}/users/${userId}`;
+    // /u/:id unfurls a rich card for link crawlers and redirects real
+    // visitors straight to the profile.
+    const url = `${window.location.origin}/u/${userId}`;
     const name = profileUser?.fullName || "this member";
     try {
       if (navigator.share) {

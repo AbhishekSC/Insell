@@ -12,12 +12,15 @@ function fakeRes() {
     status(c) { this.statusCode = c; return this; },
     json(b) { this.body = b; return this; },
     send(b) { this._body = b; return this; },
+    redirect(c, url) { this.statusCode = c; this.redirectedTo = url; return this; },
   };
 }
+const BOT_UA = "facebookexternalhit/1.1";
+const withReq = (req) => ({ get: () => BOT_UA, ...req });
 const run = (handler, req) => {
   const res = fakeRes();
   let captured;
-  return Promise.resolve(handler(req, res, (err) => { captured = err; })).then(() => {
+  return Promise.resolve(handler(withReq(req), res, (err) => { captured = err; })).then(() => {
     if (captured) throw captured;
     return res;
   });
@@ -128,6 +131,15 @@ describe("public listing share preview", () => {
     expect(res.statusCode).toBe(404);
     expect(res.headers["content-type"]).toContain("text/html");
     expect(res._body).toContain("isn't available");
+  });
+
+  it("redirects a real browser to the full property page", async () => {
+    const res = await run(renderListingSharePage, {
+      params: { id: String(published._id) },
+      get: () => "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 Safari/604.1",
+    });
+    expect(res.statusCode).toBe(302);
+    expect(res.redirectedTo).toContain("/property/" + String(published._id));
   });
 
   it("share counter increments and never throws", async () => {

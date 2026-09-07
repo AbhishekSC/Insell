@@ -2,6 +2,7 @@ import { asyncHandler } from "../../core/asyncHandler.js";
 import { sendSuccessResponse } from "../../utils/responseHandler.js";
 import { getPublicProfile } from "./publicProfile.app.service.js";
 import { renderProfilePage, renderNotFoundPage } from "./publicProfile.view.js";
+import { isCrawler } from "../../utils/isCrawler.js";
 
 const SITE_ORIGIN = (process.env.CLIENT_URL || "https://insell-fe.vercel.app").replace(/\/$/, "");
 
@@ -12,8 +13,12 @@ export const getPublicUserProfile = asyncHandler(async (req, res) => {
   return sendSuccessResponse(res, 200, "Public profile", { profile });
 });
 
-// GET /u/:id  (no auth, HTML) — server-rendered share page with OG tags.
+// GET /u/:id  (no auth) — link-unfurl bots get the server-rendered Open
+// Graph page; real browsers are redirected to the full app profile page.
 export const renderProfileSharePage = asyncHandler(async (req, res) => {
+  if (!isCrawler(req.get("user-agent"))) {
+    return res.redirect(302, `${SITE_ORIGIN}/users/${req.params.id}`);
+  }
   try {
     const profile = await getPublicProfile(req.params.id);
     res.set("Content-Type", "text/html; charset=utf-8");

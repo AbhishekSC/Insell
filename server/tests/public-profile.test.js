@@ -13,12 +13,14 @@ function fakeRes() {
     status(c) { this.statusCode = c; return this; },
     json(b) { this.body = b; return this; },
     send(b) { this._body = b; return this; },
+    redirect(c, url) { this.statusCode = c; this.redirectedTo = url; return this; },
   };
 }
+const withReq = (req) => ({ get: () => "facebookexternalhit/1.1", ...req });
 const run = (handler, req) => {
   const res = fakeRes();
   let captured;
-  return Promise.resolve(handler(req, res, (e) => { captured = e; })).then(() => {
+  return Promise.resolve(handler(withReq(req), res, (e) => { captured = e; })).then(() => {
     if (captured) throw captured;
     return res;
   });
@@ -115,5 +117,14 @@ describe("public profile", () => {
     const res = await run(renderProfileSharePage, { params: { id: "6a9999999999999999999999" } });
     expect(res.statusCode).toBe(404);
     expect(res._body).toContain("isn't available");
+  });
+
+  it("redirects a real browser to the full profile page", async () => {
+    const res = await run(renderProfileSharePage, {
+      params: { id: String(owner._id) },
+      get: () => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+    });
+    expect(res.statusCode).toBe(302);
+    expect(res.redirectedTo).toContain("/users/" + String(owner._id));
   });
 });
