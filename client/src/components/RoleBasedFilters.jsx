@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Filter, X, SlidersHorizontal, Home, Building2, MapPin, IndianRupee, Calendar, Users, Bed, Bath, Maximize, ChevronDown, TrendingUp } from "lucide-react";
+import { Filter, X, SlidersHorizontal, Home, Building2, MapPin, IndianRupee, Calendar, Users, Bed, Bath, Maximize, ChevronDown, TrendingUp, Bell } from "lucide-react";
 
 const ROLE_FILTER_CONFIGS = {
   Tenant: {
@@ -107,31 +107,49 @@ const ROLE_FILTER_CONFIGS = {
   }
 };
 
-export default function RoleBasedFilters({ userRole, isOpen, onClose, onApply, onReset }) {
+export default function RoleBasedFilters({ userRole, isOpen, onClose, onApply, onReset, onSaveSearch }) {
   const role = userRole || "Buyer";
   const config = ROLE_FILTER_CONFIGS[role] || ROLE_FILTER_CONFIGS.Buyer;
   const [activeFilters, setActiveFilters] = useState(config.defaults);
+  const [savingSearch, setSavingSearch] = useState(false);
 
   const handleFilterChange = (key, value) => {
     setActiveFilters((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleApply = () => {
-    // The feed only reads a fixed shape (transactionType/propertyType/city/
-    // locality/budgetMin/budgetMax) — translate whichever role-specific
-    // fields are present into that shape so "Apply" actually narrows results
-    // instead of being silently ignored.
+  // The feed only reads a fixed shape (transactionType/propertyType/city/
+  // locality/budgetMin/budgetMax) — translate whichever role-specific fields
+  // are present into that shape.
+  const toFeedShape = () => {
     const budgetSource = activeFilters.budgetRange || activeFilters.priceRange || null;
     const rawPropertyType = activeFilters.propertyType;
-    onApply?.({
+    return {
       transactionType: "All",
       propertyType: rawPropertyType && !["All", "Any"].includes(rawPropertyType) ? rawPropertyType : "All",
       city: "",
       locality: activeFilters.location || "",
       budgetMin: budgetSource ? budgetSource[0] : 0,
       budgetMax: budgetSource ? budgetSource[1] : 0,
-    });
+    };
+  };
+
+  const isNarrowed = () => {
+    const f = toFeedShape();
+    return f.propertyType !== "All" || Boolean(f.locality) || Number(f.budgetMin) > 0 || Number(f.budgetMax) > 0;
+  };
+
+  const handleApply = () => {
+    onApply?.(toFeedShape());
     onClose?.();
+  };
+
+  const handleSaveSearch = async () => {
+    setSavingSearch(true);
+    try {
+      await onSaveSearch?.(toFeedShape());
+    } finally {
+      setSavingSearch(false);
+    }
   };
 
   const handleReset = () => {
@@ -274,6 +292,19 @@ export default function RoleBasedFilters({ userRole, isOpen, onClose, onApply, o
             ))}
           </div>
         </div>
+
+        {/* Save this search */}
+        {onSaveSearch && isNarrowed() && (
+          <button
+            type="button"
+            onClick={handleSaveSearch}
+            disabled={savingSearch}
+            className="flex w-full items-center justify-center gap-2 border-t border-base-300 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary hover:bg-primary/10 disabled:opacity-50"
+          >
+            <Bell className="size-4" />
+            {savingSearch ? "Saving…" : "Save this search & get alerts"}
+          </button>
+        )}
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-base-300 p-4">
