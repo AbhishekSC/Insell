@@ -1333,6 +1333,24 @@ export default function MarketplacePage() {
     },
   });
 
+  // Patch a single post across every cached feed variant. The feed queryKey
+  // carries extra segments (geo, near-me) that a hand-built key would miss —
+  // so match by the ["propertyFeed"] prefix and never guess the full key.
+  const patchPostInFeeds = (postId, patch) => {
+    queryClient.setQueriesData({ queryKey: ["propertyFeed"] }, (old) => {
+      if (!old?.pages) return old;
+      return {
+        ...old,
+        pages: old.pages.map((page) => ({
+          ...page,
+          posts: (page.posts || []).map((post) =>
+            post._id === postId ? { ...post, ...patch(post) } : post
+          ),
+        })),
+      };
+    });
+  };
+
   const { mutate: toggleLike } = useMutation({
     mutationFn: async (postId) => {
       const response = await axiosInstance.post(`/posts/${postId}/like`);
@@ -1340,36 +1358,22 @@ export default function MarketplacePage() {
     },
     onMutate: async (postId) => {
       await queryClient.cancelQueries({ queryKey: ["propertyFeed"] });
-      const previousFeed = queryClient.getQueryData(["propertyFeed", activeCategory, search, searchType, searchAuthorId, queryListingType || "all", queryPropertyType || "all"]);
-      
-      queryClient.setQueryData(["propertyFeed", activeCategory, search, searchType, searchAuthorId, queryListingType || "all", queryPropertyType || "all"], (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          pages: old.pages.map((page) => ({
-            ...page,
-            posts: page.posts.map((post) => {
-              if (post._id === postId) {
-                const newLikedState = !post.isLikedByMe;
-                return {
-                  ...post,
-                  isLikedByMe: newLikedState,
-                  likesCount: newLikedState ? (post.likesCount || 0) + 1 : Math.max(0, (post.likesCount || 0) - 1),
-                };
-              }
-              return post;
-            }),
-          })),
-        };
+      const snapshot = queryClient.getQueriesData({ queryKey: ["propertyFeed"] });
+      patchPostInFeeds(postId, (post) => {
+        const liked = !post.isLikedByMe;
+        return { isLikedByMe: liked, likesCount: Math.max(0, (post.likesCount || 0) + (liked ? 1 : -1)) };
       });
-      
-      return { previousFeed };
+      return { snapshot };
     },
     onError: (err, postId, context) => {
-      queryClient.setQueryData(["propertyFeed", activeCategory, search, searchType, searchAuthorId, queryListingType || "all", queryPropertyType || "all"], context.previousFeed);
+      context?.snapshot?.forEach(([key, data]) => queryClient.setQueryData(key, data));
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
+    onSuccess: (data, postId) => {
+      if (!data) return;
+      patchPostInFeeds(postId, () => ({
+        isLikedByMe: Boolean(data.liked),
+        ...(typeof data.likesCount === "number" ? { likesCount: data.likesCount } : {}),
+      }));
     },
   });
 
@@ -1380,36 +1384,22 @@ export default function MarketplacePage() {
     },
     onMutate: async (postId) => {
       await queryClient.cancelQueries({ queryKey: ["propertyFeed"] });
-      const previousFeed = queryClient.getQueryData(["propertyFeed", activeCategory, search, searchType, searchAuthorId, queryListingType || "all", queryPropertyType || "all"]);
-      
-      queryClient.setQueryData(["propertyFeed", activeCategory, search, searchType, searchAuthorId, queryListingType || "all", queryPropertyType || "all"], (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          pages: old.pages.map((page) => ({
-            ...page,
-            posts: page.posts.map((post) => {
-              if (post._id === postId) {
-                const newSavedState = !post.isSavedByMe;
-                return {
-                  ...post,
-                  isSavedByMe: newSavedState,
-                  savesCount: newSavedState ? (post.savesCount || 0) + 1 : Math.max(0, (post.savesCount || 0) - 1),
-                };
-              }
-              return post;
-            }),
-          })),
-        };
+      const snapshot = queryClient.getQueriesData({ queryKey: ["propertyFeed"] });
+      patchPostInFeeds(postId, (post) => {
+        const saved = !post.isSavedByMe;
+        return { isSavedByMe: saved, savesCount: Math.max(0, (post.savesCount || 0) + (saved ? 1 : -1)) };
       });
-      
-      return { previousFeed };
+      return { snapshot };
     },
     onError: (err, postId, context) => {
-      queryClient.setQueryData(["propertyFeed", activeCategory, search, searchType, searchAuthorId, queryListingType || "all", queryPropertyType || "all"], context.previousFeed);
+      context?.snapshot?.forEach(([key, data]) => queryClient.setQueryData(key, data));
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
+    onSuccess: (data, postId) => {
+      if (!data) return;
+      patchPostInFeeds(postId, () => ({
+        isSavedByMe: Boolean(data.saved),
+        ...(typeof data.savesCount === "number" ? { savesCount: data.savesCount } : {}),
+      }));
     },
   });
 
