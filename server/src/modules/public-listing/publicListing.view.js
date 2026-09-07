@@ -1,16 +1,6 @@
-// Server-rendered share page for a single listing: /p/:id
-//
-// Real browsers get a lightweight, no-login preview with a CTA into the app.
-// Link crawlers (WhatsApp, iMessage, Slack, Facebook, Google) get the Open
-// Graph tags they need to render a rich card. A pure client-side React route
-// can't do this — crawlers don't run JS, so they'd only ever see the SPA's
-// static site-wide tags.
-
-const API_ORIGIN = (
-  process.env.PUBLIC_API_ORIGIN ||
-  process.env.VITE_API_URL ||
-  "https://insell-be.onrender.com"
-).replace(/\/$/, "");
+// Renders the server-side share page for /p/:id — a lightweight no-login
+// preview for humans plus the Open Graph / Twitter Card tags link crawlers
+// (WhatsApp, iMessage, Slack, Facebook) need to unfurl a rich card.
 
 const esc = (s = "") =>
   String(s)
@@ -20,49 +10,34 @@ const esc = (s = "") =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-function notFound(res) {
-  res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.setHeader("Cache-Control", "public, max-age=60");
-  res.status(404).send(`<!doctype html><meta charset="utf-8"><title>Listing not found</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
+export function renderNotFoundPage(siteOrigin) {
+  return `<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Listing not available</title></head>
 <body style="font-family:system-ui;text-align:center;padding:15vh 1rem;color:#334155">
 <h1 style="font-size:1.25rem">This listing isn't available</h1>
 <p>It may have been removed or is no longer public.</p>
-<a href="/" style="color:#2563eb">Browse other properties →</a>`);
+<a href="${esc(siteOrigin)}" style="color:#2563eb">Browse other properties &rarr;</a>
+</body></html>`;
 }
 
-export default async function handler(req, res) {
-  const { id } = req.query;
-  const origin = `https://${req.headers["x-forwarded-host"] || req.headers.host}`;
-
-  if (!id || !/^[a-f0-9]{24}$/i.test(String(id))) return notFound(res);
-
-  let listing;
-  try {
-    const r = await fetch(`${API_ORIGIN}/api/public/listings/${id}/preview`, {
-      headers: { accept: "application/json" },
-    });
-    if (!r.ok) return notFound(res);
-    listing = (await r.json())?.data?.listing;
-  } catch {
-    return notFound(res);
-  }
-  if (!listing) return notFound(res);
-
-  const appUrl = `${origin}/property/${listing.id}`;
-  const canonical = `${origin}/p/${listing.id}`;
-  const ogImage = listing.coverImage || `${origin}/logo-email.png`;
+export function renderSharePage(listing, { siteOrigin }) {
+  const appUrl = `${siteOrigin}/property/${listing.id}`;
+  const canonical = `${siteOrigin}/p/${listing.id}`;
+  const ogImage = listing.coverImage || `${siteOrigin}/logo-email.png`;
   const title = esc(listing.ogTitle || listing.title);
   const desc = esc(listing.description || "View this property on NearMySpace");
+  const thumbs =
+    (listing.images || []).length > 1
+      ? `<div class="thumbs">${listing.images.map((u) => `<img src="${esc(u)}" alt="" loading="lazy">`).join("")}</div>`
+      : "";
 
-  res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.setHeader("Cache-Control", "public, max-age=300, s-maxage=600, stale-while-revalidate=86400");
-  res.status(200).send(`<!doctype html>
+  return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${title} · NearMySpace</title>
+<title>${title} &middot; NearMySpace</title>
 <meta name="description" content="${desc}">
 <link rel="canonical" href="${canonical}">
 <meta property="og:type" content="website">
@@ -105,14 +80,10 @@ export default async function handler(req, res) {
       ${listing.specsLabel ? `<div class="specs">${esc(listing.specsLabel)}</div>` : ""}
       <a class="cta" href="${appUrl}">View full details &amp; contact owner</a>
     </div>
-    ${
-      (listing.images || []).length > 1
-        ? `<div class="thumbs">${listing.images.map((u) => `<img src="${esc(u)}" alt="">`).join("")}</div>`
-        : ""
-    }
+    ${thumbs}
   </div>
-  <p class="foot">Listed on NearMySpace — verified owners, no brokers</p>
+  <p class="foot">Listed on NearMySpace &mdash; verified owners, no brokers</p>
 </div>
 </body>
-</html>`);
+</html>`;
 }

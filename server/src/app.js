@@ -6,6 +6,7 @@ import path from "path";
 import session from "express-session";
 
 import routes from "./routes/index.js";
+import { renderListingSharePage } from "./modules/public-listing/publicListing.controller.js";
 import { logger } from "./utils/logger.js";
 import { errorHandler, notFoundHandler } from "./middlewares/errorHandler.js";
 import { requestIdMiddleware } from "./middlewares/requestId.middleware.js";
@@ -70,6 +71,10 @@ app.use(
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", uptime: process.uptime(), ts: Date.now() });
 });
+
+// Public server-rendered listing share page (Open Graph unfurl). Sits
+// outside /api so share links are short; Vercel proxies /p/:id here.
+app.get("/p/:id", renderListingSharePage);
 
 app.use("/api", routes);
 app.use(notFoundHandler);
