@@ -541,26 +541,22 @@ export default function MarketplacePage() {
     Number(appliedFilters.budgetMin || 0) > 0 ||
     Number(appliedFilters.budgetMax || 0) > 0;
 
-  const [savingSearch, setSavingSearch] = useState(false);
-  const saveCurrentSearch = async () => {
-    const t = appliedFilters.transactionType;
+  const saveSearchFromFilters = async (f) => {
+    const t = f.transactionType;
     const postType = t === "Rent" ? ["PROPERTY_RENT"] : t === "Sell" || t === "Buy" ? ["PROPERTY_SALE"] : [];
     const payload = {
       postType,
-      city: appliedFilters.city || "",
-      locality: appliedFilters.locality || "",
-      propertyType: appliedFilters.propertyType && appliedFilters.propertyType !== "All" ? appliedFilters.propertyType : "",
-      minPrice: Number(appliedFilters.budgetMin || 0) || null,
-      maxPrice: Number(appliedFilters.budgetMax || 0) || null,
+      city: f.city || "",
+      locality: f.locality || "",
+      propertyType: f.propertyType && !["All", "Any"].includes(f.propertyType) ? f.propertyType : "",
+      minPrice: Number(f.budgetMin || 0) || null,
+      maxPrice: Number(f.budgetMax || 0) || null,
     };
-    setSavingSearch(true);
     try {
       await axiosInstance.post("/saved-searches", { filters: payload });
       toast.success("Search saved — we'll alert you when new listings match");
     } catch (error) {
       toast.error(error?.response?.data?.message || "Couldn't save this search");
-    } finally {
-      setSavingSearch(false);
     }
   };
 
@@ -1700,17 +1696,6 @@ export default function MarketplacePage() {
                   <Filter className="size-4" />
                   Filters
                 </button>
-                {hasActiveMarketplaceFilters && (
-                  <button
-                    type="button"
-                    className="btn btn-sm rounded-full border-none bg-transparent text-base-content/70 hover:bg-base-200 hover:text-base-content disabled:opacity-50"
-                    onClick={saveCurrentSearch}
-                    disabled={savingSearch}
-                  >
-                    <Bell className="size-4" />
-                    Save search
-                  </button>
-                )}
               </div>
 
             </div>
@@ -1721,6 +1706,7 @@ export default function MarketplacePage() {
               onClose={() => setIsFiltersOpen(false)}
               onApply={(filters) => setAppliedFilters(filters)}
               onReset={() => setAppliedFilters(filters)}
+              onSaveSearch={saveSearchFromFilters}
             />
 
             {(pullDistance > 0 || pullRefreshing) && (
