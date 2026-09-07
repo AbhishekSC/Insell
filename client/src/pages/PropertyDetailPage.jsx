@@ -371,7 +371,11 @@ export default function PropertyDetailPage() {
       const res = await axiosInstance.get(`/deals/post/${id}`, { skipErrorToast: true });
       return res.data?.data?.deal || null;
     },
-    enabled: Boolean(id && authUser?._id && postData && postData.offerStatus === "ACCEPTED"),
+    // Ask the server directly rather than gating on postData.offerStatus —
+    // that flag is stale in a cached postData, and it's reset to OPEN when a
+    // deal is cancelled (which would then hide a deal the user should still
+    // see). The endpoint returns { deal: null } cheaply when there's none.
+    enabled: Boolean(id && authUser?._id),
     retry: false,
     // Poll only while the deal is still live, so the other party's
     // confirmations show up without a manual refresh. A completed/cancelled
