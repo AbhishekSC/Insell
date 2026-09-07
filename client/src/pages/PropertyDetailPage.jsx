@@ -39,6 +39,8 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ShareModal from "../components/ShareModal";
+import NeighbourhoodSummary from "../components/NeighbourhoodSummary";
+import PriceAlertButton from "../components/PriceAlertButton";
 import ReportPostModal from "../components/ReportPostModal";
 import OfferModal from "../components/OfferModal";
 import VisitScheduler from "../components/VisitScheduler";
@@ -1085,6 +1087,15 @@ export default function PropertyDetailPage() {
                     />
                   </div>
 
+                  {!amenitiesLoading && !amenitiesError && amenitiesData.length > 0 && (
+                    <NeighbourhoodSummary
+                      items={amenitiesData}
+                      locality={postData.locality}
+                      city={postData.city}
+                      className="mb-6"
+                    />
+                  )}
+
                   <h3 className="text-lg font-semibold text-base-content mb-4">Nearby Amenities</h3>
                   {amenitiesLoading && (
                     <p className="text-sm text-base-content/60">Loading nearby amenities...</p>
@@ -1308,6 +1319,11 @@ export default function PropertyDetailPage() {
                     {postData.isSavedByMe ? <BookmarkCheck className="size-5" /> : <Bookmark className="size-5" />}
                     {postData.isSavedByMe ? 'Saved' : 'Save'}
                   </button>
+
+                  {!isOwner && !isRequirementPost && postData.price > 0 && (
+                    <PriceAlertButton postId={postData._id} currentPrice={postData.price} />
+                  )}
+
                   <button
                     className="w-full py-3 px-4 bg-base-100 text-base-content border border-base-300 font-semibold rounded-xl hover:bg-base-200 transition-colors flex items-center justify-center gap-2"
                     onClick={() => setShowShareModal(true)}

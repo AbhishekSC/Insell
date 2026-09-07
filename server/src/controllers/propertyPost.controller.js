@@ -19,6 +19,8 @@ import { invalidateActivityCache } from "../services/UserServiceHandlers.js";
 import PersonalizationService from "../services/PersonalizationService.js";
 import * as NotificationService from "../services/NotificationService.js";
 import { NotificationChannel } from "../services/NotificationService.js";
+import { notifyTriggeredAlerts as notifyTriggeredPriceAlerts } from "../modules/price-alert/priceAlert.app.service.js";
+import { activeUserIdsForPost as activeAlertUserIdsForPost, deleteForPost as deletePriceAlertsForPost } from "../modules/price-alert/priceAlert.repository.js";
 import Offer from "../models/Offer.model.js";
 import { closeActiveOffersForPost } from "./offer.controller.js";
 import { cloudinaryInstance } from "../config/cloudinary.js";
@@ -997,19 +999,54 @@ export async function createPropertyPost(req, res) {
   }
 }
 
-// Fire-and-forget fan-out to everyone who liked/saved a post on ANY price
-// change, not just drops — both lists already live directly on the post
-// document, so this needs no extra query against the User collection.
-async function notifyPriceChange(post, oldPrice) {
-  const interestedIds = [...new Set(
-    [...(post.likedBy || []), ...(post.savedBy || [])].map((id) => String(id))
-  )].filter((id) => id !== String(post.author));
+// Orchestrates the two price-drop fan-outs on a listing price edit:
+//   1. buyers with their own price alert on this listing (sharp, per-target)
+//   2. everyone who liked/saved it (generic, throttled, drops only)
+// Those already reached via (1) are skipped in (2).
+export async function handlePriceChangeFanout(post, oldPrice) {
+  const alertedUserIds = await notifyTriggeredPriceAlerts(post, oldPrice);
+  await notifyPriceChange(post, oldPrice, new Set(alertedUserIds.map(String)));
+}
+
+// A drop only matters to a casual watcher if it's non-trivial — a ₹5k nudge
+// on a ₹80L flat isn't news.
+const PRICE_DROP_MIN_PCT = 0.02;
+const PRICE_DROP_MIN_ABS = 50_000;
+const PRICE_DROP_COOLDOWN_MS = 12 * 60 * 60 * 1000;
+
+// Fan-out to everyone who liked/saved a post — DROPS only, meaningful drops
+// only, and at most once per cooldown window. `excludeUserIds` are buyers
+// who already got the sharper per-target price-alert notification.
+export async function notifyPriceChange(post, oldPrice, excludeUserIds = new Set()) {
+  const drop = Number(oldPrice) - Number(post.price);
+  if (drop <= 0) return;
+  if (drop < PRICE_DROP_MIN_ABS && drop / oldPrice < PRICE_DROP_MIN_PCT) return;
+  if (
+    post.lastPriceDropNotifyAt &&
+    Date.now() - new Date(post.lastPriceDropNotifyAt).getTime() < PRICE_DROP_COOLDOWN_MS
+  ) {
+    return;
+  }
+
+  // Anyone with an active alert on this listing has opted into "tell me only
+  // when it hits my number" — don't also send them the generic ping.
+  let alertUsers = [];
+  try {
+    alertUsers = await activeAlertUserIdsForPost(post._id);
+  } catch {
+    alertUsers = [];
+  }
+  const skip = new Set([...excludeUserIds, ...alertUsers.map(String), String(post.author)]);
+
+  const interestedIds = [
+    ...new Set([...(post.likedBy || []), ...(post.savedBy || [])].map((id) => String(id))),
+  ].filter((id) => !skip.has(id));
 
   if (interestedIds.length === 0) return;
 
-  const isDrop = post.price < oldPrice;
   const oldFormatted = `₹${Number(oldPrice).toLocaleString("en-IN")}`;
   const newFormatted = `₹${Number(post.price).toLocaleString("en-IN")}`;
+  const pct = Math.round((drop / oldPrice) * 100);
 
   await Promise.allSettled(
     interestedIds.map((recipientId) =>
@@ -1017,8 +1054,8 @@ async function notifyPriceChange(post, oldPrice) {
         recipientId,
         actorId: post.author,
         type: "price_drop",
-        title: isDrop ? "Price drop on a property you saved" : "Price update on a property you saved",
-        message: `Price ${isDrop ? "dropped" : "increased"} from ${oldFormatted} to ${newFormatted} on "${post.title}"`,
+        title: "Price drop on a property you saved",
+        message: `Price dropped ${pct}% from ${oldFormatted} to ${newFormatted} on "${post.title}"`,
         data: {
           propertyPost: post._id,
           url: `/property/${post._id}`,
@@ -1028,6 +1065,12 @@ async function notifyPriceChange(post, oldPrice) {
         channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
       })
     )
+  );
+
+  await PropertyPost.updateOne(
+    { _id: post._id },
+    { $set: { lastPriceDropNotifyAt: new Date() } },
+    { timestamps: false }
   );
 }
 
@@ -1148,7 +1191,7 @@ export async function updatePropertyPost(req, res) {
     await post.save();
 
     if (oldPrice > 0 && post.price > 0 && post.price !== oldPrice) {
-      notifyPriceChange(post, oldPrice).catch((error) => {
+      handlePriceChangeFanout(post, oldPrice).catch((error) => {
         logger.error("Failed to send price-change notifications (non-fatal):", error);
       });
     }
@@ -1815,6 +1858,11 @@ export async function deletePropertyPost(req, res) {
     // there forever — decline them and tell the buyers why.
     await closeActiveOffersForPost(postId, userId).catch((error) => {
       logger.error("Failed to close active offers on deleted post (non-fatal):", error);
+    });
+
+    // No point keeping price alerts on a listing that's gone.
+    await deletePriceAlertsForPost(postId).catch((error) => {
+      logger.error("Failed to clear price alerts on deleted post (non-fatal):", error);
     });
 
     // Invalidate caches

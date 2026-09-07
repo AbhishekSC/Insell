@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from "vitest";
 import User from "../src/models/User.model.js";
 import PropertyPost from "../src/models/PropertyPost.model.js";
-import { getListingSharePreview, recordListingShare } from "../src/modules/public-listing/publicListing.controller.js";
+import { getListingSharePreview, recordListingShare, renderListingSharePage } from "../src/modules/public-listing/publicListing.controller.js";
 
 function fakeRes() {
   return {
@@ -11,6 +11,7 @@ function fakeRes() {
     set(k, v) { this.headers[String(k).toLowerCase()] = v; return this; },
     status(c) { this.statusCode = c; return this; },
     json(b) { this.body = b; return this; },
+    send(b) { this._body = b; return this; },
   };
 }
 const run = (handler, req) => {
@@ -80,6 +81,23 @@ describe("public listing share preview", () => {
 
   it("404s on a malformed id", async () => {
     await expect(run(getListingSharePreview, { params: { id: "not-an-id" } })).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("renders an HTML share page with OG tags for a published listing", async () => {
+    const res = await run(renderListingSharePage, { params: { id: String(published._id) } });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/html");
+    expect(res._body).toContain('property="og:title"');
+    expect(res._body).toContain('name="twitter:card"');
+    expect(res._body).toContain("Sunny 2BHK");
+    expect(res._body).toContain("/property/" + String(published._id));
+  });
+
+  it("renders a 404 HTML page for a draft listing", async () => {
+    const res = await run(renderListingSharePage, { params: { id: String(draft._id) } });
+    expect(res.statusCode).toBe(404);
+    expect(res.headers["content-type"]).toContain("text/html");
+    expect(res._body).toContain("isn't available");
   });
 
   it("share counter increments and never throws", async () => {

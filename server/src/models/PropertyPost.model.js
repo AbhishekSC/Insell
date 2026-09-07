@@ -233,6 +233,12 @@ const propertyPostSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    // Throttle for the "price dropped" fan-out to people who liked/saved
+    // this listing — one such notification per post per cooldown window.
+    lastPriceDropNotifyAt: {
+      type: Date,
+      default: null,
+    },
     postMeta: {
       type: PostMetaSchema,
       default: () => ({}),

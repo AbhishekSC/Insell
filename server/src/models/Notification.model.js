@@ -41,6 +41,7 @@ const notificationSchema = new mongoose.Schema(
         "post_report_resolved",
         "admin_announcement",
         "price_drop",
+        "price_alert",
         "offer_price_changed",
         "offer_received",
         "offer_countered",
