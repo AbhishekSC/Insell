@@ -1784,7 +1784,7 @@ export default function UserProfilePage() {
           setShowShareModal(false);
           setPostToShare(null);
         }}
-        postUrl={postToShare ? `${window.location.origin}/property/${postToShare._id}` : ""}
+        postUrl={postToShare ? `${window.location.origin}/p/${postToShare._id}` : ""}
         postTitle={postToShare?.title || "Property"}
         postId={postToShare?._id}
         postImage={postToShare ? normalizeMedia(postToShare)[0] : ""}

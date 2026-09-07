@@ -29,11 +29,20 @@ export default function ShareModal({ isOpen, onClose, postUrl, postTitle, postId
     return list.filter((friend) => (friend.fullName || "").toLowerCase().includes(query));
   }, [friends, searchQuery]);
 
+  // Best-effort share counter — never blocks or toasts on failure.
+  const recordShare = () => {
+    if (!postId) return;
+    axiosInstance
+      .post(`/public/listings/${postId}/share`, null, { skipErrorToast: true })
+      .catch(() => {});
+  };
+
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(postUrl);
       setCopied(true);
       toast.success("Link copied to clipboard!");
+      recordShare();
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Failed to copy link");
@@ -43,10 +52,12 @@ export default function ShareModal({ isOpen, onClose, postUrl, postTitle, postId
   const shareToWhatsApp = () => {
     const text = encodeURIComponent(`Check out this property: ${postTitle}`);
     window.open(`https://wa.me/?text=${text}%20${encodeURIComponent(postUrl)}`, "_blank");
+    recordShare();
   };
 
   const shareToFacebook = () => {
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(postUrl)}`, "_blank");
+    recordShare();
   };
 
   const handleClose = () => {

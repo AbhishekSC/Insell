@@ -1418,7 +1418,7 @@ export default function PropertyDetailPage() {
       <ShareModal
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
-        postUrl={postData ? `${window.location.origin}/property/${postData._id}` : ""}
+        postUrl={postData ? `${window.location.origin}/p/${postData._id}` : ""}
         postTitle={postData?.title || "Property"}
         postId={postData?._id}
         postImage={media[0] || ""}

@@ -27,6 +27,15 @@ export default defineConfig([
     },
   },
   {
+    // Vercel serverless functions — Node runtime, not the browser bundle.
+    files: ['api/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: globals.node,
+    },
+  },
+  {
     // Runs as a classic (non-module) service worker outside Vite's bundle —
     // importScripts/clients/self are service-worker globals, and `firebase`
     // comes from the CDN script loaded via importScripts, not an import.

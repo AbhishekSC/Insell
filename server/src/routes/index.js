@@ -25,6 +25,7 @@ import visitRequestRoutes from "./visitRequest.routes.js";
 import dealRoutes from "./deal.routes.js";
 import reviewRoutes from "./review.routes.js";
 import feedbackRoutes from "./feedback.route.js";
+import publicListingRoutes from "../modules/public-listing/publicListing.routes.js";
 
 const router = new express.Router();
 
@@ -55,5 +56,6 @@ router.use("/visits", visitRequestRoutes);
 router.use("/deals", dealRoutes);
 router.use("/reviews", reviewRoutes);
 router.use("/feedback", feedbackRoutes);
+router.use("/public", publicListingRoutes);
 
 export default router;
