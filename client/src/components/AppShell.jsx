@@ -47,6 +47,7 @@ import PostModerationNotice from "./PostModerationNotice";
 import MobileBottomNav from "./MobileBottomNav";
 import AnnouncementNotice from "./AnnouncementNotice";
 import PriceDropNotice from "./PriceDropNotice";
+import SavedSearchNotice from "./SavedSearchNotice";
 import NotificationPanel from "./NotificationPanel";
 import ReportIssueModal from "./ReportIssueModal";
 
@@ -479,6 +480,7 @@ export default function AppShell({
     location.pathname.startsWith("/trending-localities") ||
     location.pathname.startsWith("/recommended") ||
     location.pathname.startsWith("/deals") ||
+    location.pathname.startsWith("/saved-searches") ||
     location.pathname.startsWith("/discover-communities") ||
     location.pathname.startsWith("/requested-communities") ||
     location.pathname.startsWith("/property/") ||
@@ -1252,6 +1254,14 @@ export default function AppShell({
                           My Deals
                         </Link>
                         <Link
+                          to="/saved-searches"
+                          onClick={() => setShowMobileMenu(false)}
+                          className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-base-content/70 hover:bg-base-200"
+                        >
+                          <Bell className="size-5" />
+                          Saved Searches
+                        </Link>
+                        <Link
                           to="/recommended"
                           onClick={() => setShowMobileMenu(false)}
                           className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-base-content/70 hover:bg-base-200"
@@ -1457,6 +1467,7 @@ export default function AppShell({
       <PostModerationNotice enabled={Boolean(authUser?._id)} />
       <AnnouncementNotice enabled={Boolean(authUser?._id)} />
       <PriceDropNotice enabled={Boolean(authUser?._id)} />
+      <SavedSearchNotice enabled={Boolean(authUser?._id)} />
     </div>
   );
 }

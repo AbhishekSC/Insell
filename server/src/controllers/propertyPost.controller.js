@@ -21,6 +21,7 @@ import * as NotificationService from "../services/NotificationService.js";
 import { NotificationChannel } from "../services/NotificationService.js";
 import { notifyTriggeredAlerts as notifyTriggeredPriceAlerts } from "../modules/price-alert/priceAlert.app.service.js";
 import { activeUserIdsForPost as activeAlertUserIdsForPost, deleteForPost as deletePriceAlertsForPost } from "../modules/price-alert/priceAlert.repository.js";
+import { notifyMatches as notifySavedSearchMatches } from "../modules/saved-search/savedSearch.app.service.js";
 import Offer from "../models/Offer.model.js";
 import { closeActiveOffersForPost } from "./offer.controller.js";
 import { cloudinaryInstance } from "../config/cloudinary.js";
@@ -971,6 +972,13 @@ export async function createPropertyPost(req, res) {
       .populate("author", "fullName profilePic activeRole primaryRole city isVerified ratingAvg ratingCount responseRate")
       .lean();
 
+    // Alert anyone whose saved search this new listing matches.
+    if (safeStatus === "PUBLISHED" && safeVisibility === "PUBLIC") {
+      notifySavedSearchMatches(populated).catch((error) => {
+        logger.error("Failed to notify saved-search matches (non-fatal):", error);
+      });
+    }
+
     await invalidateDiscoverCache(userId);
 
     // Invalidate property feed cache
@@ -1145,6 +1153,7 @@ export async function updatePropertyPost(req, res) {
     const safeVisibility = ["PUBLIC", "PRIVATE"].includes(visibility) ? visibility : "PUBLIC";
     const wasPublished = post.status === "PUBLISHED";
     const isBeingUnpublished = wasPublished && safeStatus !== "PUBLISHED";
+    const isBeingPublished = !wasPublished && safeStatus === "PUBLISHED" && safeVisibility === "PUBLIC";
 
     // Update post fields
     post.postType = effectivePostType;
@@ -1211,6 +1220,13 @@ export async function updatePropertyPost(req, res) {
     const populated = await PropertyPost.findById(post._id)
       .populate("author", "fullName profilePic activeRole primaryRole city isVerified ratingAvg ratingCount responseRate")
       .lean();
+
+    // A draft going live counts as new inventory for saved searches.
+    if (isBeingPublished) {
+      notifySavedSearchMatches(populated).catch((error) => {
+        logger.error("Failed to notify saved-search matches (non-fatal):", error);
+      });
+    }
 
     await invalidateDiscoverCache(userId);
     await invalidateActivityCache(userId);
