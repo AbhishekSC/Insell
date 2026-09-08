@@ -42,7 +42,7 @@ export function getPriceContextBadges(post, { max = 2, now = Date.now() } = {}) 
       if (delta > 0 && changeIsRecent) {
         badges.push({ key: "drop", label: `${compactINR(delta)} price drop`, ...TONES.drop });
       } else if (delta < 0 && changeIsRecent) {
-        badges.push({ key: "rise", label: `Price up ${pct}%`, ...TONES.rise });
+        badges.push({ key: "rise", label: `${compactINR(delta)} (${pct}%)`, ...TONES.rise });
       }
     }
   }
