@@ -86,3 +86,5 @@ dump.rdb
 
 # TypeScript
 *.tsbuildinfo
+# Local DB dumps (migration)
+mongo-dump-*/

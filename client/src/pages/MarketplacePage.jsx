@@ -43,6 +43,7 @@ import {
   X,
 } from "lucide-react";
 import ShareModal from "../components/ShareModal";
+import PostLikesModal from "../components/PostLikesModal";
 import PropertyPostCard from "../components/PropertyPostCard";
 import ClampedCaption from "../components/ClampedCaption";
 import CompareToggleButton from "../components/CompareToggleButton";
@@ -323,6 +324,7 @@ export default function MarketplacePage() {
   const [likedBurstPostId, setLikedBurstPostId] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [selectedPostForComments, setSelectedPostForComments] = useState(null);
+  const [likesModalPostId, setLikesModalPostId] = useState(null);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [selectedPostForContact, setSelectedPostForContact] = useState(null);
   const contactMessageRef = useRef(null);
@@ -1871,82 +1873,72 @@ export default function MarketplacePage() {
                           <Heart className="pointer-events-none absolute left-1/2 top-1/2 size-16 -translate-x-1/2 -translate-y-1/2 fill-white/95 text-white drop-shadow-md animate-pulse" />
                         ) : null
                       }
+                      contactLabel={isRequirement ? "Respond" : "Contact seller"}
                       priceBlock={
                         <>
-                          <p className="inline-flex items-center gap-0.5 text-2xl font-black text-base-content">
-                            <IndianRupee className="size-4 text-base-content" />
-                            {formatMoney(post.price).replace("₹", "")}
-                            {activeRole === "Tenant" && <span className="text-sm font-normal text-base-content/60">/mo</span>}
-                          </p>
-                          {(priceContextBadges.length > 0 || distPill) && (
-                            <div className="flex flex-wrap gap-1.5 mt-1">
+                          {/* Price + inline price-drop */}
+                          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                            <p className="inline-flex items-baseline text-[1.7rem] font-black leading-none text-base-content">
+                              {formatMoney(post.price)}
+                              {activeRole === "Tenant" && <span className="ml-1 text-sm font-normal text-base-content/50">/ mo</span>}
+                            </p>
+                            {priceContextBadges.slice(0, 1).map((badge) => (
+                              <span key={badge.key} className="text-sm font-bold text-success">
+                                ↓ {badge.label.replace(/\s*price drop\s*/i, "").trim() || badge.label}
+                              </span>
+                            ))}
+                          </div>
+
+                          {/* One tag row: specs, then up to 2 signals */}
+                          {(detailBadges.length > 0 || signalBadges.length > 0 || distPill) && (
+                            <div className="flex flex-wrap gap-1.5">
                               {distPill && (
-                                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${distPill.className}`}>
-                                  <MapPin className="size-3" />
+                                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${distPill.className}`}>
+                                  <MapPin className="size-2.5" />
                                   {distPill.label}
                                 </span>
                               )}
-                              {priceContextBadges.map((badge) => (
-                                <span
-                                  key={badge.key}
-                                  className={`rounded-full ${badge.color} px-2 py-0.5 text-[11px] font-semibold ${badge.textColor}`}
-                                >
-                                  {badge.label}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          <p className="line-clamp-1 text-base font-semibold text-base-content">{isRequirement ? requirementTitle : post.title || "Premium Listing"}</p>
-                          <div className="flex items-center gap-2 text-xs text-base-content/60">
-                            <MapPin className="size-3" />
-                            <span>{post.city || "City"}</span>
-                            {post.locality && <><span>·</span><span>{post.locality}</span></>}
-                            {post.latitude && post.longitude && (
-                              <button
-                                type="button"
-                                className="flex items-center gap-1 text-primary hover:underline"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  navigate(`/map-view?propertyId=${post._id}`);
-                                }}
-                              >
-                                <span className="size-1.5 rounded-full bg-primary"></span>
-                                <span>Live Location</span>
-                              </button>
-                            )}
-                          </div>
-                          {detailBadges.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {detailBadges.slice(0, 6).map((detail, idx) => (
-                                <span
-                                  key={idx}
-                                  className={`rounded-full ${detail.color} px-2.5 py-1 text-xs font-medium ${detail.textColor}`}
-                                >
+                              {detailBadges.slice(0, 3).map((detail, idx) => (
+                                <span key={`d${idx}`} className="rounded-full bg-base-200 px-2.5 py-0.5 text-[11px] font-medium text-base-content/70">
                                   {detail.label}
                                 </span>
                               ))}
+                              {signalBadges
+                                .filter((s) => !/view/i.test(s.label))
+                                .slice(0, 2)
+                                .map((s) => (
+                                  <span key={s.key} className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${toneClass(s.tone)}`}>
+                                    {s.label}
+                                  </span>
+                                ))}
                             </div>
                           )}
-                          {signalBadges.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mt-2">
-                              {signalBadges.map((s) => (
-                                <span
-                                  key={s.key}
-                                  className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${toneClass(s.tone)}`}
-                                >
-                                  {s.label}
-                                </span>
-                              ))}
-                            </div>
-                          )}
+
                           {post.postMeta?.moveInDate && activeRole === "Tenant" && (
-                            <p className="text-xs text-base-content/70">Move-in: {new Date(post.postMeta.moveInDate).toLocaleDateString()}</p>
+                            <p className="text-[11px] text-base-content/50">
+                              Move-in {new Date(post.postMeta.moveInDate).toLocaleDateString()}
+                            </p>
                           )}
                         </>
                       }
                       description={
-                        <ClampedCaption text={post.caption || "A beautifully curated property with modern design and premium amenities."} />
+                        <ClampedCaption text={post.caption || post.title || "A beautifully curated property with modern design and premium amenities."} />
                       }
+                      metaLine={
+                        post.latitude && post.longitude ? (
+                          <button
+                            type="button"
+                            className="font-semibold text-base-content/70 hover:text-primary"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              navigate(`/map-view?propertyId=${post._id}`);
+                            }}
+                          >
+                            Live location
+                          </button>
+                        ) : null
+                      }
+                      onOpenLikes={() => setLikesModalPostId(post._id)}
                       onLike={() => toggleLike(post._id)}
                       isLiked={post.isLikedByMe}
                       likesCount={post.likesCount}
@@ -2944,6 +2936,12 @@ export default function MarketplacePage() {
         postTitle={postToShare?.title || "Property"}
         postId={postToShare?._id}
         postImage={postToShare ? normalizeMedia(postToShare)[0] : ""}
+      />
+
+      <PostLikesModal
+        postId={likesModalPostId}
+        open={Boolean(likesModalPostId)}
+        onClose={() => setLikesModalPostId(null)}
       />
 
       <ReportPostModal

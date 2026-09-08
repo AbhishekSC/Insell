@@ -8,6 +8,7 @@ export default function PostAuthorLink({
   className = "",
   showMeta = true,
   meta,
+  inlineMeta,
   textColor = "slate",
   onClick,
 }) {
@@ -30,8 +31,9 @@ export default function PostAuthorLink({
             <p className={`truncate text-sm ${nameColor} flex items-center gap-1`}>
               {authorName}
               {isVerified && <BadgeCheck className="size-3 text-success" />}
+              {inlineMeta && <span className={`font-normal ${metaColor}`}>· {inlineMeta}</span>}
             </p>
-            {meta ? meta : <p className={`truncate text-[11px] ${metaColor}`}>{authorRole}</p>}
+            {!inlineMeta && (meta ? meta : <p className={`truncate text-[11px] ${metaColor}`}>{authorRole}</p>)}
           </div>
         ) : null}
       </div>
@@ -53,8 +55,9 @@ export default function PostAuthorLink({
           <p className={`truncate text-sm ${nameColor} ${hoverText} flex items-center gap-1`}>
             {authorName}
             {isVerified && <BadgeCheck className="size-3 text-success" />}
+            {inlineMeta && <span className={`font-normal ${metaColor}`}>· {inlineMeta}</span>}
           </p>
-          {meta ? meta : <p className={`truncate text-[11px] ${metaColor}`}>{authorRole}</p>}
+          {meta ? meta : (inlineMeta ? null : <p className={`truncate text-[11px] ${metaColor}`}>{authorRole}</p>)}
         </div>
       ) : null}
     </Link>
