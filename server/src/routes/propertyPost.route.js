@@ -13,6 +13,7 @@ import {
   getPriceSuggestion,
   getPropertyPostById,
   getSimilarProperties,
+  getPostLikers,
   incrementViewCount,
   reportPost,
   togglePropertyPostLike,
@@ -31,6 +32,7 @@ router.get("/price-suggestion", verifyUser, requireVerified, getPriceSuggestion)
 router.post("/card-signals", verifyUser, requireVerified, getCardSignals);
 router.get("/:id", verifyUser, requireVerified, getPropertyPostById);
 router.get("/:id/similar", verifyUser, requireVerified, getSimilarProperties);
+router.get("/:id/likers", verifyUser, requireVerified, getPostLikers);
 router.get("/:id/price-insight", verifyUser, requireVerified, getPriceInsight);
 router.get("/:id/analytics", verifyUser, requireVerified, getPropertyAnalytics);
 router.post("/", verifyUser, requireVerified, createPropertyPost);
