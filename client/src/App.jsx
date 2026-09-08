@@ -13,6 +13,7 @@ import FriendDetailPage from "./pages/FriendDetailPage";
 import ProfilePage from "./pages/ProfilePage";
 import UserProfilePage from "./pages/UserProfilePage";
 import PublicUserProfilePage from "./pages/PublicUserProfilePage";
+import GuestLandingPage from "./pages/GuestLandingPage";
 import PropertyToolsPage from "./pages/PropertyToolsPage";
 import MarketplacePage from "./pages/MarketplacePage";
 import MarketplaceDetailPage from "./pages/MarketplaceDetailPage";
@@ -143,7 +144,7 @@ function App() {
       <Routes>
         <Route
           path="/"
-          element={authUser ? <Navigate to="/marketplace" replace /> : <Navigate to="/login" />}
+          element={authUser ? <Navigate to="/marketplace" replace /> : <GuestLandingPage />}
         />
         <Route
           path="/signup"

@@ -75,6 +75,22 @@ export async function findRelatedListings(post, limit) {
   return [...tight, ...wide];
 }
 
+// A small random sample of live listings for the guest landing page.
+export async function samplePublicFeed(limit) {
+  const rows = await PropertyPost.aggregate([
+    { $match: { ...SHAREABLE_FILTER, mediaUrls: { $exists: true, $ne: [] } } },
+    { $sample: { size: limit } },
+    {
+      $project: {
+        title: 1, caption: 1, postType: 1, listingType: 1, customBadge: 1,
+        propertyType: 1, city: 1, locality: 1, price: 1, bedrooms: 1,
+        bathrooms: 1, areaSqft: 1, mediaUrls: 1, publishedAt: 1, createdAt: 1,
+      },
+    },
+  ]);
+  return rows;
+}
+
 export async function incrementShareCount(id) {
   return PropertyPost.updateOne(
     { _id: id, ...SHAREABLE_FILTER },

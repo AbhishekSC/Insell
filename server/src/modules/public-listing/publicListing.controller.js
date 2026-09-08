@@ -1,6 +1,6 @@
 import { asyncHandler } from "../../core/asyncHandler.js";
 import { sendSuccessResponse } from "../../utils/responseHandler.js";
-import { getSharePreview, getPublicListingDetail, recordShare } from "./publicListing.app.service.js";
+import { getSharePreview, getPublicListingDetail, getGuestFeed, recordShare } from "./publicListing.app.service.js";
 import { renderSharePage, renderNotFoundPage } from "./publicListing.view.js";
 import { isCrawler } from "../../utils/isCrawler.js";
 
@@ -12,6 +12,13 @@ export const getListingSharePreview = asyncHandler(async (req, res) => {
   // Short CDN cache so link crawlers and repeat opens don't hit the DB every time.
   res.set("Cache-Control", "public, max-age=300, s-maxage=600");
   return sendSuccessResponse(res, 200, "Listing preview", { listing: preview });
+});
+
+// GET /api/public/feed  (no auth) — teaser listings for the guest landing page
+export const getPublicFeed = asyncHandler(async (req, res) => {
+  const listings = await getGuestFeed();
+  res.set("Cache-Control", "public, max-age=60, s-maxage=120");
+  return sendSuccessResponse(res, 200, "Guest feed", { listings });
 });
 
 // GET /api/public/listings/:id  (no auth) — full logged-out listing view
