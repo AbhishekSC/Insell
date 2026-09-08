@@ -60,6 +60,19 @@ function toRelatedCardDTO(post) {
   };
 }
 
+export function toFeedCardDTO(post) {
+  const images = (Array.isArray(post.mediaUrls) ? post.mediaUrls : []).filter(Boolean);
+  return {
+    id: String(post._id),
+    title: post.title,
+    priceLabel: priceLabel(post),
+    location: locationLabel(post),
+    specsLabel: specsLabel(post),
+    badge: post.customBadge || post.listingType || "",
+    coverImage: images.find((u) => !/\/video\/upload\/|\.(mp4|mov|webm|m4v)(\?|$)/i.test(u)) || images[0] || null,
+  };
+}
+
 function toPersonDTO(u) {
   return {
     id: String(u._id),

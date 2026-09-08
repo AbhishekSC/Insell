@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from "vitest";
 import User from "../src/models/User.model.js";
 import PropertyPost from "../src/models/PropertyPost.model.js";
-import { getListingSharePreview, getPublicListing, recordListingShare, renderListingSharePage } from "../src/modules/public-listing/publicListing.controller.js";
+import { getListingSharePreview, getPublicListing, getPublicFeed, recordListingShare, renderListingSharePage } from "../src/modules/public-listing/publicListing.controller.js";
 
 function fakeRes() {
   return {
@@ -141,6 +141,22 @@ describe("public listing share preview", () => {
     });
     expect(res.statusCode).toBe(302);
     expect(res.redirectedTo).toContain("/property/" + String(published._id));
+  });
+
+  it("guest feed returns card-shaped listings", async () => {
+    const res = await run(getPublicFeed, {});
+    expect(res.statusCode).toBe(200);
+    const items = res.body.data.listings;
+    expect(Array.isArray(items)).toBe(true);
+    if (items.length) {
+      const c = items[0];
+      expect(c).toHaveProperty("id");
+      expect(c).toHaveProperty("priceLabel");
+      expect(c).toHaveProperty("coverImage");
+      // never leak sensitive fields
+      expect(c).not.toHaveProperty("author");
+      expect(c).not.toHaveProperty("likedBy");
+    }
   });
 
   it("share counter increments and never throws", async () => {

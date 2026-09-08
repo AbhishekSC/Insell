@@ -1,10 +1,11 @@
 import mongoose from "mongoose";
 import AppError from "../../exceptions/AppError.js";
-import { toSharePreviewDTO, toPublicDetailDTO } from "./publicListing.dto.js";
+import { toSharePreviewDTO, toPublicDetailDTO, toFeedCardDTO } from "./publicListing.dto.js";
 import {
   findShareableById,
   findPublicDetailById,
   findRelatedListings,
+  samplePublicFeed,
   incrementShareCount,
 } from "./publicListing.repository.js";
 import { relatedProfiles } from "../public-profile/publicProfile.repository.js";
@@ -43,6 +44,15 @@ export async function getPublicListingDetail(id) {
       : Promise.resolve([]),
   ]);
   return toPublicDetailDTO(post, related, people);
+}
+
+const GUEST_FEED_SIZE = 9;
+
+// A teaser feed for the guest landing page — a random handful of live
+// listings, no auth.
+export async function getGuestFeed() {
+  const rows = await samplePublicFeed(GUEST_FEED_SIZE);
+  return rows.map(toFeedCardDTO);
 }
 
 // Best-effort share counter bump. Never blocks the caller.
