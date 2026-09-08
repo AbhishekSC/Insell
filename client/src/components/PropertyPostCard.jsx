@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Heart, Eye, MessageCircle, Bookmark, Phone, Volume2, VolumeX, Building2, Share2 } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, Send, Volume2, VolumeX, Building2, Maximize2, Phone } from "lucide-react";
 import PostAuthorLink from "./PostAuthorLink";
 import { useStoryOverlay } from "../context/StoryOverlayContext";
 import { lqipUrl, cardImageUrl } from "../lib/cloudinaryImage";
@@ -9,15 +9,19 @@ function isVideoUrl(url) {
   return /\.(mp4|webm|mov|avi|mkv)(\?.*)?$/i.test(url);
 }
 
+// Compact, Instagram-style: "now", "3h", "10d", "5w".
 function relativeDate(dateString) {
   if (!dateString) return "";
-  const time = new Date(dateString).getTime();
-  const delta = Date.now() - time;
-  const hours = Math.floor(delta / (1000 * 60 * 60));
-  if (hours < 1) return "Just now";
-  if (hours < 24) return `${hours}h ago`;
+  const mins = Math.floor((Date.now() - new Date(dateString).getTime()) / 60000);
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  if (days < 7) return `${days}d`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5) return `${weeks}w`;
+  return `${Math.floor(days / 30)}mo`;
 }
 
 // One image inside the swipeable gallery — blur-up placeholder that fades to
@@ -51,8 +55,8 @@ function GalleryImage({ src, alt, onDoubleClick }) {
 // requirement-post layout, friend-gated contact, report vs. edit/delete
 // menus, "Read more" captions) stays owned by the caller and is passed in
 // as slots/callbacks — this component only owns the structural shell:
-// media (with Instagram-style autoplay for video), author overlay, badge,
-// and the like/view/comment/save/contact footer.
+// media (author + location overlay, slide counter), the like/comment/share/
+// save action bar, and a full-width contact CTA.
 export default function PropertyPostCard({
   post,
   media = [],
@@ -67,6 +71,9 @@ export default function PropertyPostCard({
   onFullscreen,
   priceBlock,
   description,
+  metaLine,
+  onOpenLikes,
+  contactLabel = "Contact seller",
   onLike,
   isLiked,
   likesCount = 0,
@@ -79,15 +86,12 @@ export default function PropertyPostCard({
   onContact,
   onOpenPost,
   className = "",
-  mediaHeightClass = "h-[22rem]",
+  mediaHeightClass = "h-[24rem]",
   mediaOverlay,
 }) {
   const [isMuted, setIsMuted] = useState(true);
   const { isActive: isStoryOverlayActive } = useStoryOverlay();
 
-  // Instagram-style swipeable gallery: every media item is a snap slide in a
-  // horizontally-scrolling strip. `activeIdx` follows the swipe; the arrows
-  // (desktop hover only) just scroll it by one.
   const slides = Array.isArray(media) ? media.filter(Boolean) : [];
   const hasMultiple = slides.length > 1;
   const [activeIdx, setActiveIdx] = useState(0);
@@ -97,6 +101,7 @@ export default function PropertyPostCard({
 
   const activeMedia = slides[activeIdx] || slides[0];
   const activeIsVideo = isVideoUrl(activeMedia);
+  const locationLabel = [post.locality, post.city].filter(Boolean).join(", ");
 
   const handleScroll = () => {
     const el = scrollerRef.current;
@@ -105,8 +110,6 @@ export default function PropertyPostCard({
     setActiveIdx((prev) => (prev === idx ? prev : idx));
   };
 
-  // Only the centred slide's video plays, and only while the card is on
-  // screen and no story/highlight viewer is covering it.
   useEffect(() => {
     videoRefs.current.forEach((v, i) => {
       if (!v) return;
@@ -123,192 +126,196 @@ export default function PropertyPostCard({
     return () => obs.disconnect();
   }, []);
 
+  const glassBtn =
+    "grid size-8 place-items-center rounded-full text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)] transition hover:opacity-75";
+  const actionBtn =
+    "flex items-center gap-1 text-base-content/70 transition hover:text-base-content";
+
+  const stop = (fn) => (e) => {
+    e.stopPropagation();
+    fn?.();
+  };
+
   return (
     <article
-      className={`group overflow-hidden rounded-2xl border bg-base-100 shadow-sm transition hover:shadow-md ${className}`}
+      className={`group cursor-pointer overflow-hidden rounded-2xl border bg-base-100 shadow-sm transition hover:shadow-lg ${className}`}
       onClick={onOpenPost}
     >
+      {/* ---------- MEDIA ---------- */}
       <div className="relative overflow-hidden">
         {requirementBlock ? (
           requirementBlock
         ) : slides.length ? (
-          <>
-            <div
-              ref={scrollerRef}
-              onScroll={handleScroll}
-              className={`flex ${mediaHeightClass} w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
-            >
-              {slides.map((m, i) => (
-                <div key={i} className="relative h-full w-full shrink-0 snap-center bg-base-200">
-                  {isVideoUrl(m) ? (
-                    <video
-                      ref={(el) => { videoRefs.current[i] = el; }}
-                      src={m}
-                      className="h-full w-full object-cover"
-                      muted={isMuted}
-                      loop
-                      playsInline
-                      preload="metadata"
-                      onDoubleClick={onDoubleClickMedia}
-                    />
-                  ) : (
-                    <GalleryImage src={m} alt={post.title} onDoubleClick={onDoubleClickMedia} />
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {hasMultiple && (
-              <div className="pointer-events-none absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1">
-                {slides.map((_, idx) => (
-                  <div
-                    key={idx}
-                    className={`h-1.5 rounded-full transition-all ${idx === activeIdx ? "w-4 bg-white" : "w-1.5 bg-white/60"}`}
+          <div
+            ref={scrollerRef}
+            onScroll={handleScroll}
+            className={`flex ${mediaHeightClass} w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
+          >
+            {slides.map((m, i) => (
+              <div key={i} className="relative h-full w-full shrink-0 snap-center bg-base-200">
+                {isVideoUrl(m) ? (
+                  <video
+                    ref={(el) => { videoRefs.current[i] = el; }}
+                    src={m}
+                    className="h-full w-full object-cover"
+                    muted={isMuted}
+                    loop
+                    playsInline
+                    preload="metadata"
+                    onDoubleClick={onDoubleClickMedia}
                   />
-                ))}
+                ) : (
+                  <GalleryImage src={m} alt={post.title} onDoubleClick={onDoubleClickMedia} />
+                )}
               </div>
-            )}
-          </>
+            ))}
+          </div>
         ) : (
           <div className={`flex ${mediaHeightClass} w-full items-center justify-center bg-base-200 text-base-content/40`}>
             <Building2 className="size-10" />
           </div>
         )}
 
+        {/* top legibility scrim */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/55 via-black/25 to-transparent" />
+
         {mediaOverlay}
 
-        <div className="absolute left-3 top-3">
-          <PostAuthorLink
-            author={post.author}
-            sizeClass="size-6"
-            textColor="white"
-            meta={<p className="truncate text-[10px] text-white/90">{relativeDate(post.createdAt)}</p>}
-          />
+        {/* author + location (left) · badge + menu + counter (right) */}
+        <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <PostAuthorLink
+              author={post.author}
+              sizeClass="size-8"
+              textColor="white"
+              inlineMeta={relativeDate(post.createdAt)}
+              meta={
+                locationLabel ? (
+                  <p className="-mt-0.5 truncate text-[11px] leading-tight text-white/75">{locationLabel}</p>
+                ) : undefined
+              }
+            />
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <div className="flex items-center gap-1.5">
+              {badge && (
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    badgeClassName || "bg-white/90 text-base-content"
+                  }`}
+                >
+                  {badge}
+                </span>
+              )}
+              {extraTopRight}
+              {menu}
+            </div>
+            {hasMultiple && (
+              <span className="rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+                {activeIdx + 1}/{slides.length}
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="absolute right-3 top-3 flex items-center gap-1.5">
-          {badge && (
-            <span
-              className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                badgeClassName || "bg-black/55 backdrop-blur-sm text-white"
-              }`}
-            >
-              {badge}
-            </span>
-          )}
-          {extraTopRight}
-          {menu}
-        </div>
-
-        <div className="absolute right-3 bottom-3 flex items-center gap-2">
+        {/* bottom-right: mute · expand · compare */}
+        <div className="absolute bottom-3 right-3 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
           {activeIsVideo && (
-            <button
-              type="button"
-              className="size-8 rounded-full flex items-center justify-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75 transition-opacity"
-              onClick={(event) => {
-                event.stopPropagation();
-                setIsMuted((m) => !m);
-              }}
-              title={isMuted ? "Unmute" : "Mute"}
-            >
+            <button type="button" className={glassBtn} onClick={() => setIsMuted((m) => !m)} title={isMuted ? "Unmute" : "Mute"}>
               {isMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
             </button>
           )}
-          {compareControl}
-          {onShare && (
-            <button
-              type="button"
-              className="size-8 rounded-full flex items-center justify-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75 transition-opacity"
-              onClick={(event) => {
-                event.stopPropagation();
-                onShare();
-              }}
-            >
-              <Share2 className="size-4" />
+          {activeMedia && onFullscreen && (
+            <button type="button" className={glassBtn} onClick={() => onFullscreen(activeMedia)} title="View full screen">
+              <Maximize2 className="size-4" />
             </button>
           )}
+          {compareControl}
         </div>
 
-        {activeMedia && onFullscreen && (
-          <button
-            type="button"
-            className="btn btn-xs absolute bottom-2 left-2 border-none bg-black/55 text-white hover:bg-black/65"
-            onClick={(event) => {
-              event.stopPropagation();
-              onFullscreen(activeMedia);
-            }}
-          >
-            Full screen
-          </button>
+        {/* bottom-center dots */}
+        {hasMultiple && (
+          <div className="pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1">
+            {slides.map((_, idx) => (
+              <div
+                key={idx}
+                className={`h-1.5 rounded-full transition-all ${idx === activeIdx ? "w-4 bg-white" : "w-1.5 bg-white/50"}`}
+              />
+            ))}
+          </div>
         )}
       </div>
 
-      <div className="space-y-2 p-3">
-        {priceBlock}
-        {description}
-
-        <div className="flex items-center justify-between border-t border-base-200 pt-2">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                className="btn btn-ghost btn-xs btn-circle text-base-content/60 hover:bg-base-200"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onLike?.();
-                }}
-              >
-                <Heart className={`size-4 ${isLiked ? "fill-error text-error" : ""}`} />
+      {/* ---------- CONTENT ---------- */}
+      <div className="space-y-2.5 px-4 pb-3 pt-2">
+        {/* action bar — compact */}
+        <div className="flex items-center justify-between text-base-content/70">
+          <div className="flex items-center gap-3.5">
+            <button type="button" className={actionBtn} onClick={stop(onLike)}>
+              <Heart className={`size-[18px] ${isLiked ? "fill-error text-error" : ""}`} />
+              {likesCount > 0 && <span className="text-xs font-medium tabular-nums">{likesCount}</span>}
+            </button>
+            <button type="button" className={actionBtn} onClick={stop(onComment)}>
+              <MessageCircle className="size-[18px]" />
+              {commentsCount > 0 && <span className="text-xs font-medium tabular-nums">{commentsCount}</span>}
+            </button>
+            {onShare && (
+              <button type="button" className={actionBtn} onClick={stop(onShare)} title="Share">
+                <Send className="size-[17px]" />
               </button>
-              <span className="text-[11px] text-base-content/60">{likesCount}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Eye className="size-4 text-base-content/50" />
-              <span className="text-[11px] text-base-content/60">{viewsCount}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                className="btn btn-ghost btn-xs btn-circle text-base-content/60 hover:bg-base-200"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onComment?.();
-                }}
-              >
-                <MessageCircle className="size-4" />
-              </button>
-              <span className="text-[11px] text-base-content/60">{commentsCount}</span>
-            </div>
-            {onSave && (
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-xs btn-circle text-base-content/60 hover:bg-base-200"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onSave();
-                  }}
-                >
-                  <Bookmark className={`size-4 ${isSaved ? "fill-primary text-primary" : ""}`} />
-                </button>
-                <span className="text-[11px] text-base-content/60">{savesCount}</span>
-              </div>
             )}
           </div>
-          {onContact && (
-            <button
-              type="button"
-              className="btn btn-ghost btn-xs btn-circle text-base-content/70 hover:bg-base-200"
-              onClick={(event) => {
-                event.stopPropagation();
-                onContact();
-              }}
-              title={`Contact ${(post.author?.fullName || "Owner").split(" ")[0]}`}
-            >
-              <Phone className="size-3.5" />
+          {onSave && (
+            <button type="button" className={actionBtn} onClick={stop(onSave)}>
+              <Bookmark className={`size-[18px] ${isSaved ? "fill-primary text-primary" : ""}`} />
+              {savesCount > 0 && <span className="text-xs font-medium tabular-nums">{savesCount}</span>}
             </button>
           )}
         </div>
+
+        {/* Instagram-style like context — only when a connection liked it */}
+        {post.socialProof?.fullName && (
+          <button
+            type="button"
+            className="flex items-center gap-1.5 text-left text-xs text-base-content/70"
+            onClick={onOpenLikes ? stop(onOpenLikes) : undefined}
+          >
+            {post.socialProof.avatar && (
+              <img src={post.socialProof.avatar} alt="" className="size-4 rounded-full object-cover" />
+            )}
+            <span className="truncate">
+              Liked by <span className="font-semibold text-base-content">{post.socialProof.fullName}</span>
+              {post.socialProof.othersCount > 0 && (
+                <> and <span className="font-semibold text-base-content hover:underline">{post.socialProof.othersCount.toLocaleString("en-IN")} others</span></>
+              )}
+            </span>
+          </button>
+        )}
+
+        {priceBlock}
+        {description}
+
+        {/* meta + contact on one row */}
+        {(viewsCount > 0 || metaLine || onContact) && (
+          <div className="flex items-center justify-between gap-3">
+            <p className="flex min-w-0 items-center gap-1.5 truncate text-xs text-base-content/45">
+              {viewsCount > 0 && <span>{viewsCount} view{viewsCount === 1 ? "" : "s"}</span>}
+              {viewsCount > 0 && metaLine && <span>·</span>}
+              {metaLine}
+            </p>
+            {onContact && (
+              <button
+                type="button"
+                className="shrink-0 text-base-content/50 transition hover:text-primary"
+                onClick={stop(onContact)}
+                title={contactLabel}
+                aria-label={contactLabel}
+              >
+                <Phone className="size-4" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </article>
   );

@@ -583,6 +583,7 @@ export async function getPropertyFeed(req, res) {
             personalizationScore: post.personalizationScore
           };
         });
+        personalizedPosts = await attachSocialProof(personalizedPosts, currentUserId);
       } catch (error) {
         logger.error("Personalization error, falling back to standard feed:", error);
         // Continue with standard feed if personalization fails
@@ -637,17 +638,20 @@ export async function getPropertyFeed(req, res) {
       PropertyPost.countDocuments(filter),
     ]);
 
-    const decoratedPosts = posts.map((post) => {
-      const likedBy = Array.isArray(post.likedBy) ? post.likedBy.map((item) => String(item)) : [];
-      const savedBy = Array.isArray(post.savedBy) ? post.savedBy.map((item) => String(item)) : [];
-      return {
-        ...post,
-        likesCount: likedBy.length,
-        isLikedByMe: currentUserId ? likedBy.includes(currentUserId) : false,
-        savesCount: savedBy.length,
-        isSavedByMe: currentUserId ? savedBy.includes(currentUserId) : false,
-      };
-    });
+    const decoratedPosts = await attachSocialProof(
+      posts.map((post) => {
+        const likedBy = Array.isArray(post.likedBy) ? post.likedBy.map((item) => String(item)) : [];
+        const savedBy = Array.isArray(post.savedBy) ? post.savedBy.map((item) => String(item)) : [];
+        return {
+          ...post,
+          likesCount: likedBy.length,
+          isLikedByMe: currentUserId ? likedBy.includes(currentUserId) : false,
+          savesCount: savedBy.length,
+          isSavedByMe: currentUserId ? savedBy.includes(currentUserId) : false,
+        };
+      }),
+      currentUserId
+    );
 
     // Structure the feed for "for you" category — only on page 1. Later pages
     // fall through to plain chronological pagination below: the new/recent
@@ -783,6 +787,48 @@ function decorateForUser(post, currentUserId) {
   };
 }
 
+// Instagram-style "Liked by <friend> and N others" — only when one of the
+// viewer's connections has liked the post (that's the interesting signal;
+// a stranger's like isn't). One users query for the whole page.
+async function attachSocialProof(posts, currentUserId) {
+  if (!Array.isArray(posts) || posts.length === 0 || !currentUserId) return posts;
+  const User = (await import("../models/User.model.js")).default;
+
+  const me = await User.findById(currentUserId).select("friends").lean();
+  const friends = new Set((me?.friends || []).map(String));
+  if (friends.size === 0) return posts;
+
+  const picks = new Map(); // postId -> friendLikerId
+  const wanted = new Set();
+  for (const p of posts) {
+    const friendLiker = (p.likedBy || [])
+      .map(String)
+      .find((id) => id !== currentUserId && friends.has(id));
+    if (!friendLiker) continue;
+    picks.set(String(p._id), friendLiker);
+    wanted.add(friendLiker);
+  }
+  if (wanted.size === 0) return posts;
+
+  const likers = await User.find({ _id: { $in: [...wanted] } }).select("fullName profilePic").lean();
+  const byId = new Map(likers.map((u) => [String(u._id), u]));
+
+  return posts.map((p) => {
+    const u = byId.get(picks.get(String(p._id)));
+    if (!u) return p;
+    return {
+      ...p,
+      socialProof: {
+        name: (u.fullName || "A connection").split(" ")[0],
+        fullName: u.fullName || "A connection",
+        avatar: u.profilePic || null,
+        isFriend: true,
+        othersCount: Math.max(0, (p.likesCount || 0) - 1),
+      },
+    };
+  });
+}
+
 async function getNearMeFeed(req, res, { filter, page, limit, skip, currentUserId }) {
   try {
     // Available listings only — a Sold/Rented place isn't "near me" in any
@@ -869,7 +915,7 @@ async function getNearMeFeed(req, res, { filter, page, limit, skip, currentUserI
       const radiusKm = NEAR_ME_BANDS_KM.find((b) => b >= farthestKm) || 100;
 
       return sendSuccessResponse(res, 200, "Property feed fetched successfully", {
-        posts: pageItems,
+        posts: await attachSocialProof(pageItems, currentUserId),
         pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
         meta: { nearMe: { mode: "geo", pointSource, radiusKm, withinRadius: total } },
       });
@@ -900,7 +946,7 @@ async function getNearMeFeed(req, res, { filter, page, limit, skip, currentUserI
     }
 
     return sendSuccessResponse(res, 200, "Property feed fetched successfully", {
-      posts: posts.map((p) => decorateForUser(p, currentUserId)),
+      posts: await attachSocialProof(posts.map((p) => decorateForUser(p, currentUserId)), currentUserId),
       pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
       meta: { nearMe: { mode, city: mode === "city" ? profileCity : undefined } },
     });
@@ -1455,6 +1501,86 @@ export async function getPropertyPostById(req, res) {
   } catch (error) {
     logger.error("Error fetching property post:", error);
     return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
+// GET /posts/:id/likers — the "Likes" list (Instagram-style modal). Newest
+// first, paginated, with each viewer's connection status to that liker.
+export async function getPostLikers(req, res) {
+  try {
+    const { id } = req.params;
+    const currentUserId = String(req.user._id);
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = 30;
+
+    const post = await PropertyPost.findById(id).select("likedBy likedByTimestamps isDeleted").lean();
+    if (!post || post.isDeleted) return sendErrorResponse(res, 404, "Post not found");
+
+    let ordered;
+    if (Array.isArray(post.likedByTimestamps) && post.likedByTimestamps.length) {
+      ordered = [...post.likedByTimestamps]
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .map((x) => String(x.userId));
+    } else {
+      ordered = (post.likedBy || []).map(String).reverse();
+    }
+    ordered = [...new Set(ordered)];
+    const total = ordered.length;
+    const pageIds = ordered.slice((page - 1) * limit, page * limit);
+
+    const User = (await import("../models/User.model.js")).default;
+    const FriendRequest = (await import("../models/FriendRequest.model.js")).default;
+
+    const [users, me, pending] = await Promise.all([
+      User.find({ _id: { $in: pageIds }, isBlocked: { $ne: true } })
+        .select("fullName profilePic isVerified city")
+        .lean(),
+      User.findById(currentUserId).select("friends").lean(),
+      FriendRequest.find({
+        status: "pending",
+        $or: [
+          { sender: currentUserId, receiver: { $in: pageIds } },
+          { receiver: currentUserId, sender: { $in: pageIds } },
+        ],
+      }).select("sender receiver").lean(),
+    ]);
+
+    const byId = new Map(users.map((u) => [String(u._id), u]));
+    const myFriends = new Set((me?.friends || []).map(String));
+    const sentTo = new Set();
+    const receivedFrom = new Set();
+    for (const r of pending) {
+      if (String(r.sender) === currentUserId) sentTo.add(String(r.receiver));
+      else receivedFrom.add(String(r.sender));
+    }
+
+    const likers = pageIds
+      .map((pid) => byId.get(pid))
+      .filter(Boolean)
+      .map((u) => {
+        const uid = String(u._id);
+        let connectionStatus = "none";
+        if (uid === currentUserId) connectionStatus = "self";
+        else if (myFriends.has(uid)) connectionStatus = "friends";
+        else if (sentTo.has(uid)) connectionStatus = "pending_sent";
+        else if (receivedFrom.has(uid)) connectionStatus = "pending_received";
+        return {
+          id: uid,
+          fullName: u.fullName || "Member",
+          avatar: u.profilePic || null,
+          isVerified: Boolean(u.isVerified),
+          city: u.city || "",
+          connectionStatus,
+        };
+      });
+
+    return sendSuccessResponse(res, 200, "Likers", {
+      likers,
+      pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
+    });
+  } catch (error) {
+    logger.error("Error in getPostLikers:", error);
+    return sendErrorResponse(res, 500, "Failed to load likers");
   }
 }
 
