@@ -5,9 +5,82 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NearMySpace</title>
+    <style>
+      /* Pre-React splash. Lives inside #root, so React removes it on first
+         render — no JS teardown needed. Kept tiny and inline so it paints
+         before the (heavy) app bundle finishes parsing. */
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        background: #f4f5f7;
+        z-index: 9999;
+      }
+      #app-splash .brand {
+        width: 132px;
+        height: auto;
+        animation: splash-pop 900ms cubic-bezier(0.22, 1, 0.36, 1) both,
+          splash-breathe 2.4s ease-in-out 900ms infinite;
+      }
+      #app-splash .bar {
+        width: 96px;
+        height: 3px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+      }
+      #app-splash .bar::after {
+        content: "";
+        display: block;
+        width: 40%;
+        height: 100%;
+        border-radius: 999px;
+        background: #2563eb;
+        animation: splash-slide 1.15s ease-in-out infinite;
+      }
+      @keyframes splash-pop {
+        from { opacity: 0; transform: scale(0.82); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      @keyframes splash-breathe {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.045); }
+      }
+      @keyframes splash-slide {
+        0% { transform: translateX(-120%); }
+        100% { transform: translateX(360%); }
+      }
+      @media (prefers-color-scheme: dark) {
+        #app-splash { background: #14161a; }
+        #app-splash .bar { background: rgba(255, 255, 255, 0.1); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #app-splash .brand { animation: splash-pop 400ms ease-out both; }
+        #app-splash .bar::after { animation-duration: 2s; }
+      }
+    </style>
+    <script>
+      // Match the splash background to the saved theme so there's no flash
+      // when the themed app renders over it.
+      try {
+        var t = localStorage.getItem("syncspace-theme");
+        if (t === "dark" || (!t && matchMedia("(prefers-color-scheme: dark)").matches)) {
+          document.documentElement.style.background = "#14161a";
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="app-splash">
+        <img class="brand" src="/logo-splash.png" alt="NearMySpace" />
+        <div class="bar" aria-hidden="true"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

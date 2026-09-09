@@ -36,6 +36,7 @@ import AdminPage from "./pages/AdminPage";
 import HelpGuidePage from "./pages/HelpGuidePage";
 import AccountBlockedModal from "./components/AccountBlockedModal";
 import AppToaster from "./components/AppToaster";
+import BrandLoader from "./components/BrandLoader";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import axiosInstance from "./lib/axios";
@@ -112,14 +113,7 @@ function App() {
   }, [location.pathname]);
 
   if (isLoading) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-base-200">
-        <div className="rounded-2xl border border-base-300 bg-base-100 px-6 py-5 text-center shadow-lg">
-          <span className="loading loading-spinner loading-md"></span>
-          <p className="mt-2 text-sm text-base-content/70">Loading your workspace...</p>
-        </div>
-      </div>
-    );
+    return <BrandLoader />;
   }
 
   const isOnboarded = Boolean(authUser?.isOnboarded);
