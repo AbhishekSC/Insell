@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import toast from "react-hot-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
+import { notify } from "../lib/errorService.jsx";
 import AccountBlockedModal from "../components/AccountBlockedModal";
 import { setAuthToken } from "../lib/authToken";
 import posthog, { isPostHogEnabled } from "../lib/posthog";
@@ -46,7 +47,9 @@ export default function LoginPage() {
 
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
-      const response = await axiosInstance.post("/auth/login", loginData);
+      // Login owns its own error copy below (wrong password, blocked, etc.),
+      // so skip the generic global error card.
+      const response = await axiosInstance.post("/auth/login", loginData, { skipErrorToast: true });
       return response.data;
     },
     onSuccess: (response) => {
@@ -72,7 +75,7 @@ export default function LoginPage() {
         setShowBlockedModal(true);
         return;
       }
-      toast.error(err?.response?.data?.message || "Login failed");
+      notify.warning("Login failed", err?.response?.data?.message || "Check your email and password.");
     },
   });
 
