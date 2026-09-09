@@ -974,3 +974,13 @@
 	from { width: 100%; }
 	to { width: 0%; }
 }
+
+/* Branded loader (see src/components/BrandLoader.jsx) */
+@keyframes brand-breathe {
+	0%, 100% { transform: scale(1); }
+	50% { transform: scale(1.045); }
+}
+@keyframes brand-slide {
+	0% { transform: translateX(-120%); }
+	100% { transform: translateX(360%); }
+}
