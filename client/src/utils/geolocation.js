@@ -90,6 +90,35 @@ export const getFullLocationDetails = async () => {
 };
 
 /**
+ * Zero-permission, approximate location from the visitor's IP address.
+ * Used as a fallback when GPS is unavailable (OS location off, in-app
+ * browser, timeout) — NOT when the user explicitly denied permission.
+ * Accuracy is city-level (often several km), so callers should mark the
+ * result as approximate.
+ * @returns {Promise<{lat:number, lon:number, city:string, state:string, country:string, countryCode:string}|null>}
+ */
+export const ipLocate = async () => {
+  try {
+    const res = await fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3500) });
+    if (!res.ok) return null;
+    const d = await res.json();
+    const lat = Number(d.latitude);
+    const lon = Number(d.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    return {
+      lat,
+      lon,
+      city: d.city || "",
+      state: d.region || "",
+      country: d.country_name || "",
+      countryCode: (d.country_code || "").toLowerCase(),
+    };
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Automatically detect user's current city with GPS -> IP Geolocation fallback
  * @returns {Promise<string|null>}
  */

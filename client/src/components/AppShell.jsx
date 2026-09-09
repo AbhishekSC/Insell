@@ -251,7 +251,7 @@ function GlobalSearch({
   );
 }
 
-function HeaderActions({ onCreateProperty, unreadActivityCount, onShareLocation, isSharingLocation, isAdmin, liveUsersCount }) {
+function HeaderActions({ onCreateProperty, unreadActivityCount, onShareLocation, isSharingLocation, locationNeedsAttention, isAdmin, liveUsersCount }) {
   return (
     <div className="hidden shrink-0 items-center gap-3 lg:flex">
       <button
@@ -273,7 +273,9 @@ function HeaderActions({ onCreateProperty, unreadActivityCount, onShareLocation,
       )}
       <button
         type="button"
-        className="btn btn-ghost btn-sm btn-circle border border-base-300 text-base-content/70 hover:bg-base-200"
+        className={`btn btn-ghost btn-sm btn-circle relative border hover:bg-base-200 ${
+          locationNeedsAttention ? "border-primary/40 bg-primary/5 text-primary" : "border-base-300 text-base-content/70"
+        }`}
         aria-label="Share live location for a more personalized feed"
         title="Share live location for a more personalized feed"
         onClick={() => onShareLocation?.()}
@@ -283,6 +285,9 @@ function HeaderActions({ onCreateProperty, unreadActivityCount, onShareLocation,
           <span className="loading loading-spinner loading-xs" />
         ) : (
           <LocateFixed className="size-4" />
+        )}
+        {locationNeedsAttention && !isSharingLocation && (
+          <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-primary ring-2 ring-base-100" />
         )}
       </button>
       <Link
@@ -588,14 +593,19 @@ export default function AppShell({
     },
   });
 
-  const { refresh: refreshLiveLocation, status: liveLocationStatus } = useLiveLocation();
+  const { refresh: refreshLiveLocation, status: liveLocationStatus, freshness: liveLocationFreshness } = useLiveLocation();
+  const locationNeedsAttention = liveLocationFreshness === "missing";
   const isSharingLocation = liveLocationStatus === "locating";
   const shareLocation = async () => {
     const r = await refreshLiveLocation();
-    if (r?.ok) {
+    if (r?.ok && r.approximate) {
+      toast.success(`Using your approximate location${r.city ? ` (${r.city})` : ""} — turn on GPS for exact results`);
+    } else if (r?.ok) {
       toast.success("Location updated — your feed and news will use it");
     } else if (r?.denied) {
       toast.error("Location permission denied — enable it in your browser settings");
+    } else if (r?.reason === "unavailable") {
+      toast.error("Turn on your phone's location, then try again");
     } else {
       toast.error("Couldn't get your location, please try again");
     }
@@ -932,6 +942,7 @@ export default function AppShell({
                   unreadActivityCount={activityNotifications}
                   onShareLocation={shareLocation}
                   isSharingLocation={isSharingLocation}
+                  locationNeedsAttention={Boolean(authUser?._id) && locationNeedsAttention}
                   isAdmin={Boolean(authUser?.isAdmin)}
                   liveUsersCount={liveUsersCount}
                 />
@@ -968,7 +979,11 @@ export default function AppShell({
                   </button>
                   <button
                     type="button"
-                    className="btn btn-ghost btn-sm btn-circle border border-base-300 text-base-content/70 hover:bg-base-200"
+                    className={`btn btn-ghost btn-sm btn-circle relative border hover:bg-base-200 ${
+                      Boolean(authUser?._id) && locationNeedsAttention
+                        ? "border-primary/40 bg-primary/5 text-primary"
+                        : "border-base-300 text-base-content/70"
+                    }`}
                     aria-label="Share live location for a more personalized feed"
                     title="Share live location for a more personalized feed"
                     onClick={() => shareLocation()}
@@ -978,6 +993,9 @@ export default function AppShell({
                       <span className="loading loading-spinner loading-xs" />
                     ) : (
                       <LocateFixed className="size-4" />
+                    )}
+                    {Boolean(authUser?._id) && locationNeedsAttention && !isSharingLocation && (
+                      <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-primary ring-2 ring-base-100" />
                     )}
                   </button>
                   <button

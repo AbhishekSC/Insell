@@ -55,6 +55,7 @@ import { buildPropertyDetailBadges } from "../lib/propertyDetailBadges";
 import { getPriceContextBadges } from "../lib/priceContextBadges";
 import { getPropertySignals, toneClass } from "../lib/propertySignalBadges";
 import PreferencePrompt from "../components/PreferencePrompt";
+import LocationPrompt from "../components/LocationPrompt";
 import { trackRecoEvent } from "../lib/recoEvents";
 import PostTypeFields from "../components/PostTypeFields";
 import PriceSuggestion from "../components/PriceSuggestion";
@@ -1770,6 +1771,8 @@ export default function MarketplacePage() {
                 )}
               </div>
             )}
+
+            {authUser?._id && <LocationPrompt />}
 
             {isLoading ? (
               <div className="mt-4 grid gap-4 xl:grid-cols-2">
