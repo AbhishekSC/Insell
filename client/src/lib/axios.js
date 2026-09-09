@@ -1,6 +1,6 @@
 import axios from "axios";
-import { toast } from "react-hot-toast";
 import { getAuthToken } from "./authToken";
+import { showError } from "./errorService.jsx";
 
 // In dev, VITE_API_URL is unset so this resolves to the relative "/api",
 // which vite.config.js proxies to localhost:5001. In production, set
@@ -41,9 +41,14 @@ axiosInstance.interceptors.response.use(
     // App.jsx) expect a routine 401 for anyone not yet signed in — that's
     // not an error worth alarming a fresh, logged-out visitor with.
     const isSilenced = error.config?.skipErrorToast;
-    if (!isAccountBlocked && !isSilenced) {
-      const message = error.response?.data?.message || error.message || "Something went wrong";
-      toast.error(message);
+    // 400/422 (form validation) and 409 (conflict) are almost always shown
+    // by the calling component right next to the field/action. Letting the
+    // global card also fire produces two toasts for one error. Components
+    // that DON'T handle these can still opt in with `forceErrorToast: true`.
+    const status = error.response?.status;
+    const componentOwns = [400, 409, 422].includes(status) && !error.config?.forceErrorToast;
+    if (!isAccountBlocked && !isSilenced && !componentOwns) {
+      showError(error);
     }
     return Promise.reject(error);
   }

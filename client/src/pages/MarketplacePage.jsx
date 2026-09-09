@@ -1882,11 +1882,18 @@ export default function MarketplacePage() {
                               {formatMoney(post.price)}
                               {activeRole === "Tenant" && <span className="ml-1 text-sm font-normal text-base-content/50">/ mo</span>}
                             </p>
-                            {priceContextBadges.slice(0, 1).map((badge) => (
-                              <span key={badge.key} className="text-sm font-bold text-success">
-                                ↓ {badge.label.replace(/\s*price drop\s*/i, "").trim() || badge.label}
-                              </span>
-                            ))}
+                            {priceContextBadges
+                              .filter((badge) => badge.key === "drop" || badge.key === "rise")
+                              .slice(0, 1)
+                              .map((badge) => (
+                                <span
+                                  key={badge.key}
+                                  className={`text-sm font-bold ${badge.key === "rise" ? "text-error" : "text-success"}`}
+                                >
+                                  {badge.key === "rise" ? "↑" : "↓"}{" "}
+                                  {badge.label.replace(/\s*price drop\s*/i, "").trim() || badge.label}
+                                </span>
+                              ))}
                           </div>
 
                           {/* One tag row: specs, then up to 2 signals */}
