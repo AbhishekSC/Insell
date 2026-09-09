@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
-import { reverseGeocode } from "../utils/geolocation";
+import { reverseGeocode, ipLocate } from "../utils/geolocation";
 
 const FRESH_MS = 60 * 60 * 1000; // 1 hour
 const STALE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -75,7 +75,7 @@ export function useLiveLocation() {
   const getPosition = () =>
     new Promise((resolve, reject) => {
       if (!("geolocation" in navigator)) {
-        reject(Object.assign(new Error("unavailable"), { code: "UNAVAILABLE" }));
+        reject(Object.assign(new Error("unsupported"), { code: 0 }));
         return;
       }
       navigator.geolocation.getCurrentPosition(
@@ -85,16 +85,68 @@ export function useLiveLocation() {
       );
     });
 
+  // Persist a resolved location and refresh everything that depends on it.
+  const persist = useCallback(
+    async ({ lat, lon, accuracyMeters, source, geo = {} }) => {
+      const res = await axiosInstance.patch("/users/location", {
+        latitude: lat,
+        longitude: lon,
+        accuracyMeters,
+        source,
+        city: geo.city || undefined,
+        state: geo.state || undefined,
+        country: geo.country || undefined,
+        countryCode: geo.countryCode || undefined,
+        address: geo.address || undefined,
+        formattedAddress: geo.formattedAddress || undefined,
+      });
+      const savedUser = res.data?.data?.user;
+      if (savedUser) {
+        queryClient.setQueryData(["authUser"], (prev) => {
+          const prevUser = prev?.data?.user || prev?.data || {};
+          return { status: "success", data: { user: { ...prevUser, ...savedUser } } };
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
+      queryClient.invalidateQueries({ queryKey: ["propertyFeedLatest"] });
+      queryClient.invalidateQueries({ queryKey: ["cityWeather"] });
+      queryClient.invalidateQueries({ queryKey: ["propertyNews"] });
+    },
+    [queryClient]
+  );
+
   const refresh = useCallback(async () => {
     setStatus("locating");
     let pos;
     try {
       pos = await getPosition();
     } catch (err) {
-      const denied = err?.code === 1 || err?.PERMISSION_DENIED === err?.code;
-      setStatus(denied ? "denied" : "error");
-      if (denied) setPermission("denied");
-      return { ok: false, denied };
+      // code 1 = PERMISSION_DENIED, 2 = POSITION_UNAVAILABLE (OS location
+      // off / no signal), 3 = TIMEOUT, 0 = API not available.
+      const code = err?.code;
+      const denied = code === 1;
+      const reason = denied ? "denied" : code === 2 ? "unavailable" : code === 3 ? "timeout" : "unsupported";
+
+      if (denied) {
+        setStatus("denied");
+        setPermission("denied");
+        return { ok: false, denied: true, reason };
+      }
+
+      // Not a denial — fall back to coarse IP-based location so the feed
+      // still gets *something* (in-app browsers, OS location off, timeouts).
+      const ip = await ipLocate();
+      if (ip) {
+        try {
+          await persist({ lat: ip.lat, lon: ip.lon, accuracyMeters: 25000, source: "ip", geo: ip });
+          setStatus("idle");
+          return { ok: true, approximate: true, city: ip.city, lat: ip.lat, lon: ip.lon };
+        } catch {
+          /* fall through to the error return */
+        }
+      }
+      setStatus("error");
+      return { ok: false, denied: false, reason };
     }
 
     const lat = pos.coords.latitude;
@@ -109,38 +161,15 @@ export function useLiveLocation() {
     }
 
     try {
-      const res = await axiosInstance.patch("/users/location", {
-        latitude: lat,
-        longitude: lon,
-        accuracyMeters,
-        source: "gps",
-        city: geo.city || undefined,
-        state: geo.state || undefined,
-        country: geo.country || undefined,
-        countryCode: geo.countryCode || undefined,
-        address: geo.address || undefined,
-        formattedAddress: geo.formattedAddress || undefined,
-      });
-      // Update the cache from what the SERVER saved, not optimistically.
-      const savedUser = res.data?.data?.user;
-      if (savedUser) {
-        queryClient.setQueryData(["authUser"], (prev) => {
-          const prevUser = prev?.data?.user || prev?.data || {};
-          return { status: "success", data: { user: { ...prevUser, ...savedUser } } };
-        });
-      }
-      queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
-      queryClient.invalidateQueries({ queryKey: ["propertyFeedLatest"] });
-      queryClient.invalidateQueries({ queryKey: ["cityWeather"] });
-      queryClient.invalidateQueries({ queryKey: ["propertyNews"] });
+      await persist({ lat, lon, accuracyMeters, source: "gps", geo });
       setStatus("idle");
       setPermission("granted");
       return { ok: true, city: geo.city, lat, lon, accuracyMeters };
     } catch {
       setStatus("error");
-      return { ok: false };
+      return { ok: false, denied: false, reason: "save-failed" };
     }
-  }, [queryClient]);
+  }, [persist]);
 
   return { location, freshness, status, permission, refresh, checkPermission };
 }
