@@ -45,6 +45,8 @@ import CompareToggleButton from "../components/CompareToggleButton";
 import CompareFloatingBar from "../components/CompareFloatingBar";
 import FullscreenMediaViewer from "../components/FullscreenMediaViewer";
 import { buildPropertyDetailBadges } from "../lib/propertyDetailBadges";
+import { getPriceContextBadges } from "../lib/priceContextBadges";
+import { getPropertySignals, toneClass } from "../lib/propertySignalBadges";
 import { toggleCompareSelection } from "../lib/compareSelection";
 import PostAuthorLink from "../components/PostAuthorLink";
 import EmailVerification from "../components/EmailVerification";
@@ -100,6 +102,54 @@ function ProfileStat({ label, value }) {
       <p className="text-lg font-black text-base-content">{value}</p>
       <p className="text-xs font-medium uppercase tracking-wide text-base-content/60">{label}</p>
     </div>
+  );
+}
+
+// Price + tag row shown on the profile's Posts / Saved cards — mirrors the
+// marketplace feed card (price, inline price-change, one grey tag row) plus
+// the profile-only "blocked by admin" notice.
+function ProfilePriceBlock({ post, detailBadges, signalBadges }) {
+  const changeBadge = getPriceContextBadges(post)
+    .filter((b) => b.key === "drop" || b.key === "rise")
+    .slice(0, 1)[0];
+  const tags = [
+    ...detailBadges.slice(0, 3).map((d, idx) => ({ key: `d${idx}`, label: d.label, className: "bg-base-200 text-base-content/70" })),
+    ...signalBadges.filter((s) => !/view/i.test(s.label)).slice(0, 2).map((s) => ({ key: s.key, label: s.label, className: toneClass(s.tone) })),
+  ];
+  return (
+    <>
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <p className="inline-flex items-baseline text-[1.7rem] font-black leading-none text-base-content">
+          {formatMoney(post.price)}
+        </p>
+        {changeBadge && (
+          <span className={`text-sm font-bold ${changeBadge.key === "rise" ? "text-error" : "text-success"}`}>
+            {changeBadge.key === "rise" ? "↑" : "↓"} {changeBadge.label.replace(/\s*price drop\s*/i, "").trim() || changeBadge.label}
+          </span>
+        )}
+      </div>
+
+      {post.isBlocked && (
+        <div className="rounded-lg border border-error/30 bg-error/10 p-2.5">
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-error">
+            <ShieldAlert className="size-3.5" />
+            Blocked by Admin
+          </p>
+          <p className="mt-1 text-[11px] text-error">Reason: {getBlockReasonLabel(post.blockReasonCode)}</p>
+          {post.blockNote && <p className="mt-1 text-[11px] text-error">{post.blockNote}</p>}
+        </div>
+      )}
+
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {tags.map((t) => (
+            <span key={t.key} className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${t.className}`}>
+              {t.label}
+            </span>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -507,15 +557,15 @@ export default function UserProfilePage() {
     if (isOwnProfile) {
       return (
         <>
-          <Link to="/marketplace?section=profile" className={`btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200 ${buttonClass}`}>
+          <Link to="/marketplace?section=profile" className={`btn btn-xs h-8 whitespace-nowrap rounded-full border border-base-300 bg-base-100 text-xs font-medium text-base-content hover:bg-base-200 ${buttonClass}`}>
             Edit Profile
           </Link>
           <button
             type="button"
             onClick={shareProfile}
-            className={`btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200 ${buttonClass}`}
+            className={`btn btn-xs h-8 whitespace-nowrap rounded-full border border-base-300 bg-base-100 text-xs font-medium text-base-content hover:bg-base-200 ${buttonClass}`}
           >
-            <Share2 className="size-4" />
+            <Share2 className="size-3.5" />
             Share
           </button>
           {/* "About" replaces Instagram's "View archive" slot on mobile,
@@ -524,7 +574,7 @@ export default function UserProfilePage() {
           <button
             type="button"
             onClick={() => setShowAboutModal(true)}
-            className={`btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200 sm:hidden ${buttonClass}`}
+            className={`btn btn-xs h-8 whitespace-nowrap rounded-full border border-base-300 bg-base-100 text-xs font-medium text-base-content hover:bg-base-200 sm:hidden ${buttonClass}`}
           >
             About
           </button>
@@ -534,12 +584,12 @@ export default function UserProfilePage() {
     if (relationship.connectionStatus === "friends") {
       return (
         <>
-          <Link to="/chat" className={`btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200 ${buttonClass}`}>
-            <MessageCircle className="size-4" />
+          <Link to="/chat" className={`btn btn-xs h-8 whitespace-nowrap rounded-full border border-base-300 bg-base-100 text-xs font-medium text-base-content hover:bg-base-200 ${buttonClass}`}>
+            <MessageCircle className="size-3.5" />
             Message
           </Link>
-          <button type="button" onClick={shareProfile} className={`btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200 ${buttonClass}`}>
-            <Share2 className="size-4" />
+          <button type="button" onClick={shareProfile} className={`btn btn-xs h-8 whitespace-nowrap rounded-full border border-base-300 bg-base-100 text-xs font-medium text-base-content hover:bg-base-200 ${buttonClass}`}>
+            <Share2 className="size-3.5" />
             Share
           </button>
         </>
@@ -549,9 +599,9 @@ export default function UserProfilePage() {
       <button
         type="button"
         onClick={shareProfile}
-        className={`btn btn-sm rounded-full border border-base-300 bg-base-100 text-base-content hover:bg-base-200 ${buttonClass}`}
+        className={`btn btn-xs h-8 whitespace-nowrap rounded-full border border-base-300 bg-base-100 text-xs font-medium text-base-content hover:bg-base-200 ${buttonClass}`}
       >
-        <Share2 className="size-4" />
+        <Share2 className="size-3.5" />
         Share
       </button>
     );
@@ -568,7 +618,7 @@ export default function UserProfilePage() {
     if (relationship.connectionStatus === "pending_received") {
       return (
         <>
-          <Link to="/connections" className={`btn btn-sm rounded-full border-none bg-primary text-white hover:bg-primary ${buttonClass}`}>
+          <Link to="/connections" className={`btn btn-xs h-8 whitespace-nowrap rounded-full border-none bg-primary text-xs font-medium text-white hover:bg-primary ${buttonClass}`}>
             Respond to Request
           </Link>
           {shareBtn}
@@ -579,11 +629,11 @@ export default function UserProfilePage() {
       <>
         <button
           type="button"
-          className={`btn btn-sm rounded-full border-none bg-primary text-white hover:bg-primary ${buttonClass}`}
+          className={`btn btn-xs h-8 whitespace-nowrap rounded-full border-none bg-primary text-xs font-medium text-white hover:bg-primary ${buttonClass}`}
           disabled={isConnecting}
           onClick={() => sendConnectionRequest()}
         >
-          <UserRoundPlus className="size-4" />
+          <UserRoundPlus className="size-3.5" />
           {isConnecting ? "Connecting..." : "Connect"}
         </button>
         {shareBtn}
@@ -899,6 +949,7 @@ export default function UserProfilePage() {
                             const media = normalizeMedia(post);
                             const badge = getListingBadge(post);
                             const detailBadges = buildPropertyDetailBadges(post);
+                            const signalBadges = getPropertySignals(post, { context: "feed" }).slice(0, 7);
 
                             const handleDoubleClickMedia = (event) => {
                               event.stopPropagation();
@@ -914,9 +965,7 @@ export default function UserProfilePage() {
                                 key={post._id}
                                 post={post}
                                 media={media}
-                                onDoubleClickMedia={handleDoubleClickMedia}
-                                mediaHeightClass="aspect-square"
-                                mediaOverlay={
+                                onDoubleClickMedia={handleDoubleClickMedia}                                mediaOverlay={
                                   likedBurstPostId === post._id ? (
                                     <Heart className="pointer-events-none absolute left-1/2 top-1/2 size-16 -translate-x-1/2 -translate-y-1/2 fill-white/95 text-white drop-shadow-md animate-pulse" />
                                   ) : null
@@ -1022,56 +1071,23 @@ export default function UserProfilePage() {
                                   setShowShareModal(true);
                                 }}
                                 onFullscreen={(img) => setSelectedImage(img)}
-                                priceBlock={
-                                  <>
-                                    <p className="text-lg font-bold text-base-content">{formatMoney(post.price)}</p>
-                                    <p className="text-sm font-medium text-base-content line-clamp-1">{post.title || "Premium Listing"}</p>
-                                    <div className="flex items-center gap-2 text-xs text-base-content/60">
-                                      <MapPin className="size-3" />
-                                      <span>{post.city || "City"}</span>
-                                      {post.locality && <><span>·</span><span>{post.locality}</span></>}
-                                      {post.latitude && post.longitude && (
-                                        <button
-                                          type="button"
-                                          className="flex items-center gap-1 text-primary hover:underline"
-                                          onClick={(event) => {
-                                            event.stopPropagation();
-                                            navigate(`/map-view?propertyId=${post._id}`);
-                                          }}
-                                        >
-                                          <span className="size-1.5 rounded-full bg-primary"></span>
-                                          <span>Live Location</span>
-                                        </button>
-                                      )}
-                                    </div>
-                                    {post.isBlocked && (
-                                      <div className="rounded-lg border border-error/30 bg-error/10 p-2.5">
-                                        <p className="flex items-center gap-1.5 text-xs font-semibold text-error">
-                                          <ShieldAlert className="size-3.5" />
-                                          Blocked by Admin
-                                        </p>
-                                        <p className="mt-1 text-[11px] text-error">
-                                          Reason: {getBlockReasonLabel(post.blockReasonCode)}
-                                        </p>
-                                        {post.blockNote && <p className="mt-1 text-[11px] text-error">{post.blockNote}</p>}
-                                      </div>
-                                    )}
-                                    {detailBadges.length > 0 && (
-                                      <div className="flex flex-wrap gap-2">
-                                        {detailBadges.slice(0, 6).map((detail, idx) => (
-                                          <span
-                                            key={idx}
-                                            className={`rounded-full ${detail.color} px-2.5 py-1 text-xs font-medium ${detail.textColor}`}
-                                          >
-                                            {detail.label}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </>
-                                }
+                                priceBlock={<ProfilePriceBlock post={post} detailBadges={detailBadges} signalBadges={signalBadges} />}
                                 description={
                                   <ClampedCaption text={post.caption || "A beautifully curated property with modern design and premium amenities."} />
+                                }
+                                metaLine={
+                                  post.latitude && post.longitude ? (
+                                    <button
+                                      type="button"
+                                      className="font-semibold text-base-content/70 hover:text-primary"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        navigate(`/map-view?propertyId=${post._id}`);
+                                      }}
+                                    >
+                                      Live location
+                                    </button>
+                                  ) : null
                                 }
                                 onLike={() => toggleLike(post._id)}
                                 isLiked={post.isLikedByMe}
@@ -1136,6 +1152,7 @@ export default function UserProfilePage() {
                             const media = normalizeMedia(post);
                             const badge = getListingBadge(post);
                             const detailBadges = buildPropertyDetailBadges(post);
+                            const signalBadges = getPropertySignals(post, { context: "feed" }).slice(0, 7);
 
                             const isOwnPost = post.author?._id && String(post.author._id) === String(authUser?._id);
 
@@ -1153,9 +1170,7 @@ export default function UserProfilePage() {
                                 key={post._id}
                                 post={post}
                                 media={media}
-                                onDoubleClickMedia={handleDoubleClickMedia}
-                                mediaHeightClass="aspect-square"
-                                mediaOverlay={
+                                onDoubleClickMedia={handleDoubleClickMedia}                                mediaOverlay={
                                   likedBurstPostId === post._id ? (
                                     <Heart className="pointer-events-none absolute left-1/2 top-1/2 size-16 -translate-x-1/2 -translate-y-1/2 fill-white/95 text-white drop-shadow-md animate-pulse" />
                                   ) : null
@@ -1214,56 +1229,23 @@ export default function UserProfilePage() {
                                   setShowShareModal(true);
                                 }}
                                 onFullscreen={(img) => setSelectedImage(img)}
-                                priceBlock={
-                                  <>
-                                    <p className="text-lg font-bold text-base-content">{formatMoney(post.price)}</p>
-                                    <p className="text-sm font-medium text-base-content line-clamp-1">{post.title || "Premium Listing"}</p>
-                                    <div className="flex items-center gap-2 text-xs text-base-content/60">
-                                      <MapPin className="size-3" />
-                                      <span>{post.city || "City"}</span>
-                                      {post.locality && <><span>·</span><span>{post.locality}</span></>}
-                                      {post.latitude && post.longitude && (
-                                        <button
-                                          type="button"
-                                          className="flex items-center gap-1 text-primary hover:underline"
-                                          onClick={(event) => {
-                                            event.stopPropagation();
-                                            navigate(`/map-view?propertyId=${post._id}`);
-                                          }}
-                                        >
-                                          <span className="size-1.5 rounded-full bg-primary"></span>
-                                          <span>Live Location</span>
-                                        </button>
-                                      )}
-                                    </div>
-                                    {post.isBlocked && (
-                                      <div className="rounded-lg border border-error/30 bg-error/10 p-2.5">
-                                        <p className="flex items-center gap-1.5 text-xs font-semibold text-error">
-                                          <ShieldAlert className="size-3.5" />
-                                          Blocked by Admin
-                                        </p>
-                                        <p className="mt-1 text-[11px] text-error">
-                                          Reason: {getBlockReasonLabel(post.blockReasonCode)}
-                                        </p>
-                                        {post.blockNote && <p className="mt-1 text-[11px] text-error">{post.blockNote}</p>}
-                                      </div>
-                                    )}
-                                    {detailBadges.length > 0 && (
-                                      <div className="flex flex-wrap gap-2">
-                                        {detailBadges.slice(0, 6).map((detail, idx) => (
-                                          <span
-                                            key={idx}
-                                            className={`rounded-full ${detail.color} px-2.5 py-1 text-xs font-medium ${detail.textColor}`}
-                                          >
-                                            {detail.label}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </>
-                                }
+                                priceBlock={<ProfilePriceBlock post={post} detailBadges={detailBadges} signalBadges={signalBadges} />}
                                 description={
                                   <ClampedCaption text={post.caption || "A beautifully curated property with modern design and premium amenities."} />
+                                }
+                                metaLine={
+                                  post.latitude && post.longitude ? (
+                                    <button
+                                      type="button"
+                                      className="font-semibold text-base-content/70 hover:text-primary"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        navigate(`/map-view?propertyId=${post._id}`);
+                                      }}
+                                    >
+                                      Live location
+                                    </button>
+                                  ) : null
                                 }
                                 onLike={() => toggleLike(post._id)}
                                 isLiked={post.isLikedByMe}
