@@ -35,7 +35,7 @@ import PropertyMapView from "./pages/PropertyMapView";
 import AdminPage from "./pages/AdminPage";
 import HelpGuidePage from "./pages/HelpGuidePage";
 import AccountBlockedModal from "./components/AccountBlockedModal";
-import { Toaster } from "react-hot-toast";
+import AppToaster from "./components/AppToaster";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import axiosInstance from "./lib/axios";
@@ -302,15 +302,7 @@ function App() {
         />
       ) : null}
 
-      <Toaster
-        toastOptions={{
-          style: {
-            background: "hsl(var(--b1))",
-            color: "hsl(var(--bc))",
-            border: "1px solid hsl(var(--b3))",
-          },
-        }}
-      />
+      <AppToaster />
     </div>
   );
 }

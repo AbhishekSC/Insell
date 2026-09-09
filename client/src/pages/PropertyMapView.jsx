@@ -210,7 +210,12 @@ export default function PropertyMapView() {
     queryFn: async () => {
       if (!debouncedQuery || debouncedQuery.length < 2) return [];
       
-      const response = await axiosInstance.get(`/location/search?q=${encodeURIComponent(debouncedQuery)}&type=all`);
+      // Type-ahead: a 429 or transient failure here should degrade quietly
+      // ("No matches"), never pop a toast over the search box.
+      const response = await axiosInstance.get(
+        `/location/search?q=${encodeURIComponent(debouncedQuery)}&type=all`,
+        { skipErrorToast: true }
+      );
       return response.data?.data || [];
     },
     enabled: debouncedQuery.length >= 2,
