@@ -183,6 +183,7 @@ export default function PropertyDetailPage() {
   const [offerModal, setOfferModal] = useState(null); // { mode: "offer" | "counter", offerId? }
   const [reviewModal, setReviewModal] = useState(null); // { offerId, revieweeName }
   const [reviewedOfferIds, setReviewedOfferIds] = useState([]);
+  const [showAllOffers, setShowAllOffers] = useState(false);
 
   const { data: authData } = useQuery({
     queryKey: ["authUser"],
@@ -879,11 +880,15 @@ export default function PropertyDetailPage() {
                 </div>
               )}
 
-              {/* Offers Received — owner only */}
+              {/* Offers Received — owner only. Collapsed to the most recent
+                  offer by default; the rest are behind "View all". */}
               {isOwner && postOffers.length > 0 && (
                 <Section title="Offers Received" icon={TrendingUp}>
                   <div className="space-y-3">
-                    {postOffers.map((offer) => {
+                    {[...postOffers]
+                      .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
+                      .slice(0, showAllOffers ? postOffers.length : 1)
+                      .map((offer) => {
                       const isActionable = ["pending", "countered"].includes(offer.status) &&
                         String(offer.lastActionBy) !== String(authUser?._id);
                       const statusStyles = {
@@ -959,6 +964,15 @@ export default function PropertyDetailPage() {
                       );
                     })}
                   </div>
+                  {postOffers.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllOffers((v) => !v)}
+                      className="mt-3 w-full rounded-xl border border-base-300 bg-base-100 py-2.5 text-sm font-semibold text-base-content transition-colors hover:bg-base-200"
+                    >
+                      {showAllOffers ? "Show less" : `View all ${postOffers.length} offers`}
+                    </button>
+                  )}
                 </Section>
               )}
 
