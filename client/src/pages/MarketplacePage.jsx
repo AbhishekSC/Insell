@@ -994,7 +994,19 @@ export default function MarketplacePage() {
   // global post is almost never in-scope, so the banner would be stuck on
   // permanently and clicking it (a re-fetch of the filtered feed) could
   // never clear it.
-  const newPostsBannerEligible = activeCategory === "For You" || activeCategory === "Recent";
+  // /posts/latest is platform-wide, so the banner only makes sense on the
+  // unfiltered "For You"/"Recent" feed. Any search (e.g. a city like
+  // "Ratlam"), author lookup, or filter-sheet narrowing scopes the feed to
+  // a subset in which the newest global post almost never appears — and
+  // React Query keeps the last `latestFeedPost` value even after its query
+  // is disabled by `!search.trim()`, so without this guard a stale value
+  // compared against the (older) newest post in the filtered feed lights
+  // the banner up for a search that has no new posts at all.
+  const newPostsBannerEligible =
+    (activeCategory === "For You" || activeCategory === "Recent") &&
+    !search.trim() &&
+    !searchType &&
+    !hasActiveMarketplaceFilters;
   const hasNewPosts = Boolean(
     newPostsBannerEligible &&
     latestFeedPost?.latestCreatedAt &&
