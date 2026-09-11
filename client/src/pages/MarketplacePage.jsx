@@ -16,6 +16,7 @@ import {
   Eye,
   Filter,
   Flag,
+  Flame,
   Handshake,
   Heart,
   Home,
@@ -739,6 +740,26 @@ export default function MarketplacePage() {
   const nearMeCoords = isNearMe && liveLocation?.lat
     ? { lat: liveLocation.lat, lon: liveLocation.lon, accuracy: liveLocation.accuracyMeters }
     : null;
+
+  // Trending Near You — real properties, not a static list, ranked by
+  // proximity + how fast they're gaining engagement. A fresh GPS fix (when
+  // the user has granted it) is passed through so "near you" means where
+  // they actually are right now, not just their saved profile city.
+  const { data: trendingNearYou = [] } = useQuery({
+    queryKey: ["trendingNearYou", liveLocation?.lat, liveLocation?.lon],
+    queryFn: async () => {
+      if (!authUser) return [];
+      const params = { limit: 5 };
+      if (liveLocation?.lat && liveLocation?.lon) {
+        params.lat = liveLocation.lat;
+        params.lon = liveLocation.lon;
+      }
+      const res = await axiosInstance.get("/personalization/trending-near-you", { params });
+      return res.data?.data?.properties || [];
+    },
+    enabled: !!authUser,
+    staleTime: 60_000,
+  });
 
   // On opening Near Me: silently re-capture only if the saved fix isn't
   // fresh AND geolocation is already granted. Never prompts on its own —
@@ -1483,9 +1504,6 @@ export default function MarketplacePage() {
     ];
   }, [roleStatsData, authUser?.activeRole, authUser?.primaryRole]);
 
-  const trendingLocalities = ["Indore - Super Corridor", "Bengaluru - Whitefield", "Pune - Hinjewadi", "Noida - Sector 150"];
-  const savedSearches = ["2 BHK in Vijay Nagar", "Luxury Villa in Goa", "Commercial office in Noida"];
-
   const profileCity = authUser?.city || authUser?.locationDetails?.city || "";
   const [detectedCity, setDetectedCity] = useState(profileCity);
 
@@ -2020,19 +2038,53 @@ export default function MarketplacePage() {
             <aside className="hidden w-[320px] rounded-2xl border border-base-200 bg-base-200/90 p-4 pb-6 shadow-sm xl:sticky xl:top-1 xl:flex xl:h-[calc(100dvh-7.1rem)] xl:flex-col xl:overflow-y-auto">
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-bold text-base-content">Trending Localities</p>
+                <div>
+                  <p className="flex items-center gap-1 text-sm font-bold text-base-content">
+                    <Flame className="size-3.5 text-primary" /> Trending Near You
+                  </p>
+                  <p className="text-[10px] text-base-content/50">
+                    {liveLocation?.lat ? "Ranked from your live location" : "Gaining interest close to you"}
+                  </p>
+                </div>
                 <button
                   type="button"
                   className="btn btn-xs border border-base-300 bg-base-100 text-primary hover:bg-primary/10"
-                  onClick={() => navigate("/trending-localities")}
+                  onClick={() => navigate("/trending-near-you")}
                 >
                   View all
                 </button>
               </div>
               <div className="space-y-2">
-                {trendingLocalities.map((item) => (
-                  <div key={item} className="rounded-xl border border-base-300 p-2 text-xs font-medium text-base-content">{item}</div>
-                ))}
+                {trendingNearYou.length > 0 ? (
+                  trendingNearYou.slice(0, 4).map((post) => (
+                    <button
+                      key={post.id}
+                      type="button"
+                      onClick={() => navigate(`/property/${post.id}`)}
+                      className="flex w-full items-center gap-2 rounded-xl border border-base-300 bg-base-100 p-2 text-left hover:bg-base-200"
+                    >
+                      <img
+                        src={post.coverImage || "https://placehold.co/64x64?text=NMS"}
+                        alt={post.title}
+                        className="size-11 shrink-0 rounded-lg object-cover"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate text-xs font-semibold text-base-content">{post.title}</p>
+                          <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+                            {post.trendingScore}%
+                          </span>
+                        </div>
+                        <p className="truncate text-[11px] text-base-content/60">
+                          {formatMoney(post.price)}
+                          {post.distanceKm != null ? ` · ${post.distanceKm} km away` : post.city ? ` · ${post.city}` : ""}
+                        </p>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-xs text-base-content/60 text-center py-2">No trending properties near you yet</p>
+                )}
               </div>
             </div>
 
@@ -2200,17 +2252,6 @@ export default function MarketplacePage() {
                 ) : (
                   <p className="text-xs text-base-content/60 text-center py-2">No trending locations yet</p>
                 )}
-              </div>
-            </div>
-
-            <div className="mt-4 rounded-xl border border-base-300 bg-base-100 p-3">
-              <div className="mb-2">
-                <p className="text-sm font-bold text-base-content">Saved Searches</p>
-              </div>
-              <div className="space-y-2">
-                {savedSearches.map((item) => (
-                  <div key={item} className="rounded-lg border border-base-300 p-2 text-xs text-base-content">{item}</div>
-                ))}
               </div>
             </div>
 

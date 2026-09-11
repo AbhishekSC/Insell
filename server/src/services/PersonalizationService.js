@@ -17,6 +17,32 @@ function escapeRegExp(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function toTrendingCardDTO(post, { distanceKm, trendingScore, reasons }) {
+  const images = Array.isArray(post.mediaUrls) ? post.mediaUrls.filter(Boolean) : [];
+  return {
+    id: String(post._id),
+    title: post.title || "Property Listing",
+    price: post.price || 0,
+    city: post.city || "",
+    locality: post.locality || "",
+    propertyType: post.propertyType || "",
+    postType: post.postType,
+    coverImage: images[0] || null,
+    distanceKm: Number.isFinite(distanceKm) ? Math.round(distanceKm * 10) / 10 : null,
+    trendingScore: Math.round(trendingScore),
+    reasons,
+    createdAt: post.createdAt,
+    author: post.author
+      ? {
+          id: String(post.author._id),
+          fullName: post.author.fullName,
+          profilePic: post.author.profilePic,
+          isOwnerVerified: Boolean(post.author.isOwnerVerified),
+        }
+      : null,
+  };
+}
+
 // A post is only eligible for personalization if it's live AND not removed by
 // its owner (isDeleted) or taken down by an admin / report action (isBlocked).
 // Every feed query in propertyPost.controller.js applies this — recommendations
@@ -46,6 +72,23 @@ const FEED_SCORE_WEIGHTS = {
   popularity: 0.15,
 };
 const RECENCY_HALF_LIFE_DAYS = 21; // recency contribution halves roughly every 3 weeks
+
+// "Trending Near You" is a different question than "Recommended for You":
+// recommendations ask "what fits this person", trending asks "what's hot,
+// close to where they are right now". So it blends proximity + how fast a
+// listing is gaining engagement (velocity) as the primary signals, with
+// personalization and freshness as secondary tie-breakers — not the other
+// way around.
+const TRENDING_NEAR_WEIGHTS = {
+  proximity: 0.3,
+  velocity: 0.3,
+  personalization: 0.25,
+  recency: 0.15,
+};
+const TRENDING_VELOCITY_HALF_LIFE_DAYS = 5; // trending should skew newer than general recs (21d there)
+const TRENDING_NEAR_METERS = 60_000; // ~60km — tighter than the 150km reco radius; "near you" should feel local
+const TRENDING_NEAR_CANDIDATE_CAP = 200;
+const TRENDING_NEAR_CACHE_TTL_SECONDS = 5 * 60;
 
 /**
  * Calculate dynamic TTL based on user activity level
@@ -1294,6 +1337,211 @@ class PersonalizationService {
     const centroid = centroidForCity(ld.city || user?.city || user?.homeBase);
     if (centroid) return { point: centroid, source: "city" };
     return { point: null, source: null };
+  }
+
+  /**
+   * Distance-decay score for "Trending Near You" — steeper than
+   * getLocationScore's tiers because this widget is about walking/driving
+   * distance ("near you" in the literal sense), not "same metro area".
+   */
+  static getProximityScore(distanceKm) {
+    if (!Number.isFinite(distanceKm)) return 50; // unknown distance — neutral, don't punish
+    if (distanceKm <= 3) return 100;
+    if (distanceKm <= 8) return 88;
+    if (distanceKm <= 15) return 72;
+    if (distanceKm <= 30) return 50;
+    if (distanceKm <= 60) return 25;
+    return 8;
+  }
+
+  /**
+   * How fast a listing is gaining engagement, not just how much it has —
+   * 20 likes in 2 days is "trending" in a way the same 20 likes spread over
+   * 60 days is not. Engagement-per-day-since-posted, compressed into 0-100
+   * with a soft multiplier so one viral outlier doesn't blow the scale.
+   */
+  static getVelocityScore(property) {
+    const likes = Array.isArray(property.likedBy) ? property.likedBy.length : 0;
+    const saves = Array.isArray(property.savedBy) ? property.savedBy.length : 0;
+    const comments = property.commentCount || 0;
+    const views = property.viewCount || 0;
+    const engagement = likes * 3 + saves * 4 + comments * 2 + views * 0.2;
+    const ageInDays = Math.max(0.5, (Date.now() - new Date(property.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+    const velocityPerDay = engagement / ageInDays;
+    return Math.min(100, velocityPerDay * 8);
+  }
+
+  /**
+   * "Trending Near You" — what's hot, close to where the user actually is
+   * right now. Distinct from getPersonalizedRecommendations (a general "for
+   * you" feed): this ranks primarily on proximity + engagement velocity,
+   * with personalization (budget/type fit) and freshness as secondary
+   * tie-breakers, so two users standing in the same spot still see slightly
+   * different orderings based on what they actually want.
+   *
+   * Location precedence: a fresh GPS fix passed in for *this* request (the
+   * strongest, most literal "live location" signal) → the user's last saved
+   * location (≤30 days old) → a centroid for their city → no geo filtering
+   * at all (city-string match, then whatever's newest platform-wide).
+   *
+   * @param {string} userId
+   * @param {{ lat?: number, lon?: number, limit?: number }} opts
+   */
+  static async getTrendingNearYou(userId, { lat, lon, limit = 10 } = {}) {
+    const user = await User.findById(userId).lean();
+    if (!user) return { properties: [], source: null };
+
+    const livePoint = Number.isFinite(lat) && Number.isFinite(lon) ? [lon, lat] : null;
+    const { point: savedPoint, source: savedSource } = this.resolveUserPoint(user);
+    const point = livePoint || savedPoint;
+    const source = livePoint ? "live" : savedSource;
+
+    const cacheKey =
+      point && `trending-near:${userId}:${point[1].toFixed(2)}:${point[0].toFixed(2)}:${limit}`;
+    if (cacheKey) {
+      try {
+        const cached = await redisClient.get(cacheKey);
+        if (cached) return JSON.parse(cached);
+      } catch { /* redis optional — fall through to a fresh computation */ }
+    }
+
+    const baseMatch = { ...LIVE_POST_MATCH, author: { $ne: userId } };
+    const authorSelect = "fullName profilePic isOwnerVerified";
+    const postFields =
+      "title price city locality propertyType postType mediaUrls author createdAt location likedBy savedBy commentCount viewCount";
+
+    const geoNear = async (maxDistance) =>
+      PropertyPost.find({
+        ...baseMatch,
+        location: { $near: { $geometry: { type: "Point", coordinates: point }, $maxDistance: maxDistance } },
+      })
+        .select(postFields)
+        .populate("author", authorSelect)
+        .limit(TRENDING_NEAR_CANDIDATE_CAP)
+        .lean();
+
+    let pool = [];
+    let strategy = "none";
+    const workable = Math.max(Math.ceil(limit / 2), 4);
+    if (point) {
+      try {
+        pool = await geoNear(TRENDING_NEAR_METERS);
+        strategy = `geo:${source}`;
+        // Still geographically plausible, just wider — a real "nothing much
+        // trending within 60km" thin-market case, not a reason to jump to
+        // unrelated listings on the other side of the country.
+        if (pool.length < workable) {
+          const wider = await geoNear(TRENDING_NEAR_METERS * 5);
+          const seen = new Set(pool.map((p) => String(p._id)));
+          const added = wider.filter((p) => !seen.has(String(p._id)));
+          if (added.length) {
+            pool = [...pool, ...added];
+            strategy = `${strategy}+wide`;
+          }
+        }
+      } catch (err) {
+        logger.warn(`[TRENDING NEAR YOU] $near failed, falling back to city match: ${err.message}`);
+      }
+    }
+
+    // Falling back to the user's stored/home city only makes sense when we
+    // *don't* have an explicit live fix — if the request told us exactly
+    // where the user is right now (e.g. traveling, or just a fresher GPS
+    // ping than what's saved), silently substituting their home city would
+    // show them listings from somewhere they aren't currently at.
+    if (pool.length < workable && !livePoint) {
+      const cityRaw = (user.city || user.locationDetails?.city || user.homeBase || "").trim();
+      if (cityRaw) {
+        const cityPool = await PropertyPost.find({ ...baseMatch, city: new RegExp(escapeRegExp(cityRaw), "i") })
+          .select(postFields)
+          .populate("author", authorSelect)
+          .sort({ createdAt: -1 })
+          .limit(TRENDING_NEAR_CANDIDATE_CAP)
+          .lean();
+        const seen = new Set(pool.map((p) => String(p._id)));
+        pool = [...pool, ...cityPool.filter((p) => !seen.has(String(p._id)))];
+        strategy = strategy === "none" ? "city" : `${strategy}+city`;
+      }
+    }
+    // A genuinely location-blind fallback — no live fix, no saved location,
+    // no city — only then is "newest platform-wide" a reasonable substitute
+    // for "near you". If we DO have a point but it's just a thin market, an
+    // empty/small result is the honest answer, not unrelated listings.
+    if (pool.length === 0 && !point) {
+      pool = await PropertyPost.find(baseMatch)
+        .select(postFields)
+        .populate("author", authorSelect)
+        .sort({ createdAt: -1 })
+        .limit(TRENDING_NEAR_CANDIDATE_CAP)
+        .lean();
+      strategy = "national";
+    }
+    if (pool.length === 0) return { properties: [], source: strategy };
+
+    const rawBehavior = await this.getUserBehavior(userId);
+    const userBehavior = this.applyStatedPreferences(user, rawBehavior);
+
+    const scored = pool.map((property) => {
+      const distanceKm =
+        point && Array.isArray(property.location?.coordinates)
+          ? this.getDistanceKm(point[1], point[0], property.location.coordinates[1], property.location.coordinates[0])
+          : null;
+      const proximityScore = this.getProximityScore(distanceKm);
+      const velocityScore = this.getVelocityScore(property);
+      const personalizationScore = this.calculatePropertyScore(property, user, userBehavior);
+      const ageInDays = (Date.now() - new Date(property.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+      const recencyScore = 100 * Math.pow(0.5, Math.max(0, ageInDays) / TRENDING_VELOCITY_HALF_LIFE_DAYS);
+
+      const trendingScore =
+        proximityScore * TRENDING_NEAR_WEIGHTS.proximity +
+        velocityScore * TRENDING_NEAR_WEIGHTS.velocity +
+        personalizationScore * TRENDING_NEAR_WEIGHTS.personalization +
+        recencyScore * TRENDING_NEAR_WEIGHTS.recency;
+
+      const reasons = [];
+      if (distanceKm != null && distanceKm <= 15) reasons.push(`${Math.round(distanceKm * 10) / 10} km away`);
+      if (velocityScore >= 60) reasons.push("Gaining interest fast");
+      if (personalizationScore >= 65) reasons.push("Matches your preferences");
+      if (ageInDays <= 2) reasons.push("New today");
+
+      return { property, distanceKm, trendingScore, reasons: reasons.slice(0, 2) };
+    });
+
+    scored.sort((a, b) => b.trendingScore - a.trendingScore);
+
+    // Diversity cap — one seller or one property type shouldn't fill the
+    // whole widget just because they post often.
+    const perAuthor = new Map();
+    const perType = new Map();
+    const authorCap = 2;
+    const typeCap = Math.max(3, Math.ceil(limit / 2));
+    const picked = [];
+    for (const item of scored) {
+      const authorId = String(item.property.author?._id || item.property.author || "");
+      const type = item.property.propertyType || "Other";
+      const authorCount = perAuthor.get(authorId) || 0;
+      const typeCount = perType.get(type) || 0;
+      if (authorCount >= authorCap || typeCount >= typeCap) continue;
+      picked.push(item);
+      perAuthor.set(authorId, authorCount + 1);
+      perType.set(type, typeCount + 1);
+      if (picked.length >= limit) break;
+    }
+
+    const result = {
+      properties: picked.map(({ property, distanceKm, trendingScore, reasons }) =>
+        toTrendingCardDTO(property, { distanceKm, trendingScore, reasons })
+      ),
+      source: strategy,
+    };
+
+    if (cacheKey) {
+      try {
+        await redisClient.setEx(cacheKey, TRENDING_NEAR_CACHE_TTL_SECONDS, JSON.stringify(result));
+      } catch { /* redis optional */ }
+    }
+
+    return result;
   }
 
   /**
