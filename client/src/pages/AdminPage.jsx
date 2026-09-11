@@ -2125,94 +2125,208 @@ function VerificationPanel() {
         </div>
       )}
 
-      {reportTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setReportTarget(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-base-100 p-5" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-base-content">Verification report</h3>
-              <button type="button" className="btn btn-ghost btn-sm btn-circle" onClick={() => setReportTarget(null)}>
-                <X className="size-4" />
-              </button>
-            </div>
+      {reportTarget && <VerificationReportModal request={reportTarget} onClose={() => setReportTarget(null)} />}
+    </div>
+  );
+}
 
-            <div className="mt-3 flex items-center gap-3">
-              <img
-                src={reportTarget.user?.profilePic || "https://placehold.co/40x40?text=U"}
-                alt={reportTarget.user?.fullName || "User"}
-                className="size-11 shrink-0 rounded-full object-cover"
-              />
-              <div className="min-w-0">
-                <p className="truncate font-semibold text-base-content">{reportTarget.user?.fullName || "Unknown"}</p>
-                <p className="truncate text-xs text-base-content/60">{reportTarget.user?.email || "No email"}</p>
-              </div>
-            </div>
+const REPORT_TABS = [
+  { value: "overview", label: "Overview" },
+  { value: "document", label: "Document" },
+];
 
-            <dl className="mt-4 space-y-2 text-sm">
+// The interactive drill-down behind the "Report" button: an Overview tab
+// with the applicant's full picture (pulling live profile fields — role,
+// mobile, email-verified/account status, member-since — beyond what the
+// verification-queue row itself carries) and a Document tab that previews
+// the actual submitted file inline, zoomable, instead of just linking out.
+function VerificationReportModal({ request, onClose }) {
+  const [tab, setTab] = useState("overview");
+  const [zoomed, setZoomed] = useState(false);
+
+  const { data: profile, isLoading: profileLoading } = useQuery({
+    queryKey: ["adminUserLookup", request.user?.email],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/admin/users", {
+        params: { search: request.user?.email, limit: 1 },
+      });
+      return response.data?.data?.users?.[0] || null;
+    },
+    enabled: Boolean(request.user?.email),
+    staleTime: 60_000,
+  });
+
+  const isPdf = /\.pdf(\?|$)/i.test(request.docUrl || "");
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-base-100"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-base-300 p-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <img
+              src={request.user?.profilePic || "https://placehold.co/40x40?text=U"}
+              alt={request.user?.fullName || "User"}
+              className="size-10 shrink-0 rounded-full object-cover"
+            />
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-base-content">{request.user?.fullName || "Unknown"}</p>
+              <p className="truncate text-xs text-base-content/60">{request.user?.email || "No email"}</p>
+            </div>
+          </div>
+          <button type="button" className="btn btn-ghost btn-sm btn-circle shrink-0" onClick={onClose}>
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="flex gap-1 border-b border-base-300 px-4 pt-2">
+          {REPORT_TABS.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              onClick={() => setTab(t.value)}
+              className={`rounded-t-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                tab === t.value ? "border-b-2 border-primary text-primary" : "text-base-content/50 hover:text-base-content"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5">
+          {tab === "overview" ? (
+            <dl className="space-y-2 text-sm">
               <div className="flex justify-between gap-3">
                 <dt className="text-base-content/60">City</dt>
-                <dd className="font-medium text-base-content">{reportTarget.user?.city || "—"}</dd>
+                <dd className="font-medium text-base-content">{request.user?.city || "—"}</dd>
               </div>
               <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">Mobile</dt>
+                <dd className="font-medium text-base-content">
+                  {profileLoading ? "Loading…" : profile?.mobileNumber || "—"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">Role</dt>
+                <dd className="font-medium text-base-content">
+                  {profileLoading ? "Loading…" : profile?.activeRole || profile?.primaryRole || "—"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">Email verified</dt>
+                <dd className="font-medium text-base-content">
+                  {profileLoading ? "Loading…" : profile?.isVerified ? "Yes" : "No"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">Account status</dt>
+                <dd className={`font-medium ${profile?.isBlocked ? "text-error" : "text-base-content"}`}>
+                  {profileLoading ? "Loading…" : profile?.isBlocked ? "Blocked" : "Active"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">Member since</dt>
+                <dd className="font-medium text-base-content">
+                  {profileLoading ? "Loading…" : profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : "—"}
+                </dd>
+              </div>
+              <div className="my-1 border-t border-base-200" />
+              <div className="flex justify-between gap-3">
                 <dt className="text-base-content/60">Document type</dt>
-                <dd className="font-medium text-base-content">{reportTarget.docType.replace(/_/g, " ")}</dd>
+                <dd className="font-medium text-base-content">{request.docType.replace(/_/g, " ")}</dd>
               </div>
               <div className="flex justify-between gap-3">
                 <dt className="text-base-content/60">Submitted</dt>
-                <dd className="font-medium text-base-content">{new Date(reportTarget.createdAt).toLocaleString()}</dd>
+                <dd className="font-medium text-base-content">{new Date(request.createdAt).toLocaleString()}</dd>
               </div>
               <div className="flex justify-between gap-3">
                 <dt className="text-base-content/60">Status</dt>
-                <dd className="font-medium text-base-content">{reportTarget.status}</dd>
+                <dd className="font-medium text-base-content">{request.status}</dd>
               </div>
-              {reportTarget.status !== "PENDING" && (
+              {request.status !== "PENDING" && (
                 <>
                   <div className="flex justify-between gap-3">
                     <dt className="text-base-content/60">Reviewed by</dt>
-                    <dd className="font-medium text-base-content">{reportTarget.reviewedBy?.fullName || "—"}</dd>
+                    <dd className="font-medium text-base-content">{request.reviewedBy?.fullName || "—"}</dd>
                   </div>
                   <div className="flex justify-between gap-3">
                     <dt className="text-base-content/60">Reviewed at</dt>
                     <dd className="font-medium text-base-content">
-                      {reportTarget.reviewedAt ? new Date(reportTarget.reviewedAt).toLocaleString() : "—"}
+                      {request.reviewedAt ? new Date(request.reviewedAt).toLocaleString() : "—"}
                     </dd>
                   </div>
                 </>
               )}
-              {reportTarget.note && (
+              {request.note && (
                 <div>
                   <dt className="text-base-content/60">Applicant note</dt>
-                  <dd className="mt-0.5 italic text-base-content">"{reportTarget.note}"</dd>
+                  <dd className="mt-0.5 italic text-base-content">"{request.note}"</dd>
                 </div>
               )}
-              {reportTarget.reviewNote && (
+              {request.reviewNote && (
                 <div>
                   <dt className="text-base-content/60">Review note</dt>
-                  <dd className="mt-0.5 italic text-base-content">"{reportTarget.reviewNote}"</dd>
+                  <dd className="mt-0.5 italic text-base-content">"{request.reviewNote}"</dd>
                 </div>
               )}
+              <div className="pt-2">
+                <Link to={`/users/${request.user?.id}`} className="text-sm font-semibold text-primary hover:underline">
+                  View full profile →
+                </Link>
+              </div>
             </dl>
-
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <a
-                href={toDownloadUrl(reportTarget.docUrl)}
-                className="btn btn-sm border-base-300"
-              >
-                <Download className="size-4" /> Download document
-              </a>
-              <button
-                type="button"
-                className="btn btn-sm border-none bg-primary text-white hover:bg-primary"
-                onClick={() =>
-                  downloadTextFile(
-                    `verification-report-${(reportTarget.user?.fullName || reportTarget.id).replace(/\s+/g, "-")}.txt`,
-                    verificationReportText(reportTarget)
-                  )
-                }
-              >
-                <Download className="size-4" /> Download report
-              </button>
+          ) : (
+            <div>
+              {isPdf ? (
+                <iframe
+                  src={request.docUrl}
+                  title="Submitted document"
+                  className="h-[60vh] w-full rounded-lg border border-base-300"
+                />
+              ) : (
+                <>
+                  <button type="button" className="block w-full" onClick={() => setZoomed(true)}>
+                    <img
+                      src={request.docUrl}
+                      alt="Submitted document"
+                      className="max-h-[60vh] w-full rounded-lg border border-base-300 object-contain"
+                    />
+                  </button>
+                  <p className="mt-2 text-center text-xs text-base-content/50">Click the image to zoom in</p>
+                </>
+              )}
             </div>
-          </div>
+          )}
+        </div>
+
+        <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 p-4">
+          <a href={toDownloadUrl(request.docUrl)} className="btn btn-sm border-base-300">
+            <Download className="size-4" /> Download document
+          </a>
+          <button
+            type="button"
+            className="btn btn-sm border-none bg-primary text-white hover:bg-primary"
+            onClick={() =>
+              downloadTextFile(
+                `verification-report-${(request.user?.fullName || request.id).replace(/\s+/g, "-")}.txt`,
+                verificationReportText(request)
+              )
+            }
+          >
+            <Download className="size-4" /> Download report
+          </button>
+        </div>
+      </div>
+
+      {zoomed && !isPdf && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setZoomed(false)}
+        >
+          <img src={request.docUrl} alt="Submitted document" className="max-h-full max-w-full object-contain" />
         </div>
       )}
     </div>
