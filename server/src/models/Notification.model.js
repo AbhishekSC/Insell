@@ -59,6 +59,8 @@ const notificationSchema = new mongoose.Schema(
         "deal_cancelled",
         "owner_verification_result",
         "referral_reward",
+        "circle_call_scheduled",
+        "circle_call_reminder",
       ],
     },
     message: {
