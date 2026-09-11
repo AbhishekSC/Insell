@@ -58,9 +58,11 @@ const SignupPage = () => {
 
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
-      // );
-
-      const response = await axiosInstance.post("/auth/signup", signupData);
+      const referralCode = searchParams.get("ref");
+      const response = await axiosInstance.post("/auth/signup", {
+        ...signupData,
+        ...(referralCode ? { referralCode } : {}),
+      });
       return response.data;
     },
     onSuccess: () => {

@@ -29,6 +29,9 @@ import publicListingRoutes from "../modules/public-listing/publicListing.routes.
 import publicProfileRoutes from "../modules/public-profile/publicProfile.routes.js";
 import priceAlertRoutes from "../modules/price-alert/priceAlert.routes.js";
 import savedSearchRoutes from "../modules/saved-search/savedSearch.routes.js";
+import weeklyDigestRoutes from "../modules/weekly-digest/weeklyDigest.routes.js";
+import ownerVerificationRoutes from "../modules/owner-verification/ownerVerification.routes.js";
+import referralRoutes from "../modules/referral/referral.routes.js";
 
 const router = new express.Router();
 
@@ -63,5 +66,8 @@ router.use("/public", publicListingRoutes);
 router.use("/public", publicProfileRoutes);
 router.use("/price-alerts", priceAlertRoutes);
 router.use("/saved-searches", savedSearchRoutes);
+router.use("/digest", weeklyDigestRoutes);
+router.use("/owner-verification", ownerVerificationRoutes);
+router.use("/referral", referralRoutes);
 
 export default router;

@@ -36,10 +36,10 @@ export async function signup(req, res) {
     return sendErrorResponse(res, 400, "Validation failed", errors.array());
   }
 
-  const { fullName, email, password } = req.body;
+  const { fullName, email, password, referralCode } = req.body;
 
   try {
-    const result = await authService.signup({ fullName, email, password });
+    const result = await authService.signup({ fullName, email, password, referralCode });
     logger.info(`Signup pending verification: ${email}`);
     return sendSuccessResponse(res, 200, "Verification code sent to your email", result);
   } catch (error) {

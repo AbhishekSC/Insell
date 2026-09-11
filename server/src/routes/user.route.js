@@ -13,6 +13,7 @@ import {
   getUserPublicProfile,
   getUserFriendsList,
   updateUserLocation,
+  updateDigestPreference,
   getPreferencePrompt,
   answerPreferencePrompt,
   registerFcmToken,
@@ -36,6 +37,7 @@ router.get("/:id/friends", getUserFriendsList);
 router.patch("/profile", uploadProfileImage.single("profileImage"), updateMyProfile);
 router.patch("/account", uploadProfileImage.single("profileImage"), updateMyProfile);
 router.patch("/location", updateUserLocation);
+router.patch("/digest-preference", updateDigestPreference);
 router.get("/preference-prompt", getPreferencePrompt);
 router.post("/preference-prompt", answerPreferencePrompt);
 router.post("/fcm-token", registerFcmToken);

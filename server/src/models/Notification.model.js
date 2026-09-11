@@ -57,6 +57,8 @@ const notificationSchema = new mongoose.Schema(
         "deal_updated",
         "deal_completed",
         "deal_cancelled",
+        "owner_verification_result",
+        "referral_reward",
       ],
     },
     message: {

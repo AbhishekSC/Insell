@@ -740,6 +740,21 @@ export async function updateUserLocation(req, res) {
   }
 }
 
+// PATCH /users/digest-preference  { optOut: boolean }
+// One-click "turn off this email" target for the weekly digest — see
+// modules/weekly-digest. Doesn't touch in-app or push notifications.
+export async function updateDigestPreference(req, res) {
+  try {
+    const currentUserId = req.user._id;
+    const optOut = Boolean(req.body?.optOut);
+    await User.updateOne({ _id: currentUserId }, { $set: { emailDigestOptOut: optOut } });
+    return sendSuccessResponse(res, 200, "Preference updated", { emailDigestOptOut: optOut });
+  } catch (error) {
+    logger.error("Error updating digest preference:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
 export async function registerFcmToken(req, res) {
   try {
     const currentUserId = req.user._id;

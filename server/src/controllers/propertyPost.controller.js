@@ -107,7 +107,7 @@ export async function compareProperties(req, res) {
       _id: { $in: propertyIds },
       isDeleted: { $ne: true },
       isBlocked: { $ne: true }
-    }).populate('author', 'fullName profilePic isVerified').lean();
+    }).populate('author', 'fullName profilePic isVerified isOwnerVerified').lean();
 
     if (properties.length === 0) {
       return sendErrorResponse(res, 404, "No properties found");
@@ -633,7 +633,7 @@ export async function getPropertyFeed(req, res) {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate("author", "fullName profilePic activeRole primaryRole city isVerified ratingAvg ratingCount responseRate")
+        .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate")
         .lean(),
       PropertyPost.countDocuments(filter),
     ]);
@@ -907,7 +907,7 @@ async function getNearMeFeed(req, res, { filter, page, limit, skip, currentUserI
       const pageItems = scored.slice(skip, skip + limit);
       await PropertyPost.populate(pageItems, {
         path: "author",
-        select: "fullName profilePic activeRole primaryRole city isVerified ratingAvg ratingCount responseRate",
+        select: "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate",
       });
       pageItems.forEach((p) => { delete p._band; delete p._score; delete p.distanceMeters; delete p.location; });
 
@@ -932,7 +932,7 @@ async function getNearMeFeed(req, res, { filter, page, limit, skip, currentUserI
 
     let [posts, total] = await Promise.all([
       PropertyPost.find(cityFilter).sort({ createdAt: -1 }).skip(skip).limit(limit)
-        .populate("author", "fullName profilePic activeRole primaryRole city isVerified ratingAvg ratingCount responseRate").lean(),
+        .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate").lean(),
       PropertyPost.countDocuments(cityFilter),
     ]);
 
@@ -940,7 +940,7 @@ async function getNearMeFeed(req, res, { filter, page, limit, skip, currentUserI
       mode = "all";
       [posts, total] = await Promise.all([
         PropertyPost.find(geoQuery).sort({ createdAt: -1 }).skip(skip).limit(limit)
-          .populate("author", "fullName profilePic activeRole primaryRole city isVerified ratingAvg ratingCount responseRate").lean(),
+          .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate").lean(),
         PropertyPost.countDocuments(geoQuery),
       ]);
     }
@@ -1015,7 +1015,7 @@ export async function createPropertyPost(req, res) {
     });
 
     const populated = await PropertyPost.findById(post._id)
-      .populate("author", "fullName profilePic activeRole primaryRole city isVerified ratingAvg ratingCount responseRate")
+      .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate")
       .lean();
 
     // Alert anyone whose saved search this new listing matches.
@@ -1264,7 +1264,7 @@ export async function updatePropertyPost(req, res) {
     }
 
     const populated = await PropertyPost.findById(post._id)
-      .populate("author", "fullName profilePic activeRole primaryRole city isVerified ratingAvg ratingCount responseRate")
+      .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate")
       .lean();
 
     // A draft going live counts as new inventory for saved searches.
@@ -1616,7 +1616,7 @@ export async function getSimilarProperties(req, res) {
     })
       .sort({ createdAt: -1 })
       .limit(120)
-      .populate("author", "fullName profilePic isVerified")
+      .populate("author", "fullName profilePic isVerified isOwnerVerified")
       .lean();
 
     const currentUserId = req.user?._id ? String(req.user._id) : "";

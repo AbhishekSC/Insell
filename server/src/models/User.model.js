@@ -233,9 +233,55 @@ const userSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    // Distinct from isVerified (email confirmation, above). This is the
+    // trust badge: an owner who has submitted an ID/ownership document and
+    // been approved by an admin — see modules/owner-verification.
+    isOwnerVerified: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    ownerVerifiedAt: {
+      type: Date,
+      default: null,
+    },
     isAdmin: {
       type: Boolean,
       default: false,
+    },
+    // One-click unsubscribe from the weekly digest email only — doesn't
+    // touch in-app or push notifications for the same events.
+    emailDigestOptOut: {
+      type: Boolean,
+      default: false,
+    },
+    // Referrals — set once at signup (via ?ref=CODE), never changes after.
+    // referralCode is generated lazily (first time it's needed) rather than
+    // for every user up front, so old accounts don't need a migration.
+    // No `default` here, deliberately — a sparse unique index only excludes
+    // documents where the field is truly ABSENT. An explicit `default: null`
+    // makes every user without a code have the field present-with-value-null,
+    // which the sparse index then (correctly) rejects as a duplicate key on
+    // the second such user. Leaving it undefined until ensureReferralCode()
+    // sets a real one is what makes `sparse` actually work.
+    referralCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
+    },
+    referredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    // Incremented once, when the referred account verifies its email — see
+    // modules/referral. Redeemable later against boosted listings; for now
+    // it's just a running balance shown on the profile.
+    referralCredits: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     // Updated (throttled, see verifyUser) on any authenticated request —
     // powers the admin-only "live users" count, not shown to regular users.

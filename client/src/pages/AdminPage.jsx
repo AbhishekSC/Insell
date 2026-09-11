@@ -1893,6 +1893,137 @@ function DealsPanel() {
   );
 }
 
+function VerificationPanel() {
+  const queryClient = useQueryClient();
+  const [reviewTarget, setReviewTarget] = useState(null); // { id, approve }
+  const [reviewNote, setReviewNote] = useState("");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["adminOwnerVerificationQueue"],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/owner-verification/admin/queue");
+      return response.data?.data;
+    },
+  });
+
+  const requests = data?.requests || [];
+
+  const { mutate: reviewRequest, isPending } = useMutation({
+    mutationFn: async ({ id, approve, reviewNote: note }) => {
+      const response = await axiosInstance.patch(`/owner-verification/admin/${id}`, { approve, reviewNote: note });
+      return response.data?.data;
+    },
+    onSuccess: (_data, variables) => {
+      toast.success(variables.approve ? "Owner verified" : "Request rejected");
+      queryClient.invalidateQueries({ queryKey: ["adminOwnerVerificationQueue"] });
+      setReviewTarget(null);
+      setReviewNote("");
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to review request");
+    },
+  });
+
+  return (
+    <div className="rounded-2xl border border-base-300 bg-base-100 shadow-sm">
+      <div className="flex items-center gap-2 border-b border-base-300 p-4 sm:p-5">
+        <div className="grid size-9 place-items-center rounded-xl bg-primary/15 text-primary">
+          <ShieldCheck className="size-4" />
+        </div>
+        <div>
+          <h2 className="font-semibold text-base-content">Owner verification requests</h2>
+          <p className="text-xs text-base-content/60">{requests.length} pending</p>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-16 text-base-content/40">
+          <Loader2 className="size-6 animate-spin" />
+        </div>
+      ) : requests.length === 0 ? (
+        <p className="p-8 text-center text-sm text-base-content/60">No pending requests.</p>
+      ) : (
+        <div className="divide-y divide-base-200">
+          {requests.map((r) => (
+            <div key={r.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+              <div className="flex items-center gap-3 min-w-0">
+                <img
+                  src={r.user?.profilePic || "https://placehold.co/40x40?text=U"}
+                  alt={r.user?.fullName || "User"}
+                  className="size-10 shrink-0 rounded-full object-cover"
+                />
+                <div className="min-w-0">
+                  <Link to={`/users/${r.user?.id}`} className="truncate font-semibold text-base-content hover:text-primary">
+                    {r.user?.fullName || "Unknown"}
+                  </Link>
+                  <p className="truncate text-xs text-base-content/60">{r.user?.email} · {r.user?.city || "No city"}</p>
+                  <p className="mt-0.5 text-xs text-base-content/50">
+                    {r.docType.replace(/_/g, " ")} · submitted {new Date(r.createdAt).toLocaleDateString()}
+                  </p>
+                  {r.note && <p className="mt-0.5 text-xs italic text-base-content/50">"{r.note}"</p>}
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <a
+                  href={r.docUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-sm border-base-300"
+                >
+                  <ImageIcon className="size-4" /> View document
+                </a>
+                <button
+                  type="button"
+                  className="btn btn-sm border-none bg-success text-white hover:bg-success"
+                  disabled={isPending}
+                  onClick={() => reviewRequest({ id: r.id, approve: true })}
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm border-error/30 text-error hover:bg-error/10"
+                  onClick={() => setReviewTarget({ id: r.id, approve: false })}
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {reviewTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setReviewTarget(null)}>
+          <div className="w-full max-w-sm rounded-2xl bg-base-100 p-5" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-base-content">Reject this request?</h3>
+            <textarea
+              className="textarea textarea-bordered mt-3 w-full text-sm"
+              placeholder="Reason (shown to the user)"
+              value={reviewNote}
+              onChange={(e) => setReviewNote(e.target.value)}
+              maxLength={500}
+            />
+            <div className="mt-3 flex justify-end gap-2">
+              <button type="button" className="btn btn-sm border-base-300" onClick={() => setReviewTarget(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm border-none bg-error text-white hover:bg-error"
+                disabled={isPending}
+                onClick={() => reviewRequest({ id: reviewTarget.id, approve: false, reviewNote })}
+              >
+                {isPending ? "Rejecting…" : "Reject"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("users");
 
@@ -1953,6 +2084,15 @@ export default function AdminPage() {
         >
           <Handshake className="size-4" /> Deals
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("verification")}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+            activeTab === "verification" ? "bg-primary text-white" : "bg-base-200 text-base-content/70 hover:bg-base-300"
+          }`}
+        >
+          <ShieldCheck className="size-4" /> Verification
+        </button>
       </div>
 
       {activeTab === "users" ? (
@@ -1965,6 +2105,8 @@ export default function AdminPage() {
         <FeedbackPanel />
       ) : activeTab === "deals" ? (
         <DealsPanel />
+      ) : activeTab === "verification" ? (
+        <VerificationPanel />
       ) : (
         <AnnouncementsPanel />
       )}
