@@ -48,9 +48,11 @@ async function startServer() {
       logger.warn("CRON_SECRET is not set — the stalled-deals nudge endpoint (/api/deals/cron/nudge-stalled) will reject every call with 401.");
     }
 
-    await connectToRedis();
-    await connectToMongoDB();
-    await testCloudinaryConnection();
+    // These three have no dependency on each other — awaiting them in
+    // sequence added their startup latencies together (part of why cold
+    // starts took 30-40s). Running them in parallel cuts that to whichever
+    // one is slowest, instead of the sum of all three.
+    await Promise.all([connectToRedis(), connectToMongoDB(), testCloudinaryConnection()]);
 
     httpServer = app.listen(PORT, async () => {
       await connectQueue();

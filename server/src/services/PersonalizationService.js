@@ -1002,62 +1002,100 @@ class PersonalizationService {
 
       logger.info(`💬 [TRENDING LOCALITIES] Comment analytics - Keywords: [${[...commentKeywords].slice(0, 5).join(', ')}], PropertyInterests: [${commentPropertyInterests.join(', ')}], DominantIntent: ${dominantIntent}`);
 
-      // Get all published properties with locality data
-      const properties = await PropertyPost.find({ ...LIVE_POST_MATCH })
-        .select("city locality location price propertyType createdAt postMeta")
-        .limit(1000)
-        .lean();
+      // The property-count/recency/price/amenity aggregate below is the same
+      // for every user asking "what's trending" at a given moment — nothing
+      // in it depends on who's asking, only the per-locality SCORING further
+      // down does (preferred localities, budget, comment intent). Before,
+      // this endpoint re-ran a 1000-doc Mongo query + the full reduce below
+      // on every single call, for every user. Cache the aggregate globally
+      // for a few minutes; personalization still runs fresh every time.
+      const TRENDING_AGGREGATE_CACHE_KEY = "trending-localities:aggregate:v1";
+      const TRENDING_AGGREGATE_TTL_SECONDS = 5 * 60;
 
-      logger.info(`📊 [TRENDING LOCALITIES] Analyzing ${properties.length} published properties for locality data`);
-
-      // Extract granular localities (neighborhoods, areas)
-      const localityData = {};
-      const now = new Date();
-      const RECENT_DAYS = 7;
-
-      properties.forEach((property) => {
-        // Use locality field if available, otherwise extract from location
-        const locality = property.locality || this.extractLocality(property.location, property.city) || property.city;
-        
-        if (!localityData[locality]) {
-          localityData[locality] = {
-            count: 0,
-            recentCount: 0,
-            totalPrice: 0,
-            priceCount: 0,
-            propertyTypes: new Set(),
-            amenities: new Set(),
-            totalEngagement: 0,
-            city: property.city,
-          };
+      let localityData = null;
+      try {
+        const cached = await redisClient.get(TRENDING_AGGREGATE_CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          // Sets don't survive JSON — rehydrate propertyTypes/amenities.
+          localityData = Object.fromEntries(
+            Object.entries(parsed).map(([locality, data]) => [
+              locality,
+              { ...data, propertyTypes: new Set(data.propertyTypes), amenities: new Set(data.amenities) },
+            ])
+          );
+          logger.info(`📊 [TRENDING LOCALITIES] Using cached aggregate (${Object.keys(localityData).length} localities)`);
         }
+      } catch { /* redis optional — fall through to a fresh computation */ }
 
-        localityData[locality].count++;
-        
-        const daysSincePost = (now - new Date(property.createdAt)) / (1000 * 60 * 60 * 24);
-        if (daysSincePost <= RECENT_DAYS) {
-          localityData[locality].recentCount++;
-        }
+      if (!localityData) {
+        // Get all published properties with locality data
+        const properties = await PropertyPost.find({ ...LIVE_POST_MATCH })
+          .select("city locality location price propertyType createdAt postMeta")
+          .limit(1000)
+          .lean();
 
-        if (property.price) {
-          localityData[locality].totalPrice += property.price;
-          localityData[locality].priceCount++;
-        }
+        logger.info(`📊 [TRENDING LOCALITIES] Analyzing ${properties.length} published properties for locality data`);
 
-        if (property.propertyType) {
-          localityData[locality].propertyTypes.add(property.propertyType);
-        }
+        // Extract granular localities (neighborhoods, areas)
+        localityData = {};
+        const now = new Date();
+        const RECENT_DAYS = 7;
 
-        if (property.postMeta?.amenities) {
-          property.postMeta.amenities.forEach(amenity => {
-            localityData[locality].amenities.add(amenity.toLowerCase());
-          });
-        }
+        properties.forEach((property) => {
+          // Use locality field if available, otherwise extract from location
+          const locality = property.locality || this.extractLocality(property.location, property.city) || property.city;
 
-        localityData[locality].totalEngagement += (property.engagementScore || 0) + (property.viewCount || 0) + (property.commentCount || 0);
-      });
+          if (!localityData[locality]) {
+            localityData[locality] = {
+              count: 0,
+              recentCount: 0,
+              totalPrice: 0,
+              priceCount: 0,
+              propertyTypes: new Set(),
+              amenities: new Set(),
+              totalEngagement: 0,
+              city: property.city,
+            };
+          }
 
-      logger.info(`🗺️ [TRENDING LOCALITIES] Found ${Object.keys(localityData).length} unique localities`);
+          localityData[locality].count++;
+
+          const daysSincePost = (now - new Date(property.createdAt)) / (1000 * 60 * 60 * 24);
+          if (daysSincePost <= RECENT_DAYS) {
+            localityData[locality].recentCount++;
+          }
+
+          if (property.price) {
+            localityData[locality].totalPrice += property.price;
+            localityData[locality].priceCount++;
+          }
+
+          if (property.propertyType) {
+            localityData[locality].propertyTypes.add(property.propertyType);
+          }
+
+          if (property.postMeta?.amenities) {
+            property.postMeta.amenities.forEach(amenity => {
+              localityData[locality].amenities.add(amenity.toLowerCase());
+            });
+          }
+
+          localityData[locality].totalEngagement += (property.engagementScore || 0) + (property.viewCount || 0) + (property.commentCount || 0);
+        });
+
+        logger.info(`🗺️ [TRENDING LOCALITIES] Found ${Object.keys(localityData).length} unique localities`);
+
+        try {
+          const serializable = Object.fromEntries(
+            Object.entries(localityData).map(([locality, data]) => [
+              locality,
+              { ...data, propertyTypes: [...data.propertyTypes], amenities: [...data.amenities] },
+            ])
+          );
+          await redisClient.setEx(TRENDING_AGGREGATE_CACHE_KEY, TRENDING_AGGREGATE_TTL_SECONDS, JSON.stringify(serializable));
+        } catch { /* redis optional */ }
+      }
 
       // Calculate trending score for localities
       const trendingLocalities = Object.entries(localityData).map(([locality, data]) => {
