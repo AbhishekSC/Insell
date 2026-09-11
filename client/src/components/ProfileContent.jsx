@@ -128,7 +128,7 @@ export default function ProfileContent() {
 
   return (
     <div className="grid gap-3 sm:gap-5 lg:grid-cols-3 pb-6">
-      <section className="space-y-3 sm:space-y-5 lg:col-span-2">
+      <section className="min-w-0 space-y-3 sm:space-y-5 lg:col-span-2">
         <div className="rounded-3xl border border-base-300 bg-base-100 p-4 sm:p-5 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="grid size-9 sm:size-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary via-secondary to-info ring-1 ring-primary/20">
@@ -393,7 +393,7 @@ export default function ProfileContent() {
         </button>
       </section>
 
-      <aside className="rounded-3xl border border-base-300 bg-base-100 p-4 sm:p-5 shadow-sm">
+      <aside className="min-w-0 rounded-3xl border border-base-300 bg-base-100 p-4 sm:p-5 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-wide text-base-content/60">Live preview</p>
 
         <div className="mt-4 rounded-3xl border border-base-300/80 bg-gradient-to-br from-base-300 to-base-300 p-5">
