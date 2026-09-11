@@ -146,4 +146,39 @@ router.get("/trending-localities", verifyUser, requireVerified, async (req, res)
   }
 });
 
+/**
+ * GET /personalization/trending-near-you
+ * Real properties trending close to the user right now — proximity +
+ * engagement velocity first, personalization + freshness as tie-breakers.
+ * ?lat & ?lon (optional) — a fresh GPS fix from the browser for *this*
+ * request takes priority over the user's saved location; both optional,
+ * falls back to their saved location / city.
+ */
+router.get("/trending-near-you", verifyUser, requireVerified, async (req, res) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return sendErrorResponse(res, 401, "User not authenticated");
+    }
+    const userId = req.user._id;
+    const limit = Math.min(20, Math.max(1, parseInt(req.query.limit) || 10));
+    const lat = Number(req.query.lat);
+    const lon = Number(req.query.lon);
+
+    const result = await PersonalizationService.getTrendingNearYou(userId, {
+      lat: Number.isFinite(lat) ? lat : undefined,
+      lon: Number.isFinite(lon) ? lon : undefined,
+      limit,
+    });
+
+    return sendSuccessResponse(res, 200, "Trending near you fetched successfully", {
+      properties: result.properties,
+      count: result.properties.length,
+      source: result.source,
+    });
+  } catch (error) {
+    console.error("Error in trending-near-you endpoint:", error);
+    return sendErrorResponse(res, 500, "Failed to get trending properties near you");
+  }
+});
+
 export default router;

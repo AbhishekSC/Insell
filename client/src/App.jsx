@@ -38,6 +38,7 @@ const PublicPropertyDetailPage = lazy(() => import("./pages/PublicPropertyDetail
 const NewsPage = lazy(() => import("./pages/NewsPage"));
 const TrendingLocalitiesPage = lazy(() => import("./pages/TrendingLocalitiesPage"));
 const RecommendedForYouPage = lazy(() => import("./pages/RecommendedForYouPage"));
+const TrendingNearYouPage = lazy(() => import("./pages/TrendingNearYouPage"));
 const MyDealsPage = lazy(() => import("./pages/MyDealsPage"));
 const SavedSearchesPage = lazy(() => import("./pages/SavedSearchesPage"));
 const DiscoverCommunitiesPage = lazy(() => import("./pages/DiscoverCommunitiesPage"));
@@ -261,6 +262,10 @@ function App() {
           <Route
             path="/trending-localities"
             element={guard(<TrendingLocalitiesPage />)}
+          />
+          <Route
+            path="/trending-near-you"
+            element={guard(<TrendingNearYouPage />)}
           />
           <Route
             path="/recommended"
