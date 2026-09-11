@@ -2,7 +2,7 @@ import { Component, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Channel, Chat, MessageComposer, MessageList, Thread, Window } from "stream-chat-react";
-import { Crown, FolderOpen, MessageSquare, Paperclip, Send, ShieldCheck, Users, Video, X } from "lucide-react";
+import { Crown, FolderOpen, MessageSquare, Paperclip, Send, BadgeCheck, Users, Video, X } from "lucide-react";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import axiosInstance from "../lib/axios";
@@ -497,7 +497,7 @@ export default function CommunityDetailPage() {
                       <p className="flex items-center gap-1 truncate text-sm font-semibold">
                         <span className="truncate">{member.fullName}</span>
                         {member?.isOwnerVerified && (
-                          <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                          <BadgeCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
                         )}
                       </p>
                       <p className="truncate text-xs text-base-content/60">{member.travelStyle || member.homeBase || member.learningLanguage || member.email || "Community member"}</p>
@@ -749,7 +749,7 @@ export default function CommunityDetailPage() {
                         <p className="flex items-center gap-1 text-sm font-semibold">
                           <span>{resource.author?.fullName || "Member"}</span>
                           {resource.author?.isOwnerVerified && (
-                            <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                            <BadgeCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
                           )}
                         </p>
                         <p className="mt-1 text-xs text-base-content/60">{formatDateTime(resource.createdAt)}</p>

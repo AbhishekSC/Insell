@@ -1,4 +1,4 @@
-import { MapPin, Bed, Bath, Square, IndianRupee, User, Trophy, ShieldCheck } from "lucide-react";
+import { MapPin, Bed, Bath, Square, IndianRupee, User, Trophy, BadgeCheck } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -119,7 +119,7 @@ export default function PropertyComparisonCard({ property, formatPrice, isBest =
               >
                 <span className="truncate">{property.author.fullName}</span>
                 {property.author?.isOwnerVerified && (
-                  <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                  <BadgeCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
                 )}
               </p>
             </div>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { MapPin, Lock, Loader2, ShieldCheck } from "lucide-react";
+import { MapPin, Lock, Loader2, BadgeCheck } from "lucide-react";
 import axiosInstance from "../lib/axios";
 import LoginPromptModal from "../components/LoginPromptModal";
 import logoDesktop from "../assets/brand/logo-desktop.png";
@@ -86,7 +86,7 @@ export default function PublicUserProfilePage() {
             </div>
             {p.isOwnerVerified && (
               <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
-                <ShieldCheck className="size-3.5" />
+                <BadgeCheck className="size-3.5" />
                 Verified Owner
               </span>
             )}

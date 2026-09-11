@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useCallStateHooks } from "@stream-io/video-react-sdk";
 import { useQuery } from "@tanstack/react-query";
-import { Check, Loader2, Search, ShieldCheck, UserPlus, X } from "lucide-react";
+import { Check, Loader2, Search, BadgeCheck, UserPlus, X } from "lucide-react";
 import toast from "react-hot-toast";
 import UserAvatar from "./UserAvatar";
 import axiosInstance from "../lib/axios";
@@ -156,7 +156,7 @@ export default function AddPeopleModal({ isOpen, onClose }) {
                         <span className="flex items-center gap-1 truncate text-sm font-semibold text-base-content">
                           <span className="truncate">{friend.fullName}</span>
                           {friend?.isOwnerVerified && (
-                            <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                            <BadgeCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
                           )}
                         </span>
                         {isJoined ? (

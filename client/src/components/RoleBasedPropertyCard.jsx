@@ -1,4 +1,4 @@
-import { Heart, Bookmark, Eye, MessageCircle, Share2, MapPin, IndianRupee, Calendar, BadgeCheck, TrendingUp, Home, Users, Building2, Star, Send, Phone, User, ShieldCheck } from "lucide-react";
+import { Heart, Bookmark, Eye, MessageCircle, Share2, MapPin, IndianRupee, Calendar, BadgeCheck, TrendingUp, Home, Users, Building2, Star, Send, Phone, User } from "lucide-react";
 
 const ROLE_CARD_CONFIGS = {
   Tenant: {
@@ -242,7 +242,7 @@ export default function RoleBasedPropertyCard({ post, userRole, onLike, onSave, 
           <span className="flex items-center gap-1 text-xs font-medium text-base-content">
             <span>{post.author?.fullName || post.author?.name || "Unknown"}</span>
             {post.author?.isOwnerVerified && (
-              <ShieldCheck className="size-3 shrink-0 text-primary" aria-label="Verified Owner" />
+              <BadgeCheck className="size-3 shrink-0 text-primary" aria-label="Verified Owner" />
             )}
           </span>
         </div>

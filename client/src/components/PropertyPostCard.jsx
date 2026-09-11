@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Heart, MessageCircle, Bookmark, Send, Volume2, VolumeX, Building2, Maximize2, Phone, ShieldCheck } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, Send, Volume2, VolumeX, Building2, Maximize2, Phone, BadgeCheck } from "lucide-react";
 import PostAuthorLink from "./PostAuthorLink";
 import { useStoryOverlay } from "../context/StoryOverlayContext";
 import { lqipUrl, cardImageUrl } from "../lib/cloudinaryImage";
@@ -286,7 +286,7 @@ export default function PropertyPostCard({
             <span className="truncate">
               Liked by <span className="font-semibold text-base-content">{post.socialProof.fullName}</span>
               {post.socialProof.isOwnerVerified && (
-                <ShieldCheck className="inline size-3 shrink-0 align-text-bottom text-primary" aria-label="Verified Owner" />
+                <BadgeCheck className="inline size-3 shrink-0 align-text-bottom text-primary" aria-label="Verified Owner" />
               )}
               {post.socialProof.othersCount > 0 && (
                 <> and <span className="font-semibold text-base-content hover:underline">{post.socialProof.othersCount.toLocaleString("en-IN")} others</span></>

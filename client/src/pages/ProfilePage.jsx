@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Camera, ClipboardCheck, Link2, MapPin, Phone, ShieldCheck, Sparkles, UploadCloud, UserCircle } from "lucide-react";
+import { Camera, ClipboardCheck, Link2, MapPin, Phone, BadgeCheck, Sparkles, UploadCloud, UserCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import OwnerVerificationCard from "../components/OwnerVerificationCard";
@@ -326,7 +326,7 @@ export default function ProfilePage() {
               <p className="flex items-center justify-center gap-1 text-lg font-bold">
                 {form.fullName || "Your Name"}
                 {authUser?.isOwnerVerified && (
-                  <ShieldCheck className="size-4 shrink-0 text-primary" aria-label="Verified Owner" />
+                  <BadgeCheck className="size-4 shrink-0 text-primary" aria-label="Verified Owner" />
                 )}
               </p>
               <p className="max-w-xs text-sm text-base-content/70">{form.bio || "Your bio will appear here."}</p>

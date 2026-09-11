@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Camera, Link2, MapPin, Phone, ShieldCheck, Sparkles, UploadCloud, UserCircle } from "lucide-react";
+import { Camera, Link2, MapPin, Phone, BadgeCheck, Sparkles, UploadCloud, UserCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import LocationPicker from "./LocationPicker";
@@ -400,7 +400,7 @@ export default function ProfileContent() {
             <p className="flex items-center gap-1 text-base sm:text-lg font-bold text-base-content">
               {form.fullName || "Your Name"}
               {authUser?.isOwnerVerified && (
-                <ShieldCheck className="size-4 shrink-0 text-primary" aria-label="Verified Owner" />
+                <BadgeCheck className="size-4 shrink-0 text-primary" aria-label="Verified Owner" />
               )}
             </p>
             <p className="max-w-xs text-xs sm:text-sm text-base-content/70">{form.bio || "Your bio will appear here."}</p>

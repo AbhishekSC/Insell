@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
-import { Bell, X, Check, XCircle, User, Building2, IndianRupee, MapPin, MessageCircle, Calendar, Trash2, Heart, Bookmark, TrendingUp, Star, ShieldCheck } from "lucide-react";
+import { Bell, X, Check, XCircle, User, Building2, IndianRupee, MapPin, MessageCircle, Calendar, Trash2, Heart, Bookmark, TrendingUp, Star, BadgeCheck } from "lucide-react";
 import { toast } from "react-hot-toast";
 import ReviewModal from "./ReviewModal";
 
@@ -32,7 +32,7 @@ function NotificationMessage({ notification, onNavigate }) {
         {actor.fullName}
       </Link>
       {actor?.isOwnerVerified && (
-        <ShieldCheck className="inline size-3.5 shrink-0 align-text-bottom text-primary" aria-label="Verified Owner" />
+        <BadgeCheck className="inline size-3.5 shrink-0 align-text-bottom text-primary" aria-label="Verified Owner" />
       )}
       {after}
     </>

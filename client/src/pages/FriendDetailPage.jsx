@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, MapPin, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Loader2, MapPin, BadgeCheck } from "lucide-react";
 import { Link, useParams } from "react-router";
 import AppShell from "../components/AppShell";
 import UserAvatar from "../components/UserAvatar";
@@ -84,7 +84,7 @@ export default function FriendDetailPage() {
                 <h2 className="flex items-center gap-1.5 truncate text-2xl font-black tracking-tight text-base-content sm:text-3xl">
                   <span className="truncate">{selectedFriend?.fullName || "Unknown"}</span>
                   {selectedFriend?.isOwnerVerified && (
-                    <ShieldCheck className="size-5 shrink-0 text-primary" aria-label="Verified Owner" />
+                    <BadgeCheck className="size-5 shrink-0 text-primary" aria-label="Verified Owner" />
                   )}
                 </h2>
                 <p className="mt-1 inline-flex items-center gap-1 text-sm text-base-content/70">
