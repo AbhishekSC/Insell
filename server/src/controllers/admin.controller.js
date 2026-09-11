@@ -31,7 +31,7 @@ const ADMIN_POST_FIELDS =
   "title price city listingType propertyType mediaUrls author status isDeleted isBlocked blockedAt blockedBy blockReasonCode blockNote createdAt";
 
 const ADMIN_USER_FIELDS =
-  "fullName email mobileNumber city location primaryRole activeRole isVerified isAdmin isBlocked blockedAt createdAt profilePic";
+  "fullName email mobileNumber city location primaryRole activeRole isVerified isOwnerVerified isAdmin isBlocked blockedAt createdAt profilePic ratingAvg ratingCount friends";
 
 // List platform users for the admin dashboard — search, filter, paginate,
 // newest accounts first.

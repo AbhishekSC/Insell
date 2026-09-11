@@ -27,6 +27,7 @@ import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import UserAvatar from "../components/UserAvatar";
 import axiosInstance from "../lib/axios";
+import { downloadVerificationReportPDF } from "../lib/pdfReportService";
 
 const ROLE_OPTIONS = ["Buyer", "Seller", "Tenant", "Landlord", "Broker", "Builder"];
 
@@ -1910,48 +1911,6 @@ function toDownloadUrl(url) {
   return url.replace("/upload/", "/upload/fl_attachment/");
 }
 
-// A plain-text audit summary of one verification request — everything an
-// admin might need to reference later without having to re-open the app:
-// who the applicant is, what they submitted, and how it was reviewed.
-function verificationReportText(r) {
-  const lines = [
-    "NearMySpace — Owner Verification Report",
-    "========================================",
-    "",
-    `Generated: ${new Date().toLocaleString()}`,
-    "",
-    "Applicant",
-    `  Name: ${r.user?.fullName || "Unknown"}`,
-    `  Email: ${r.user?.email || "—"}`,
-    `  City: ${r.user?.city || "—"}`,
-    `  Currently a Verified Owner: ${r.user?.isOwnerVerified ? "Yes" : "No"}`,
-    "",
-    "Submission",
-    `  Document type: ${r.docType.replace(/_/g, " ")}`,
-    `  Submitted: ${new Date(r.createdAt).toLocaleString()}`,
-    r.note ? `  Applicant note: "${r.note}"` : null,
-    "",
-    "Review",
-    `  Status: ${r.status}`,
-    r.reviewedBy?.fullName ? `  Reviewed by: ${r.reviewedBy.fullName}` : null,
-    r.reviewedAt ? `  Reviewed at: ${new Date(r.reviewedAt).toLocaleString()}` : null,
-    r.reviewNote ? `  Review note: "${r.reviewNote}"` : null,
-  ];
-  return lines.filter((line) => line !== null).join("\n");
-}
-
-function downloadTextFile(filename, text) {
-  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
 function VerificationPanel() {
   const queryClient = useQueryClient();
   const [statusTab, setStatusTab] = useState("PENDING");
@@ -2143,6 +2102,7 @@ const REPORT_TABS = [
 function VerificationReportModal({ request, onClose }) {
   const [tab, setTab] = useState("overview");
   const [zoomed, setZoomed] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["adminUserLookup", request.user?.email],
@@ -2227,6 +2187,28 @@ function VerificationReportModal({ request, onClose }) {
                   {profileLoading ? "Loading…" : profile?.isBlocked ? "Blocked" : "Active"}
                 </dd>
               </div>
+              {profile?.isAdmin && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-base-content/60">Platform role</dt>
+                  <dd className="font-semibold text-primary">Admin</dd>
+                </div>
+              )}
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">Rating</dt>
+                <dd className="font-medium text-base-content">
+                  {profileLoading
+                    ? "Loading…"
+                    : profile?.ratingCount > 0
+                      ? `${(profile.ratingAvg || 0).toFixed(1)} ★ (${profile.ratingCount})`
+                      : "No ratings yet"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">Connections</dt>
+                <dd className="font-medium text-base-content">
+                  {profileLoading ? "Loading…" : Array.isArray(profile?.friends) ? profile.friends.length : "—"}
+                </dd>
+              </div>
               <div className="flex justify-between gap-3">
                 <dt className="text-base-content/60">Member since</dt>
                 <dd className="font-medium text-base-content">
@@ -2309,14 +2291,20 @@ function VerificationReportModal({ request, onClose }) {
           <button
             type="button"
             className="btn btn-sm border-none bg-primary text-white hover:bg-primary"
-            onClick={() =>
-              downloadTextFile(
-                `verification-report-${(request.user?.fullName || request.id).replace(/\s+/g, "-")}.txt`,
-                verificationReportText(request)
-              )
-            }
+            disabled={generatingPdf}
+            onClick={async () => {
+              setGeneratingPdf(true);
+              try {
+                await downloadVerificationReportPDF(request, profile);
+              } catch {
+                toast.error("Couldn't generate the PDF — try again");
+              } finally {
+                setGeneratingPdf(false);
+              }
+            }}
           >
-            <Download className="size-4" /> Download report
+            {generatingPdf ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+            {generatingPdf ? "Generating…" : "Download report"}
           </button>
         </div>
       </div>
