@@ -198,10 +198,10 @@ describe("reminder email content", () => {
     expect(url).toContain("joinCall=1");
   });
 
-  it("lists member names, truncating past 6 with an 'and N more' tail", () => {
+  it("lists member names dot-separated, truncating past 6 with an 'and N more' tail", () => {
     const names = Array.from({ length: 8 }, (_, i) => ({ _id: String(i), fullName: `Person ${i}` }));
     const label = memberNamesLabel(names, null);
-    expect(label).toContain("Person 0");
+    expect(label).toContain("Person 0 · Person 1");
     expect(label).toContain("and 2 more");
   });
 
@@ -210,26 +210,45 @@ describe("reminder email content", () => {
     expect(memberNamesLabel(names, "a")).toBe("Bob");
   });
 
-  it("embeds the topic, time, members, and a working join link in the email HTML", () => {
+  it("falls back to a community-named title when no topic was given", () => {
+    const html = buildReminderEmailHtml({
+      title: "",
+      circleName: "Buyers Circle",
+      dateLabel: "11 September 2026",
+      timeLabel: "7:40 PM",
+      membersLabel: "Alice · Bob",
+      joinLink: "https://example.com/join",
+    });
+    expect(html).toContain("Buyers Circle");
+  });
+
+  it("embeds the topic, date, time, members, and a working join link — no raw URL or emoji shown as text", () => {
     const html = buildReminderEmailHtml({
       title: "Weekly sync",
       circleName: "Buyers Circle",
-      whenLabel: "12 Sep, 7:00 pm",
-      membersLabel: "Alice, Bob",
+      dateLabel: "11 September 2026",
+      timeLabel: "7:40 PM",
+      membersLabel: "Alice · Bob",
       joinLink: "https://example.com/join",
     });
     expect(html).toContain("Weekly sync");
-    expect(html).toContain("Buyers Circle");
-    expect(html).toContain("12 Sep, 7:00 pm");
-    expect(html).toContain("Alice, Bob");
+    expect(html).toContain("11 September 2026");
+    expect(html).toContain("7:40 PM");
+    expect(html).toContain("Alice · Bob");
     expect(html).toContain('href="https://example.com/join"');
+    expect(html).toContain("Join Call");
+    // The bug this guards against: a raw tracking-looking URL printed as
+    // visible text, and an emoji-heavy subject/headline.
+    expect(html).not.toMatch(/>https:\/\/example\.com\/join</);
+    expect(html).not.toContain("📞");
   });
 
   it("escapes HTML in user-supplied fields to avoid injection", () => {
     const html = buildReminderEmailHtml({
       title: "<script>alert(1)</script>",
       circleName: "Circle",
-      whenLabel: "now",
+      dateLabel: "now",
+      timeLabel: "now",
       membersLabel: "x",
       joinLink: "https://example.com",
     });

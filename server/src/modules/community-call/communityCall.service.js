@@ -62,50 +62,67 @@ export function minutesUntilLabel(msRemaining) {
 
 // A short, readable "who's invited" line for the reminder email — names,
 // not a bare member count, per the ask for "more details ... members name".
+// Dot-separated (Slack/Calendly convention), not a comma list.
 export function memberNamesLabel(names, excludeUserId) {
   const list = names
     .filter((n) => String(n._id) !== String(excludeUserId))
     .map((n) => n.fullName || "Member");
   if (list.length === 0) return "Just you";
   const MAX_SHOWN = 6;
-  if (list.length <= MAX_SHOWN) return list.join(", ");
-  return `${list.slice(0, MAX_SHOWN).join(", ")} and ${list.length - MAX_SHOWN} more`;
+  if (list.length <= MAX_SHOWN) return list.join(" · ");
+  return `${list.slice(0, MAX_SHOWN).join(" · ")} and ${list.length - MAX_SHOWN} more`;
 }
 
-export function buildReminderEmailHtml({ title, circleName, whenLabel, membersLabel, joinLink, minutesLabel }) {
-  const topic = escapeHtml(title || "Community call");
+// Date and time as two separate lines — "11 September 2026" / "7:40 PM" —
+// the way a calendar invite reads, rather than one run-together sentence.
+export function formatCallDateParts(date) {
+  const d = new Date(date);
+  const dateLabel = d.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
+  const timeLabel = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).replace(/am|pm/i, (m) => m.toUpperCase());
+  return { dateLabel, timeLabel };
+}
+
+// A calm, calendar-invite-style email (Calendly/Zoom/Slack, not a system
+// log line): the wordmark, one clear headline, the event details, a single
+// CTA. No emoji, no raw tracking-looking URL, no comma-dumped member list.
+export function buildReminderEmailHtml({ title, circleName, dateLabel, timeLabel, membersLabel, joinLink }) {
+  const topic = escapeHtml(title || `Community call in ${circleName}`);
+  const year = new Date().getFullYear();
   return `
-  <div style="font-family:-apple-system,'Segoe UI',Roboto,sans-serif;max-width:480px;margin:0 auto;background:#f8fafc;">
-    <div style="background:${BRAND_PRIMARY};padding:20px 24px;border-radius:12px 12px 0 0;">
-      <p style="margin:0;color:#e0eafd;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;">NearMySpace</p>
-      <p style="margin:8px 0 0;color:#ffffff;font-size:20px;font-weight:700;">📞 Call starting in ${escapeHtml(minutesLabel)}</p>
-    </div>
-    <div style="background:#ffffff;border:1px solid #dbe4ff;border-top:none;border-radius:0 0 12px 12px;padding:24px;">
-      <p style="margin:0 0 18px;font-size:15px;line-height:1.5;color:#1f2937;">
-        <strong>${topic}</strong> in <strong>${escapeHtml(circleName)}</strong> starts in <strong>${escapeHtml(minutesLabel)}</strong>.
-      </p>
-      <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px;">
+  <div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;background:#ffffff;color:#1f2937;">
+    <div style="padding:32px 32px 0;">
+      <p style="margin:0 0 24px;font-size:15px;font-weight:700;color:${BRAND_PRIMARY};letter-spacing:0.01em;">NearMySpace</p>
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:0 0 28px;" />
+      <p style="margin:0 0 20px;font-size:22px;font-weight:700;color:#111827;">You're invited to join a call</p>
+      <p style="margin:0 0 22px;font-size:18px;font-weight:600;color:#111827;">${topic}</p>
+
+      <table role="presentation" style="width:100%;border-collapse:collapse;margin-bottom:22px;">
         <tr>
-          <td style="padding:7px 0;color:#6b7280;border-top:1px solid #eef2ff;">Topic</td>
-          <td style="padding:7px 0;text-align:right;font-weight:600;color:#1f2937;border-top:1px solid #eef2ff;">${topic}</td>
+          <td style="padding:0 0 4px;font-size:16px;font-weight:600;color:#111827;">${escapeHtml(dateLabel)}</td>
         </tr>
         <tr>
-          <td style="padding:7px 0;color:#6b7280;border-top:1px solid #eef2ff;">When</td>
-          <td style="padding:7px 0;text-align:right;font-weight:600;color:#1f2937;border-top:1px solid #eef2ff;">${escapeHtml(whenLabel)}</td>
-        </tr>
-        <tr>
-          <td style="padding:7px 0;color:#6b7280;border-top:1px solid #eef2ff;vertical-align:top;">Members</td>
-          <td style="padding:7px 0;text-align:right;font-weight:600;color:#1f2937;border-top:1px solid #eef2ff;">${escapeHtml(membersLabel)}</td>
+          <td style="padding:0;font-size:15px;color:#6b7280;">${escapeHtml(timeLabel)}</td>
         </tr>
       </table>
-      <div style="text-align:center;margin-top:26px;">
-        <a href="${joinLink}" style="display:inline-block;background:${BRAND_PRIMARY};color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 32px;border-radius:8px;">
-          Join the call →
+
+      <p style="margin:0 0 6px;font-size:12px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#9ca3af;">Participants</p>
+      <p style="margin:0 0 30px;font-size:14px;color:#374151;line-height:1.6;">${escapeHtml(membersLabel)}</p>
+
+      <div style="text-align:center;margin-bottom:30px;">
+        <a href="${joinLink}" style="display:inline-block;background:${BRAND_PRIMARY};color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 40px;border-radius:8px;">
+          Join Call
         </a>
       </div>
-      <p style="margin-top:18px;font-size:12px;color:#9ca3af;text-align:center;word-break:break-all;">
-        Button not working? <a href="${joinLink}" style="color:${BRAND_PRIMARY};">${joinLink}</a>
+
+      <p style="margin:0 0 4px;font-size:14px;color:#374151;">We look forward to seeing you there.</p>
+      <p style="margin:0 0 28px;font-size:14px;color:#374151;">— The NearMySpace Team</p>
+
+      <p style="margin:0 0 28px;font-size:12px;color:#9ca3af;">
+        Having trouble joining? <a href="${joinLink}" style="color:${BRAND_PRIMARY};text-decoration:underline;">Open the meeting from your NearMySpace account</a>.
       </p>
+    </div>
+    <div style="padding:16px 32px;border-top:1px solid #e5e7eb;">
+      <p style="margin:0;font-size:11px;color:#9ca3af;">© ${year} NearMySpace</p>
     </div>
   </div>`;
 }
@@ -217,29 +234,31 @@ export async function markCallStarted(userId, circleId, callId) {
 
 async function sendReminderFor(call, circle) {
   const label = call.title ? `"${call.title}"` : "Your community call";
-  const whenLabel = new Date(call.scheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+  const { dateLabel, timeLabel } = formatCallDateParts(call.scheduledAt);
   const memberNames = await findMemberNames(circle.members || []).catch(() => []);
   const joinLink = callUrl(circle._id, call._id);
   // The cron only guarantees "due within the next 10 minutes" — it can
   // genuinely fire anywhere from ~10 minutes out down to a minute or two,
-  // so the copy has to reflect the *actual* remaining time, not a fixed
-  // "10 minutes" (that was the bug: every reminder said 10 minutes flat,
-  // even one that fired 2 minutes before a call scheduled with short notice).
+  // so the push/in-app copy has to reflect the *actual* remaining time, not
+  // a fixed "10 minutes" (that was the bug: every reminder said 10 minutes
+  // flat, even one that fired 2 minutes before a call scheduled with short
+  // notice). The email itself reads as a calendar invite and doesn't lean
+  // on a countdown at all — see buildReminderEmailHtml.
   const minutesLabel = minutesUntilLabel(new Date(call.scheduledAt).getTime() - Date.now());
 
   const notified = await notifyMembers(circle, null, {
     type: "circle_call_reminder",
-    title: "📞 Call starting soon",
+    title: "Call starting soon",
     message: `${label} in ${circle.name} starts in ${minutesLabel}`,
     pushBody: `${label} starts in ${minutesLabel} — tap to join`,
-    emailSubject: `📞 ${call.title || "Your call"} starts in ${minutesLabel}`,
+    emailSubject: "You're invited to join a call | NearMySpace",
     emailHtml: buildReminderEmailHtml({
       title: call.title,
       circleName: circle.name,
-      whenLabel,
+      dateLabel,
+      timeLabel,
       membersLabel: memberNamesLabel(memberNames, null),
       joinLink,
-      minutesLabel,
     }),
     channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE, NotificationChannel.EMAIL],
   });
