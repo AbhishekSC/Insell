@@ -87,6 +87,28 @@ export default function CommunityChat({ community, onBack }) {
     retry: false,
   });
 
+  const startOrJoinCommunityCall = async () => {
+    if (!circle?._id) return;
+    try {
+      await startGroupVideoCall({
+        roomId: communityCallRoomId,
+        memberIds,
+        label: circle.name,
+      });
+      if (!isCommunityCallActive) {
+        axiosInstance.post(`/community/circles/${circle._id}/call-started`).catch(() => {});
+      }
+      toast.success(isCommunityCallActive ? "Joined community call" : "Community call started");
+      navigate("/call/live");
+    } catch (error) {
+      toast.error(error?.message || "Unable to start community call right now");
+    }
+  };
+  const isCreator = Boolean(authUser?._id) && String(circle?.creator?._id || circle?.creator) === String(authUser._id);
+  const isModerator = Boolean(authUser?._id) && (circle?.moderators || []).some((m) => String(m?._id || m) === String(authUser._id));
+  const isMember = memberIds.includes(String(authUser?._id));
+  const canReview = isCreator || isModerator;
+
   // Scheduling + reminders sit on top of the instant-call feature above —
   // joining a scheduled call reuses the exact same Stream room, there's no
   // separate calling infrastructure here.
@@ -131,28 +153,6 @@ export default function CommunityChat({ community, onBack }) {
     await startOrJoinCommunityCall();
     axiosInstance.post(`/community-calls/${circle._id}/${call.id}/started`).catch(() => {});
   };
-
-  const startOrJoinCommunityCall = async () => {
-    if (!circle?._id) return;
-    try {
-      await startGroupVideoCall({
-        roomId: communityCallRoomId,
-        memberIds,
-        label: circle.name,
-      });
-      if (!isCommunityCallActive) {
-        axiosInstance.post(`/community/circles/${circle._id}/call-started`).catch(() => {});
-      }
-      toast.success(isCommunityCallActive ? "Joined community call" : "Community call started");
-      navigate("/call/live");
-    } catch (error) {
-      toast.error(error?.message || "Unable to start community call right now");
-    }
-  };
-  const isCreator = Boolean(authUser?._id) && String(circle?.creator?._id || circle?.creator) === String(authUser._id);
-  const isModerator = Boolean(authUser?._id) && (circle?.moderators || []).some((m) => String(m?._id || m) === String(authUser._id));
-  const isMember = memberIds.includes(String(authUser?._id));
-  const canReview = isCreator || isModerator;
   const memberAddRequests = useMemo(() => circle?.memberAddRequests || [], [circle?.memberAddRequests]);
 
   // Friends who aren't already a member or already invited — only friends can be added
