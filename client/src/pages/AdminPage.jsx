@@ -5,7 +5,9 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import {
   ChevronLeft,
   ChevronRight,
+  Download,
   Eye,
+  FileText,
   Flag,
   Handshake,
   Image as ImageIcon,
@@ -1899,11 +1901,63 @@ const VERIFICATION_TABS = [
   { value: "REJECTED", label: "Rejected" },
 ];
 
+// Cloudinary serves uploaded docs inline by default (they open in a new tab
+// instead of downloading). Inserting the `fl_attachment` transformation
+// flag right after `/upload/` makes Cloudinary send it as a real download
+// (Content-Disposition: attachment) instead.
+function toDownloadUrl(url) {
+  if (!url || !url.includes("/upload/")) return url;
+  return url.replace("/upload/", "/upload/fl_attachment/");
+}
+
+// A plain-text audit summary of one verification request — everything an
+// admin might need to reference later without having to re-open the app:
+// who the applicant is, what they submitted, and how it was reviewed.
+function verificationReportText(r) {
+  const lines = [
+    "NearMySpace — Owner Verification Report",
+    "========================================",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "Applicant",
+    `  Name: ${r.user?.fullName || "Unknown"}`,
+    `  Email: ${r.user?.email || "—"}`,
+    `  City: ${r.user?.city || "—"}`,
+    `  Currently a Verified Owner: ${r.user?.isOwnerVerified ? "Yes" : "No"}`,
+    "",
+    "Submission",
+    `  Document type: ${r.docType.replace(/_/g, " ")}`,
+    `  Submitted: ${new Date(r.createdAt).toLocaleString()}`,
+    r.note ? `  Applicant note: "${r.note}"` : null,
+    "",
+    "Review",
+    `  Status: ${r.status}`,
+    r.reviewedBy?.fullName ? `  Reviewed by: ${r.reviewedBy.fullName}` : null,
+    r.reviewedAt ? `  Reviewed at: ${new Date(r.reviewedAt).toLocaleString()}` : null,
+    r.reviewNote ? `  Review note: "${r.reviewNote}"` : null,
+  ];
+  return lines.filter((line) => line !== null).join("\n");
+}
+
+function downloadTextFile(filename, text) {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 function VerificationPanel() {
   const queryClient = useQueryClient();
   const [statusTab, setStatusTab] = useState("PENDING");
   const [reviewTarget, setReviewTarget] = useState(null); // { id, approve }
   const [reviewNote, setReviewNote] = useState("");
+  const [reportTarget, setReportTarget] = useState(null); // the full request row
 
   const { data, isLoading } = useQuery({
     queryKey: ["adminOwnerVerificationQueue", statusTab],
@@ -2011,6 +2065,13 @@ function VerificationPanel() {
                 >
                   <ImageIcon className="size-4" /> View document
                 </a>
+                <button
+                  type="button"
+                  className="btn btn-sm border-base-300"
+                  onClick={() => setReportTarget(r)}
+                >
+                  <FileText className="size-4" /> Report
+                </button>
                 {r.status === "PENDING" && (
                   <>
                     <button
@@ -2058,6 +2119,97 @@ function VerificationPanel() {
                 onClick={() => reviewRequest({ id: reviewTarget.id, approve: false, reviewNote })}
               >
                 {isPending ? "Rejecting…" : "Reject"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reportTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setReportTarget(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-base-100 p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-base-content">Verification report</h3>
+              <button type="button" className="btn btn-ghost btn-sm btn-circle" onClick={() => setReportTarget(null)}>
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <div className="mt-3 flex items-center gap-3">
+              <img
+                src={reportTarget.user?.profilePic || "https://placehold.co/40x40?text=U"}
+                alt={reportTarget.user?.fullName || "User"}
+                className="size-11 shrink-0 rounded-full object-cover"
+              />
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-base-content">{reportTarget.user?.fullName || "Unknown"}</p>
+                <p className="truncate text-xs text-base-content/60">{reportTarget.user?.email || "No email"}</p>
+              </div>
+            </div>
+
+            <dl className="mt-4 space-y-2 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">City</dt>
+                <dd className="font-medium text-base-content">{reportTarget.user?.city || "—"}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">Document type</dt>
+                <dd className="font-medium text-base-content">{reportTarget.docType.replace(/_/g, " ")}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">Submitted</dt>
+                <dd className="font-medium text-base-content">{new Date(reportTarget.createdAt).toLocaleString()}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">Status</dt>
+                <dd className="font-medium text-base-content">{reportTarget.status}</dd>
+              </div>
+              {reportTarget.status !== "PENDING" && (
+                <>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-base-content/60">Reviewed by</dt>
+                    <dd className="font-medium text-base-content">{reportTarget.reviewedBy?.fullName || "—"}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-base-content/60">Reviewed at</dt>
+                    <dd className="font-medium text-base-content">
+                      {reportTarget.reviewedAt ? new Date(reportTarget.reviewedAt).toLocaleString() : "—"}
+                    </dd>
+                  </div>
+                </>
+              )}
+              {reportTarget.note && (
+                <div>
+                  <dt className="text-base-content/60">Applicant note</dt>
+                  <dd className="mt-0.5 italic text-base-content">"{reportTarget.note}"</dd>
+                </div>
+              )}
+              {reportTarget.reviewNote && (
+                <div>
+                  <dt className="text-base-content/60">Review note</dt>
+                  <dd className="mt-0.5 italic text-base-content">"{reportTarget.reviewNote}"</dd>
+                </div>
+              )}
+            </dl>
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <a
+                href={toDownloadUrl(reportTarget.docUrl)}
+                className="btn btn-sm border-base-300"
+              >
+                <Download className="size-4" /> Download document
+              </a>
+              <button
+                type="button"
+                className="btn btn-sm border-none bg-primary text-white hover:bg-primary"
+                onClick={() =>
+                  downloadTextFile(
+                    `verification-report-${(reportTarget.user?.fullName || reportTarget.id).replace(/\s+/g, "-")}.txt`,
+                    verificationReportText(reportTarget)
+                  )
+                }
+              >
+                <Download className="size-4" /> Download report
               </button>
             </div>
           </div>
