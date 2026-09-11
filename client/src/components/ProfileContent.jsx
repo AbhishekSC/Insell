@@ -5,6 +5,8 @@ import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import LocationPicker from "./LocationPicker";
 import EmailVerification from "./EmailVerification";
+import OwnerVerificationCard from "./OwnerVerificationCard";
+import ReferralCard from "./ReferralCard";
 
 export default function ProfileContent() {
   const queryClient = useQueryClient();
@@ -377,6 +379,9 @@ export default function ProfileContent() {
             Upload mode and URL mode are mutually exclusive for clarity.
           </p>
         </div>
+
+        <OwnerVerificationCard />
+        <ReferralCard />
 
         <button
           type="button"
