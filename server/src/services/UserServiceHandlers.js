@@ -393,8 +393,12 @@ export async function sendFriendRequest(req, res) {
       `User ID(current user): ${currentUserId} is sending a friend request to User ID(recipient user): ${recipientId}`
     );
 
-    // Prevent users (currentUserId) from sending friend requests to themselves
-    if (currentUserId === recipientId) {
+    // Prevent users (currentUserId) from sending friend requests to themselves.
+    // currentUserId is a Mongoose ObjectId (from req.user._id) and recipientId
+    // is always a plain string (an Express route param) — `===` between an
+    // ObjectId and a string is ALWAYS false regardless of value, so this
+    // guard never actually fired. Stringify both sides to compare by value.
+    if (String(currentUserId) === String(recipientId)) {
       logger.warn(
         `User ID: ${currentUserId} attempted to send a friend request to themselves.`
       );
@@ -411,8 +415,11 @@ export async function sendFriendRequest(req, res) {
       return sendErrorResponse(res, 404, "Recipient user not found");
     }
 
-    // Check if they are already friends
-    if (recipientUser.friends.includes(currentUserId)) {
+    // Check if they are already friends. Same issue as above but with
+    // Array.includes: two ObjectId instances with the same hex value are
+    // never reference-equal, so `.includes(currentUserId)` on an array of
+    // ObjectIds was also always false — compare by string value instead.
+    if (recipientUser.friends.some((friendId) => String(friendId) === String(currentUserId))) {
       logger.warn(
         `User ID: ${currentUserId} and User ID: ${recipientId} are already friends.`
       );
@@ -836,7 +843,7 @@ export async function getUserPublicProfile(req, res) {
 
     const user = await User.findById(targetUserId)
       .select(
-        "fullName bio profilePic city primaryRole activeRole userRoles preferredLocalities propertyTypePreferences listingIntent budgetMin budgetMax createdAt isVerified ratingAvg ratingCount"
+        "fullName bio profilePic city primaryRole activeRole userRoles preferredLocalities propertyTypePreferences listingIntent budgetMin budgetMax createdAt isVerified isOwnerVerified ratingAvg ratingCount"
       )
       .lean();
 

@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import User from "../../models/User.model.js";
 import PropertyPost from "../../models/PropertyPost.model.js";
 
-const PUBLIC_USER_FIELDS = "fullName profilePic bio city isVerified activeRole primaryRole ratingAvg ratingCount friends createdAt";
+const PUBLIC_USER_FIELDS = "fullName profilePic bio city isVerified isOwnerVerified activeRole primaryRole ratingAvg ratingCount friends createdAt";
 
 const SHAREABLE_POST_FILTER = {
   status: "PUBLISHED",
