@@ -5,7 +5,9 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import {
   ChevronLeft,
   ChevronRight,
+  Download,
   Eye,
+  FileText,
   Flag,
   Handshake,
   Image as ImageIcon,
@@ -1899,11 +1901,63 @@ const VERIFICATION_TABS = [
   { value: "REJECTED", label: "Rejected" },
 ];
 
+// Cloudinary serves uploaded docs inline by default (they open in a new tab
+// instead of downloading). Inserting the `fl_attachment` transformation
+// flag right after `/upload/` makes Cloudinary send it as a real download
+// (Content-Disposition: attachment) instead.
+function toDownloadUrl(url) {
+  if (!url || !url.includes("/upload/")) return url;
+  return url.replace("/upload/", "/upload/fl_attachment/");
+}
+
+// A plain-text audit summary of one verification request — everything an
+// admin might need to reference later without having to re-open the app:
+// who the applicant is, what they submitted, and how it was reviewed.
+function verificationReportText(r) {
+  const lines = [
+    "NearMySpace — Owner Verification Report",
+    "========================================",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "Applicant",
+    `  Name: ${r.user?.fullName || "Unknown"}`,
+    `  Email: ${r.user?.email || "—"}`,
+    `  City: ${r.user?.city || "—"}`,
+    `  Currently a Verified Owner: ${r.user?.isOwnerVerified ? "Yes" : "No"}`,
+    "",
+    "Submission",
+    `  Document type: ${r.docType.replace(/_/g, " ")}`,
+    `  Submitted: ${new Date(r.createdAt).toLocaleString()}`,
+    r.note ? `  Applicant note: "${r.note}"` : null,
+    "",
+    "Review",
+    `  Status: ${r.status}`,
+    r.reviewedBy?.fullName ? `  Reviewed by: ${r.reviewedBy.fullName}` : null,
+    r.reviewedAt ? `  Reviewed at: ${new Date(r.reviewedAt).toLocaleString()}` : null,
+    r.reviewNote ? `  Review note: "${r.reviewNote}"` : null,
+  ];
+  return lines.filter((line) => line !== null).join("\n");
+}
+
+function downloadTextFile(filename, text) {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 function VerificationPanel() {
   const queryClient = useQueryClient();
   const [statusTab, setStatusTab] = useState("PENDING");
   const [reviewTarget, setReviewTarget] = useState(null); // { id, approve }
   const [reviewNote, setReviewNote] = useState("");
+  const [reportTarget, setReportTarget] = useState(null); // the full request row
 
   const { data, isLoading } = useQuery({
     queryKey: ["adminOwnerVerificationQueue", statusTab],
@@ -2011,6 +2065,13 @@ function VerificationPanel() {
                 >
                   <ImageIcon className="size-4" /> View document
                 </a>
+                <button
+                  type="button"
+                  className="btn btn-sm border-base-300"
+                  onClick={() => setReportTarget(r)}
+                >
+                  <FileText className="size-4" /> Report
+                </button>
                 {r.status === "PENDING" && (
                   <>
                     <button
@@ -2061,6 +2122,211 @@ function VerificationPanel() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {reportTarget && <VerificationReportModal request={reportTarget} onClose={() => setReportTarget(null)} />}
+    </div>
+  );
+}
+
+const REPORT_TABS = [
+  { value: "overview", label: "Overview" },
+  { value: "document", label: "Document" },
+];
+
+// The interactive drill-down behind the "Report" button: an Overview tab
+// with the applicant's full picture (pulling live profile fields — role,
+// mobile, email-verified/account status, member-since — beyond what the
+// verification-queue row itself carries) and a Document tab that previews
+// the actual submitted file inline, zoomable, instead of just linking out.
+function VerificationReportModal({ request, onClose }) {
+  const [tab, setTab] = useState("overview");
+  const [zoomed, setZoomed] = useState(false);
+
+  const { data: profile, isLoading: profileLoading } = useQuery({
+    queryKey: ["adminUserLookup", request.user?.email],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/admin/users", {
+        params: { search: request.user?.email, limit: 1 },
+      });
+      return response.data?.data?.users?.[0] || null;
+    },
+    enabled: Boolean(request.user?.email),
+    staleTime: 60_000,
+  });
+
+  const isPdf = /\.pdf(\?|$)/i.test(request.docUrl || "");
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-base-100"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-base-300 p-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <img
+              src={request.user?.profilePic || "https://placehold.co/40x40?text=U"}
+              alt={request.user?.fullName || "User"}
+              className="size-10 shrink-0 rounded-full object-cover"
+            />
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-base-content">{request.user?.fullName || "Unknown"}</p>
+              <p className="truncate text-xs text-base-content/60">{request.user?.email || "No email"}</p>
+            </div>
+          </div>
+          <button type="button" className="btn btn-ghost btn-sm btn-circle shrink-0" onClick={onClose}>
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="flex gap-1 border-b border-base-300 px-4 pt-2">
+          {REPORT_TABS.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              onClick={() => setTab(t.value)}
+              className={`rounded-t-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                tab === t.value ? "border-b-2 border-primary text-primary" : "text-base-content/50 hover:text-base-content"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5">
+          {tab === "overview" ? (
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">City</dt>
+                <dd className="font-medium text-base-content">{request.user?.city || "—"}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">Mobile</dt>
+                <dd className="font-medium text-base-content">
+                  {profileLoading ? "Loading…" : profile?.mobileNumber || "—"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">Role</dt>
+                <dd className="font-medium text-base-content">
+                  {profileLoading ? "Loading…" : profile?.activeRole || profile?.primaryRole || "—"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">Email verified</dt>
+                <dd className="font-medium text-base-content">
+                  {profileLoading ? "Loading…" : profile?.isVerified ? "Yes" : "No"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">Account status</dt>
+                <dd className={`font-medium ${profile?.isBlocked ? "text-error" : "text-base-content"}`}>
+                  {profileLoading ? "Loading…" : profile?.isBlocked ? "Blocked" : "Active"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">Member since</dt>
+                <dd className="font-medium text-base-content">
+                  {profileLoading ? "Loading…" : profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : "—"}
+                </dd>
+              </div>
+              <div className="my-1 border-t border-base-200" />
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">Document type</dt>
+                <dd className="font-medium text-base-content">{request.docType.replace(/_/g, " ")}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">Submitted</dt>
+                <dd className="font-medium text-base-content">{new Date(request.createdAt).toLocaleString()}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-base-content/60">Status</dt>
+                <dd className="font-medium text-base-content">{request.status}</dd>
+              </div>
+              {request.status !== "PENDING" && (
+                <>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-base-content/60">Reviewed by</dt>
+                    <dd className="font-medium text-base-content">{request.reviewedBy?.fullName || "—"}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-base-content/60">Reviewed at</dt>
+                    <dd className="font-medium text-base-content">
+                      {request.reviewedAt ? new Date(request.reviewedAt).toLocaleString() : "—"}
+                    </dd>
+                  </div>
+                </>
+              )}
+              {request.note && (
+                <div>
+                  <dt className="text-base-content/60">Applicant note</dt>
+                  <dd className="mt-0.5 italic text-base-content">"{request.note}"</dd>
+                </div>
+              )}
+              {request.reviewNote && (
+                <div>
+                  <dt className="text-base-content/60">Review note</dt>
+                  <dd className="mt-0.5 italic text-base-content">"{request.reviewNote}"</dd>
+                </div>
+              )}
+              <div className="pt-2">
+                <Link to={`/users/${request.user?.id}`} className="text-sm font-semibold text-primary hover:underline">
+                  View full profile →
+                </Link>
+              </div>
+            </dl>
+          ) : (
+            <div>
+              {isPdf ? (
+                <iframe
+                  src={request.docUrl}
+                  title="Submitted document"
+                  className="h-[60vh] w-full rounded-lg border border-base-300"
+                />
+              ) : (
+                <>
+                  <button type="button" className="block w-full" onClick={() => setZoomed(true)}>
+                    <img
+                      src={request.docUrl}
+                      alt="Submitted document"
+                      className="max-h-[60vh] w-full rounded-lg border border-base-300 object-contain"
+                    />
+                  </button>
+                  <p className="mt-2 text-center text-xs text-base-content/50">Click the image to zoom in</p>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 p-4">
+          <a href={toDownloadUrl(request.docUrl)} className="btn btn-sm border-base-300">
+            <Download className="size-4" /> Download document
+          </a>
+          <button
+            type="button"
+            className="btn btn-sm border-none bg-primary text-white hover:bg-primary"
+            onClick={() =>
+              downloadTextFile(
+                `verification-report-${(request.user?.fullName || request.id).replace(/\s+/g, "-")}.txt`,
+                verificationReportText(request)
+              )
+            }
+          >
+            <Download className="size-4" /> Download report
+          </button>
+        </div>
+      </div>
+
+      {zoomed && !isPdf && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setZoomed(false)}
+        >
+          <img src={request.docUrl} alt="Submitted document" className="max-h-full max-w-full object-contain" />
         </div>
       )}
     </div>
