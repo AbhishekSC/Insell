@@ -7,6 +7,13 @@ import { useNavigate } from "react-router";
 import axiosInstance from "../lib/axios";
 import { useStreamContext } from "../context/StreamProvider";
 
+// Local-time value for <input type="datetime-local"> — no timezone suffix.
+function toLocalDatetimeInput(d) {
+  const x = new Date(d);
+  x.setMinutes(x.getMinutes() - x.getTimezoneOffset());
+  return x.toISOString().slice(0, 16);
+}
+
 class CommunityChatErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -39,6 +46,9 @@ export default function CommunityChat({ community, onBack }) {
   const [showDestroyModal, setShowDestroyModal] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showPhotoPreview, setShowPhotoPreview] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleTitle, setScheduleTitle] = useState("");
+  const [scheduleAt, setScheduleAt] = useState("");
   const [selectedFriendIds, setSelectedFriendIds] = useState([]);
   const [communityChannel, setCommunityChannel] = useState(null);
   const { streamClient, streamReady, videoClient, startGroupVideoCall, videoBusy } = useStreamContext();
@@ -76,6 +86,51 @@ export default function CommunityChat({ community, onBack }) {
     refetchInterval: 8000,
     retry: false,
   });
+
+  // Scheduling + reminders sit on top of the instant-call feature above —
+  // joining a scheduled call reuses the exact same Stream room, there's no
+  // separate calling infrastructure here.
+  const { data: upcomingCalls = [] } = useQuery({
+    queryKey: ["upcomingCalls", circle?._id],
+    queryFn: async () => {
+      const res = await axiosInstance.get(`/community-calls/${circle._id}`);
+      return res.data?.data?.calls || [];
+    },
+    enabled: Boolean(circle?._id && isMember),
+    refetchInterval: 60_000,
+  });
+  const nextCall = upcomingCalls[0] || null;
+
+  const scheduleCallMutation = useMutation({
+    mutationFn: async ({ title, scheduledAt }) => {
+      const res = await axiosInstance.post(`/community-calls/${circle._id}`, { title, scheduledAt });
+      return res.data?.data?.call;
+    },
+    onSuccess: () => {
+      toast.success("Call scheduled");
+      setShowScheduleModal(false);
+      setScheduleTitle("");
+      setScheduleAt("");
+      queryClient.invalidateQueries({ queryKey: ["upcomingCalls", circle?._id] });
+    },
+    onError: (error) => toast.error(error?.response?.data?.message || "Couldn't schedule that call"),
+  });
+
+  const cancelCallMutation = useMutation({
+    mutationFn: async (callId) => {
+      await axiosInstance.post(`/community-calls/${circle._id}/${callId}/cancel`);
+    },
+    onSuccess: () => {
+      toast.success("Call cancelled");
+      queryClient.invalidateQueries({ queryKey: ["upcomingCalls", circle?._id] });
+    },
+    onError: (error) => toast.error(error?.response?.data?.message || "Couldn't cancel that call"),
+  });
+
+  const joinScheduledCall = async (call) => {
+    await startOrJoinCommunityCall();
+    axiosInstance.post(`/community-calls/${circle._id}/${call.id}/started`).catch(() => {});
+  };
 
   const startOrJoinCommunityCall = async () => {
     if (!circle?._id) return;
@@ -388,6 +443,18 @@ export default function CommunityChat({ community, onBack }) {
                     {isCreator ? "Add member" : "Request to add a friend"}
                   </button>
                 )}
+                {isMember && (
+                  <button
+                    onClick={() => {
+                      setShowScheduleModal(true);
+                      setShowActionsMenu(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
+                  >
+                    <Calendar size={16} className="text-primary" />
+                    Schedule a call
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setShowMembers(!showMembers);
@@ -447,6 +514,35 @@ export default function CommunityChat({ community, onBack }) {
           </div>
         </div>
       </div>
+
+      {nextCall && (
+        <div className="flex items-center gap-2 border-b border-base-300 bg-primary/5 px-4 py-2 text-sm">
+          <Calendar size={16} className="shrink-0 text-primary" />
+          <span className="min-w-0 flex-1 truncate text-base-content">
+            {nextCall.title ? `"${nextCall.title}"` : "Community call"} ·{" "}
+            {new Date(nextCall.scheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+          </span>
+          <button
+            type="button"
+            onClick={() => joinScheduledCall(nextCall)}
+            disabled={videoBusy}
+            className="btn btn-xs border-none bg-primary text-white hover:bg-primary disabled:opacity-60"
+          >
+            Join
+          </button>
+          {(isCreator || isModerator || nextCall.scheduledBy?.id === String(authUser?._id)) && (
+            <button
+              type="button"
+              onClick={() => cancelCallMutation.mutate(nextCall.id)}
+              disabled={cancelCallMutation.isPending}
+              className="btn btn-ghost btn-xs btn-circle text-base-content/40 hover:text-error"
+              aria-label="Cancel this call"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Messages Area */}
@@ -675,6 +771,63 @@ export default function CommunityChat({ community, onBack }) {
       )}
 
       {/* Leave Community Confirmation Modal */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowScheduleModal(false)}>
+          <div className="w-full max-w-sm rounded-xl bg-base-100 p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-base-content">Schedule a call</h2>
+              <button onClick={() => setShowScheduleModal(false)} className="rounded-lg p-1 hover:bg-base-200">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="mb-4 text-sm text-base-content/60">
+              Every member gets a reminder 10 minutes before it starts — by push, email, and in-app.
+            </p>
+            <label className="form-control mb-3">
+              <span className="label-text mb-1 text-sm text-base-content">Topic (optional)</span>
+              <input
+                type="text"
+                maxLength={120}
+                placeholder="Weekly sync"
+                value={scheduleTitle}
+                onChange={(e) => setScheduleTitle(e.target.value)}
+                className="input input-bordered w-full border-base-300"
+              />
+            </label>
+            <label className="form-control mb-5">
+              <span className="label-text mb-1 text-sm text-base-content">Date &amp; time</span>
+              <input
+                type="datetime-local"
+                value={scheduleAt}
+                min={toLocalDatetimeInput(new Date(Date.now() + 60_000))}
+                max={toLocalDatetimeInput(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))}
+                onChange={(e) => setScheduleAt(e.target.value)}
+                className="input input-bordered w-full border-base-300"
+              />
+            </label>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowScheduleModal(false)}
+                className="flex-1 rounded-lg border border-base-300 px-4 py-2 text-base-content hover:bg-base-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!scheduleAt || scheduleCallMutation.isPending}
+                onClick={() =>
+                  scheduleCallMutation.mutate({ title: scheduleTitle, scheduledAt: new Date(scheduleAt).toISOString() })
+                }
+                className="flex-1 rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary transition-colors disabled:opacity-50"
+              >
+                {scheduleCallMutation.isPending ? "Scheduling…" : "Schedule"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showLeaveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-xl bg-base-100 p-6 shadow-xl">

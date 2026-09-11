@@ -32,6 +32,7 @@ import savedSearchRoutes from "../modules/saved-search/savedSearch.routes.js";
 import weeklyDigestRoutes from "../modules/weekly-digest/weeklyDigest.routes.js";
 import ownerVerificationRoutes from "../modules/owner-verification/ownerVerification.routes.js";
 import referralRoutes from "../modules/referral/referral.routes.js";
+import communityCallRoutes from "../modules/community-call/communityCall.routes.js";
 
 const router = new express.Router();
 
@@ -69,5 +70,6 @@ router.use("/saved-searches", savedSearchRoutes);
 router.use("/digest", weeklyDigestRoutes);
 router.use("/owner-verification", ownerVerificationRoutes);
 router.use("/referral", referralRoutes);
+router.use("/community-calls", communityCallRoutes);
 
 export default router;
