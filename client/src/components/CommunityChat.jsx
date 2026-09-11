@@ -512,7 +512,7 @@ export default function CommunityChat({ community, onBack }) {
                     <p className="font-medium text-base-content text-sm">
                       {member.fullName}
                       {member?.isOwnerVerified && (
-                        <BadgeCheck className="inline ml-1 text-primary" size={14} aria-label="Verified Owner" />
+                        <BadgeCheck className="inline-block ml-1 align-middle text-primary" size={14} aria-label="Verified Owner" />
                       )}
                       {member._id === circle?.creator?._id && (
                         <Crown className="inline ml-1 text-warning" size={14} />
