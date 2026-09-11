@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useCallStateHooks } from "@stream-io/video-react-sdk";
 import { useQuery } from "@tanstack/react-query";
-import { Check, Loader2, Search, UserPlus, X } from "lucide-react";
+import { Check, Loader2, Search, ShieldCheck, UserPlus, X } from "lucide-react";
 import toast from "react-hot-toast";
 import UserAvatar from "./UserAvatar";
 import axiosInstance from "../lib/axios";
@@ -153,8 +153,11 @@ export default function AddPeopleModal({ isOpen, onClose }) {
                     >
                       <UserAvatar src={friend.profilePic} name={friend.fullName} sizeClass="size-10" />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold text-base-content">
-                          {friend.fullName}
+                        <span className="flex items-center gap-1 truncate text-sm font-semibold text-base-content">
+                          <span className="truncate">{friend.fullName}</span>
+                          {friend?.isOwnerVerified && (
+                            <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                          )}
                         </span>
                         {isJoined ? (
                           <span className="text-xs font-medium text-success">Already in call</span>

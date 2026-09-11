@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Heart, Loader2, X } from "lucide-react";
+import { Heart, Loader2, ShieldCheck, X } from "lucide-react";
 import UserAvatar from "./UserAvatar";
 
 export default function UserListModal({ isOpen, onClose, title, users, isLoading, onNavigate, emptyMessage = "Nobody here yet." }) {
@@ -47,8 +47,11 @@ export default function UserListModal({ isOpen, onClose, title, users, isLoading
                       sizeClass="size-11"
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-base-content">
-                        {user.fullName || "Unknown User"}
+                      <p className="flex items-center gap-1 truncate text-sm font-semibold text-base-content">
+                        <span className="truncate">{user.fullName || "Unknown User"}</span>
+                        {user?.isOwnerVerified && (
+                          <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                        )}
                       </p>
                       {user.city ? (
                         <p className="truncate text-xs text-base-content/60">{user.city}</p>

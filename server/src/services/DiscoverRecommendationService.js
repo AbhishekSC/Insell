@@ -104,7 +104,7 @@ export async function getDiscoverRecommendations(currentUserId, query = {}) {
     baseQuery.$or = [{ fullName: regex }, { city: regex }, { primaryRole: regex }, { activeRole: regex }, { preferredLocalities: regex }, { propertyTypePreferences: regex }];
   }
 
-  const candidates = await User.find(baseQuery).select("fullName profilePic city homeBase location primaryRole activeRole friends propertyTypePreferences preferredLocalities isVerified profileCompletion responseRate createdAt updatedAt commentAnalytics locationDetails").limit(MAX_CANDIDATES).lean();
+  const candidates = await User.find(baseQuery).select("fullName profilePic city homeBase location primaryRole activeRole friends propertyTypePreferences preferredLocalities isVerified isOwnerVerified profileCompletion responseRate createdAt updatedAt commentAnalytics locationDetails").limit(MAX_CANDIDATES).lean();
   const candidateIds = candidates.map((user) => user._id);
   const listingStats = await PropertyPost.aggregate([
     { $match: { author: { $in: candidateIds }, status: "PUBLISHED", visibility: "PUBLIC" } },

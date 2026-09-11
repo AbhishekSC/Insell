@@ -2,7 +2,7 @@ import { Component, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Channel, Chat, MessageComposer, MessageList, Thread, Window } from "stream-chat-react";
-import { Crown, FolderOpen, MessageSquare, Paperclip, Send, Users, Video, X } from "lucide-react";
+import { Crown, FolderOpen, MessageSquare, Paperclip, Send, ShieldCheck, Users, Video, X } from "lucide-react";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import axiosInstance from "../lib/axios";
@@ -494,7 +494,12 @@ export default function CommunityDetailPage() {
                 {(circle?.members || []).map((member) => (
                   <div key={member._id} className="flex items-center justify-between rounded-xl border border-base-300/70 bg-base-100/85 p-3">
                     <div className="min-w-0 flex-1 pr-2">
-                      <p className="truncate text-sm font-semibold">{member.fullName}</p>
+                      <p className="flex items-center gap-1 truncate text-sm font-semibold">
+                        <span className="truncate">{member.fullName}</span>
+                        {member?.isOwnerVerified && (
+                          <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                        )}
+                      </p>
                       <p className="truncate text-xs text-base-content/60">{member.travelStyle || member.homeBase || member.learningLanguage || member.email || "Community member"}</p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -741,7 +746,12 @@ export default function CommunityDetailPage() {
                   <article key={resource._id} className="rounded-xl border border-base-300/70 bg-base-100/85 p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="text-sm font-semibold">{resource.author?.fullName || "Member"}</p>
+                        <p className="flex items-center gap-1 text-sm font-semibold">
+                          <span>{resource.author?.fullName || "Member"}</span>
+                          {resource.author?.isOwnerVerified && (
+                            <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                          )}
+                        </p>
                         <p className="mt-1 text-xs text-base-content/60">{formatDateTime(resource.createdAt)}</p>
                       </div>
                       <span className="badge badge-outline badge-sm">{getResourceTypeLabel(resource)}</span>

@@ -42,7 +42,7 @@ export async function findShareableById(id) {
 export async function findPublicDetailById(id) {
   return PropertyPost.findOne({ _id: id, ...SHAREABLE_FILTER })
     .select(DETAIL_FIELDS)
-    .populate("author", "fullName profilePic isVerified city")
+    .populate("author", "fullName profilePic isVerified isOwnerVerified city")
     .lean();
 }
 

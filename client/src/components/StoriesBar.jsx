@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, X, ChevronLeft, ChevronRight, Eye, Heart, MessageCircle, Share2, MapPin, Building2, IndianRupee, Clock, BookmarkPlus, Check, Loader2, Trash2 } from "lucide-react";
+import { Plus, X, ChevronLeft, ChevronRight, Eye, Heart, MessageCircle, Share2, MapPin, Building2, IndianRupee, Clock, BookmarkPlus, Check, Loader2, Trash2, ShieldCheck } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
 import toast from "react-hot-toast";
@@ -179,8 +179,11 @@ export default function StoriesBar() {
                     className="size-full rounded-full object-cover"
                   />
                 </span>
-                <span className="text-[11px] font-semibold text-base-content line-clamp-1 w-full text-center">
-                  {authorStory.author.fullName?.split(" ")[0]}
+                <span className="flex w-full items-center justify-center gap-0.5 text-[11px] font-semibold text-base-content">
+                  <span className="line-clamp-1">{authorStory.author.fullName?.split(" ")[0]}</span>
+                  {authorStory.author?.isOwnerVerified && (
+                    <ShieldCheck className="size-3 shrink-0 text-primary" aria-label="Verified Owner" />
+                  )}
                 </span>
               </button>
             ))}
@@ -392,8 +395,11 @@ export function StoryViewer({
               className="size-10 rounded-full border-2 border-white object-cover"
             />
             <div>
-              <p className="text-sm font-semibold text-white">
-                {story.author?.fullName}
+              <p className="flex items-center gap-1 text-sm font-semibold text-white">
+                <span>{story.author?.fullName}</span>
+                {story.author?.isOwnerVerified && (
+                  <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                )}
               </p>
               <p className="text-xs text-base-content/40">
                 {story.author?.activeRole || story.author?.primaryRole} • {relativeTime(story.createdAt)}

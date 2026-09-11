@@ -367,7 +367,7 @@ export async function getMyFriends(req, res) {
       .select("friends")
       .populate(
         "friends",
-        "fullName profilePic city primaryRole preferredLocalities propertyTypePreferences budgetMin budgetMax listingIntent homeBase travelStyle travelInterests favoriteDestinations location"
+        "fullName profilePic city primaryRole preferredLocalities propertyTypePreferences budgetMin budgetMax listingIntent homeBase travelStyle travelInterests favoriteDestinations location isOwnerVerified"
       );
 
     if (!userWithFriends) {
@@ -552,13 +552,13 @@ export async function getFriendRequests(req, res) {
       status: "pending",
     }).populate(
       "sender",
-      "fullName profilePic city primaryRole preferredLocalities propertyTypePreferences budgetMin budgetMax listingIntent nativeLanguage learningLanguage location"
+      "fullName profilePic city primaryRole preferredLocalities propertyTypePreferences budgetMin budgetMax listingIntent nativeLanguage learningLanguage location isOwnerVerified"
     );
 
     const acceptedRequests = await FriendRequest.find({
       receiver: req.user._id,
       status: "accepted",
-    }).populate("receiver", "fullName profilePic");
+    }).populate("receiver", "fullName profilePic isOwnerVerified");
 
     return sendSuccessResponse(
       res,
@@ -582,7 +582,7 @@ export async function getOutgoingFriendRequests(req, res) {
       status: "pending",
     }).populate(
       "receiver",
-      "fullName profilePic city primaryRole preferredLocalities propertyTypePreferences budgetMin budgetMax listingIntent nativeLanguage learningLanguage location"
+      "fullName profilePic city primaryRole preferredLocalities propertyTypePreferences budgetMin budgetMax listingIntent nativeLanguage learningLanguage location isOwnerVerified"
     );
 
     return sendSuccessResponse(
@@ -807,7 +807,7 @@ export async function getUserFriendsList(req, res) {
       .select("friends")
       .populate(
         "friends",
-        "fullName profilePic city primaryRole preferredLocalities propertyTypePreferences budgetMin budgetMax listingIntent homeBase travelStyle travelInterests favoriteDestinations location"
+        "fullName profilePic city primaryRole preferredLocalities propertyTypePreferences budgetMin budgetMax listingIntent homeBase travelStyle travelInterests favoriteDestinations location isOwnerVerified"
       );
 
     if (!userWithFriends) {
@@ -955,7 +955,7 @@ export async function getUserActivity(req, res) {
       ...publishedPostFilter,
     })
       .select("title price city mediaUrls author createdAt likedByTimestamps")
-      .populate("author", "fullName profilePic isVerified")
+      .populate("author", "fullName profilePic isVerified isOwnerVerified")
       .limit(20)
       .lean();
 
@@ -965,7 +965,7 @@ export async function getUserActivity(req, res) {
       ...publishedPostFilter,
     })
       .select("title price city mediaUrls author createdAt savedByTimestamps")
-      .populate("author", "fullName profilePic isVerified")
+      .populate("author", "fullName profilePic isVerified isOwnerVerified")
       .limit(20)
       .lean();
 

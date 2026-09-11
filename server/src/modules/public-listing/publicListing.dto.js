@@ -110,6 +110,7 @@ export function toPublicDetailDTO(post, related = [], people = []) {
           name: post.author.fullName || "Owner",
           avatar: post.author.profilePic || null,
           isVerified: Boolean(post.author.isVerified),
+          isOwnerVerified: Boolean(post.author.isOwnerVerified),
           city: post.author.city || "",
         }
       : null,

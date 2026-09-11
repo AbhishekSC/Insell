@@ -80,7 +80,7 @@ export async function createComment(req, res) {
 
     // Populate author details
     const populatedComment = await Comment.findById(comment._id)
-      .populate("author", "fullName profilePic activeRole primaryRole")
+      .populate("author", "fullName profilePic activeRole primaryRole isOwnerVerified")
       .lean();
 
     return sendSuccessResponse(res, 201, "Comment created successfully", populatedComment);
@@ -187,7 +187,7 @@ export async function getPostComments(req, res) {
     }
 
     const comments = await Comment.find({ post: postId, parentComment: null, isDeleted: false })
-      .populate("author", "fullName profilePic activeRole primaryRole")
+      .populate("author", "fullName profilePic activeRole primaryRole isOwnerVerified")
       .populate({
         path: "parentComment",
         select: "_id",
@@ -317,7 +317,7 @@ export async function getCommentReplies(req, res) {
     }
 
     const replies = await Comment.find({ parentComment: commentId, isDeleted: false })
-      .populate("author", "fullName profilePic activeRole primaryRole")
+      .populate("author", "fullName profilePic activeRole primaryRole isOwnerVerified")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
