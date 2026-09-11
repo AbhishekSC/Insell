@@ -15,16 +15,22 @@ export async function create({ userId, docType, docUrl, note }) {
   return OwnerVerificationRequest.create({ user: userId, docType, docUrl, note });
 }
 
-export async function listPending({ page = 1, limit = 20 } = {}) {
+// `status` is one of REQUEST_STATUSES, or "ALL" to see the full history —
+// approved/rejected requests are never deleted, just excluded from the
+// PENDING queue by default, so admins can still look a reviewed request up
+// later (e.g. "when was this owner verified, who reviewed it").
+export async function listByStatus({ status = "PENDING", page = 1, limit = 20 } = {}) {
+  const filter = status === "ALL" ? {} : { status };
   const skip = (page - 1) * limit;
   const [items, total] = await Promise.all([
-    OwnerVerificationRequest.find({ status: "PENDING" })
-      .populate("user", "fullName email profilePic city")
-      .sort({ createdAt: 1 })
+    OwnerVerificationRequest.find(filter)
+      .populate("user", "fullName email profilePic city isOwnerVerified")
+      .populate("reviewedBy", "fullName")
+      .sort(status === "PENDING" ? { createdAt: 1 } : { reviewedAt: -1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean(),
-    OwnerVerificationRequest.countDocuments({ status: "PENDING" }),
+    OwnerVerificationRequest.countDocuments(filter),
   ]);
   return { items, total, page, limit };
 }

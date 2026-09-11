@@ -19,6 +19,10 @@ export function toAdminQueueItemDTO(doc) {
     docType: doc.docType,
     docUrl: doc.docUrl,
     note: doc.note || "",
+    status: doc.status,
+    reviewNote: doc.reviewNote || "",
+    reviewedAt: doc.reviewedAt || null,
+    reviewedBy: doc.reviewedBy ? { fullName: doc.reviewedBy.fullName } : null,
     createdAt: doc.createdAt,
     user: doc.user
       ? {
@@ -27,6 +31,7 @@ export function toAdminQueueItemDTO(doc) {
           email: doc.user.email,
           profilePic: doc.user.profilePic,
           city: doc.user.city,
+          isOwnerVerified: Boolean(doc.user.isOwnerVerified),
         }
       : null,
   };

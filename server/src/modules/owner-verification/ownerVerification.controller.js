@@ -24,12 +24,17 @@ export const submit = asyncHandler(async (req, res) => {
   return sendSuccessResponse(res, 201, "Verification request submitted", { request });
 });
 
-// GET /owner-verification/admin/queue   (admin only)
+// GET /owner-verification/admin/queue?status=PENDING|APPROVED|REJECTED|ALL   (admin only)
+// Defaults to PENDING (the review queue); the other statuses let an admin
+// look back at requests already reviewed instead of losing them the moment
+// they leave the queue.
+const VALID_STATUSES = new Set(["PENDING", "APPROVED", "REJECTED", "ALL"]);
 export const adminQueue = asyncHandler(async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
-  const result = await getQueue({ page, limit });
-  return sendSuccessResponse(res, 200, "Pending verification requests", result);
+  const status = VALID_STATUSES.has(req.query.status) ? req.query.status : "PENDING";
+  const result = await getQueue({ status, page, limit });
+  return sendSuccessResponse(res, 200, "Verification requests", result);
 });
 
 // PATCH /owner-verification/admin/:id   body: { approve: boolean, reviewNote? }
