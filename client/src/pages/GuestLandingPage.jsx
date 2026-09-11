@@ -120,7 +120,7 @@ export default function GuestLandingPage() {
           {/* Left */}
           <div className="gl-rise">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold text-primary">
-              <span className="size-1.5 rounded-full bg-primary" /> A social real-estate marketplace
+              <span className="size-1.5 rounded-full bg-primary" /> Social media for property
             </span>
             <h1 className="mt-4 text-4xl font-extrabold leading-[1.05] tracking-tight text-base-content sm:text-5xl">
               Property, without <br className="hidden sm:block" />the brokers.
@@ -143,14 +143,9 @@ export default function GuestLandingPage() {
               </button>
             </form>
 
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Link to="/signup" className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primary/90">
-                Create free account
-              </Link>
-              <Link to="/login" className="rounded-xl border border-base-300 bg-base-100 px-6 py-3 text-sm font-semibold text-base-content hover:bg-base-200">
-                Log in
-              </Link>
-            </div>
+            <p className="mt-3 text-xs text-base-content/50">
+              Already have an account? <Link to="/login" className="font-semibold text-primary hover:underline">Log in</Link>
+            </p>
 
             <div className="mt-6 flex flex-wrap gap-2">
               {TRUST.map((t) => {
@@ -216,7 +211,7 @@ export default function GuestLandingPage() {
                     to="/signup"
                     className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-primary/90"
                   >
-                    Sign up to browse everything <ArrowRight className="size-4" />
+                    Create your account <ArrowRight className="size-4" />
                   </Link>
                   <p className="text-xs text-base-content/50">
                     Already a member? <Link to="/login" className="font-semibold text-primary">Log in</Link>
@@ -228,24 +223,9 @@ export default function GuestLandingPage() {
         )}
       </section>
 
-      {/* Bottom CTA */}
-      <section className="border-t border-base-200 bg-base-200/40">
-        <div className="mx-auto max-w-3xl px-4 py-12 text-center">
-          <h3 className="text-xl font-bold text-base-content">Ready to look properly?</h3>
-          <p className="mt-2 text-sm text-base-content/60">
-            Save searches, set price alerts, message owners, and track your deal end to end — free.
-          </p>
-          <Link
-            to="/signup"
-            className="mt-5 inline-block rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primary/90"
-          >
-            Create your account
-          </Link>
-        </div>
-        <p className="pb-8 text-center text-xs text-base-content/40">
-          NearMySpace — verified owners, no brokers.
-        </p>
-      </section>
+      <p className="border-t border-base-200 bg-base-200/40 py-8 text-center text-xs text-base-content/40">
+        NearMySpace — verified owners, no brokers.
+      </p>
     </div>
   );
 }

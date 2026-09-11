@@ -12,7 +12,11 @@ function getInitialTheme() {
   if (typeof window === "undefined") return "light";
   const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
   if (saved === "light" || saved === "dark") return saved;
-  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  // Default to light regardless of the OS/browser's prefers-color-scheme —
+  // a private window with system dark mode was landing new visitors in
+  // dark mode with no explicit choice of their own. Once a user actually
+  // toggles the theme, that choice is saved above and always wins.
+  return "light";
 }
 
 export function ThemeProvider({ children }) {
