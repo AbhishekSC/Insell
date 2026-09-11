@@ -7,7 +7,7 @@ import {
   findActiveForUser,
   findPendingForUser,
   create,
-  listPending,
+  listByStatus,
   findById,
   markReviewed,
   setUserOwnerVerified,
@@ -33,8 +33,8 @@ export async function submitRequest(userId, { docType, docUrl, note }) {
   return toRequestDTO(doc);
 }
 
-export async function getQueue({ page, limit } = {}) {
-  const { items, total, page: p, limit: l } = await listPending({ page, limit });
+export async function getQueue({ status, page, limit } = {}) {
+  const { items, total, page: p, limit: l } = await listByStatus({ status, page, limit });
   return { requests: items.map(toAdminQueueItemDTO), total, page: p, limit: l };
 }
 

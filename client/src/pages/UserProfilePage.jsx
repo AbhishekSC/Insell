@@ -22,7 +22,6 @@ import {
   Save,
   Share2,
   ShieldAlert,
-  ShieldCheck,
   Sparkles,
   Star,
   Trash2,
@@ -713,7 +712,7 @@ export default function UserProfilePage() {
               </h1>
               {profileUser.isOwnerVerified && (
                 <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
-                  <ShieldCheck className="size-3" />
+                  <BadgeCheck className="size-3" />
                   Verified Owner
                 </span>
               )}
@@ -765,7 +764,7 @@ export default function UserProfilePage() {
                   </h1>
                   {profileUser.isOwnerVerified && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
-                      <ShieldCheck className="size-3.5" />
+                      <BadgeCheck className="size-3.5" />
                       Verified Owner
                     </span>
                   )}

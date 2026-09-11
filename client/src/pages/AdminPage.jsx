@@ -1893,15 +1893,22 @@ function DealsPanel() {
   );
 }
 
+const VERIFICATION_TABS = [
+  { value: "PENDING", label: "Pending" },
+  { value: "APPROVED", label: "Approved" },
+  { value: "REJECTED", label: "Rejected" },
+];
+
 function VerificationPanel() {
   const queryClient = useQueryClient();
+  const [statusTab, setStatusTab] = useState("PENDING");
   const [reviewTarget, setReviewTarget] = useState(null); // { id, approve }
   const [reviewNote, setReviewNote] = useState("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["adminOwnerVerificationQueue"],
+    queryKey: ["adminOwnerVerificationQueue", statusTab],
     queryFn: async () => {
-      const response = await axiosInstance.get("/owner-verification/admin/queue");
+      const response = await axiosInstance.get("/owner-verification/admin/queue", { params: { status: statusTab } });
       return response.data?.data;
     },
   });
@@ -1932,8 +1939,30 @@ function VerificationPanel() {
         </div>
         <div>
           <h2 className="font-semibold text-base-content">Owner verification requests</h2>
-          <p className="text-xs text-base-content/60">{requests.length} pending</p>
+          <p className="text-xs text-base-content/60">
+            {isLoading ? "Loading…" : `${requests.length} ${statusTab.toLowerCase()}`}
+          </p>
         </div>
+      </div>
+
+      {/* Approved/rejected requests never disappear — they just leave the
+          pending queue. These tabs are how an admin looks one back up later
+          (e.g. to see when a user was verified, or why they were rejected). */}
+      <div className="flex gap-1 border-b border-base-300 px-4 pt-3 sm:px-5">
+        {VERIFICATION_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            type="button"
+            onClick={() => setStatusTab(tab.value)}
+            className={`rounded-t-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+              statusTab === tab.value
+                ? "border-b-2 border-primary text-primary"
+                : "text-base-content/50 hover:text-base-content"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {isLoading ? (
@@ -1941,7 +1970,9 @@ function VerificationPanel() {
           <Loader2 className="size-6 animate-spin" />
         </div>
       ) : requests.length === 0 ? (
-        <p className="p-8 text-center text-sm text-base-content/60">No pending requests.</p>
+        <p className="p-8 text-center text-sm text-base-content/60">
+          No {statusTab.toLowerCase()} requests.
+        </p>
       ) : (
         <div className="divide-y divide-base-200">
           {requests.map((r) => (
@@ -1961,6 +1992,14 @@ function VerificationPanel() {
                     {r.docType.replace(/_/g, " ")} · submitted {new Date(r.createdAt).toLocaleDateString()}
                   </p>
                   {r.note && <p className="mt-0.5 text-xs italic text-base-content/50">"{r.note}"</p>}
+                  {r.status !== "PENDING" && (
+                    <p className="mt-0.5 text-xs text-base-content/50">
+                      {r.status === "APPROVED" ? "Approved" : "Rejected"}
+                      {r.reviewedBy?.fullName ? ` by ${r.reviewedBy.fullName}` : ""}
+                      {r.reviewedAt ? ` · ${new Date(r.reviewedAt).toLocaleDateString()}` : ""}
+                      {r.reviewNote ? ` — "${r.reviewNote}"` : ""}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -1972,21 +2011,25 @@ function VerificationPanel() {
                 >
                   <ImageIcon className="size-4" /> View document
                 </a>
-                <button
-                  type="button"
-                  className="btn btn-sm border-none bg-success text-white hover:bg-success"
-                  disabled={isPending}
-                  onClick={() => reviewRequest({ id: r.id, approve: true })}
-                >
-                  Approve
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-sm border-error/30 text-error hover:bg-error/10"
-                  onClick={() => setReviewTarget({ id: r.id, approve: false })}
-                >
-                  Reject
-                </button>
+                {r.status === "PENDING" && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-sm border-none bg-success text-white hover:bg-success"
+                      disabled={isPending}
+                      onClick={() => reviewRequest({ id: r.id, approve: true })}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm border-error/30 text-error hover:bg-error/10"
+                      onClick={() => setReviewTarget({ id: r.id, approve: false })}
+                    >
+                      Reject
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ))}

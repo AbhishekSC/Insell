@@ -22,7 +22,7 @@ import {
   Sparkles,
   Award,
   Pencil,
-  ShieldCheck,
+  BadgeCheck,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
@@ -380,7 +380,7 @@ export default function CommunitiesContent({ onOpenChat }) {
                   <p className="flex items-center gap-1 truncate text-sm font-medium text-base-content">
                     <span className="truncate">{item.user?.fullName || "User"}</span>
                     {item.user?.isOwnerVerified && (
-                      <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                      <BadgeCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
                     )}
                   </p>
                   <p className="truncate text-xs text-base-content/60">Requested to join {item.circleName}</p>

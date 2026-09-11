@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, Crown, MessageSquare, Plus, Search, ShieldCheck, Users, Video } from "lucide-react";
+import { Bell, Crown, MessageSquare, Plus, Search, BadgeCheck, Users, Video } from "lucide-react";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import axiosInstance from "../lib/axios";
@@ -368,7 +368,7 @@ export default function CommunityPage() {
                     <p className="flex items-center gap-1 text-sm font-semibold">
                       <span>{item.user?.fullName || "User"}</span>
                       {item.user?.isOwnerVerified && (
-                        <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                        <BadgeCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
                       )}
                     </p>
                     <p className="mt-1 text-xs text-base-content/70">Requested to join {item.circleName}</p>
@@ -440,7 +440,7 @@ export default function CommunityPage() {
                       <p className="flex items-center gap-1 text-sm font-semibold">
                         <span>{item.actor?.fullName || "Friend"}</span>
                         {item.actor?.isOwnerVerified && (
-                          <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                          <BadgeCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
                         )}
                       </p>
                       <p className="mt-1 text-xs text-base-content/70">{item.message}</p>
@@ -481,7 +481,7 @@ export default function CommunityPage() {
           <section className="shell-panel">
             <div className="p-6">
               <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/65">
-                <ShieldCheck className="size-3.5 text-success" /> Joined communities
+                <BadgeCheck className="size-3.5 text-success" /> Joined communities
               </p>
               <p className="mt-2 text-xs text-base-content/65">
                 {visibleJoinedCommunities.length} shown{normalizedSearch ? ` for "${searchTerm.trim()}"` : ""}

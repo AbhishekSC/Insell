@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { X, Copy, Check, Search, MessageCircle, Facebook, Send, Loader2, ShieldCheck } from "lucide-react";
+import { X, Copy, Check, Search, MessageCircle, Facebook, Send, Loader2, BadgeCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
@@ -184,7 +184,7 @@ export default function ShareModal({ isOpen, onClose, postUrl, postTitle, postId
                     <span className="flex items-center justify-center gap-0.5 line-clamp-2 max-w-16 text-xs font-medium text-base-content">
                       <span className="line-clamp-2">{friend.fullName}</span>
                       {friend?.isOwnerVerified && (
-                        <ShieldCheck className="size-3 shrink-0 text-primary" aria-label="Verified Owner" />
+                        <BadgeCheck className="size-3 shrink-0 text-primary" aria-label="Verified Owner" />
                       )}
                     </span>
                   </button>

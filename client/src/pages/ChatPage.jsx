@@ -17,7 +17,7 @@ import {
   MessageSquare,
   Radio,
   Search,
-  ShieldCheck,
+  BadgeCheck,
   Sparkles,
   Users,
 } from "lucide-react";
@@ -287,7 +287,7 @@ export default function ChatPage() {
                           <p className="flex items-center gap-1 truncate text-sm font-semibold">
                             <span className="truncate">{friend.fullName}</span>
                             {friend?.isOwnerVerified && (
-                              <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                              <BadgeCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
                             )}
                           </p>
                           <p className="truncate text-xs text-base-content/60 mt-0.5">
@@ -314,7 +314,7 @@ export default function ChatPage() {
                     <h3 className="card-title flex items-center gap-1.5 text-xl sm:text-2xl">
                       <span>{selectedFriend ? selectedFriend.fullName : "Conversation"}</span>
                       {selectedFriend?.isOwnerVerified && (
-                        <ShieldCheck className="size-4 shrink-0 text-primary" aria-label="Verified Owner" />
+                        <BadgeCheck className="size-4 shrink-0 text-primary" aria-label="Verified Owner" />
                       )}
                     </h3>
                     <p className="mt-1 text-sm text-base-content/65">
@@ -379,7 +379,7 @@ export default function ChatPage() {
                   <p className="flex min-w-0 items-center gap-1 truncate text-sm font-semibold">
                     <span className="truncate">{selectedFriend?.fullName || "Conversation"}</span>
                     {selectedFriend?.isOwnerVerified && (
-                      <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                      <BadgeCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
                     )}
                   </p>
                 </div>

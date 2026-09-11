@@ -19,7 +19,7 @@ import {
   PhoneCall,
   Radio,
   Search,
-  ShieldCheck,
+  BadgeCheck,
   Users,
   Video,
 } from "lucide-react";
@@ -432,7 +432,7 @@ export default function ChatContent({ deepLinkUserId } = {}) {
                           <p className="flex min-w-0 items-center gap-1 truncate text-sm font-semibold text-base-content">
                             <span className="truncate">{friend.fullName || "User"}</span>
                             {friend?.isOwnerVerified && (
-                              <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                              <BadgeCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
                             )}
                           </p>
                           {lastMessageLabel && <p className="text-[10px] text-base-content/50">{lastMessageLabel}</p>}
@@ -474,7 +474,7 @@ export default function ChatContent({ deepLinkUserId } = {}) {
               <p className="flex min-w-0 flex-1 items-center gap-1 truncate text-sm font-semibold">
                 <span className="truncate">{selectedFriend?.fullName || "Conversation"}</span>
                 {selectedFriend?.isOwnerVerified && (
-                  <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                  <BadgeCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
                 )}
               </p>
               {selectedFriend?._id && videoClient && (

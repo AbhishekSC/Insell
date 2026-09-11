@@ -1,5 +1,5 @@
 import { useState, memo } from "react";
-import { Heart, MessageSquareReply, ShieldCheck } from "lucide-react";
+import { Heart, MessageSquareReply, BadgeCheck } from "lucide-react";
 import UserAvatar from "./UserAvatar";
 import ReplyInput from "./ReplyInput";
 import ReplyList from "./ReplyList";
@@ -102,7 +102,7 @@ function CommentItem({
             <p className="text-xs font-semibold text-base-content truncate flex items-center gap-1">
               <span className="truncate">{comment.author?.fullName || "User"}</span>
               {comment.author?.isOwnerVerified && (
-                <ShieldCheck className="size-3 shrink-0 text-primary" aria-label="Verified Owner" />
+                <BadgeCheck className="size-3 shrink-0 text-primary" aria-label="Verified Owner" />
               )}
             </p>
             <p className="mt-1 text-sm text-base-content break-words">

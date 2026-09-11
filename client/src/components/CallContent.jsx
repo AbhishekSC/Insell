@@ -8,7 +8,7 @@ import {
   PhoneOff,
   Radio,
   RefreshCw,
-  ShieldCheck,
+  BadgeCheck,
   Users,
   Video,
   VideoIcon,
@@ -366,7 +366,7 @@ export default function CallContent() {
             ) : (
               <div className="flex flex-1 flex-col justify-center rounded-xl border border-base-300 bg-base-200 p-6 sm:p-10">
                 {selectedFriends.length === 1 ? (
-                  <div className="mx-auto w-full max-w-sm text-center"><UserAvatar src={selectedFriends[0].profilePic} name={selectedFriends[0].fullName} sizeClass="size-20" className="mx-auto ring-4 ring-primary/20" /><p className="mt-4 flex items-center justify-center gap-1.5 text-lg font-bold text-base-content"><span>Call {selectedFriends[0].fullName}</span>{selectedFriends[0]?.isOwnerVerified && <ShieldCheck className="size-4 shrink-0 text-primary" aria-label="Verified Owner" />}</p><p className="mt-1 text-sm text-base-content/60">{selectedFriends[0].travelStyle || selectedFriends[0].learningLanguage || "Travel partner"} · {selectedFriends[0].homeBase || selectedFriends[0].location || "Planning together"}</p><button type="button" className="btn btn-sm mt-6 w-full rounded-xl bg-primary text-white hover:bg-primary" onClick={startCall} disabled={videoBusy || !serviceReady}>{videoBusy ? <Loader2 className="size-5 animate-spin" /> : <Video className="size-5" />} Start video call</button><p className="mt-3 text-xs text-base-content/50">A private room will be created for both of you.</p></div>
+                  <div className="mx-auto w-full max-w-sm text-center"><UserAvatar src={selectedFriends[0].profilePic} name={selectedFriends[0].fullName} sizeClass="size-20" className="mx-auto ring-4 ring-primary/20" /><p className="mt-4 flex items-center justify-center gap-1.5 text-lg font-bold text-base-content"><span>Call {selectedFriends[0].fullName}</span>{selectedFriends[0]?.isOwnerVerified && <BadgeCheck className="size-4 shrink-0 text-primary" aria-label="Verified Owner" />}</p><p className="mt-1 text-sm text-base-content/60">{selectedFriends[0].travelStyle || selectedFriends[0].learningLanguage || "Travel partner"} · {selectedFriends[0].homeBase || selectedFriends[0].location || "Planning together"}</p><button type="button" className="btn btn-sm mt-6 w-full rounded-xl bg-primary text-white hover:bg-primary" onClick={startCall} disabled={videoBusy || !serviceReady}>{videoBusy ? <Loader2 className="size-5 animate-spin" /> : <Video className="size-5" />} Start video call</button><p className="mt-3 text-xs text-base-content/50">A private room will be created for both of you.</p></div>
                 ) : selectedFriends.length > 1 ? (
                   <div className="mx-auto w-full max-w-sm text-center">
                     <div className="flex justify-center -space-x-3">
@@ -421,7 +421,7 @@ export default function CallContent() {
                     <span className="min-w-0 flex-1 text-left">
                       <span className="flex items-center gap-1 truncate text-sm font-semibold text-base-content">
                         <span className="truncate">{friend.fullName}</span>
-                        {friend?.isOwnerVerified && <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />}
+                        {friend?.isOwnerVerified && <BadgeCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />}
                       </span>
                       <span className={`block truncate text-xs ${inCall ? "font-medium text-error" : "text-base-content/60"}`}>
                         {inCall ? "In a call" : friend.travelStyle || friend.learningLanguage || "Travel partner"}
@@ -435,7 +435,7 @@ export default function CallContent() {
           )}
 
           <div className="mt-6 flex items-center gap-2 rounded-lg border border-base-300 bg-base-200 p-3 text-xs text-base-content/70">
-            <ShieldCheck className="size-4 flex-shrink-0" />
+            <BadgeCheck className="size-4 flex-shrink-0" />
             <span>Private rooms are only visible to invited members.</span>
           </div>
 

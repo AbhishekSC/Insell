@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { ShieldCheck } from "lucide-react";
+import { BadgeCheck } from "lucide-react";
 import UserAvatar from "./UserAvatar";
 
 export default function PostAuthorLink({
@@ -30,7 +30,7 @@ export default function PostAuthorLink({
             <p className={`truncate text-sm ${nameColor} flex items-center gap-1`}>
               {authorName}
               {author?.isOwnerVerified && (
-                <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                <BadgeCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
               )}
               {inlineMeta && <span className={`font-normal ${metaColor}`}>· {inlineMeta}</span>}
             </p>
@@ -56,7 +56,7 @@ export default function PostAuthorLink({
           <p className={`truncate text-sm ${nameColor} ${hoverText} flex items-center gap-1`}>
             {authorName}
             {author?.isOwnerVerified && (
-              <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+              <BadgeCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
             )}
             {inlineMeta && <span className={`font-normal ${metaColor}`}>· {inlineMeta}</span>}
           </p>
