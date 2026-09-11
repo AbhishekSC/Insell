@@ -2,6 +2,7 @@ import express from "express";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import helmet from "helmet";
 import path from "path";
 import session from "express-session";
 
@@ -38,6 +39,20 @@ const corsOptions = {
   exposedHeaders: ["Authorization"],
 };
 
+// Baseline security headers (HSTS, X-Content-Type-Options, X-Frame-Options,
+// hides X-Powered-By, etc). CSP and Cross-Origin-*-Policy are switched off
+// rather than left at helmet's defaults: this server also renders the
+// crawler-facing OG share pages (/p/:id, /u/:id — raw HTML with inline
+// styles/meta refresh) and the browser loads Cloudinary/Stream assets
+// cross-origin, both of which a default-strict CSP/COEP/CORP would break.
+// Add a real CSP later if these routes get audited for it specifically.
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: false,
+  })
+);
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 app.use(requestIdMiddleware);

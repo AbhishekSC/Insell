@@ -147,7 +147,10 @@ function isDuplicateRequestIdError(err) {
   return err?.code === 11000 && /history\.requestId/.test(err?.message || "");
 }
 async function reloadSerialized(dealId) {
-  const d = await Deal.findById(dealId).populate("buyer", "fullName profilePic").populate("owner", "fullName profilePic");
+  // Read-only — every actual mutation on Deal goes through an atomic
+  // findOneAndUpdate elsewhere in this file, never a save() on this doc, and
+  // serialize() already handles a plain object (`deal.toObject ? ... : deal`).
+  const d = await Deal.findById(dealId).populate("buyer", "fullName profilePic").populate("owner", "fullName profilePic").lean();
   return d ? serialize(d) : null;
 }
 async function reopenListing(deal, actorId) {

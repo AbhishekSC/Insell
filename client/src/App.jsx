@@ -1,39 +1,7 @@
 import { Navigate, Route, Routes } from "react-router";
 import { useLocation } from "react-router";
+import { lazy, Suspense } from "react";
 import "./App.css";
-import SignupPage from "./pages/SignupPage";
-import LoginPage from "./pages/LoginPage";
-import OnboardingPage from "./pages/OnboardingPage";
-import VerifyEmailPage from "./pages/VerifyEmailPage";
-import ConnectionsPage from "./pages/ConnectionsPage";
-import ChatPage from "./pages/ChatPage";
-import CallPage from "./pages/CallPage";
-import LiveCallPage from "./pages/LiveCallPage";
-import FriendDetailPage from "./pages/FriendDetailPage";
-import ProfilePage from "./pages/ProfilePage";
-import UserProfilePage from "./pages/UserProfilePage";
-import PublicUserProfilePage from "./pages/PublicUserProfilePage";
-import GuestLandingPage from "./pages/GuestLandingPage";
-import PropertyToolsPage from "./pages/PropertyToolsPage";
-import MarketplacePage from "./pages/MarketplacePage";
-import MarketplaceDetailPage from "./pages/MarketplaceDetailPage";
-import PropertyDetailPage from "./pages/PropertyDetailPage";
-import PublicPropertyDetailPage from "./pages/PublicPropertyDetailPage";
-import NewsPage from "./pages/NewsPage";
-import TrendingLocalitiesPage from "./pages/TrendingLocalitiesPage";
-import RecommendedForYouPage from "./pages/RecommendedForYouPage";
-import MyDealsPage from "./pages/MyDealsPage";
-import SavedSearchesPage from "./pages/SavedSearchesPage";
-import DiscoverCommunitiesPage from "./pages/DiscoverCommunitiesPage";
-import RequestedCommunitiesPage from "./pages/RequestedCommunitiesPage";
-import ActivityPage from "./pages/ActivityPage";
-import ForgotPasswordPage from "./pages/ForgotPasswordPage";
-import VerifyOTPPage from "./pages/VerifyOTPPage";
-import NewPasswordPage from "./pages/NewPasswordPage";
-import PropertyComparisonPage from "./pages/PropertyComparisonPage";
-import PropertyMapView from "./pages/PropertyMapView";
-import AdminPage from "./pages/AdminPage";
-import HelpGuidePage from "./pages/HelpGuidePage";
 import AccountBlockedModal from "./components/AccountBlockedModal";
 import AppToaster from "./components/AppToaster";
 import BrandLoader from "./components/BrandLoader";
@@ -42,6 +10,46 @@ import { useEffect, useState } from "react";
 import axiosInstance from "./lib/axios";
 import posthog, { isPostHogEnabled } from "./lib/posthog";
 import Sentry, { isSentryEnabled } from "./lib/sentry";
+
+// Every route below is its own chunk, fetched only when a visitor actually
+// navigates there. Before this, ALL of these — Admin, the Stream video/chat
+// SDKs pulled in by CallPage/ChatPage, Leaflet in PropertyMapView, the
+// property comparison tool — shipped in one ~4.5MB bundle on first load,
+// regardless of which single page someone opened. A guest landing on "/"
+// downloaded the entire admin panel; that's the fix.
+const SignupPage = lazy(() => import("./pages/SignupPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const OnboardingPage = lazy(() => import("./pages/OnboardingPage"));
+const VerifyEmailPage = lazy(() => import("./pages/VerifyEmailPage"));
+const ConnectionsPage = lazy(() => import("./pages/ConnectionsPage"));
+const ChatPage = lazy(() => import("./pages/ChatPage"));
+const CallPage = lazy(() => import("./pages/CallPage"));
+const LiveCallPage = lazy(() => import("./pages/LiveCallPage"));
+const FriendDetailPage = lazy(() => import("./pages/FriendDetailPage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const UserProfilePage = lazy(() => import("./pages/UserProfilePage"));
+const PublicUserProfilePage = lazy(() => import("./pages/PublicUserProfilePage"));
+const GuestLandingPage = lazy(() => import("./pages/GuestLandingPage"));
+const PropertyToolsPage = lazy(() => import("./pages/PropertyToolsPage"));
+const MarketplacePage = lazy(() => import("./pages/MarketplacePage"));
+const MarketplaceDetailPage = lazy(() => import("./pages/MarketplaceDetailPage"));
+const PropertyDetailPage = lazy(() => import("./pages/PropertyDetailPage"));
+const PublicPropertyDetailPage = lazy(() => import("./pages/PublicPropertyDetailPage"));
+const NewsPage = lazy(() => import("./pages/NewsPage"));
+const TrendingLocalitiesPage = lazy(() => import("./pages/TrendingLocalitiesPage"));
+const RecommendedForYouPage = lazy(() => import("./pages/RecommendedForYouPage"));
+const MyDealsPage = lazy(() => import("./pages/MyDealsPage"));
+const SavedSearchesPage = lazy(() => import("./pages/SavedSearchesPage"));
+const DiscoverCommunitiesPage = lazy(() => import("./pages/DiscoverCommunitiesPage"));
+const RequestedCommunitiesPage = lazy(() => import("./pages/RequestedCommunitiesPage"));
+const ActivityPage = lazy(() => import("./pages/ActivityPage"));
+const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
+const VerifyOTPPage = lazy(() => import("./pages/VerifyOTPPage"));
+const NewPasswordPage = lazy(() => import("./pages/NewPasswordPage"));
+const PropertyComparisonPage = lazy(() => import("./pages/PropertyComparisonPage"));
+const PropertyMapView = lazy(() => import("./pages/PropertyMapView"));
+const AdminPage = lazy(() => import("./pages/AdminPage"));
+const HelpGuidePage = lazy(() => import("./pages/HelpGuidePage"));
 
 function App() {
   const queryClient = useQueryClient();
@@ -135,157 +143,159 @@ function App() {
 
   return (
     <div className="min-h-screen app-ambient">
-      <Routes>
-        <Route
-          path="/"
-          element={authUser ? <Navigate to="/marketplace" replace /> : <GuestLandingPage />}
-        />
-        <Route
-          path="/signup"
-          element={!authUser || isSwitchAccountFlow ? <SignupPage /> : <Navigate to="/marketplace" />}
-        />
-        <Route
-          path="/login"
-          element={!authUser || isSwitchAccountFlow ? <LoginPage /> : <Navigate to="/marketplace" />}
-        />
-        <Route
-          path="/forgot-password"
-          element={<ForgotPasswordPage />}
-        />
-        <Route
-          path="/verify-otp"
-          element={<VerifyOTPPage />}
-        />
-        <Route
-          path="/new-password"
-          element={<NewPasswordPage />}
-        />
-        {/* Mandatory email verification gate: every other authenticated route
-            below bounces here via `guard()` until the account is verified.
-            Also reachable with no session at all — a fresh signup has no
-            User row (and therefore no login session) until its OTP is
-            verified, so this route must work both signed-in-but-unverified
-            (legacy accounts) and signed-out-with-a-pending-signup. */}
-        <Route
-          path="/verify-email"
-          element={isVerified ? <Navigate to="/marketplace" /> : <VerifyEmailPage />}
-        />
-        <Route
-          path="/compare-properties"
-          element={guard(<PropertyComparisonPage />)}
-        />
-        <Route
-          path="/map-view"
-          element={guard(<PropertyMapView />)}
-        />
-        {/* Onboarding is opt-in, reachable from the profile page — not a
-            forced gate on every other route. Still redirects away once
-            already completed, so it doesn't get revisited by accident. */}
-        <Route
-          path="/onboarding"
-          element={guard(isOnboarded ? <Navigate to="/marketplace" /> : <OnboardingPage />)}
-        />
-        <Route
-          path="/notification"
-          element={guard(<ConnectionsPage />)}
-        />
-        <Route
-          path="/connections"
-          element={guard(<ConnectionsPage />)}
-        />
-        <Route
-          path="/chat"
-          element={guard(<ChatPage />)}
-        />
-        <Route
-          path="/call"
-          element={guard(<CallPage />)}
-        />
-        <Route
-          path="/call/live"
-          element={guard(<LiveCallPage />)}
-        />
-        <Route
-          path="/friends/:friendId"
-          element={guard(<FriendDetailPage />)}
-        />
-        <Route
-          path="/toolkit"
-          element={guard(<PropertyToolsPage />)}
-        />
-        <Route
-          path="/property-tools"
-          element={guard(<PropertyToolsPage />)}
-        />
-        <Route
-          path="/community"
-          element={guard(<MarketplacePage />)}
-        />
-        <Route
-          path="/marketplace"
-          element={guard(<MarketplacePage />)}
-        />
-        <Route
-          path="/community/:communityId"
-          element={guard(<MarketplaceDetailPage />)}
-        />
-        <Route
-          path="/marketplace/:communityId"
-          element={guard(<MarketplaceDetailPage />)}
-        />
-        <Route
-          path="/property/:id"
-          element={authUser ? guard(<PropertyDetailPage />) : <PublicPropertyDetailPage />}
-        />
-        <Route
-          path="/profile"
-          element={guard(<ProfilePage />)}
-        />
-        <Route
-          path="/users/:userId"
-          element={authUser ? guard(<UserProfilePage />) : <PublicUserProfilePage />}
-        />
-        <Route
-          path="/news"
-          element={guard(<NewsPage />)}
-        />
-        <Route
-          path="/trending-localities"
-          element={guard(<TrendingLocalitiesPage />)}
-        />
-        <Route
-          path="/recommended"
-          element={guard(<RecommendedForYouPage />)}
-        />
-        <Route
-          path="/deals"
-          element={guard(<MyDealsPage />)}
-        />
-        <Route
-          path="/saved-searches"
-          element={guard(<SavedSearchesPage />)}
-        />
-        <Route
-          path="/discover-communities"
-          element={guard(<DiscoverCommunitiesPage />)}
-        />
-        <Route
-          path="/requested-communities"
-          element={guard(<RequestedCommunitiesPage />)}
-        />
-        <Route
-          path="/activity"
-          element={guard(<ActivityPage />)}
-        />
-        <Route
-          path="/admin"
-          element={guardAdmin(<AdminPage />)}
-        />
-        <Route
-          path="/help"
-          element={guard(<HelpGuidePage />)}
-        />
-      </Routes>
+      <Suspense fallback={<BrandLoader />}>
+        <Routes>
+          <Route
+            path="/"
+            element={authUser ? <Navigate to="/marketplace" replace /> : <GuestLandingPage />}
+          />
+          <Route
+            path="/signup"
+            element={!authUser || isSwitchAccountFlow ? <SignupPage /> : <Navigate to="/marketplace" />}
+          />
+          <Route
+            path="/login"
+            element={!authUser || isSwitchAccountFlow ? <LoginPage /> : <Navigate to="/marketplace" />}
+          />
+          <Route
+            path="/forgot-password"
+            element={<ForgotPasswordPage />}
+          />
+          <Route
+            path="/verify-otp"
+            element={<VerifyOTPPage />}
+          />
+          <Route
+            path="/new-password"
+            element={<NewPasswordPage />}
+          />
+          {/* Mandatory email verification gate: every other authenticated route
+              below bounces here via `guard()` until the account is verified.
+              Also reachable with no session at all — a fresh signup has no
+              User row (and therefore no login session) until its OTP is
+              verified, so this route must work both signed-in-but-unverified
+              (legacy accounts) and signed-out-with-a-pending-signup. */}
+          <Route
+            path="/verify-email"
+            element={isVerified ? <Navigate to="/marketplace" /> : <VerifyEmailPage />}
+          />
+          <Route
+            path="/compare-properties"
+            element={guard(<PropertyComparisonPage />)}
+          />
+          <Route
+            path="/map-view"
+            element={guard(<PropertyMapView />)}
+          />
+          {/* Onboarding is opt-in, reachable from the profile page — not a
+              forced gate on every other route. Still redirects away once
+              already completed, so it doesn't get revisited by accident. */}
+          <Route
+            path="/onboarding"
+            element={guard(isOnboarded ? <Navigate to="/marketplace" /> : <OnboardingPage />)}
+          />
+          <Route
+            path="/notification"
+            element={guard(<ConnectionsPage />)}
+          />
+          <Route
+            path="/connections"
+            element={guard(<ConnectionsPage />)}
+          />
+          <Route
+            path="/chat"
+            element={guard(<ChatPage />)}
+          />
+          <Route
+            path="/call"
+            element={guard(<CallPage />)}
+          />
+          <Route
+            path="/call/live"
+            element={guard(<LiveCallPage />)}
+          />
+          <Route
+            path="/friends/:friendId"
+            element={guard(<FriendDetailPage />)}
+          />
+          <Route
+            path="/toolkit"
+            element={guard(<PropertyToolsPage />)}
+          />
+          <Route
+            path="/property-tools"
+            element={guard(<PropertyToolsPage />)}
+          />
+          <Route
+            path="/community"
+            element={guard(<MarketplacePage />)}
+          />
+          <Route
+            path="/marketplace"
+            element={guard(<MarketplacePage />)}
+          />
+          <Route
+            path="/community/:communityId"
+            element={guard(<MarketplaceDetailPage />)}
+          />
+          <Route
+            path="/marketplace/:communityId"
+            element={guard(<MarketplaceDetailPage />)}
+          />
+          <Route
+            path="/property/:id"
+            element={authUser ? guard(<PropertyDetailPage />) : <PublicPropertyDetailPage />}
+          />
+          <Route
+            path="/profile"
+            element={guard(<ProfilePage />)}
+          />
+          <Route
+            path="/users/:userId"
+            element={authUser ? guard(<UserProfilePage />) : <PublicUserProfilePage />}
+          />
+          <Route
+            path="/news"
+            element={guard(<NewsPage />)}
+          />
+          <Route
+            path="/trending-localities"
+            element={guard(<TrendingLocalitiesPage />)}
+          />
+          <Route
+            path="/recommended"
+            element={guard(<RecommendedForYouPage />)}
+          />
+          <Route
+            path="/deals"
+            element={guard(<MyDealsPage />)}
+          />
+          <Route
+            path="/saved-searches"
+            element={guard(<SavedSearchesPage />)}
+          />
+          <Route
+            path="/discover-communities"
+            element={guard(<DiscoverCommunitiesPage />)}
+          />
+          <Route
+            path="/requested-communities"
+            element={guard(<RequestedCommunitiesPage />)}
+          />
+          <Route
+            path="/activity"
+            element={guard(<ActivityPage />)}
+          />
+          <Route
+            path="/admin"
+            element={guardAdmin(<AdminPage />)}
+          />
+          <Route
+            path="/help"
+            element={guard(<HelpGuidePage />)}
+          />
+        </Routes>
+      </Suspense>
 
       {showBlockedModal ? (
         <AccountBlockedModal
