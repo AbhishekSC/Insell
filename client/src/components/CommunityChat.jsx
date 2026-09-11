@@ -37,7 +37,7 @@ class CommunityChatErrorBoundary extends Component {
   }
 }
 
-export default function CommunityChat({ community, onBack }) {
+export default function CommunityChat({ community, onBack, autoJoinCall, autoJoinCallId }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [showMembers, setShowMembers] = useState(false);
@@ -153,6 +153,22 @@ export default function CommunityChat({ community, onBack }) {
     await startOrJoinCommunityCall();
     axiosInstance.post(`/community-calls/${circle._id}/${call.id}/started`).catch(() => {});
   };
+
+  // Tapping "Join the call" in the reminder email/push lands here with
+  // ?joinCall=1 — join the room automatically instead of making someone
+  // find the button themselves.
+  const autoJoinedRef = useRef(false);
+  useEffect(() => {
+    if (!autoJoinCall || autoJoinedRef.current || !isMember || !videoClient || !circle?._id) return;
+    autoJoinedRef.current = true;
+    if (autoJoinCallId) {
+      joinScheduledCall({ id: autoJoinCallId });
+    } else {
+      startOrJoinCommunityCall();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoJoinCall, autoJoinCallId, isMember, videoClient, circle?._id]);
+
   const memberAddRequests = useMemo(() => circle?.memberAddRequests || [], [circle?.memberAddRequests]);
 
   // Friends who aren't already a member or already invited — only friends can be added

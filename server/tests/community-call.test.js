@@ -5,7 +5,16 @@ import User from "../src/models/User.model.js";
 import StudyCircle from "../src/models/StudyCircle.model.js";
 import ScheduledCall from "../src/models/ScheduledCall.model.js";
 import Notification from "../src/models/Notification.model.js";
-import { scheduleCall, listUpcoming, cancelCall, sendDueReminders } from "../src/modules/community-call/communityCall.service.js";
+import {
+  scheduleCall,
+  listUpcoming,
+  cancelCall,
+  sendDueReminders,
+  callUrl,
+  memberNamesLabel,
+  buildReminderEmailHtml,
+  minutesUntilLabel,
+} from "../src/modules/community-call/communityCall.service.js";
 import { runCallReminders } from "../src/modules/community-call/communityCall.controller.js";
 
 function fakeRes() {
@@ -86,7 +95,9 @@ describe("scheduleCall", () => {
     expect(call.status).toBe("REMINDED");
     const doc = await ScheduledCall.findById(call.id);
     expect(doc.reminderSentAt).toBeTruthy();
-    expect(await Notification.findOne({ recipient: creator._id, type: "circle_call_reminder" })).toBeTruthy();
+    const notification = await Notification.findOne({ recipient: creator._id, type: "circle_call_reminder" });
+    expect(notification).toBeTruthy();
+    expect(notification.message).toContain("5 minutes");
   });
 });
 
@@ -142,7 +153,12 @@ describe("sendDueReminders (cron sweep)", () => {
     const updated = await ScheduledCall.findById(call._id);
     expect(updated.status).toBe("REMINDED");
     expect(updated.reminderSentAt).toBeTruthy();
-    expect(await Notification.findOne({ recipient: creator._id, type: "circle_call_reminder" })).toBeTruthy();
+    const notification = await Notification.findOne({ recipient: creator._id, type: "circle_call_reminder" });
+    expect(notification).toBeTruthy();
+    // The bug this guards against: every reminder used to say "10 minutes"
+    // regardless of how much time was actually left.
+    expect(notification.message).toContain("8 minutes");
+    expect(notification.message).not.toContain("10 minutes");
   });
 
   it("never reminds the same call twice", async () => {
@@ -157,6 +173,68 @@ describe("sendDueReminders (cron sweep)", () => {
     await ScheduledCall.create({ circle: circle._id, scheduledBy: member._id, title: "Not yet", scheduledAt: inMinutes(45) });
     const { remindedCount } = await sendDueReminders();
     expect(remindedCount).toBe(0);
+  });
+});
+
+describe("minutesUntilLabel", () => {
+  it("reflects the actual remaining time, not a fixed '10 minutes'", () => {
+    expect(minutesUntilLabel(9 * 60 * 1000)).toBe("9 minutes");
+    expect(minutesUntilLabel(2 * 60 * 1000)).toBe("2 minutes");
+    expect(minutesUntilLabel(60 * 1000)).toBe("1 minute");
+  });
+
+  it("never says a negative or zero number of minutes", () => {
+    expect(minutesUntilLabel(20 * 1000)).toBe("less than a minute");
+    expect(minutesUntilLabel(-5000)).toBe("less than a minute");
+  });
+});
+
+describe("reminder email content", () => {
+  it("builds a join link with the circle and call id, resolvable from outside the app", () => {
+    const url = callUrl("circle123", "call456");
+    expect(url).toMatch(/^https?:\/\//);
+    expect(url).toContain("circle=circle123");
+    expect(url).toContain("callId=call456");
+    expect(url).toContain("joinCall=1");
+  });
+
+  it("lists member names, truncating past 6 with an 'and N more' tail", () => {
+    const names = Array.from({ length: 8 }, (_, i) => ({ _id: String(i), fullName: `Person ${i}` }));
+    const label = memberNamesLabel(names, null);
+    expect(label).toContain("Person 0");
+    expect(label).toContain("and 2 more");
+  });
+
+  it("excludes the given user from the member list", () => {
+    const names = [{ _id: "a", fullName: "Alice" }, { _id: "b", fullName: "Bob" }];
+    expect(memberNamesLabel(names, "a")).toBe("Bob");
+  });
+
+  it("embeds the topic, time, members, and a working join link in the email HTML", () => {
+    const html = buildReminderEmailHtml({
+      title: "Weekly sync",
+      circleName: "Buyers Circle",
+      whenLabel: "12 Sep, 7:00 pm",
+      membersLabel: "Alice, Bob",
+      joinLink: "https://example.com/join",
+    });
+    expect(html).toContain("Weekly sync");
+    expect(html).toContain("Buyers Circle");
+    expect(html).toContain("12 Sep, 7:00 pm");
+    expect(html).toContain("Alice, Bob");
+    expect(html).toContain('href="https://example.com/join"');
+  });
+
+  it("escapes HTML in user-supplied fields to avoid injection", () => {
+    const html = buildReminderEmailHtml({
+      title: "<script>alert(1)</script>",
+      circleName: "Circle",
+      whenLabel: "now",
+      membersLabel: "x",
+      joinLink: "https://example.com",
+    });
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;");
   });
 });
 

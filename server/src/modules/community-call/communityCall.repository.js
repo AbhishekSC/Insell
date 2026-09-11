@@ -1,8 +1,17 @@
 import ScheduledCall from "../../models/ScheduledCall.model.js";
 import StudyCircle from "../../models/StudyCircle.model.js";
+import User from "../../models/User.model.js";
 
 export async function findCircle(circleId) {
   return StudyCircle.findById(circleId).select("name creator members moderators").lean();
+}
+
+// Kept separate from findCircle() — that one is used for membership checks
+// that compare `members` as raw ObjectIds; this is only for display (the
+// reminder email's "who's invited" line), so it's fine for it to shape
+// `members` differently.
+export async function findMemberNames(memberIds) {
+  return User.find({ _id: { $in: memberIds } }).select("fullName").lean();
 }
 
 export async function create({ circleId, scheduledBy, title, scheduledAt }) {

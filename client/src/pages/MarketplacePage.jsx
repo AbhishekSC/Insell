@@ -344,6 +344,27 @@ export default function MarketplacePage() {
     setActiveSection((prev) => (prev === sectionParam ? prev : sectionParam));
   }, [searchParams]);
   const [selectedCommunity, setSelectedCommunity] = useState(null);
+
+  // Deep link from a call-reminder email/push: ?section=communities&circle=<id>&joinCall=1[&callId=<id>].
+  // Loads that community and tells CommunityChat to join the call itself,
+  // rather than making the member hunt for it after opening the app.
+  const deepLinkCircleId = searchParams.get("circle");
+  const autoJoinCall = searchParams.get("joinCall") === "1";
+  const autoJoinCallId = searchParams.get("callId") || null;
+  const { data: deepLinkCircle } = useQuery({
+    queryKey: ["deepLinkCircle", deepLinkCircleId],
+    queryFn: async () => {
+      const res = await axiosInstance.get(`/community/circles/${deepLinkCircleId}`);
+      return res.data?.data?.circle || null;
+    },
+    enabled: Boolean(deepLinkCircleId) && !selectedCommunity,
+  });
+  useEffect(() => {
+    if (!deepLinkCircle || selectedCommunity) return;
+    setActiveSection("communities");
+    setSelectedCommunity(deepLinkCircle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkCircle]);
   const [showShareModal, setShowShareModal] = useState(false);
   const [postToShare, setPostToShare] = useState(null);
   const [selectedForComparison, setSelectedForComparison] = useState([]);
@@ -2017,6 +2038,8 @@ export default function MarketplacePage() {
                 <CommunityChat
                   community={selectedCommunity}
                   onBack={() => setSelectedCommunity(null)}
+                  autoJoinCall={autoJoinCall && String(selectedCommunity?._id) === String(deepLinkCircleId)}
+                  autoJoinCallId={autoJoinCallId}
                 />
               ) : (
                 <CommunitiesContent
