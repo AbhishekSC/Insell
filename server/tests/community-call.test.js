@@ -13,6 +13,7 @@ import {
   callUrl,
   memberNamesLabel,
   buildReminderEmailHtml,
+  minutesUntilLabel,
 } from "../src/modules/community-call/communityCall.service.js";
 import { runCallReminders } from "../src/modules/community-call/communityCall.controller.js";
 
@@ -94,7 +95,9 @@ describe("scheduleCall", () => {
     expect(call.status).toBe("REMINDED");
     const doc = await ScheduledCall.findById(call.id);
     expect(doc.reminderSentAt).toBeTruthy();
-    expect(await Notification.findOne({ recipient: creator._id, type: "circle_call_reminder" })).toBeTruthy();
+    const notification = await Notification.findOne({ recipient: creator._id, type: "circle_call_reminder" });
+    expect(notification).toBeTruthy();
+    expect(notification.message).toContain("5 minutes");
   });
 });
 
@@ -150,7 +153,12 @@ describe("sendDueReminders (cron sweep)", () => {
     const updated = await ScheduledCall.findById(call._id);
     expect(updated.status).toBe("REMINDED");
     expect(updated.reminderSentAt).toBeTruthy();
-    expect(await Notification.findOne({ recipient: creator._id, type: "circle_call_reminder" })).toBeTruthy();
+    const notification = await Notification.findOne({ recipient: creator._id, type: "circle_call_reminder" });
+    expect(notification).toBeTruthy();
+    // The bug this guards against: every reminder used to say "10 minutes"
+    // regardless of how much time was actually left.
+    expect(notification.message).toContain("8 minutes");
+    expect(notification.message).not.toContain("10 minutes");
   });
 
   it("never reminds the same call twice", async () => {
@@ -165,6 +173,19 @@ describe("sendDueReminders (cron sweep)", () => {
     await ScheduledCall.create({ circle: circle._id, scheduledBy: member._id, title: "Not yet", scheduledAt: inMinutes(45) });
     const { remindedCount } = await sendDueReminders();
     expect(remindedCount).toBe(0);
+  });
+});
+
+describe("minutesUntilLabel", () => {
+  it("reflects the actual remaining time, not a fixed '10 minutes'", () => {
+    expect(minutesUntilLabel(9 * 60 * 1000)).toBe("9 minutes");
+    expect(minutesUntilLabel(2 * 60 * 1000)).toBe("2 minutes");
+    expect(minutesUntilLabel(60 * 1000)).toBe("1 minute");
+  });
+
+  it("never says a negative or zero number of minutes", () => {
+    expect(minutesUntilLabel(20 * 1000)).toBe("less than a minute");
+    expect(minutesUntilLabel(-5000)).toBe("less than a minute");
   });
 });
 

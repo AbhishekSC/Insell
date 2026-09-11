@@ -48,6 +48,18 @@ function escapeHtml(s) {
   return String(s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+// The cron only guarantees "due within the next 10 minutes, not yet
+// reminded" — it can genuinely fire anywhere from ~10 minutes out down to
+// just over 0 (cron timing, or a call scheduled with only a couple of
+// minutes' notice triggering the immediate-send path). The reminder text
+// must reflect the real remaining time, not a hardcoded "10 minutes".
+export function minutesUntilLabel(msRemaining) {
+  const mins = Math.round(msRemaining / 60000);
+  if (mins <= 0) return "less than a minute";
+  if (mins === 1) return "1 minute";
+  return `${mins} minutes`;
+}
+
 // A short, readable "who's invited" line for the reminder email — names,
 // not a bare member count, per the ask for "more details ... members name".
 export function memberNamesLabel(names, excludeUserId) {
@@ -60,17 +72,17 @@ export function memberNamesLabel(names, excludeUserId) {
   return `${list.slice(0, MAX_SHOWN).join(", ")} and ${list.length - MAX_SHOWN} more`;
 }
 
-export function buildReminderEmailHtml({ title, circleName, whenLabel, membersLabel, joinLink }) {
+export function buildReminderEmailHtml({ title, circleName, whenLabel, membersLabel, joinLink, minutesLabel }) {
   const topic = escapeHtml(title || "Community call");
   return `
   <div style="font-family:-apple-system,'Segoe UI',Roboto,sans-serif;max-width:480px;margin:0 auto;background:#f8fafc;">
     <div style="background:${BRAND_PRIMARY};padding:20px 24px;border-radius:12px 12px 0 0;">
       <p style="margin:0;color:#e0eafd;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;">NearMySpace</p>
-      <p style="margin:8px 0 0;color:#ffffff;font-size:20px;font-weight:700;">📞 Call starting in 10 minutes</p>
+      <p style="margin:8px 0 0;color:#ffffff;font-size:20px;font-weight:700;">📞 Call starting in ${escapeHtml(minutesLabel)}</p>
     </div>
     <div style="background:#ffffff;border:1px solid #dbe4ff;border-top:none;border-radius:0 0 12px 12px;padding:24px;">
       <p style="margin:0 0 18px;font-size:15px;line-height:1.5;color:#1f2937;">
-        <strong>${topic}</strong> in <strong>${escapeHtml(circleName)}</strong> is about to start.
+        <strong>${topic}</strong> in <strong>${escapeHtml(circleName)}</strong> starts in <strong>${escapeHtml(minutesLabel)}</strong>.
       </p>
       <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px;">
         <tr>
@@ -208,19 +220,26 @@ async function sendReminderFor(call, circle) {
   const whenLabel = new Date(call.scheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
   const memberNames = await findMemberNames(circle.members || []).catch(() => []);
   const joinLink = callUrl(circle._id, call._id);
+  // The cron only guarantees "due within the next 10 minutes" — it can
+  // genuinely fire anywhere from ~10 minutes out down to a minute or two,
+  // so the copy has to reflect the *actual* remaining time, not a fixed
+  // "10 minutes" (that was the bug: every reminder said 10 minutes flat,
+  // even one that fired 2 minutes before a call scheduled with short notice).
+  const minutesLabel = minutesUntilLabel(new Date(call.scheduledAt).getTime() - Date.now());
 
   const notified = await notifyMembers(circle, null, {
     type: "circle_call_reminder",
     title: "📞 Call starting soon",
-    message: `${label} in ${circle.name} starts in 10 minutes`,
-    pushBody: `${label} starts in 10 minutes — tap to join`,
-    emailSubject: `📞 ${call.title || "Your call"} starts in 10 minutes`,
+    message: `${label} in ${circle.name} starts in ${minutesLabel}`,
+    pushBody: `${label} starts in ${minutesLabel} — tap to join`,
+    emailSubject: `📞 ${call.title || "Your call"} starts in ${minutesLabel}`,
     emailHtml: buildReminderEmailHtml({
       title: call.title,
       circleName: circle.name,
       whenLabel,
       membersLabel: memberNamesLabel(memberNames, null),
       joinLink,
+      minutesLabel,
     }),
     channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE, NotificationChannel.EMAIL],
   });
