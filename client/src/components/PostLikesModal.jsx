@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link } from "react-router";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { X, BadgeCheck, Loader2 } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import UserAvatar from "./UserAvatar";
@@ -96,7 +96,6 @@ export default function PostLikesModal({ postId, open, onClose }) {
                     <div className="min-w-0">
                       <p className="flex items-center gap-1 truncate text-sm font-semibold text-base-content">
                         <span className="truncate">{u.fullName}</span>
-                        {u.isVerified && <BadgeCheck className="size-3.5 shrink-0 text-primary" />}
                       </p>
                       {u.city && <p className="truncate text-xs text-base-content/50">{u.city}</p>}
                     </div>

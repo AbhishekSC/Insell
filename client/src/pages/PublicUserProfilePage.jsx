@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { BadgeCheck, MapPin, Lock, Loader2 } from "lucide-react";
+import { MapPin, Lock, Loader2 } from "lucide-react";
 import axiosInstance from "../lib/axios";
 import LoginPromptModal from "../components/LoginPromptModal";
 import logoDesktop from "../assets/brand/logo-desktop.png";
@@ -83,7 +83,6 @@ export default function PublicUserProfilePage() {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <h1 className="truncate text-xl font-semibold text-base-content">{p.name}</h1>
-              {p.isVerified && <BadgeCheck className="size-5 shrink-0 text-primary" />}
             </div>
 
             <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">
@@ -172,7 +171,6 @@ export default function PublicUserProfilePage() {
                   <img src={r.avatar || "/favicon.png"} alt="" className="size-14 rounded-full object-cover" />
                   <span className="mt-2 flex w-full min-w-0 items-center justify-center gap-1 text-xs font-semibold text-base-content">
                     <span className="min-w-0 truncate">{r.name}</span>
-                    {r.isVerified && <BadgeCheck className="size-3 shrink-0 text-primary" />}
                   </span>
                   {r.city && <span className="w-full truncate text-[11px] text-base-content/50">{r.city}</span>}
                 </Link>

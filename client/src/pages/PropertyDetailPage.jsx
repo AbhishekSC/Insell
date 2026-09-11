@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  BadgeCheck,
   Bath,
   Bed,
   Bookmark,
@@ -1206,9 +1205,6 @@ export default function PropertyDetailPage() {
                         <p className="text-xl font-bold text-base-content truncate group-hover:text-primary transition-colors">
                           {postData.author?.fullName || "Unknown"}
                         </p>
-                        {postData.author?.isVerified && (
-                          <BadgeCheck className="size-5 text-primary flex-shrink-0" />
-                        )}
                       </div>
                       <p className="text-sm text-base-content/70">
                         {titleCase(postData.author?.activeRole || postData.author?.primaryRole || postData.authorRole) || "Property Owner"}

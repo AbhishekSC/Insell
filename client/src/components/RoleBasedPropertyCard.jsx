@@ -139,9 +139,6 @@ export default function RoleBasedPropertyCard({ post, userRole, onLike, onSave, 
       highlights.push({ icon: TrendingUp, label: "High ROI Potential" });
     }
     highlights.push({ icon: Users, label: `${formatCompactNumber(post.chatCount)} inquiries` });
-    if (post.author?.isVerified) {
-      highlights.push({ icon: BadgeCheck, label: "Verified Seller" });
-    }
   } else if (role === "Builder") {
     if (post.postMeta?.project?.reraNumber) {
       highlights.push({ icon: BadgeCheck, label: `RERA: ${post.postMeta.project.reraNumber}` });
@@ -188,14 +185,6 @@ export default function RoleBasedPropertyCard({ post, userRole, onLike, onSave, 
         <div className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold ${colors.badge}`}>
           {isRequirement ? "Requirement" : isProject ? "Project" : post.listingType || "Listing"}
         </div>
-
-        {/* Verified Badge */}
-        {post.author?.isVerified && (
-          <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-base-content backdrop-blur">
-            <BadgeCheck className="size-3 text-success" />
-            Verified
-          </div>
-        )}
 
         {/* Quick Actions */}
         <div className="absolute right-3 bottom-3 flex gap-2">
@@ -248,15 +237,11 @@ export default function RoleBasedPropertyCard({ post, userRole, onLike, onSave, 
           </div>
         )}
 
-        {/* Author with verified badge */}
         <div className="mb-3 flex items-center gap-2">
           <User className="size-3 text-base-content/50" />
           <span className="text-xs font-medium text-base-content">
             {post.author?.fullName || post.author?.name || "Unknown"}
           </span>
-          {post.author?.isVerified && (
-            <BadgeCheck className="size-3 text-success" />
-          )}
         </div>
 
         {/* Role-Specific Highlights */}
