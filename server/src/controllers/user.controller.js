@@ -11,6 +11,7 @@ export {
   getUserPublicProfile,
   getUserFriendsList,
   updateUserLocation,
+  updateDigestPreference,
   getPreferencePrompt,
   answerPreferencePrompt,
   registerFcmToken,

@@ -5,6 +5,7 @@
 // with no history shows nothing rather than misleading zeros.
 
 const TONES = {
+  verifiedOwner: { color: "bg-primary/15", textColor: "text-primary" },
   active: { color: "bg-emerald-100", textColor: "text-emerald-700" },
   responsive: { color: "bg-blue-100", textColor: "text-blue-700" },
   rating: { color: "bg-amber-100", textColor: "text-amber-700" },
@@ -13,6 +14,13 @@ const TONES = {
 export function getSellerTrustSignals(author, { now = Date.now() } = {}) {
   const signals = [];
   if (!author) return signals;
+
+  // The strongest signal on the card — document-verified ownership, not
+  // just an email check (that's author.isVerified, shown separately as the
+  // name badge). Always first when present.
+  if (author.isOwnerVerified) {
+    signals.push({ key: "verifiedOwner", label: "✓ Verified Owner", ...TONES.verifiedOwner });
+  }
 
   const lastActive = author.lastActiveAt ? new Date(author.lastActiveAt).getTime() : NaN;
   if (Number.isFinite(lastActive)) {

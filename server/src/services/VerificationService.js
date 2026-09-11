@@ -3,6 +3,7 @@ import User from "../models/User.model.js";
 import { logger } from "../utils/logger.js";
 import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler.js";
 import { sendVerificationEmail, sendWelcomeEmail } from "./EmailService.js";
+import { rewardIfEligible } from "../modules/referral/referral.service.js";
 
 const VERIFICATION_CODE_LENGTH = 6;
 export const VERIFICATION_CODE_EXPIRY_MINUTES = 10;
@@ -85,6 +86,10 @@ export async function verifyCode(userId, code) {
     await user.save();
 
     logger.info(`✅ User ${user.email} verified successfully`);
+
+    // No-op unless this user was actually referred (referredBy unset) —
+    // safe to call unconditionally.
+    rewardIfEligible(user._id).catch(() => {});
 
     // Send welcome email
     try {

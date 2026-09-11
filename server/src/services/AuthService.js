@@ -11,6 +11,7 @@ import { sendVerificationEmail, sendWelcomeEmail } from "./EmailService.js";
 import { logger } from "../utils/logger.js";
 import Notification from "../models/Notification.model.js";
 import { pushRealtimeNotification } from "./stream.service.js";
+import { attachReferrerFromCode, rewardIfEligible } from "../modules/referral/referral.service.js";
 
 const { BCRYPT_SALT_ROUNDS, PASSWORD_MIN_LENGTH } = SCHEMA_CONSTANTS;
 
@@ -59,7 +60,7 @@ export default class AuthService extends BaseService {
   // that code is verified (see verifySignup below), so an abandoned signup
   // never leaves a permanently-unverified, unusable User behind — it just
   // expires via PendingSignup's TTL index instead.
-  async signup({ fullName, email, password }) {
+  async signup({ fullName, email, password, referralCode }) {
     const { userRepository } = this.dependencies;
 
     const existingUser = await userRepository.findByEmail(email);
@@ -78,9 +79,20 @@ export default class AuthService extends BaseService {
     // Re-attempting a signup with the same (still-unverified) email just
     // refreshes the pending record and issues a new code, rather than
     // erroring — this is also how a stuck/expired signup gets resumed.
+    const cleanReferralCode = String(referralCode || "").trim().toUpperCase() || undefined;
     const pendingSignup = await PendingSignup.findOneAndUpdate(
       { email },
-      { fullName, email, password: hashedPassword, verificationCode, verificationCodeExpires },
+      {
+        fullName,
+        email,
+        password: hashedPassword,
+        verificationCode,
+        verificationCodeExpires,
+        // Only overwrite a previously-captured code if this attempt actually
+        // has one — a "resend code" retry that doesn't resubmit ?ref
+        // shouldn't wipe out the referral from the original attempt.
+        ...(cleanReferralCode ? { referralCode: cleanReferralCode } : {}),
+      },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 
@@ -132,6 +144,15 @@ export default class AuthService extends BaseService {
     });
 
     await PendingSignup.deleteOne({ _id: pendingSignup._id });
+
+    // Referral: attach the referrer (if this signup came in via ?ref=CODE),
+    // then reward both sides immediately — this whole flow only creates the
+    // User row once its OTP is already verified, so "signed up" and
+    // "verified" are the same moment here.
+    if (pendingSignup.referralCode) {
+      await attachReferrerFromCode(newUser._id, pendingSignup.referralCode);
+      await rewardIfEligible(newUser._id);
+    }
 
     const accessToken = tokenIssuer(newUser, res);
 

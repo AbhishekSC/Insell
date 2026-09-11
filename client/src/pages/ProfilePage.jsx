@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Camera, ClipboardCheck, Link2, MapPin, Phone, Sparkles, UploadCloud, UserCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
+import OwnerVerificationCard from "../components/OwnerVerificationCard";
+import ReferralCard from "../components/ReferralCard";
 import axiosInstance from "../lib/axios";
 
 export default function ProfilePage() {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const authData = queryClient.getQueryData(["authUser"]);
   const authUser = authData?.data?.user || authData?.data || null;
   const availableRoles = Array.isArray(authUser?.userRoles) && authUser.userRoles.length > 0
@@ -40,6 +43,24 @@ export default function ProfilePage() {
       URL.revokeObjectURL(objectUrl);
     };
   }, [profileImageFile]);
+
+  // One-click "turn off this email" link from the weekly digest lands here
+  // as /profile?digest=off — apply it once, then drop the query param so
+  // refreshing the page doesn't keep re-firing it.
+  useEffect(() => {
+    if (searchParams.get("digest") !== "off") return;
+    axiosInstance
+      .patch("/users/digest-preference", { optOut: true })
+      .then(() => toast.success("Weekly digest email turned off"))
+      .catch(() => toast.error("Couldn't update that — try again from your profile"));
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("digest");
+      return next;
+    }, { replace: true });
+    // Runs once on mount only — intentionally not reactive to searchParams changing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const previewUrl = useMemo(() => {
     if (localPreview) {
@@ -274,6 +295,9 @@ export default function ProfilePage() {
               Upload mode and URL mode are mutually exclusive for clarity.
             </p>
           </div>
+
+          <OwnerVerificationCard />
+          <ReferralCard />
 
           <button
             type="button"

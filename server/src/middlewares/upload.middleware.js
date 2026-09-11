@@ -238,3 +238,17 @@ export const uploadDealDocument = multer({
   fileFilter: dealDocFileFilter,
   limits: { fileSize: 10 * 1024 * 1024 },
 });
+
+// ID / ownership proof submitted for the "Verified Owner" badge — same
+// shape as deal documents (a photo or scanned PDF), separate Cloudinary
+// folder so these aren't mixed in with deal paperwork.
+const ownerVerificationStorage = createCloudinaryStorage(
+  "owner-verification",
+  ["jpg", "jpeg", "png", "webp", "pdf"],
+  { maxWidth: 2000, maxHeight: 2000, quality: "auto:good", resourceType: "auto" }
+);
+export const uploadOwnerVerificationDoc = multer({
+  storage: ownerVerificationStorage,
+  fileFilter: dealDocFileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 },
+});

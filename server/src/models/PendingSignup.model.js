@@ -34,6 +34,13 @@ const pendingSignupSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    // Carried through from ?ref=CODE on the signup form to the real User
+    // once OTP verification creates it — see AuthService.verifySignup and
+    // modules/referral.
+    referralCode: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );

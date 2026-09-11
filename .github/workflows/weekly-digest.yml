@@ -1,0 +1,21 @@
+# Once a week, ask the API to email everyone with saved-search/price-alert
+# activity from the last 7 days a summary of what they missed. Auth is a
+# shared secret header (repo secret CRON_SECRET, matching server env
+# CRON_SECRET) — same pattern as stalled-deals-nudge.
+name: weekly-digest
+
+on:
+  schedule:
+    - cron: "30 3 * * 1" # 09:00 IST every Monday
+  workflow_dispatch: {}
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send weekly digest
+        run: |
+          curl -sSf --max-time 60 --retry 2 --retry-delay 10 \
+            -X POST \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            "${{ vars.API_BASE_URL || 'https://insell-be.onrender.com' }}/api/digest/cron/weekly"
