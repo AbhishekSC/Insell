@@ -126,6 +126,7 @@ export async function compareProperties(req, res) {
           fullName: property.author.fullName,
           profilePic: property.author.profilePic,
           isVerified: property.author.isVerified || false,
+          isOwnerVerified: Boolean(property.author.isOwnerVerified),
         },
       };
     });
@@ -810,7 +811,7 @@ async function attachSocialProof(posts, currentUserId) {
   }
   if (wanted.size === 0) return posts;
 
-  const likers = await User.find({ _id: { $in: [...wanted] } }).select("fullName profilePic").lean();
+  const likers = await User.find({ _id: { $in: [...wanted] } }).select("fullName profilePic isOwnerVerified").lean();
   const byId = new Map(likers.map((u) => [String(u._id), u]));
 
   return posts.map((p) => {
@@ -823,6 +824,7 @@ async function attachSocialProof(posts, currentUserId) {
         fullName: u.fullName || "A connection",
         avatar: u.profilePic || null,
         isFriend: true,
+        isOwnerVerified: Boolean(u.isOwnerVerified),
         othersCount: Math.max(0, (p.likesCount || 0) - 1),
       },
     };
@@ -1533,7 +1535,7 @@ export async function getPostLikers(req, res) {
 
     const [users, me, pending] = await Promise.all([
       User.find({ _id: { $in: pageIds }, isBlocked: { $ne: true } })
-        .select("fullName profilePic isVerified city")
+        .select("fullName profilePic isVerified isOwnerVerified city")
         .lean(),
       User.findById(currentUserId).select("friends").lean(),
       FriendRequest.find({
@@ -1569,6 +1571,7 @@ export async function getPostLikers(req, res) {
           fullName: u.fullName || "Member",
           avatar: u.profilePic || null,
           isVerified: Boolean(u.isVerified),
+          isOwnerVerified: Boolean(u.isOwnerVerified),
           city: u.city || "",
           connectionStatus,
         };

@@ -1,7 +1,7 @@
 import { Component, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Channel, Chat, MessageComposer, MessageList, Thread, Window } from "stream-chat-react";
-import { ArrowLeft, Calendar, Camera, Check, Crown, LogOut, Loader2, Menu, PhoneCall, Shield, Trash2, UserPlus, Users, Video, X } from "lucide-react";
+import { ArrowLeft, Calendar, Camera, Check, Crown, LogOut, Loader2, Menu, PhoneCall, Shield, ShieldCheck, Trash2, UserPlus, Users, Video, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router";
 import axiosInstance from "../lib/axios";
@@ -511,6 +511,9 @@ export default function CommunityChat({ community, onBack }) {
                   <div className="flex-1">
                     <p className="font-medium text-base-content text-sm">
                       {member.fullName}
+                      {member?.isOwnerVerified && (
+                        <ShieldCheck className="inline ml-1 text-primary" size={14} aria-label="Verified Owner" />
+                      )}
                       {member._id === circle?.creator?._id && (
                         <Crown className="inline ml-1 text-warning" size={14} />
                       )}
@@ -631,7 +634,12 @@ export default function CommunityChat({ community, onBack }) {
                           friend.fullName?.charAt(0) || "U"
                         )}
                       </div>
-                      <span className="flex-1 text-sm font-medium text-base-content">{friend.fullName}</span>
+                      <span className="flex flex-1 items-center gap-1 text-sm font-medium text-base-content">
+                        <span className="truncate">{friend.fullName}</span>
+                        {friend?.isOwnerVerified && (
+                          <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                        )}
+                      </span>
                       {selected && <Check size={16} className="text-primary" />}
                     </button>
                   );

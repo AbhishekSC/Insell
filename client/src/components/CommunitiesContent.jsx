@@ -22,6 +22,7 @@ import {
   Sparkles,
   Award,
   Pencil,
+  ShieldCheck,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
@@ -376,7 +377,12 @@ export default function CommunitiesContent({ onOpenChat }) {
                 className="flex items-center justify-between gap-3 rounded-lg bg-base-100 p-3 shadow-sm"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-base-content">{item.user?.fullName || "User"}</p>
+                  <p className="flex items-center gap-1 truncate text-sm font-medium text-base-content">
+                    <span className="truncate">{item.user?.fullName || "User"}</span>
+                    {item.user?.isOwnerVerified && (
+                      <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                    )}
+                  </p>
                   <p className="truncate text-xs text-base-content/60">Requested to join {item.circleName}</p>
                 </div>
                 <div className="flex shrink-0 gap-2">

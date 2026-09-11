@@ -1,4 +1,4 @@
-import { MapPin, Bed, Bath, Square, IndianRupee, User, Trophy } from "lucide-react";
+import { MapPin, Bed, Bath, Square, IndianRupee, User, Trophy, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -110,14 +110,17 @@ export default function PropertyComparisonCard({ property, formatPrice, isBest =
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p 
+              <p
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate(`/users/${property.author.id}`);
                 }}
-                className="font-medium text-base-content truncate cursor-pointer hover:text-primary transition-colors"
+                className="flex items-center gap-1 font-medium text-base-content truncate cursor-pointer hover:text-primary transition-colors"
               >
-                {property.author.fullName}
+                <span className="truncate">{property.author.fullName}</span>
+                {property.author?.isOwnerVerified && (
+                  <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                )}
               </p>
             </div>
           </div>

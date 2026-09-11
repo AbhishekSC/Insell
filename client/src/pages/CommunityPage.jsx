@@ -365,7 +365,12 @@ export default function CommunityPage() {
                 ) : null}
                 {pendingJoinRequests.slice(0, 8).map((item) => (
                   <article key={`${item.circleId}-${item.user?._id || "unknown"}`} className="rounded-xl border border-base-300/70 bg-base-100/85 p-3">
-                    <p className="text-sm font-semibold">{item.user?.fullName || "User"}</p>
+                    <p className="flex items-center gap-1 text-sm font-semibold">
+                      <span>{item.user?.fullName || "User"}</span>
+                      {item.user?.isOwnerVerified && (
+                        <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                      )}
+                    </p>
                     <p className="mt-1 text-xs text-base-content/70">Requested to join {item.circleName}</p>
                     <p className="mt-1 text-[11px] text-base-content/60">Role: {item.isCreator ? "Admin" : "Moderator"}</p>
                     <div className="mt-2 flex gap-2">
@@ -432,7 +437,12 @@ export default function CommunityPage() {
                     </article>
                   ) : (
                     <article key={item._id} className="rounded-xl border border-base-300/70 bg-base-100/85 p-3">
-                      <p className="text-sm font-semibold">{item.actor?.fullName || "Friend"}</p>
+                      <p className="flex items-center gap-1 text-sm font-semibold">
+                        <span>{item.actor?.fullName || "Friend"}</span>
+                        {item.actor?.isOwnerVerified && (
+                          <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                        )}
+                      </p>
                       <p className="mt-1 text-xs text-base-content/70">{item.message}</p>
                       {item.circle ? <p className="mt-2 text-xs font-semibold text-base-content/60">{item.circle.name}</p> : null}
                       <div className="mt-3 flex gap-2">

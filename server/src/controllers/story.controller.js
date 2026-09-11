@@ -37,7 +37,7 @@ export const createStory = async (req, res) => {
     });
 
     // Populate author details
-    await story.populate("author", "fullName profilePic isVerified activeRole primaryRole");
+    await story.populate("author", "fullName profilePic isVerified isOwnerVerified activeRole primaryRole");
 
     logger.info(`Story created by user ${userId}`);
 
@@ -77,7 +77,7 @@ export const getActiveStories = async (req, res) => {
     };
 
     const stories = await Story.find(query)
-      .populate("author", "fullName profilePic isVerified activeRole primaryRole")
+      .populate("author", "fullName profilePic isVerified isOwnerVerified activeRole primaryRole")
       .populate("propertyId", "title price city listingType")
       .sort({ createdAt: -1 })
       .limit(Number(limit));
@@ -119,7 +119,7 @@ export const getUserStories = async (req, res) => {
       isActive: true,
       feedExpiresAt: { $gt: new Date() },
     })
-      .populate("author", "fullName profilePic isVerified activeRole primaryRole")
+      .populate("author", "fullName profilePic isVerified isOwnerVerified activeRole primaryRole")
       .populate("propertyId", "title price city listingType")
       .sort({ createdAt: -1 });
 
@@ -238,7 +238,7 @@ export const getStoryLikes = async (req, res) => {
     const { storyId } = req.params;
     const userId = req.user._id;
 
-    const story = await Story.findById(storyId).populate("likedBy", "fullName profilePic city");
+    const story = await Story.findById(storyId).populate("likedBy", "fullName profilePic city isOwnerVerified");
 
     if (!story) {
       return res.status(404).json({
@@ -276,7 +276,7 @@ export const getStoryViewers = async (req, res) => {
     const { storyId } = req.params;
     const userId = req.user._id;
 
-    const story = await Story.findById(storyId).populate("viewedBy", "fullName profilePic city");
+    const story = await Story.findById(storyId).populate("viewedBy", "fullName profilePic city isOwnerVerified");
 
     if (!story) {
       return res.status(404).json({

@@ -1306,7 +1306,7 @@ class PersonalizationService {
    */
   static async getRecommendationCandidates(userId, user, limit) {
     const baseMatch = { ...LIVE_POST_MATCH, author: { $ne: userId } };
-    const authorSelect = "fullName profilePic activeRole primaryRole city isVerified ratingAvg ratingCount responseRate";
+    const authorSelect = "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate";
     // The local pool only needs enough headroom for the seen-filter + diversity
     // walk to have room — NOT `limit × 5`. A small catalogue can legitimately
     // have, say, 18 good local listings; demanding 20 threw all 18 away and
@@ -1721,7 +1721,7 @@ class PersonalizationService {
         ],
         price: { $gte: priceRange.min, $lte: priceRange.max }
       })
-        .populate("author", "fullName profilePic activeRole primaryRole city isVerified ratingAvg ratingCount responseRate")
+        .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate")
         .limit(limit * 2)
         .lean();
 

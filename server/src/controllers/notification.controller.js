@@ -68,7 +68,7 @@ export const getNotifications = async (req, res) => {
     Object.assign(filter, typeCondition);
 
     const notifications = await Notification.find(filter)
-      .populate("actor", "fullName profilePic isVerified activeRole primaryRole")
+      .populate("actor", "fullName profilePic isVerified isOwnerVerified activeRole primaryRole")
       .populate("propertyPost", "title price city listingType mediaUrls")
       // Offer status, not just the id — an "offer_received"/"offer_countered"
       // notification's `type` never changes once you act on it, so without

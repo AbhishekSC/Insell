@@ -17,6 +17,7 @@ import {
   MessageSquare,
   Radio,
   Search,
+  ShieldCheck,
   Sparkles,
   Users,
 } from "lucide-react";
@@ -283,7 +284,12 @@ export default function ChatPage() {
                           <span className={`absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-base-100 ${isActive ? "bg-success" : "bg-base-300/80"}`}></span>
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold">{friend.fullName}</p>
+                          <p className="flex items-center gap-1 truncate text-sm font-semibold">
+                            <span className="truncate">{friend.fullName}</span>
+                            {friend?.isOwnerVerified && (
+                              <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                            )}
+                          </p>
                           <p className="truncate text-xs text-base-content/60 mt-0.5">
                             {friend.travelStyle || friend.learningLanguage || "Traveler"}
                           </p>
@@ -305,8 +311,11 @@ export default function ChatPage() {
               <div className="rounded-2xl border border-base-300/70 bg-base-100/80 px-5 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h3 className="card-title text-xl sm:text-2xl">
-                      {selectedFriend ? selectedFriend.fullName : "Conversation"}
+                    <h3 className="card-title flex items-center gap-1.5 text-xl sm:text-2xl">
+                      <span>{selectedFriend ? selectedFriend.fullName : "Conversation"}</span>
+                      {selectedFriend?.isOwnerVerified && (
+                        <ShieldCheck className="size-4 shrink-0 text-primary" aria-label="Verified Owner" />
+                      )}
                     </h3>
                     <p className="mt-1 text-sm text-base-content/65">
                       {selectedFriend
@@ -367,7 +376,12 @@ export default function ChatPage() {
                   >
                     Back
                   </button>
-                  <p className="truncate text-sm font-semibold">{selectedFriend?.fullName || "Conversation"}</p>
+                  <p className="flex min-w-0 items-center gap-1 truncate text-sm font-semibold">
+                    <span className="truncate">{selectedFriend?.fullName || "Conversation"}</span>
+                    {selectedFriend?.isOwnerVerified && (
+                      <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />
+                    )}
+                  </p>
                 </div>
                 <div className="flex-1 min-h-0 overflow-hidden bg-base-100/85 xl:rounded-xl xl:border xl:border-base-300/70">
                   <Chat client={chatClient}>

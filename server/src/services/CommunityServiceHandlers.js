@@ -61,11 +61,11 @@ export async function getCommunityData(req, res) {
         .limit(24)
         .lean(),
       StudyCircle.find({ $or: [{ creator: currentUserId }, { members: currentUserId }] })
-        .populate("creator", "fullName profilePic")
-        .populate("members", "fullName profilePic")
+        .populate("creator", "fullName profilePic isOwnerVerified")
+        .populate("members", "fullName profilePic isOwnerVerified")
         .populate("moderators", "fullName profilePic")
         .populate("pendingInvites", "fullName profilePic")
-        .populate("pendingJoinRequests", "fullName profilePic")
+        .populate("pendingJoinRequests", "fullName profilePic isOwnerVerified")
         .populate("memberAddRequests.targetUser", "fullName profilePic")
         .populate("memberAddRequests.requestedBy", "fullName profilePic")
         .sort({ createdAt: -1 })
@@ -90,7 +90,7 @@ export async function getCommunityData(req, res) {
       })
         .sort({ createdAt: -1 })
         .limit(20)
-        .populate("actor", "fullName profilePic")
+        .populate("actor", "fullName profilePic isOwnerVerified")
         .populate("circle", "name topic")
         .lean(),
     ]);
@@ -380,8 +380,8 @@ export async function getCommunityCircleDetail(req, res) {
     const { id } = req.params;
 
     const circle = await StudyCircle.findById(id)
-      .populate("creator", "fullName profilePic")
-      .populate("members", "fullName profilePic email homeBase travelStyle travelInterests favoriteDestinations nativeLanguage learningLanguage location")
+      .populate("creator", "fullName profilePic isOwnerVerified")
+      .populate("members", "fullName profilePic email homeBase travelStyle travelInterests favoriteDestinations nativeLanguage learningLanguage location isOwnerVerified")
       .populate("moderators", "fullName profilePic")
       .populate("pendingInvites", "fullName profilePic")
       .populate("memberAddRequests.targetUser", "fullName profilePic")
@@ -411,7 +411,7 @@ export async function getCommunityCircleDetail(req, res) {
     }
 
     const resources = await CommunityResource.find({ circle: id })
-      .populate("author", "fullName profilePic")
+      .populate("author", "fullName profilePic isOwnerVerified")
       .sort({ createdAt: -1 })
       .limit(30)
       .lean();
@@ -876,7 +876,7 @@ export async function createCommunityResource(req, res) {
     });
 
     const populatedResource = await CommunityResource.findById(resource._id)
-      .populate("author", "fullName profilePic")
+      .populate("author", "fullName profilePic isOwnerVerified")
       .lean();
 
     return sendSuccessResponse(res, 201, "Community resource added successfully", { resource: populatedResource });

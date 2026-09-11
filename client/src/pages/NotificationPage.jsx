@@ -8,6 +8,7 @@ import {
   MapPin,
   RefreshCw,
   Search,
+  ShieldCheck,
   Sparkles,
   UserRoundPlus,
   UsersRound,
@@ -51,7 +52,10 @@ function IncomingRequest({ request, onAccept, onReject, busy }) {
     <article className="notification-request-card">
       <UserAvatar src={sender?.profilePic} name={sender?.fullName || "User"} sizeClass="size-12" className="ring-2 ring-success/15" />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold">{sender?.fullName || "Unknown user"}</p>
+        <p className="flex items-center gap-1 truncate text-sm font-bold">
+          <span className="truncate">{sender?.fullName || "Unknown user"}</span>
+          {sender?.isOwnerVerified && <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />}
+        </p>
         <MarketProfile user={sender} />
         <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-base-content/50"><MapPin className="size-3" />{sender?.city || sender?.homeBase || sender?.location || "City not set"}</p>
       </div>
@@ -69,7 +73,10 @@ function RecommendationCard({ user, onSend, busy }) {
       <div className="flex items-start gap-3">
         <UserAvatar src={user?.profilePic} name={user?.fullName || "User"} sizeClass="size-11" className="ring-2 ring-primary/10" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold">{user?.fullName || "Unknown user"}</p>
+          <p className="flex items-center gap-1 truncate text-sm font-bold">
+            <span className="truncate">{user?.fullName || "Unknown user"}</span>
+            {user?.isOwnerVerified && <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />}
+          </p>
           <MarketProfile user={user} />
           <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-base-content/50"><MapPin className="size-3" />{user?.city || user?.homeBase || user?.location || "City not set"}</p>
           {user?.recommendationReason && (
@@ -246,8 +253,8 @@ export default function NotificationPage() {
 
           <section className="notification-network shell-panel xl:min-h-0 xl:overflow-y-auto">
             <div className="notification-section-heading"><div className="grid size-10 place-items-center rounded-xl bg-secondary/10 text-secondary"><UsersRound className="size-5" /></div><div><h2>Your network</h2><p>{friends.length} connected · {outgoingRequests.length} pending</p></div></div>
-            <div className="mt-4"><p className="notification-subheading">Friends</p>{friends.length ? <div className="mt-2 space-y-1.5">{friends.map((friend) => <Link key={friend._id} to={`/friends/${friend._id}`} className="notification-network-row"><UserAvatar src={friend.profilePic} name={friend.fullName} sizeClass="size-9" /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{friend.fullName}</span><span className="block truncate text-xs text-base-content/55">{friend.location || "Language partner"}</span></span></Link>)}</div> : <p className="mt-2 text-sm text-base-content/55">Your new connections will appear here.</p>}</div>
-            <div className="mt-6"><p className="notification-subheading">Pending requests</p>{outgoingRequests.length ? <div className="mt-2 space-y-1.5">{outgoingRequests.map((request) => <div key={request._id} className="notification-network-row"><UserAvatar src={request.receiver?.profilePic} name={request.receiver?.fullName || "User"} sizeClass="size-9" /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{request.receiver?.fullName || "Unknown user"}</span><span className="inline-flex items-center gap-1 text-xs text-warning"><Clock3 className="size-3" />Awaiting response</span></span></div>)}</div> : <p className="mt-2 text-sm text-base-content/55">No pending requests.</p>}</div>
+            <div className="mt-4"><p className="notification-subheading">Friends</p>{friends.length ? <div className="mt-2 space-y-1.5">{friends.map((friend) => <Link key={friend._id} to={`/friends/${friend._id}`} className="notification-network-row"><UserAvatar src={friend.profilePic} name={friend.fullName} sizeClass="size-9" /><span className="min-w-0 flex-1"><span className="flex items-center gap-1 truncate text-sm font-semibold"><span className="truncate">{friend.fullName}</span>{friend?.isOwnerVerified && <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />}</span><span className="block truncate text-xs text-base-content/55">{friend.location || "Language partner"}</span></span></Link>)}</div> : <p className="mt-2 text-sm text-base-content/55">Your new connections will appear here.</p>}</div>
+            <div className="mt-6"><p className="notification-subheading">Pending requests</p>{outgoingRequests.length ? <div className="mt-2 space-y-1.5">{outgoingRequests.map((request) => <div key={request._id} className="notification-network-row"><UserAvatar src={request.receiver?.profilePic} name={request.receiver?.fullName || "User"} sizeClass="size-9" /><span className="min-w-0 flex-1"><span className="flex items-center gap-1 truncate text-sm font-semibold"><span className="truncate">{request.receiver?.fullName || "Unknown user"}</span>{request.receiver?.isOwnerVerified && <ShieldCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />}</span><span className="inline-flex items-center gap-1 text-xs text-warning"><Clock3 className="size-3" />Awaiting response</span></span></div>)}</div> : <p className="mt-2 text-sm text-base-content/55">No pending requests.</p>}</div>
           </section>
         </div>
       )}
