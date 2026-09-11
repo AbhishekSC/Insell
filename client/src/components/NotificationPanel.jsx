@@ -32,7 +32,7 @@ function NotificationMessage({ notification, onNavigate }) {
         {actor.fullName}
       </Link>
       {actor?.isOwnerVerified && (
-        <BadgeCheck className="inline size-3.5 shrink-0 align-text-bottom text-primary" aria-label="Verified Owner" />
+        <BadgeCheck className="ml-0.5 inline-block size-3.5 shrink-0 align-middle text-primary" aria-label="Verified Owner" />
       )}
       {after}
     </>

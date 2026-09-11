@@ -286,7 +286,7 @@ export default function PropertyPostCard({
             <span className="truncate">
               Liked by <span className="font-semibold text-base-content">{post.socialProof.fullName}</span>
               {post.socialProof.isOwnerVerified && (
-                <BadgeCheck className="inline size-3 shrink-0 align-text-bottom text-primary" aria-label="Verified Owner" />
+                <BadgeCheck className="ml-0.5 inline-block size-3 shrink-0 align-middle text-primary" aria-label="Verified Owner" />
               )}
               {post.socialProof.othersCount > 0 && (
                 <> and <span className="font-semibold text-base-content hover:underline">{post.socialProof.othersCount.toLocaleString("en-IN")} others</span></>
