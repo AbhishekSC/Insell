@@ -394,9 +394,6 @@ export function StoryViewer({
             <div>
               <p className="text-sm font-semibold text-white">
                 {story.author?.fullName}
-                {story.author?.isVerified && (
-                  <span className="ml-1 text-success">✓</span>
-                )}
               </p>
               <p className="text-xs text-base-content/40">
                 {story.author?.activeRole || story.author?.primaryRole} • {relativeTime(story.createdAt)}

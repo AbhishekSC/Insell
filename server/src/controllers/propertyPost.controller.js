@@ -1447,7 +1447,7 @@ export async function getPropertyPostById(req, res) {
     const post = await PropertyPost.findById(postId)
       .populate(
         "author",
-        "fullName profilePic activeRole primaryRole city isVerified mobileNumber friends lastActiveAt responseRate ratingAvg ratingCount"
+        "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified mobileNumber friends lastActiveAt responseRate ratingAvg ratingCount"
       )
       .lean();
 

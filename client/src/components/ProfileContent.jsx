@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { BadgeCheck, Camera, Link2, MapPin, Phone, Sparkles, UploadCloud, UserCircle } from "lucide-react";
+import { Camera, Link2, MapPin, Phone, Sparkles, UploadCloud, UserCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import LocationPicker from "./LocationPicker";
@@ -137,12 +137,6 @@ export default function ProfileContent() {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-xs sm:text-sm font-semibold text-base-content/70">Profile Studio</p>
-                {authUser?.isVerified && (
-                  <span className="inline-flex items-center gap-1 text-success">
-                    <BadgeCheck className="size-3.5 sm:size-4" />
-                    <span className="text-[11px] sm:text-xs font-semibold">Verified</span>
-                  </span>
-                )}
               </div>
               <h2 className="text-base sm:text-xl font-extrabold text-base-content break-words">Update your profile</h2>
             </div>

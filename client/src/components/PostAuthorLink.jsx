@@ -1,5 +1,4 @@
 import { Link } from "react-router";
-import { BadgeCheck } from "lucide-react";
 import UserAvatar from "./UserAvatar";
 
 export default function PostAuthorLink({
@@ -15,7 +14,6 @@ export default function PostAuthorLink({
   const authorId = author?._id;
   const authorName = author?.fullName || "Unknown";
   const authorRole = author?.activeRole || author?.primaryRole || "User";
-  const isVerified = author?.isVerified || false;
 
   const nameColor = textColor === "white" ? "text-white font-medium" : "text-base-content font-semibold";
   const metaColor = textColor === "white" ? "text-white/90" : "text-base-content/60";
@@ -30,7 +28,6 @@ export default function PostAuthorLink({
           <div className="min-w-0">
             <p className={`truncate text-sm ${nameColor} flex items-center gap-1`}>
               {authorName}
-              {isVerified && <BadgeCheck className="size-3 text-success" />}
               {inlineMeta && <span className={`font-normal ${metaColor}`}>· {inlineMeta}</span>}
             </p>
             {!inlineMeta && (meta ? meta : <p className={`truncate text-[11px] ${metaColor}`}>{authorRole}</p>)}
@@ -54,7 +51,6 @@ export default function PostAuthorLink({
         <div className="min-w-0">
           <p className={`truncate text-sm ${nameColor} ${hoverText} flex items-center gap-1`}>
             {authorName}
-            {isVerified && <BadgeCheck className="size-3 text-success" />}
             {inlineMeta && <span className={`font-normal ${metaColor}`}>· {inlineMeta}</span>}
           </p>
           {meta ? meta : (inlineMeta ? null : <p className={`truncate text-[11px] ${metaColor}`}>{authorRole}</p>)}

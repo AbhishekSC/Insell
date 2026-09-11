@@ -339,11 +339,6 @@ export default function UserProfilePage() {
     [bookmarksData]
   );
 
-  const verified = useMemo(
-    () => profileUser?.isVerified || false,
-    [profileUser]
-  );
-
   const { mutate: sendConnectionRequest, isPending: isConnecting } = useMutation({
     mutationFn: async () => {
       const response = await axiosInstance.post(`/users/connection-request/${userId}`);
@@ -714,7 +709,6 @@ export default function UserProfilePage() {
             <div className="mt-3">
               <h1 className="flex items-center gap-1.5 text-base font-bold text-base-content">
                 {profileUser.fullName || "Unknown User"}
-                {verified ? <BadgeCheck className="size-4 text-success" /> : null}
               </h1>
               {profileUser.ratingCount > 0 && (
                 <p className="flex items-center gap-1 text-xs font-medium text-warning">
@@ -762,7 +756,6 @@ export default function UserProfilePage() {
                   <h1 className="text-2xl font-bold text-base-content">
                     {profileUser.fullName || "Unknown User"}
                   </h1>
-                  {verified ? <BadgeCheck className="size-5 text-success" /> : null}
                 </div>
                 {profileUser.ratingCount > 0 && (
                   <p className="mt-1 flex items-center justify-center gap-1 text-sm font-medium text-warning sm:justify-start">

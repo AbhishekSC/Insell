@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams, Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
-  BadgeCheck, MapPin, Bed, Bath, Ruler, Building2, Phone,
+  MapPin, Bed, Bath, Ruler, Building2, Phone,
   IndianRupee, CalendarClock, Bookmark, Loader2,
 } from "lucide-react";
 import axiosInstance from "../lib/axios";
@@ -143,7 +143,6 @@ export default function PublicPropertyDetailPage() {
             <div className="min-w-0">
               <p className="flex items-center gap-1 text-sm font-semibold text-base-content">
                 {p.author.name}
-                {p.author.isVerified && <BadgeCheck className="size-4 text-primary" />}
               </p>
               <p className="text-xs text-base-content/50">Listed by owner{p.author.city ? ` · ${p.author.city}` : ""}</p>
             </div>
@@ -224,7 +223,6 @@ export default function PublicPropertyDetailPage() {
                   <img src={u.avatar || "/favicon.png"} alt="" className="size-14 rounded-full object-cover" />
                   <span className="mt-2 flex w-full min-w-0 items-center justify-center gap-1 text-xs font-semibold text-base-content">
                     <span className="min-w-0 truncate">{u.name}</span>
-                    {u.isVerified && <BadgeCheck className="size-3 shrink-0 text-primary" />}
                   </span>
                   {u.city && <span className="w-full truncate text-[11px] text-base-content/50">{u.city}</span>}
                 </Link>
