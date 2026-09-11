@@ -54,10 +54,12 @@
         0% { transform: translateX(-120%); }
         100% { transform: translateX(360%); }
       }
-      @media (prefers-color-scheme: dark) {
-        #app-splash { background: #14161a; }
-        #app-splash .bar { background: rgba(255, 255, 255, 0.1); }
-      }
+      /* Dark only follows an explicit saved choice (see ThemeProvider —
+         the app defaults to light regardless of prefers-color-scheme), so
+         this is a class the inline script below adds to <html>, never a
+         media query — set before body parses, so no flash either way. */
+      html.theme-dark #app-splash { background: #14161a; }
+      html.theme-dark #app-splash .bar { background: rgba(255, 255, 255, 0.1); }
       @media (prefers-reduced-motion: reduce) {
         #app-splash .brand { animation: splash-pop 400ms ease-out both; }
         #app-splash .bar::after { animation-duration: 2s; }
@@ -65,11 +67,11 @@
     </style>
     <script>
       // Match the splash background to the saved theme so there's no flash
-      // when the themed app renders over it.
+      // when the themed app renders over it. Mirrors ThemeProvider's own
+      // default: light unless the user explicitly chose dark before.
       try {
-        var t = localStorage.getItem("syncspace-theme");
-        if (t === "dark" || (!t && matchMedia("(prefers-color-scheme: dark)").matches)) {
-          document.documentElement.style.background = "#14161a";
+        if (localStorage.getItem("syncspace-theme") === "dark") {
+          document.documentElement.classList.add("theme-dark");
         }
       } catch (e) {}
     </script>
