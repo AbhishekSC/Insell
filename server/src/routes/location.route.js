@@ -7,6 +7,37 @@ const router = express.Router();
 // Nominatim API for geocoding (OpenStreetMap)
 const NOMINATIM_API_URL = "https://nominatim.openstreetmap.org/search";
 
+// Nominatim's usage policy caps requests at 1/second, GLOBALLY — not per
+// caller. That's shared across every user of this app hitting this route at
+// once, so a burst of concurrent searches (or just several people typing at
+// the same moment) can trip its rate limit even though no single user did
+// anything wrong. Serialize our own outbound calls to stay under that, and
+// retry once after a real 429 instead of surfacing it immediately — the
+// limit resets a little over a second later, so a short wait usually
+// succeeds instead of failing the search outright.
+const NOMINATIM_MIN_INTERVAL_MS = 1100;
+let nominatimQueue = Promise.resolve();
+let lastNominatimCallAt = 0;
+
+function throttledNominatimGet(params) {
+  const run = async () => {
+    const wait = Math.max(0, lastNominatimCallAt + NOMINATIM_MIN_INTERVAL_MS - Date.now());
+    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+    lastNominatimCallAt = Date.now();
+    return axios.get(NOMINATIM_API_URL, {
+      params,
+      headers: { "User-Agent": "SyncSpace-RealEstate-App" },
+      timeout: 15000,
+    });
+  };
+  // Chain onto the queue so concurrent requests serialize instead of racing
+  // — chain continues even if this call fails, so one bad request can't
+  // wedge every search behind it.
+  const result = nominatimQueue.then(run, run);
+  nominatimQueue = result.catch(() => {});
+  return result;
+}
+
 // Cache for location results to reduce API calls
 const locationCache = new Map();
 const CACHE_TTL = 1000 * 60 * 60; // 1 hour cache
@@ -64,17 +95,24 @@ router.get("/search", async (req, res) => {
 
     let results;
     try {
-      const response = await axios.get(NOMINATIM_API_URL, {
-        params,
-        headers: {
-          'User-Agent': 'SyncSpace-RealEstate-App'
-        },
-        timeout: 15000
-      });
+      let response;
+      try {
+        response = await throttledNominatimGet(params);
+      } catch (firstError) {
+        // Nominatim's window is 1 second — a single retry after clearing it
+        // usually succeeds, so a transient 429 doesn't have to fail the
+        // user's search outright.
+        if (firstError.response?.status === 429) {
+          await new Promise((resolve) => setTimeout(resolve, NOMINATIM_MIN_INTERVAL_MS));
+          response = await throttledNominatimGet(params);
+        } else {
+          throw firstError;
+        }
+      }
       results = response.data || [];
     } catch (apiError) {
       logger.warn("Nominatim API error", { error: apiError.message, status: apiError.response?.status });
-      
+
       // Handle rate limiting specifically
       if (apiError.response?.status === 429) {
         return res.status(429).json({
@@ -83,7 +121,7 @@ router.get("/search", async (req, res) => {
           error: "Rate limited by location service"
         });
       }
-      
+
       // For other errors, return empty results
       return res.json({
         success: true,
