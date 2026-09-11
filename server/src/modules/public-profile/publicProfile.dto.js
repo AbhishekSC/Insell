@@ -50,6 +50,7 @@ export function toPublicProfileDTO(user, { postsCount, previewPosts, related }) 
     bio: user.bio || "",
     city: user.city || "",
     isVerified: Boolean(user.isVerified),
+    isOwnerVerified: Boolean(user.isOwnerVerified),
     rating: user.ratingCount > 0 ? { avg: Math.round(user.ratingAvg * 10) / 10, count: user.ratingCount } : null,
     connectionsCount: Array.isArray(user.friends) ? user.friends.length : 0,
     postsCount,
