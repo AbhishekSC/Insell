@@ -5,6 +5,7 @@ import { logger } from "../../utils/logger.js";
 import { toScheduledCallDTO } from "./communityCall.dto.js";
 import {
   findCircle,
+  findMemberNames,
   create,
   findById,
   listUpcomingForCircle,
@@ -16,6 +17,8 @@ import {
 
 const MAX_ADVANCE_DAYS = 30;
 const REMINDER_WINDOW_MS = 10 * 60 * 1000; // "starts in 10 minutes"
+const SITE_ORIGIN = (process.env.CLIENT_URL || "https://insell-fe.vercel.app").replace(/\/$/, "");
+const BRAND_PRIMARY = "#2f6fed";
 
 function isMemberOf(circle, userId) {
   return (circle.members || []).some((memberId) => String(memberId) === String(userId));
@@ -28,11 +31,74 @@ function isOrganizerOrModerator(circle, call, userId) {
   return (circle.moderators || []).some((modId) => String(modId) === id);
 }
 
-function callUrl(circleId) {
-  return `/marketplace?section=communities&circle=${circleId}`;
+// Relative in-app path (used for the notification's `data.url`, which the
+// client resolves against its own origin) vs. the absolute link an email or
+// push notification needs, which must work from outside the app entirely.
+function callPath(circleId, callId) {
+  const params = new URLSearchParams({ section: "communities", circle: String(circleId), joinCall: "1" });
+  if (callId) params.set("callId", String(callId));
+  return `/marketplace?${params.toString()}`;
 }
 
-async function notifyMembers(circle, excludeUserId, { type, title, message, channels }) {
+export function callUrl(circleId, callId) {
+  return `${SITE_ORIGIN}${callPath(circleId, callId)}`;
+}
+
+function escapeHtml(s) {
+  return String(s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// A short, readable "who's invited" line for the reminder email — names,
+// not a bare member count, per the ask for "more details ... members name".
+export function memberNamesLabel(names, excludeUserId) {
+  const list = names
+    .filter((n) => String(n._id) !== String(excludeUserId))
+    .map((n) => n.fullName || "Member");
+  if (list.length === 0) return "Just you";
+  const MAX_SHOWN = 6;
+  if (list.length <= MAX_SHOWN) return list.join(", ");
+  return `${list.slice(0, MAX_SHOWN).join(", ")} and ${list.length - MAX_SHOWN} more`;
+}
+
+export function buildReminderEmailHtml({ title, circleName, whenLabel, membersLabel, joinLink }) {
+  const topic = escapeHtml(title || "Community call");
+  return `
+  <div style="font-family:-apple-system,'Segoe UI',Roboto,sans-serif;max-width:480px;margin:0 auto;background:#f8fafc;">
+    <div style="background:${BRAND_PRIMARY};padding:20px 24px;border-radius:12px 12px 0 0;">
+      <p style="margin:0;color:#e0eafd;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;">NearMySpace</p>
+      <p style="margin:8px 0 0;color:#ffffff;font-size:20px;font-weight:700;">📞 Call starting in 10 minutes</p>
+    </div>
+    <div style="background:#ffffff;border:1px solid #dbe4ff;border-top:none;border-radius:0 0 12px 12px;padding:24px;">
+      <p style="margin:0 0 18px;font-size:15px;line-height:1.5;color:#1f2937;">
+        <strong>${topic}</strong> in <strong>${escapeHtml(circleName)}</strong> is about to start.
+      </p>
+      <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px;">
+        <tr>
+          <td style="padding:7px 0;color:#6b7280;border-top:1px solid #eef2ff;">Topic</td>
+          <td style="padding:7px 0;text-align:right;font-weight:600;color:#1f2937;border-top:1px solid #eef2ff;">${topic}</td>
+        </tr>
+        <tr>
+          <td style="padding:7px 0;color:#6b7280;border-top:1px solid #eef2ff;">When</td>
+          <td style="padding:7px 0;text-align:right;font-weight:600;color:#1f2937;border-top:1px solid #eef2ff;">${escapeHtml(whenLabel)}</td>
+        </tr>
+        <tr>
+          <td style="padding:7px 0;color:#6b7280;border-top:1px solid #eef2ff;vertical-align:top;">Members</td>
+          <td style="padding:7px 0;text-align:right;font-weight:600;color:#1f2937;border-top:1px solid #eef2ff;">${escapeHtml(membersLabel)}</td>
+        </tr>
+      </table>
+      <div style="text-align:center;margin-top:26px;">
+        <a href="${joinLink}" style="display:inline-block;background:${BRAND_PRIMARY};color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 32px;border-radius:8px;">
+          Join the call →
+        </a>
+      </div>
+      <p style="margin-top:18px;font-size:12px;color:#9ca3af;text-align:center;word-break:break-all;">
+        Button not working? <a href="${joinLink}" style="color:${BRAND_PRIMARY};">${joinLink}</a>
+      </p>
+    </div>
+  </div>`;
+}
+
+async function notifyMembers(circle, excludeUserId, { type, title, message, pushBody, emailSubject, emailHtml, channels }) {
   const recipientIds = (circle.members || [])
     .map((memberId) => String(memberId))
     .filter((memberId) => memberId !== String(excludeUserId));
@@ -45,7 +111,10 @@ async function notifyMembers(circle, excludeUserId, { type, title, message, chan
         type,
         title,
         message,
-        data: { circle: String(circle._id), url: callUrl(circle._id) },
+        pushBody,
+        emailSubject,
+        emailHtml,
+        data: { circle: String(circle._id), url: callPath(circle._id) },
         channels,
       })
     )
@@ -136,10 +205,23 @@ export async function markCallStarted(userId, circleId, callId) {
 
 async function sendReminderFor(call, circle) {
   const label = call.title ? `"${call.title}"` : "Your community call";
+  const whenLabel = new Date(call.scheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+  const memberNames = await findMemberNames(circle.members || []).catch(() => []);
+  const joinLink = callUrl(circle._id, call._id);
+
   const notified = await notifyMembers(circle, null, {
     type: "circle_call_reminder",
     title: "📞 Call starting soon",
     message: `${label} in ${circle.name} starts in 10 minutes`,
+    pushBody: `${label} starts in 10 minutes — tap to join`,
+    emailSubject: `📞 ${call.title || "Your call"} starts in 10 minutes`,
+    emailHtml: buildReminderEmailHtml({
+      title: call.title,
+      circleName: circle.name,
+      whenLabel,
+      membersLabel: memberNamesLabel(memberNames, null),
+      joinLink,
+    }),
     channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE, NotificationChannel.EMAIL],
   });
   await markReminded(call._id);
