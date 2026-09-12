@@ -15,6 +15,7 @@ import {
   buildParticipantsHtml,
   buildReminderEmailHtml,
   minutesUntilLabel,
+  formatCallDateParts,
 } from "../src/modules/community-call/communityCall.service.js";
 import { runCallReminders } from "../src/modules/community-call/communityCall.controller.js";
 
@@ -174,6 +175,15 @@ describe("sendDueReminders (cron sweep)", () => {
     await ScheduledCall.create({ circle: circle._id, scheduledBy: member._id, title: "Not yet", scheduledAt: inMinutes(45) });
     const { remindedCount } = await sendDueReminders();
     expect(remindedCount).toBe(0);
+  });
+});
+
+describe("formatCallDateParts", () => {
+  it("always renders IST, regardless of the server process's own timezone", () => {
+    // A UTC instant that is 9:15 AM IST (UTC+5:30) — 03:45 UTC.
+    const { dateLabel, timeLabel } = formatCallDateParts("2026-09-12T03:45:00.000Z");
+    expect(dateLabel).toBe("September 12, 2026");
+    expect(timeLabel).toBe("9:15 AM");
   });
 });
 
