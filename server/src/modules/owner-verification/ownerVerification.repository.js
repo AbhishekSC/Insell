@@ -11,8 +11,8 @@ export async function findPendingForUser(userId) {
   return OwnerVerificationRequest.findOne({ user: userId, status: "PENDING" }).lean();
 }
 
-export async function create({ userId, docType, docUrl, note }) {
-  return OwnerVerificationRequest.create({ user: userId, docType, docUrl, note });
+export async function create({ userId, docType, docUrl, note, docNumber }) {
+  return OwnerVerificationRequest.create({ user: userId, docType, docUrl, note, docNumber });
 }
 
 // `status` is one of REQUEST_STATUSES, or "ALL" to see the full history —

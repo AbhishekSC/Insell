@@ -2220,6 +2220,12 @@ function VerificationReportModal({ request, onClose }) {
                 <dt className="text-base-content/60">Document type</dt>
                 <dd className="font-medium text-base-content">{request.docType.replace(/_/g, " ")}</dd>
               </div>
+              {request.docNumber && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-base-content/60">Document number</dt>
+                  <dd className="font-mono font-medium text-base-content">{request.docNumber}</dd>
+                </div>
+              )}
               <div className="flex justify-between gap-3">
                 <dt className="text-base-content/60">Submitted</dt>
                 <dd className="font-medium text-base-content">{new Date(request.createdAt).toLocaleString()}</dd>

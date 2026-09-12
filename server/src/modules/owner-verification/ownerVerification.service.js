@@ -18,18 +18,52 @@ export async function getMyStatus(userId) {
   return toRequestDTO(req);
 }
 
-export async function submitRequest(userId, { docType, docUrl, note }) {
+// Format-only — a real-looking PAN/Aadhaar number, not an OCR cross-check
+// against the uploaded image. The admin still visually compares the typed
+// number to the document during review, same as before this field existed.
+const PAN_FORMAT = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+
+function normalizeDocNumber(docType, docNumber) {
+  const raw = String(docNumber || "").trim();
+  if (docType === "PAN") {
+    const cleaned = raw.toUpperCase().replace(/\s+/g, "");
+    if (!PAN_FORMAT.test(cleaned)) {
+      throw new AppError("Enter a valid PAN number (e.g. ABCDE1234F)", 400);
+    }
+    return cleaned;
+  }
+  if (docType === "AADHAAR") {
+    const cleaned = raw.replace(/[\s-]+/g, "");
+    if (!/^\d{12}$/.test(cleaned)) {
+      throw new AppError("Enter a valid 12-digit Aadhaar number", 400);
+    }
+    return cleaned;
+  }
+  // Any other doc type — the number field doesn't apply, ignore whatever was sent.
+  return "";
+}
+
+export async function submitRequest(userId, { docType, docUrl, note, docNumber }) {
   if (!DOC_TYPES.includes(docType)) {
     throw new AppError("Choose a valid document type", 400);
   }
   if (!docUrl) {
     throw new AppError("A document upload is required", 400);
   }
+  if ((docType === "PAN" || docType === "AADHAAR") && !docNumber) {
+    throw new AppError(docType === "PAN" ? "PAN number is required" : "Aadhaar number is required", 400);
+  }
   const existing = await findPendingForUser(userId);
   if (existing) {
     throw new AppError("You already have a verification request pending review", 409);
   }
-  const doc = await create({ userId, docType, docUrl, note: (note || "").trim().slice(0, 500) });
+  const doc = await create({
+    userId,
+    docType,
+    docUrl,
+    note: (note || "").trim().slice(0, 500),
+    docNumber: normalizeDocNumber(docType, docNumber),
+  });
   return toRequestDTO(doc);
 }
 
