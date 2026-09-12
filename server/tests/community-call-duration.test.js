@@ -64,14 +64,28 @@ describe("scheduleCall — durationMinutes", () => {
     expect(doc.durationMinutes).toBeNull();
   });
 
-  it("accepts a valid duration", async () => {
+  it("accepts a valid duration and returns it on the DTO, not just in the database", async () => {
     const call = await scheduleCall(String(member._id), String(circle._id), {
       title: "x",
       scheduledAt: inMinutes(60),
       durationMinutes: 30,
     });
+    // The bug this guards against: durationMinutes was stored correctly but
+    // toScheduledCallDTO() never included it, so the client had no way to
+    // ever display the duration the organizer picked.
+    expect(call.durationMinutes).toBe(30);
     const doc = await ScheduledCall.findById(call.id);
     expect(doc.durationMinutes).toBe(30);
+  });
+
+  it("also returns durationMinutes through listUpcoming", async () => {
+    await scheduleCall(String(member._id), String(circle._id), {
+      title: "x",
+      scheduledAt: inMinutes(60),
+      durationMinutes: 45,
+    });
+    const upcoming = await listUpcoming(String(member._id), String(circle._id));
+    expect(upcoming.find((c) => c.title === "x")?.durationMinutes).toBe(45);
   });
 
   it("rejects a duration below the minimum", async () => {

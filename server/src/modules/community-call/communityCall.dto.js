@@ -4,8 +4,10 @@ export function toScheduledCallDTO(call) {
     circle: String(call.circle?._id || call.circle),
     title: call.title || "",
     scheduledAt: call.scheduledAt,
+    durationMinutes: call.durationMinutes ?? null,
     status: call.status,
     reminderSentAt: call.reminderSentAt || null,
+    endedAt: call.endedAt || null,
     createdAt: call.createdAt,
     // scheduledBy may or may not be populated depending on the call site —
     // only shape it as an object once we can tell it actually was.
