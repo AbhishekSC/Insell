@@ -7,11 +7,27 @@ import { useNavigate } from "react-router";
 import axiosInstance from "../lib/axios";
 import { useStreamContext } from "../context/StreamProvider";
 
-// Local-time value for <input type="datetime-local"> — no timezone suffix.
-function toLocalDatetimeInput(d) {
-  const x = new Date(d);
-  x.setMinutes(x.getMinutes() - x.getTimezoneOffset());
-  return x.toISOString().slice(0, 16);
+// Scheduled calls are deliberately IST-only, not "whatever timezone this
+// browser happens to think it's in" — a datetime-local input has no
+// timezone of its own, so `new Date(value)` falls back to the browser's
+// system timezone, and a misconfigured device (or one just not set to
+// India) would silently schedule the wrong instant, e.g. "9:15" typed
+// meaning IST landing 5.5 hours away from what was intended. Pinning IST
+// explicitly here means the picker means the same thing on every device.
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+// A datetime-local value ("YYYY-MM-DDTHH:mm"), read as IST wall-clock time,
+// converted to the real UTC instant to send to the server.
+function istInputToUtcIso(value) {
+  const asIfUtc = new Date(`${value}:00.000Z`).getTime();
+  return new Date(asIfUtc - IST_OFFSET_MS).toISOString();
+}
+
+// The inverse — a UTC instant (or Date) rendered as the IST wall-clock
+// "YYYY-MM-DDTHH:mm" string the same input's min/max attributes expect.
+function utcToISTInput(d) {
+  const istMs = new Date(d).getTime() + IST_OFFSET_MS;
+  return new Date(istMs).toISOString().slice(0, 16);
 }
 
 class CommunityChatErrorBoundary extends Component {
@@ -536,7 +552,7 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
           <Calendar size={16} className="shrink-0 text-primary" />
           <span className="min-w-0 flex-1 truncate text-base-content">
             {nextCall.title ? `"${nextCall.title}"` : "Community call"} ·{" "}
-            {new Date(nextCall.scheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+            {new Date(nextCall.scheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" })}
           </span>
           <button
             type="button"
@@ -811,12 +827,12 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
               />
             </label>
             <label className="form-control mb-5">
-              <span className="label-text mb-1 text-sm text-base-content">Date &amp; time</span>
+              <span className="label-text mb-1 text-sm text-base-content">Date &amp; time (IST)</span>
               <input
                 type="datetime-local"
                 value={scheduleAt}
-                min={toLocalDatetimeInput(new Date(Date.now() + 60_000))}
-                max={toLocalDatetimeInput(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))}
+                min={utcToISTInput(new Date(Date.now() + 60_000))}
+                max={utcToISTInput(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))}
                 onChange={(e) => setScheduleAt(e.target.value)}
                 className="input input-bordered w-full border-base-300"
               />
@@ -833,7 +849,7 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
                 type="button"
                 disabled={!scheduleAt || scheduleCallMutation.isPending}
                 onClick={() =>
-                  scheduleCallMutation.mutate({ title: scheduleTitle, scheduledAt: new Date(scheduleAt).toISOString() })
+                  scheduleCallMutation.mutate({ title: scheduleTitle, scheduledAt: istInputToUtcIso(scheduleAt) })
                 }
                 className="flex-1 rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary transition-colors disabled:opacity-50"
               >
@@ -947,7 +963,7 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
                 {circle?.createdAt && (
                   <span className="inline-flex items-center gap-1.5">
                     <Calendar className="size-4" />
-                    Created {new Date(circle.createdAt).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
+                    Created {new Date(circle.createdAt).toLocaleDateString("en-IN", { month: "short", year: "numeric", timeZone: "Asia/Kolkata" })}
                   </span>
                 )}
               </div>

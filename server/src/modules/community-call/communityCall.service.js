@@ -73,12 +73,22 @@ export function memberNamesLabel(names, excludeUserId) {
   return `${list.slice(0, MAX_SHOWN).join(" · ")} and ${list.length - MAX_SHOWN} more`;
 }
 
+// The server process itself may run in any timezone (Render/most cloud
+// hosts default to UTC) — without an explicit `timeZone` here, the email
+// would show the date/time as UTC while the app (and every user) works in
+// IST, silently shifting the displayed time by 5.5 hours from what was
+// actually scheduled. This is an India-only product; pin it explicitly
+// rather than trust whatever zone the process happens to run in.
+const DISPLAY_TIME_ZONE = "Asia/Kolkata";
+
 // Date and time as two separate lines — "11 September 2026" / "7:40 PM" —
 // the way a calendar invite reads, rather than one run-together sentence.
 export function formatCallDateParts(date) {
   const d = new Date(date);
-  const dateLabel = d.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
-  const timeLabel = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).replace(/am|pm/i, (m) => m.toUpperCase());
+  const dateLabel = d.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric", timeZone: DISPLAY_TIME_ZONE });
+  const timeLabel = d
+    .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: DISPLAY_TIME_ZONE })
+    .replace(/am|pm/i, (m) => m.toUpperCase());
   return { dateLabel, timeLabel };
 }
 
@@ -171,7 +181,7 @@ export async function scheduleCall(userId, circleId, { title, scheduledAt }) {
     scheduledAt: when,
   });
 
-  const whenLabel = when.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+  const whenLabel = when.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: DISPLAY_TIME_ZONE });
   const label = call.title ? `"${call.title}"` : "A call";
   await notifyMembers(circle, userId, {
     type: "circle_call_scheduled",
