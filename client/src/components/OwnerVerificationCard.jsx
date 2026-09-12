@@ -25,6 +25,8 @@ export default function OwnerVerificationCard() {
   const [docType, setDocType] = useState("AADHAAR");
   const [file, setFile] = useState(null);
   const [note, setNote] = useState("");
+  const [docNumber, setDocNumber] = useState("");
+  const needsDocNumber = docType === "AADHAAR" || docType === "PAN";
 
   const { data, isLoading } = useQuery({
     queryKey: ["ownerVerificationStatus"],
@@ -37,9 +39,13 @@ export default function OwnerVerificationCard() {
   const { mutate: submit, isPending } = useMutation({
     mutationFn: async () => {
       if (!file) throw new Error("Choose a document to upload");
+      if (needsDocNumber && !docNumber.trim()) {
+        throw new Error(docType === "PAN" ? "Enter your PAN number" : "Enter your Aadhaar number");
+      }
       const payload = new FormData();
       payload.append("docType", docType);
       payload.append("note", note);
+      payload.append("docNumber", docNumber);
       payload.append("document", file);
       const res = await axiosInstance.post("/owner-verification", payload, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -50,6 +56,7 @@ export default function OwnerVerificationCard() {
       toast.success("Submitted — we'll review it shortly");
       setFile(null);
       setNote("");
+      setDocNumber("");
       queryClient.invalidateQueries({ queryKey: ["ownerVerificationStatus"] });
     },
     onError: (error) => {
@@ -103,13 +110,30 @@ export default function OwnerVerificationCard() {
                 <select
                   className="select select-bordered select-sm"
                   value={docType}
-                  onChange={(e) => setDocType(e.target.value)}
+                  onChange={(e) => {
+                    setDocType(e.target.value);
+                    setDocNumber("");
+                  }}
                 >
                   {DOC_TYPES.map((d) => (
                     <option key={d.value} value={d.value}>{d.label}</option>
                   ))}
                 </select>
               </label>
+
+              {needsDocNumber && (
+                <label className="form-control">
+                  <span className="label-text mb-1">{docType === "PAN" ? "PAN number" : "Aadhaar number"}</span>
+                  <input
+                    type="text"
+                    className="input input-bordered input-sm"
+                    placeholder={docType === "PAN" ? "ABCDE1234F" : "1234 5678 9012"}
+                    value={docNumber}
+                    onChange={(e) => setDocNumber(e.target.value)}
+                    maxLength={20}
+                  />
+                </label>
+              )}
 
               <label className="form-control">
                 <span className="label-text mb-1">Upload document (image or PDF)</span>
@@ -136,7 +160,7 @@ export default function OwnerVerificationCard() {
               <button
                 type="button"
                 className="btn btn-primary btn-sm"
-                disabled={isPending || !file}
+                disabled={isPending || !file || (needsDocNumber && !docNumber.trim())}
                 onClick={() => submit()}
               >
                 <UploadCloud className="size-4" />

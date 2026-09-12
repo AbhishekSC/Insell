@@ -202,6 +202,9 @@ export async function downloadVerificationReportPDF(request, profile) {
   y = sectionHeader(doc, y, "Verification Submission");
   i = 0;
   y = kvRow(doc, y, "Document type", request.docType.replace(/_/g, " "), { index: i++ });
+  if (request.docNumber) {
+    y = kvRow(doc, y, "Document number", request.docNumber, { index: i++ });
+  }
   y = kvRow(doc, y, "Submitted", new Date(request.createdAt).toLocaleString(), { index: i++ });
   y = kvRow(doc, y, "Status", request.status, { index: i++, valueColor: statusColor(request.status), bold: true });
   if (request.status !== "PENDING") {

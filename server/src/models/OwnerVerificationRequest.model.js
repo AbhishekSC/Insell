@@ -23,6 +23,16 @@ const ownerVerificationRequestSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // Only meaningful (and required) when docType is AADHAAR or PAN — the
+    // number itself, format-validated (not OCR-cross-checked against the
+    // uploaded image; the admin still visually compares them during review,
+    // same as before). Stored uppercase/digits-only per type.
+    docNumber: {
+      type: String,
+      trim: true,
+      default: "",
+      maxlength: 20,
+    },
     note: {
       type: String,
       trim: true,

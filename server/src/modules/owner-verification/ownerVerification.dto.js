@@ -18,6 +18,7 @@ export function toAdminQueueItemDTO(doc) {
     id: String(doc._id),
     docType: doc.docType,
     docUrl: doc.docUrl,
+    docNumber: doc.docNumber || "",
     note: doc.note || "",
     status: doc.status,
     reviewNote: doc.reviewNote || "",

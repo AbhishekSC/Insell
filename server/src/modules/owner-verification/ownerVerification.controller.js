@@ -20,6 +20,7 @@ export const submit = asyncHandler(async (req, res) => {
     docType: req.body?.docType,
     docUrl,
     note: req.body?.note,
+    docNumber: req.body?.docNumber,
   });
   return sendSuccessResponse(res, 201, "Verification request submitted", { request });
 });
