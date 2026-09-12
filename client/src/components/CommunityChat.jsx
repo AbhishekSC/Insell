@@ -63,6 +63,7 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showPhotoPreview, setShowPhotoPreview] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showCallsModal, setShowCallsModal] = useState(false);
   const [scheduleTitle, setScheduleTitle] = useState("");
   const [scheduleAt, setScheduleAt] = useState("");
   const [scheduleDuration, setScheduleDuration] = useState(""); // "" = no limit
@@ -489,6 +490,18 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
                     Schedule a call
                   </button>
                 )}
+                {isMember && (
+                  <button
+                    onClick={() => {
+                      setShowCallsModal(true);
+                      setShowActionsMenu(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
+                  >
+                    <PhoneCall size={16} className="text-base-content/60" />
+                    View scheduled calls
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setShowMembers(!showMembers);
@@ -562,6 +575,15 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
               ? "Live now"
               : new Date(nextCall.scheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" })}
           </span>
+          {upcomingCalls.length > 1 && (
+            <button
+              type="button"
+              onClick={() => setShowCallsModal(true)}
+              className="shrink-0 text-xs font-semibold text-primary hover:underline"
+            >
+              +{upcomingCalls.length - 1} more
+            </button>
+          )}
           <button
             type="button"
             onClick={() => joinScheduledCall(nextCall)}
@@ -892,6 +914,92 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
                 {scheduleCallMutation.isPending ? "Scheduling…" : "Schedule"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showCallsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowCallsModal(false)}>
+          <div
+            className="flex max-h-[80vh] w-full max-w-md flex-col rounded-xl bg-base-100 p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-base-content">Scheduled calls</h2>
+              <button onClick={() => setShowCallsModal(false)} className="rounded-lg p-1 hover:bg-base-200">
+                <X size={20} />
+              </button>
+            </div>
+
+            {upcomingCalls.length === 0 ? (
+              <p className="text-sm text-base-content/60">No calls scheduled right now.</p>
+            ) : (
+              <div className="-mx-1 space-y-2 overflow-y-auto px-1">
+                {upcomingCalls.map((call) => (
+                  <div
+                    key={call.id}
+                    className="flex items-center gap-2.5 rounded-xl border border-base-300 p-3"
+                  >
+                    {call.status === "STARTED" ? (
+                      <PhoneCall size={16} className="shrink-0 text-success" />
+                    ) : (
+                      <Calendar size={16} className="shrink-0 text-primary" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-base-content">
+                        {call.title ? `"${call.title}"` : "Community call"}
+                      </p>
+                      <p className="truncate text-xs text-base-content/60">
+                        {call.status === "STARTED"
+                          ? "Live now"
+                          : new Date(call.scheduledAt).toLocaleString("en-IN", {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                              timeZone: "Asia/Kolkata",
+                            })}
+                        {call.scheduledBy?.fullName ? ` · by ${call.scheduledBy.fullName}` : ""}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        joinScheduledCall(call);
+                        setShowCallsModal(false);
+                      }}
+                      disabled={videoBusy}
+                      className="btn btn-xs shrink-0 border-none bg-primary text-white hover:bg-primary disabled:opacity-60"
+                    >
+                      Join
+                    </button>
+                    {call.status !== "STARTED" &&
+                      (isCreator || isModerator || call.scheduledBy?.id === String(authUser?._id)) && (
+                        <button
+                          type="button"
+                          onClick={() => cancelCallMutation.mutate(call.id)}
+                          disabled={cancelCallMutation.isPending}
+                          className="btn btn-ghost btn-xs btn-circle shrink-0 text-base-content/40 hover:text-error"
+                          aria-label="Cancel this call"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {isMember && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCallsModal(false);
+                  setShowScheduleModal(true);
+                }}
+                className="mt-4 w-full rounded-lg border border-base-300 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/5"
+              >
+                + Schedule another call
+              </button>
+            )}
           </div>
         </div>
       )}
