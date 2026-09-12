@@ -1498,8 +1498,11 @@ class PersonalizationService {
         personalizationScore * TRENDING_NEAR_WEIGHTS.personalization +
         recencyScore * TRENDING_NEAR_WEIGHTS.recency;
 
+      // Distance is deliberately NOT repeated here — both the sidebar widget
+      // and the full page already show it as its own "X km away" line right
+      // next to the price, so adding it again as a reason chip just showed
+      // the same number twice on every card.
       const reasons = [];
-      if (distanceKm != null && distanceKm <= 15) reasons.push(`${Math.round(distanceKm * 10) / 10} km away`);
       if (velocityScore >= 60) reasons.push("Gaining interest fast");
       if (personalizationScore >= 65) reasons.push("Matches your preferences");
       if (ageInDays <= 2) reasons.push("New today");
