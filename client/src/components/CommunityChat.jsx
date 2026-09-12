@@ -30,6 +30,28 @@ function utcToISTInput(d) {
   return new Date(istMs).toISOString().slice(0, 16);
 }
 
+// "30 min", "1.5 hr", "2 hr" — the duration the organizer picked, shown
+// wherever a scheduled call's time is shown. null/undefined (no limit set)
+// renders nothing.
+function durationLabel(minutes) {
+  if (!minutes) return null;
+  if (minutes % 60 === 0) return `${minutes / 60} hr`;
+  if (minutes > 60) return `${(minutes / 60).toFixed(1)} hr`;
+  return `${minutes} min`;
+}
+
+// The "when" portion of a scheduled call's line — "Live now" while it's
+// actually in progress, otherwise the scheduled date/time — with the
+// organizer's chosen duration appended whenever one was set.
+function callWhenLabel(call) {
+  const when =
+    call.status === "STARTED"
+      ? "Live now"
+      : new Date(call.scheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" });
+  const duration = durationLabel(call.durationMinutes);
+  return duration ? `${when} · ${duration}` : when;
+}
+
 class CommunityChatErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -570,10 +592,7 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
             <Calendar size={16} className="shrink-0 text-primary" />
           )}
           <span className="min-w-0 flex-1 truncate text-base-content">
-            {nextCall.title ? `"${nextCall.title}"` : "Community call"} ·{" "}
-            {nextCall.status === "STARTED"
-              ? "Live now"
-              : new Date(nextCall.scheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" })}
+            {nextCall.title ? `"${nextCall.title}"` : "Community call"} · {callWhenLabel(nextCall)}
           </span>
           {upcomingCalls.length > 1 && (
             <button
@@ -950,13 +969,7 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
                         {call.title ? `"${call.title}"` : "Community call"}
                       </p>
                       <p className="truncate text-xs text-base-content/60">
-                        {call.status === "STARTED"
-                          ? "Live now"
-                          : new Date(call.scheduledAt).toLocaleString("en-IN", {
-                              dateStyle: "medium",
-                              timeStyle: "short",
-                              timeZone: "Asia/Kolkata",
-                            })}
+                        {callWhenLabel(call)}
                         {call.scheduledBy?.fullName ? ` · by ${call.scheduledBy.fullName}` : ""}
                       </p>
                     </div>
