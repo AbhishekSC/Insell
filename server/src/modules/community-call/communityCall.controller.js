@@ -1,13 +1,21 @@
 import { asyncHandler } from "../../core/asyncHandler.js";
 import { sendSuccessResponse, sendErrorResponse } from "../../utils/responseHandler.js";
 import { logger } from "../../utils/logger.js";
-import { scheduleCall, listUpcoming, cancelCall, markCallStarted, sendDueReminders } from "./communityCall.service.js";
+import {
+  scheduleCall,
+  listUpcoming,
+  cancelCall,
+  markCallStarted,
+  sendDueReminders,
+  sweepStaleCalls,
+} from "./communityCall.service.js";
 
 // POST /community-calls/:circleId
 export const schedule = asyncHandler(async (req, res) => {
   const call = await scheduleCall(req.user._id, req.params.circleId, {
     title: req.body?.title,
     scheduledAt: req.body?.scheduledAt,
+    durationMinutes: req.body?.durationMinutes,
   });
   return sendSuccessResponse(res, 201, "Call scheduled", { call });
 });
@@ -47,5 +55,23 @@ export async function runCallReminders(req, res) {
   } catch (error) {
     logger.error("Error in runCallReminders:", error);
     return sendErrorResponse(res, 500, "Failed to sweep call reminders");
+  }
+}
+
+// POST /community-calls/cron/auto-end   (header: x-cron-secret)
+// Same shared-secret pattern. Runs every ~5 minutes; ends a duration-limited
+// call once its time is up AND the room is actually empty — a call still
+// in progress is left completely alone regardless of how long it runs.
+export async function runAutoEndSweep(req, res) {
+  try {
+    const secret = process.env.CRON_SECRET;
+    if (!secret || req.get("x-cron-secret") !== secret) {
+      return sendErrorResponse(res, 401, "Unauthorized");
+    }
+    const result = await sweepStaleCalls();
+    return sendSuccessResponse(res, 200, "Stale calls swept", result);
+  } catch (error) {
+    logger.error("Error in runAutoEndSweep:", error);
+    return sendErrorResponse(res, 500, "Failed to sweep stale calls");
   }
 }

@@ -65,6 +65,7 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleTitle, setScheduleTitle] = useState("");
   const [scheduleAt, setScheduleAt] = useState("");
+  const [scheduleDuration, setScheduleDuration] = useState(""); // "" = no limit
   const [selectedFriendIds, setSelectedFriendIds] = useState([]);
   const [communityChannel, setCommunityChannel] = useState(null);
   const { streamClient, streamReady, videoClient, startGroupVideoCall, videoBusy } = useStreamContext();
@@ -140,8 +141,8 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
   const nextCall = upcomingCalls[0] || null;
 
   const scheduleCallMutation = useMutation({
-    mutationFn: async ({ title, scheduledAt }) => {
-      const res = await axiosInstance.post(`/community-calls/${circle._id}`, { title, scheduledAt });
+    mutationFn: async ({ title, scheduledAt, durationMinutes }) => {
+      const res = await axiosInstance.post(`/community-calls/${circle._id}`, { title, scheduledAt, durationMinutes });
       return res.data?.data?.call;
     },
     onSuccess: () => {
@@ -149,6 +150,7 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
       setShowScheduleModal(false);
       setScheduleTitle("");
       setScheduleAt("");
+      setScheduleDuration("");
       queryClient.invalidateQueries({ queryKey: ["upcomingCalls", circle?._id] });
     },
     onError: (error) => toast.error(error?.response?.data?.message || "Couldn't schedule that call"),
@@ -549,10 +551,16 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
 
       {nextCall && (
         <div className="flex items-center gap-2 border-b border-base-300 bg-primary/5 px-4 py-2 text-sm">
-          <Calendar size={16} className="shrink-0 text-primary" />
+          {nextCall.status === "STARTED" ? (
+            <PhoneCall size={16} className="shrink-0 text-success" />
+          ) : (
+            <Calendar size={16} className="shrink-0 text-primary" />
+          )}
           <span className="min-w-0 flex-1 truncate text-base-content">
             {nextCall.title ? `"${nextCall.title}"` : "Community call"} ·{" "}
-            {new Date(nextCall.scheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" })}
+            {nextCall.status === "STARTED"
+              ? "Live now"
+              : new Date(nextCall.scheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" })}
           </span>
           <button
             type="button"
@@ -562,17 +570,21 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
           >
             Join
           </button>
-          {(isCreator || isModerator || nextCall.scheduledBy?.id === String(authUser?._id)) && (
-            <button
-              type="button"
-              onClick={() => cancelCallMutation.mutate(nextCall.id)}
-              disabled={cancelCallMutation.isPending}
-              className="btn btn-ghost btn-xs btn-circle text-base-content/40 hover:text-error"
-              aria-label="Cancel this call"
-            >
-              <X size={14} />
-            </button>
-          )}
+          {/* A live call ends on its own once everyone leaves (or via
+              its duration, if one was set) — cancelling only makes sense
+              before it's actually started. */}
+          {nextCall.status !== "STARTED" &&
+            (isCreator || isModerator || nextCall.scheduledBy?.id === String(authUser?._id)) && (
+              <button
+                type="button"
+                onClick={() => cancelCallMutation.mutate(nextCall.id)}
+                disabled={cancelCallMutation.isPending}
+                className="btn btn-ghost btn-xs btn-circle text-base-content/40 hover:text-error"
+                aria-label="Cancel this call"
+              >
+                <X size={14} />
+              </button>
+            )}
         </div>
       )}
 
@@ -826,7 +838,7 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
                 className="input input-bordered w-full border-base-300"
               />
             </label>
-            <label className="form-control mb-5">
+            <label className="form-control mb-3">
               <span className="label-text mb-1 text-sm text-base-content">Date &amp; time (IST)</span>
               <input
                 type="datetime-local"
@@ -836,6 +848,26 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
                 onChange={(e) => setScheduleAt(e.target.value)}
                 className="input input-bordered w-full border-base-300"
               />
+            </label>
+            <label className="form-control mb-5">
+              <span className="label-text mb-1 text-sm text-base-content">Duration (optional)</span>
+              <select
+                value={scheduleDuration}
+                onChange={(e) => setScheduleDuration(e.target.value)}
+                className="select select-bordered w-full border-base-300"
+              >
+                <option value="">No limit — I'll end it manually</option>
+                <option value="15">15 minutes</option>
+                <option value="30">30 minutes</option>
+                <option value="45">45 minutes</option>
+                <option value="60">1 hour</option>
+                <option value="90">1.5 hours</option>
+                <option value="120">2 hours</option>
+              </select>
+              <span className="label-text-alt mt-1 text-xs text-base-content/50">
+                Once the duration's up, it only ends automatically if everyone's already left — it never cuts an
+                ongoing call short.
+              </span>
             </label>
             <div className="flex gap-3">
               <button
@@ -849,7 +881,11 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
                 type="button"
                 disabled={!scheduleAt || scheduleCallMutation.isPending}
                 onClick={() =>
-                  scheduleCallMutation.mutate({ title: scheduleTitle, scheduledAt: istInputToUtcIso(scheduleAt) })
+                  scheduleCallMutation.mutate({
+                    title: scheduleTitle,
+                    scheduledAt: istInputToUtcIso(scheduleAt),
+                    durationMinutes: scheduleDuration ? Number(scheduleDuration) : null,
+                  })
                 }
                 className="flex-1 rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary transition-colors disabled:opacity-50"
               >

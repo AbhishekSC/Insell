@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 // on top of the existing instant "Start a call now" feature. It never
 // creates its own video room: joining a scheduled call reuses the same
 // `community-{circleId}` Stream room the instant-call button already opens.
-export const SCHEDULED_CALL_STATUSES = ["SCHEDULED", "REMINDED", "STARTED", "CANCELLED"];
+export const SCHEDULED_CALL_STATUSES = ["SCHEDULED", "REMINDED", "STARTED", "ENDED", "CANCELLED"];
 
 const scheduledCallSchema = new mongoose.Schema(
   {
@@ -29,11 +29,29 @@ const scheduledCallSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    // Optional — how long the organizer expects the call to run. `null`
+    // means no limit at all (today's original behavior: it only ever ends
+    // when someone explicitly cancels it). When set, the auto-end sweep
+    // only ever CHECKS a call once scheduledAt + durationMinutes has
+    // passed — if people are still actually in the room at that point, it
+    // is left alone entirely and re-checked later, never force-ended.
+    durationMinutes: {
+      type: Number,
+      default: null,
+      min: 5,
+      max: 240,
+    },
     status: {
       type: String,
       enum: SCHEDULED_CALL_STATUSES,
       default: "SCHEDULED",
       index: true,
+    },
+    // Set when the auto-end sweep finds the duration elapsed AND the room
+    // genuinely empty (not on user-initiated cancellation — see cancelledAt).
+    endedAt: {
+      type: Date,
+      default: null,
     },
     // Set once the "starts in 10 minutes" reminder goes out, so the cron
     // sweep never sends it twice — the guard the whole feature hinges on.

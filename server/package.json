@@ -24,6 +24,7 @@
   "description": "SyncSpace: Fullstack Chat & Video Calling App ",
   "dependencies": {
     "@sentry/node": "^10.70.0",
+    "@stream-io/node-sdk": "^0.8.6",
     "amqplib": "^0.10.9",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^1.41.3",
