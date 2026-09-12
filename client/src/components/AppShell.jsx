@@ -483,6 +483,7 @@ export default function AppShell({
     location.pathname.startsWith("/users/") ||
     location.pathname.startsWith("/news") ||
     location.pathname.startsWith("/trending-localities") ||
+    location.pathname.startsWith("/trending-near-you") ||
     location.pathname.startsWith("/recommended") ||
     location.pathname.startsWith("/deals") ||
     location.pathname.startsWith("/saved-searches") ||
