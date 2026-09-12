@@ -1,10 +1,8 @@
-# Sweeps for scheduled community calls starting within the next 10 minutes
-# and sends the "starts soon" reminder for any that haven't had one yet.
-# Runs far more often than the other crons (every ~5 minutes, GitHub's
-# practical minimum) since a 10-minute reminder window doesn't tolerate the
-# daily/weekly cadence the other jobs use. Auth is the same shared secret
-# header (repo secret CRON_SECRET, matching server env CRON_SECRET) as
-# weekly-digest and stalled-deals-nudge.
+# Two sweeps for scheduled community calls, both every ~5 minutes (GitHub's
+# practical minimum) — a 10-minute reminder window and a duration-limited
+# auto-end don't tolerate the daily/weekly cadence the other jobs use.
+# Auth is the same shared secret header (repo secret CRON_SECRET, matching
+# server env CRON_SECRET) as weekly-digest and stalled-deals-nudge.
 name: community-call-reminders
 
 on:
@@ -22,3 +20,9 @@ jobs:
             -X POST \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
             "${{ vars.API_BASE_URL || 'https://insell-be.onrender.com' }}/api/community-calls/cron/reminders"
+      - name: Sweep stale/empty duration-limited calls
+        run: |
+          curl -sSf --max-time 60 --retry 2 --retry-delay 10 \
+            -X POST \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            "${{ vars.API_BASE_URL || 'https://insell-be.onrender.com' }}/api/community-calls/cron/auto-end"

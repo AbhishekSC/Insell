@@ -2,6 +2,7 @@ import AppError from "../../exceptions/AppError.js";
 import * as NotificationService from "../../services/NotificationService.js";
 import { NotificationChannel } from "../../services/NotificationService.js";
 import { logger } from "../../utils/logger.js";
+import { getLiveParticipantCount } from "../../services/streamVideoService.js";
 import { toScheduledCallDTO } from "./communityCall.dto.js";
 import {
   findCircle,
@@ -13,10 +14,21 @@ import {
   markReminded,
   markStarted as markStartedRepo,
   findDueForReminder,
+  findStaleStarted,
+  markEnded,
 } from "./communityCall.repository.js";
 
 const MAX_ADVANCE_DAYS = 30;
 const REMINDER_WINDOW_MS = 10 * 60 * 1000; // "starts in 10 minutes"
+const MIN_DURATION_MINUTES = 5;
+const MAX_DURATION_MINUTES = 240; // 4 hours
+
+// Same room-id convention CommunityChat.jsx uses for the instant-call
+// feature (`community-{circleId}`) — scheduled calls join that exact same
+// Stream room, never a room of their own.
+function callRoomId(circleId) {
+  return `community-${circleId}`;
+}
 const SITE_ORIGIN = (process.env.CLIENT_URL || "https://insell-fe.vercel.app").replace(/\/$/, "");
 const BRAND_PRIMARY = "#2f6fed";
 
@@ -187,7 +199,20 @@ async function notifyMembers(circle, excludeUserId, { type, title, message, push
   return recipientIds.length;
 }
 
-export async function scheduleCall(userId, circleId, { title, scheduledAt }) {
+// `durationMinutes` is optional — `null`/`undefined` means no limit at all
+// (the call only ever ends when someone explicitly cancels it, same as
+// before this field existed). When given, it must be a plausible length;
+// the actual auto-end behavior lives in sweepStaleCalls() below.
+function normalizeDuration(durationMinutes) {
+  if (durationMinutes === undefined || durationMinutes === null || durationMinutes === "") return null;
+  const n = Number(durationMinutes);
+  if (!Number.isFinite(n) || n < MIN_DURATION_MINUTES || n > MAX_DURATION_MINUTES) {
+    throw new AppError(`Duration must be between ${MIN_DURATION_MINUTES} and ${MAX_DURATION_MINUTES} minutes`, 400);
+  }
+  return Math.round(n);
+}
+
+export async function scheduleCall(userId, circleId, { title, scheduledAt, durationMinutes }) {
   const circle = await findCircle(circleId);
   if (!circle) throw new AppError("Community not found", 404);
   if (!isMemberOf(circle, userId)) throw new AppError("Only community members can schedule a call", 403);
@@ -205,6 +230,7 @@ export async function scheduleCall(userId, circleId, { title, scheduledAt }) {
     scheduledBy: userId,
     title: (title || "").trim().slice(0, 120),
     scheduledAt: when,
+    durationMinutes: normalizeDuration(durationMinutes),
   });
 
   const whenLabel = when.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: DISPLAY_TIME_ZONE });
@@ -322,4 +348,29 @@ export async function sendDueReminders() {
   }
 
   return { remindedCount, notifiedCount, dueCount: due.length };
+}
+
+// The auto-end sweep: only ever looks at STARTED calls whose duration has
+// elapsed (findStaleStarted already filters out anything with no duration
+// set at all — those persist until someone explicitly cancels them,
+// exactly like before this feature existed). For each one, actually check
+// whether anyone is still in the room — if so, it's left completely alone
+// and gets re-checked on the next sweep; only a genuinely empty room gets
+// marked ENDED.
+export async function sweepStaleCalls() {
+  const stale = await findStaleStarted();
+  let endedCount = 0;
+
+  for (const call of stale) {
+    try {
+      const liveCount = await getLiveParticipantCount(callRoomId(call.circle));
+      if (liveCount > 0) continue; // still occupied — do nothing, check again next sweep
+      await markEnded(call._id);
+      endedCount += 1;
+    } catch (err) {
+      logger.warn(`[SCHEDULED CALL CRON] auto-end check failed for ${call._id}: ${err.message}`);
+    }
+  }
+
+  return { endedCount, staleCount: stale.length };
 }

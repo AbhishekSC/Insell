@@ -14,20 +14,25 @@ export async function findMemberNames(memberIds) {
   return User.find({ _id: { $in: memberIds } }).select("fullName").lean();
 }
 
-export async function create({ circleId, scheduledBy, title, scheduledAt }) {
-  return ScheduledCall.create({ circle: circleId, scheduledBy, title, scheduledAt });
+export async function create({ circleId, scheduledBy, title, scheduledAt, durationMinutes }) {
+  return ScheduledCall.create({ circle: circleId, scheduledBy, title, scheduledAt, durationMinutes });
 }
 
 export async function findById(id) {
   return ScheduledCall.findById(id);
 }
 
-// Upcoming = not cancelled, start time still ahead of now. Soonest first.
+// Upcoming = still relevant to show right now: a future call not yet
+// started, OR a call that's currently live (STARTED) — the banner should
+// keep showing for the whole time people might actually be in the room,
+// not just up until its scheduled start time.
 export async function listUpcomingForCircle(circleId) {
   return ScheduledCall.find({
     circle: circleId,
-    status: { $in: ["SCHEDULED", "REMINDED"] },
-    scheduledAt: { $gte: new Date() },
+    $or: [
+      { status: { $in: ["SCHEDULED", "REMINDED"] }, scheduledAt: { $gte: new Date() } },
+      { status: "STARTED" },
+    ],
   })
     .populate("scheduledBy", "fullName profilePic")
     .sort({ scheduledAt: 1 })
@@ -67,4 +72,25 @@ export async function findDueForReminder(withinMs) {
     .populate("scheduledBy", "fullName")
     .populate({ path: "circle", select: "name members" })
     .lean();
+}
+
+// STARTED calls whose duration has elapsed — a call with no durationMinutes
+// set never matches this at all (no limit means never auto-checked). Uses
+// $expr for the per-document date arithmetic (scheduledAt + duration).
+export async function findStaleStarted() {
+  return ScheduledCall.find({
+    status: "STARTED",
+    durationMinutes: { $ne: null },
+    $expr: {
+      $lte: [{ $add: ["$scheduledAt", { $multiply: ["$durationMinutes", 60000] }] }, new Date()],
+    },
+  }).lean();
+}
+
+export async function markEnded(id) {
+  return ScheduledCall.findOneAndUpdate(
+    { _id: id, status: "STARTED" },
+    { $set: { status: "ENDED", endedAt: new Date() } },
+    { new: true }
+  );
 }
