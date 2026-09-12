@@ -12,6 +12,7 @@ import {
   sendDueReminders,
   callUrl,
   memberNamesLabel,
+  buildParticipantsHtml,
   buildReminderEmailHtml,
   minutesUntilLabel,
 } from "../src/modules/community-call/communityCall.service.js";
@@ -210,13 +211,35 @@ describe("reminder email content", () => {
     expect(memberNamesLabel(names, "a")).toBe("Bob");
   });
 
+  it("bolds and tags whoever scheduled the call as the organizer", () => {
+    const names = [{ _id: "a", fullName: "Alice" }, { _id: "b", fullName: "Bob" }];
+    const html = buildParticipantsHtml(names, "b");
+    expect(html).toContain("<strong>Bob</strong>");
+    expect(html).toContain("(Organizer)");
+    expect(html).not.toContain("<strong>Alice</strong>");
+  });
+
+  it("keeps the organizer visible even when the list is truncated", () => {
+    const names = Array.from({ length: 8 }, (_, i) => ({ _id: String(i), fullName: `Person ${i}` }));
+    // Person 7 would normally fall past the 6-shown cutoff.
+    const html = buildParticipantsHtml(names, "7");
+    expect(html).toContain("<strong>Person 7</strong>");
+  });
+
+  it("escapes the organizer's name too", () => {
+    const names = [{ _id: "a", fullName: "<b>Alice</b>" }];
+    const html = buildParticipantsHtml(names, "a");
+    expect(html).not.toContain("<b>Alice</b>");
+    expect(html).toContain("&lt;b&gt;Alice&lt;/b&gt;");
+  });
+
   it("falls back to a community-named title when no topic was given", () => {
     const html = buildReminderEmailHtml({
       title: "",
       circleName: "Buyers Circle",
       dateLabel: "11 September 2026",
       timeLabel: "7:40 PM",
-      membersLabel: "Alice · Bob",
+      participantsHtml: "Alice · Bob",
       joinLink: "https://example.com/join",
     });
     expect(html).toContain("Buyers Circle");
@@ -228,7 +251,7 @@ describe("reminder email content", () => {
       circleName: "Buyers Circle",
       dateLabel: "11 September 2026",
       timeLabel: "7:40 PM",
-      membersLabel: "Alice · Bob",
+      participantsHtml: "Alice · Bob",
       joinLink: "https://example.com/join",
     });
     expect(html).toContain("Weekly sync");
@@ -249,7 +272,7 @@ describe("reminder email content", () => {
       circleName: "Circle",
       dateLabel: "now",
       timeLabel: "now",
-      membersLabel: "x",
+      participantsHtml: "x",
       joinLink: "https://example.com",
     });
     expect(html).not.toContain("<script>");

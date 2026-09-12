@@ -73,6 +73,32 @@ export function memberNamesLabel(names, excludeUserId) {
   return `${list.slice(0, MAX_SHOWN).join(" · ")} and ${list.length - MAX_SHOWN} more`;
 }
 
+// Same participants line, but as a safe HTML fragment with whoever
+// scheduled the call bolded and tagged "(Organizer)" — so it reads like a
+// real calendar invite ("Host: X") rather than an undifferentiated name
+// dump. The organizer is sorted to the front first so truncation (past 6
+// names) never drops them.
+export function buildParticipantsHtml(names, organizerId) {
+  const entries = names.map((n) => ({
+    id: String(n._id),
+    label: escapeHtml(n.fullName || "Member"),
+    isOrganizer: organizerId ? String(n._id) === String(organizerId) : false,
+  }));
+  entries.sort((a, b) => Number(b.isOrganizer) - Number(a.isOrganizer));
+  if (entries.length === 0) return "Just you";
+
+  const MAX_SHOWN = 6;
+  const shown = entries.slice(0, MAX_SHOWN);
+  const extra = entries.length - shown.length;
+  const parts = shown.map((p) =>
+    p.isOrganizer
+      ? `<strong>${p.label}</strong> <span style="color:#9ca3af;font-weight:400;">(Organizer)</span>`
+      : p.label
+  );
+  const joined = parts.join(" · ");
+  return extra > 0 ? `${joined} and ${extra} more` : joined;
+}
+
 // Date and time as two separate lines — "11 September 2026" / "7:40 PM" —
 // the way a calendar invite reads, rather than one run-together sentence.
 export function formatCallDateParts(date) {
@@ -85,7 +111,7 @@ export function formatCallDateParts(date) {
 // A calm, calendar-invite-style email (Calendly/Zoom/Slack, not a system
 // log line): the wordmark, one clear headline, the event details, a single
 // CTA. No emoji, no raw tracking-looking URL, no comma-dumped member list.
-export function buildReminderEmailHtml({ title, circleName, dateLabel, timeLabel, membersLabel, joinLink }) {
+export function buildReminderEmailHtml({ title, circleName, dateLabel, timeLabel, participantsHtml, joinLink }) {
   const topic = escapeHtml(title || `Community call in ${circleName}`);
   const year = new Date().getFullYear();
   return `
@@ -106,7 +132,7 @@ export function buildReminderEmailHtml({ title, circleName, dateLabel, timeLabel
       </table>
 
       <p style="margin:0 0 6px;font-size:12px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#9ca3af;">Participants</p>
-      <p style="margin:0 0 30px;font-size:14px;color:#374151;line-height:1.6;">${escapeHtml(membersLabel)}</p>
+      <p style="margin:0 0 30px;font-size:14px;color:#374151;line-height:1.6;">${participantsHtml}</p>
 
       <div style="text-align:center;margin-bottom:30px;">
         <a href="${joinLink}" style="display:inline-block;background:${BRAND_PRIMARY};color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 40px;border-radius:8px;">
@@ -237,6 +263,7 @@ async function sendReminderFor(call, circle) {
   const { dateLabel, timeLabel } = formatCallDateParts(call.scheduledAt);
   const memberNames = await findMemberNames(circle.members || []).catch(() => []);
   const joinLink = callUrl(circle._id, call._id);
+  const organizerId = call.scheduledBy?._id || call.scheduledBy;
   // The cron only guarantees "due within the next 10 minutes" — it can
   // genuinely fire anywhere from ~10 minutes out down to a minute or two,
   // so the push/in-app copy has to reflect the *actual* remaining time, not
@@ -257,7 +284,7 @@ async function sendReminderFor(call, circle) {
       circleName: circle.name,
       dateLabel,
       timeLabel,
-      membersLabel: memberNamesLabel(memberNames, null),
+      participantsHtml: buildParticipantsHtml(memberNames, organizerId),
       joinLink,
     }),
     channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE, NotificationChannel.EMAIL],
