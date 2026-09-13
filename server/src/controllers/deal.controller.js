@@ -73,7 +73,7 @@ async function notifyCounterparty(deal, actorId, actorName, type, title, message
     title,
     message,
     pushBody: actorName ? `${actorName}: ${title}` : title,
-    data: { propertyPost: deal.post, offer: deal.offer, deal: deal._id, url: `/property/${deal.post}` },
+    data: { propertyPost: deal.post, offer: deal.offer, deal: deal._id },
     channels: CHANNELS,
   }).catch((e) => logger.error("deal notify failed (non-fatal):", e));
 }
@@ -559,7 +559,7 @@ export async function adminForceCancelDeal(req, res) {
         recipientId, actorId: adminId, type: "deal_cancelled",
         title: "Your deal was cancelled by the team",
         message: `The deal for this property was cancelled by NearMySpace: ${reason}`,
-        data: { propertyPost: updated.post, deal: updated._id, url: `/property/${updated.post}` },
+        data: { propertyPost: updated.post, deal: updated._id },
         channels: CHANNELS,
       }).catch(() => {});
     }
@@ -678,7 +678,7 @@ export async function nudgeStalledDeals(req, res) {
       for (const recipientId of [deal.buyer, deal.owner]) {
         await NotificationService.send({
           recipientId, actorId: null, type: "deal_updated", title, message: msg,
-          data: { propertyPost: deal.post?._id || deal.post, deal: deal._id, url: `/property/${deal.post?._id || deal.post}` },
+          data: { propertyPost: deal.post?._id || deal.post, deal: deal._id },
           channels: CHANNELS,
         }).catch(() => {});
       }

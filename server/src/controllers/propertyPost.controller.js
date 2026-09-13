@@ -1114,7 +1114,6 @@ export async function notifyPriceChange(post, oldPrice, excludeUserIds = new Set
         message: `Price dropped ${pct}% from ${oldFormatted} to ${newFormatted} on "${post.title}"`,
         data: {
           propertyPost: post._id,
-          url: `/property/${post._id}`,
           priceBefore: oldPrice,
           priceAfter: post.price,
         },
@@ -1150,7 +1149,7 @@ async function notifyActiveOfferBuyersOfPriceChange(post, oldPrice) {
         type: "offer_price_changed",
         title: `Listed price changed on "${post.title}"`,
         message: `The listed price on "${post.title}" changed from ${oldFormatted} to ${newFormatted} — your open offer of ${offerFormatted} is unaffected and still active`,
-        data: { propertyPost: post._id, url: `/property/${post._id}` },
+        data: { propertyPost: post._id },
         channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
       });
     })
@@ -1337,7 +1336,7 @@ export async function togglePropertyPostLike(req, res) {
           type: "property_like",
           title: "New like",
           message: `${req.user.fullName} liked your property: ${post.title}`,
-          data: { propertyPost: post._id, url: `/property/${post._id}` },
+          data: { propertyPost: post._id },
           channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
         });
         logger.info("Like notification sent for post:", post._id);
@@ -1403,7 +1402,7 @@ export async function togglePropertyPostSave(req, res) {
           type: "property_save",
           title: "New save",
           message: `${req.user.fullName} saved your property: ${post.title}`,
-          data: { propertyPost: post._id, url: `/property/${post._id}` },
+          data: { propertyPost: post._id },
           channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
         });
         logger.info("Save notification sent for post:", post._id);
@@ -2073,7 +2072,7 @@ export async function reportPost(req, res) {
         realtimeEventType: "post_moderation_notice",
         title: "Post reported",
         message: `Your post "${post.title}" was reported and is under review by our team`,
-        data: { propertyPost: post._id, url: `/property/${post._id}` },
+        data: { propertyPost: post._id },
         channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
       });
     } catch (error) {

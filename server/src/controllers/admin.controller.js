@@ -220,7 +220,7 @@ export const blockPost = async (req, res) => {
         realtimeEventType: "post_moderation_notice",
         title: "Post blocked",
         message: `Your post "${post.title}" was blocked by our moderation team`,
-        data: { propertyPost: post._id, actualMessage: post.blockNote || undefined, url: `/property/${post._id}` },
+        data: { propertyPost: post._id, actualMessage: post.blockNote || undefined },
         channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
       });
     } catch (error) {
@@ -238,7 +238,7 @@ export const blockPost = async (req, res) => {
             realtimeEventType: "post_moderation_notice",
             title: "Report resolved",
             message: `The post you reported ("${post.title}") was blocked by our moderation team. Thanks for the report.`,
-            data: { propertyPost: post._id, url: `/property/${post._id}` },
+            data: { propertyPost: post._id },
             channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
           })
         )
@@ -293,7 +293,7 @@ export const unblockPost = async (req, res) => {
         realtimeEventType: "post_moderation_notice",
         title: "Post restored",
         message: `Your post "${post.title}" is visible again`,
-        data: { propertyPost: post._id, url: `/property/${post._id}` },
+        data: { propertyPost: post._id },
         channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
       });
     } catch (error) {

@@ -139,7 +139,7 @@ export async function createOffer(req, res) {
       title: `${req.user.fullName} made an offer of ${formatMoney(proposedPrice)} on your property`,
       message: `${req.user.fullName} made an offer of ${formatMoney(proposedPrice)} on your property: ${post.title}`,
       pushBody: message || `Offer: ${formatMoney(proposedPrice)}`,
-      data: { propertyPost: post._id, offer: offer._id, url: `/property/${post._id}` },
+      data: { propertyPost: post._id, offer: offer._id },
       channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
     });
 
@@ -307,7 +307,7 @@ export async function respondToOffer(req, res) {
         title: `${req.user.fullName} countered with ${formatMoney(counterPrice)}`,
         message: `${req.user.fullName} countered your offer on "${updated.post.title}" with ${formatMoney(counterPrice)}`,
         pushBody: message || `Counter-offer: ${formatMoney(counterPrice)}`,
-        data: { propertyPost: updated.post._id, offer: updated._id, url: `/property/${updated.post._id}` },
+        data: { propertyPost: updated.post._id, offer: updated._id },
         channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
       });
 
@@ -362,7 +362,7 @@ export async function respondToOffer(req, res) {
           type: "offer_declined",
           title: `Your offer on "${updated.post.title}" was declined`,
           message: `${req.user.fullName} declined your offer of ${formatMoney(updated.currentPrice)} on "${updated.post.title}"`,
-          data: { propertyPost: updated.post._id, offer: updated._id, url: `/property/${updated.post._id}` },
+          data: { propertyPost: updated.post._id, offer: updated._id },
           channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
         });
       }
@@ -457,7 +457,7 @@ export async function respondToOffer(req, res) {
       type: "offer_accepted",
       title: `Your offer on "${acceptedOffer.post.title}" was accepted!`,
       message: `${req.user.fullName} accepted the offer of ${formatMoney(acceptedOffer.currentPrice)} on "${acceptedOffer.post.title}"`,
-      data: { propertyPost: acceptedOffer.post._id, offer: acceptedOffer._id, url: `/property/${acceptedOffer.post._id}` },
+      data: { propertyPost: acceptedOffer.post._id, offer: acceptedOffer._id },
       channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
     });
 
@@ -471,7 +471,7 @@ export async function respondToOffer(req, res) {
         type: "offer_declined",
         title: `"${acceptedOffer.post.title}" is no longer available`,
         message: `The owner accepted another offer on "${acceptedOffer.post.title}" — your offer of ${formatMoney(other.currentPrice)} is now closed`,
-        data: { propertyPost: acceptedOffer.post._id, offer: other._id, url: `/property/${acceptedOffer.post._id}` },
+        data: { propertyPost: acceptedOffer.post._id, offer: other._id },
         channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
       });
     }

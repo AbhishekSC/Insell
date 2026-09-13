@@ -175,7 +175,7 @@ export function buildReminderEmailHtml({ title, circleName, dateLabel, timeLabel
   </div>`;
 }
 
-async function notifyMembers(circle, excludeUserId, { type, title, message, pushBody, emailSubject, emailHtml, channels }) {
+async function notifyMembers(circle, excludeUserId, { type, title, message, pushBody, emailSubject, emailHtml, channels, callId }) {
   const recipientIds = (circle.members || [])
     .map((memberId) => String(memberId))
     .filter((memberId) => memberId !== String(excludeUserId));
@@ -191,7 +191,11 @@ async function notifyMembers(circle, excludeUserId, { type, title, message, push
         pushBody,
         emailSubject,
         emailHtml,
-        data: { circle: String(circle._id), url: callPath(circle._id) },
+        // `url` used to be built here with callPath() — NotificationService
+        // now derives it itself (see notificationRouting.js) from `type` +
+        // `circle`/`callId`, so mobile clients get plain ids instead of a
+        // web route string.
+        data: { circle: String(circle._id), ...(callId ? { callId: String(callId) } : {}) },
         channels,
       })
     )
@@ -240,6 +244,7 @@ export async function scheduleCall(userId, circleId, { title, scheduledAt, durat
     title: "Call scheduled",
     message: `${label} was scheduled in ${circle.name} for ${whenLabel}`,
     channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME],
+    callId: call._id,
   }).catch((err) => logger.warn(`[SCHEDULED CALL] scheduled-notify failed: ${err.message}`));
 
   // Scheduled with less than 10 minutes' notice — the cron's next sweep
@@ -315,6 +320,7 @@ async function sendReminderFor(call, circle) {
     message: `${label} in ${circle.name} starts in ${minutesLabel}`,
     pushBody: `${label} starts in ${minutesLabel} — tap to join`,
     emailSubject: "You're invited to join a call | NearMySpace",
+    callId: call._id,
     emailHtml: buildReminderEmailHtml({
       title: call.title,
       circleName: circle.name,

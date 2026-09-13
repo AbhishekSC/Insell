@@ -265,7 +265,7 @@ export async function notifyCommunityCallStarted(req, res) {
           type: "circle_call_started",
           title: "Community call",
           message: `${caller?.fullName || "A member"} started a call in ${circle.name}`,
-          data: { circle: circle._id, url: `/marketplace?section=communities` },
+          data: { circle: circle._id },
           channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
         })
       )
@@ -348,7 +348,7 @@ export async function createStudyCircle(req, res) {
             type: "circle_invite",
             title: "Community invite",
             message: `${creator?.fullName || "A friend"} added you to ${String(name).trim()}`,
-            data: { circle: circle._id, url: `/marketplace?section=communities` },
+            data: { circle: circle._id },
             channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
           })
         )
@@ -553,7 +553,7 @@ export async function respondToCommunityInvite(req, res) {
             type: "circle_member_joined",
             title: "New member",
             message: `${joiningUser?.fullName || "A user"} joined ${circle.name}`,
-            data: { circle: circle._id, url: `/marketplace?section=communities` },
+            data: { circle: circle._id },
             channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
           })
         )
@@ -752,7 +752,7 @@ export async function leaveCommunity(req, res) {
           type: "circle_member_left",
           title: "Member left",
           message: `${leavingUser?.fullName || "A member"} left ${circle.name}`,
-          data: { circle: circle._id, url: `/marketplace?section=communities` },
+          data: { circle: circle._id },
           channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
         })
       )
@@ -928,7 +928,7 @@ export async function inviteMembersToCommunity(req, res) {
           type: "circle_invite",
           title: "Community invite",
           message: `${currentUser?.fullName || "A friend"} invited you to ${circle.name}`,
-          data: { circle: circle._id, url: `/marketplace?section=communities` },
+          data: { circle: circle._id },
           channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
         })
       )
@@ -1001,7 +1001,7 @@ export async function requestAddMemberToCommunity(req, res) {
           type: "circle_member_add_request",
           title: "Member request",
           message: `${currentUser?.fullName || "A member"} wants to add ${normalizedMemberIds.length} member(s) to ${circle.name}`,
-          data: { circle: circle._id, url: `/marketplace?section=communities` },
+          data: { circle: circle._id },
           channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
         })
       )
@@ -1062,7 +1062,7 @@ export async function respondMemberAddRequest(req, res) {
           type: "circle_invite",
           title: "Community invite",
           message: `${requester?.fullName || "A friend"} invited you to ${circle.name}`,
-          data: { circle: circle._id, url: `/marketplace?section=communities` },
+          data: { circle: circle._id },
           channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
         });
       }
@@ -1079,7 +1079,7 @@ export async function respondMemberAddRequest(req, res) {
         action === "accept"
           ? `Your request to add a member to ${circle.name} was approved`
           : `Your request to add a member to ${circle.name} was declined`,
-      data: { circle: circle._id, url: `/marketplace?section=communities` },
+      data: { circle: circle._id },
       channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
     });
 
