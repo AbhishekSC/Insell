@@ -43,16 +43,6 @@ export const createCloudinaryStorage = (folder, allowedFormats, options = {}) =>
       allowed_formats: allowedFormats,
       resource_type: resourceType,
       transformation,
-      eager: [
-        { 
-          quality: 'auto:low', 
-          fetch_format: 'auto',
-          width: 800,
-          height: 600,
-          crop: 'limit'
-        }
-      ],
-      eager_async: true,
     },
   });
 };

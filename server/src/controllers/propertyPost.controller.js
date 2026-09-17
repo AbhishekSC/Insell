@@ -437,19 +437,41 @@ export async function getPropertyFeed(req, res) {
     const propertyType = String(req.query.propertyType || "").trim();
     const postType = normalizePostType(req.query.postType);
     const authorId = String(req.query.authorId || "").trim();
+    // Price range + amenities — the web app's SearchFiltersModal collected
+    // these but never actually sent them to this endpoint (a pre-existing
+    // disconnect); now real query params both clients can use.
+    const priceMinRaw = Number(req.query.priceMin);
+    const priceMin = Number.isFinite(priceMinRaw) && priceMinRaw > 0 ? priceMinRaw : undefined;
+    const priceMaxRaw = Number(req.query.priceMax);
+    const priceMax = Number.isFinite(priceMaxRaw) && priceMaxRaw > 0 ? priceMaxRaw : undefined;
+    const amenities = String(req.query.amenities || "")
+      .split(",")
+      .map((a) => a.trim())
+      .filter(Boolean);
     const savedBy = String(req.query.savedBy || "").trim();
     const category = String(req.query.category || "").trim().toLowerCase();
     const statusFilter = String(req.query.status || "").trim().toUpperCase();
     const currentUserId = req.user?._id ? String(req.user._id) : "";
 
     // Generate cache key based on query parameters
-    const cacheKey = `property:feed:${page}:${limit}:${query}:${listingType}:${propertyType}:${postType}:${authorId}:${savedBy}:${category}:${currentUserId}`;
-    
+    const cacheKey = `property:feed:${page}:${limit}:${query}:${listingType}:${propertyType}:${postType}:${authorId}:${savedBy}:${category}:${currentUserId}:${priceMin ?? ""}:${priceMax ?? ""}:${amenities.join("|")}`;
+
     // Try to get from cache (only for first page without complex filters).
     // "Near Me" is never cached — its result depends on the request's live
-    // lat/lon, which isn't in the cache key.
+    // lat/lon, which isn't in the cache key. Price/amenities filters skip
+    // the cache too — narrow enough combinations that caching them isn't
+    // worth the key-space churn.
     try {
-      if (page === 1 && !query && !authorId && !savedBy && category !== "near me") {
+      if (
+        page === 1 &&
+        !query &&
+        !authorId &&
+        !savedBy &&
+        category !== "near me" &&
+        priceMin === undefined &&
+        priceMax === undefined &&
+        amenities.length === 0
+      ) {
         const cachedData = await redisClient.get(cacheKey);
         if (cachedData) {
           logger.info("Cache hit for property feed");
@@ -477,11 +499,11 @@ export async function getPropertyFeed(req, res) {
       filter.status = statusFilter;
     }
 
-    // Reporting a post hides it from that reporter's own feed immediately —
-    // it's not blocked for everyone until an admin reviews it and blocks it.
+    let reportedPostIds = new Set();
     if (currentUserId) {
       const myReports = await PostReport.find({ reporter: currentUserId }).select("post").lean();
       if (myReports.length > 0) {
+        reportedPostIds = new Set(myReports.map((report) => String(report.post)));
         filter._id = { $nin: myReports.map((report) => report.post) };
       }
     }
@@ -515,10 +537,25 @@ export async function getPropertyFeed(req, res) {
       filter.listingType = listingType;
     }
     if (propertyType) {
-      filter.propertyType = propertyType;
+      // A single value stays an exact match (unchanged); a comma-separated
+      // list (the web filter modal's multi-select) becomes an $in match —
+      // same param, backward-compatible either way.
+      const propertyTypes = propertyType.split(",").map((t) => t.trim()).filter(Boolean);
+      filter.propertyType = propertyTypes.length > 1 ? { $in: propertyTypes } : propertyTypes[0];
     }
     if (postType) {
       filter.postType = postType;
+    }
+    if (priceMin !== undefined || priceMax !== undefined) {
+      filter.price = {};
+      if (priceMin !== undefined) filter.price.$gte = priceMin;
+      if (priceMax !== undefined) filter.price.$lte = priceMax;
+    }
+    if (amenities.length > 0) {
+      // "postMeta.amenities" is a free-form string array (see the
+      // similar-posts scoring weights above) — matches a post that has
+      // at least one of the requested amenities.
+      filter["postMeta.amenities"] = { $in: amenities };
     }
 
     // Handle category filters
@@ -677,7 +714,14 @@ export async function getPropertyFeed(req, res) {
         ...newPosts,
         ...recentPosts,
         ...personalizedPosts.filter(p => !decoratedPosts.some(dp => String(dp._id) === String(p._id)))
-      ];
+      ].filter((p) => {
+        const pId = String(p._id);
+        const pAuthorId = typeof p.author === "object" ? p.author?._id : p.author;
+        const isOwn = currentUserId && String(pAuthorId) === currentUserId;
+        if (p.isBlocked && !isOwn) return false;
+        if (reportedPostIds.has(pId)) return false;
+        return true;
+      });
 
       const responseData = {
         posts: combinedPosts,
@@ -696,7 +740,7 @@ export async function getPropertyFeed(req, res) {
 
       // Cache the response for 5 minutes (only for first page)
       try {
-        if (page === 1 && !query && !authorId && !savedBy) {
+        if (page === 1 && !query && !authorId && !savedBy && priceMin === undefined && priceMax === undefined && amenities.length === 0) {
           await redisClient.setEx(cacheKey, 180, JSON.stringify(responseData));
           logger.info("Cached property feed data");
         }
@@ -719,7 +763,7 @@ export async function getPropertyFeed(req, res) {
 
     // Cache the response for 5 minutes (only for first page without complex filters)
     try {
-      if (page === 1 && !query && !authorId && !savedBy) {
+      if (page === 1 && !query && !authorId && !savedBy && priceMin === undefined && priceMax === undefined && amenities.length === 0) {
         await redisClient.setEx(cacheKey, 180, JSON.stringify(responseData));
         logger.info("Cached property feed data");
       }
@@ -2077,6 +2121,17 @@ export async function reportPost(req, res) {
       });
     } catch (error) {
       logger.error("Failed to notify owner of post report (non-fatal):", { message: error.message });
+    }
+
+    // Invalidate reporter's property feed cache so reported post disappears immediately
+    try {
+      const userFeedKeys = await redisClient.keys(`property:feed:*:${userId}:*`);
+      if (userFeedKeys.length > 0) {
+        await redisClient.del(userFeedKeys);
+        logger.info(`Invalidated ${userFeedKeys.length} feed cache entries for reporter ${userId}`);
+      }
+    } catch (cacheError) {
+      logger.warn("Redis feed cache invalidation error on report:", cacheError);
     }
 
     return sendSuccessResponse(res, 201, "Thanks for the report. Our team will review it.");

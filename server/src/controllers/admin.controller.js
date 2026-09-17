@@ -9,6 +9,7 @@ import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler
 import { pushRealtimeNotification } from "../services/stream.service.js";
 import * as NotificationService from "../services/NotificationService.js";
 import { NotificationChannel } from "../services/NotificationService.js";
+import redisClient from "../config/redisClient.config.js";
 
 // Roles treated as "verified" — same rule the marketplace's Verified filter
 // already uses (there's no dedicated verified-broker flag yet, just role).
@@ -247,6 +248,17 @@ export const blockPost = async (req, res) => {
       logger.error("Failed to notify reporters of post block (non-fatal):", { message: error.message });
     }
 
+    // Invalidate property feed cache so blocked posts disappear immediately platform-wide
+    try {
+      const feedKeys = await redisClient.keys("property:feed:*");
+      if (feedKeys.length > 0) {
+        await redisClient.del(feedKeys);
+        logger.info(`Invalidated ${feedKeys.length} property feed cache entries after post ${postId} blocked`);
+      }
+    } catch (cacheError) {
+      logger.warn("Redis feed cache invalidation error on post block:", cacheError);
+    }
+
     return sendSuccessResponse(res, 200, "Post blocked successfully", {
       postId: post._id,
       isBlocked: post.isBlocked,
@@ -298,6 +310,17 @@ export const unblockPost = async (req, res) => {
       });
     } catch (error) {
       logger.error("Failed to notify user of post unblock (non-fatal):", { message: error.message });
+    }
+
+    // Invalidate property feed cache so unblocked posts reappear platform-wide
+    try {
+      const feedKeys = await redisClient.keys("property:feed:*");
+      if (feedKeys.length > 0) {
+        await redisClient.del(feedKeys);
+        logger.info(`Invalidated ${feedKeys.length} property feed cache entries after post ${postId} unblocked`);
+      }
+    } catch (cacheError) {
+      logger.warn("Redis feed cache invalidation error on post unblock:", cacheError);
     }
 
     return sendSuccessResponse(res, 200, "Post unblocked successfully", {

@@ -9,11 +9,15 @@ import {
   toggleStoryLike,
   getStoryLikes,
   getStoryViewers,
+  cleanupExpiredStories,
 } from "../controllers/story.controller.js";
 import { verifyUser, requireVerified } from "../middlewares/auth.middleware.js";
 import { uploadStoryMedia as upload } from "../middlewares/upload.middleware.js";
 
 const router = express.Router();
+
+// Cron sweep — authenticated by a shared secret header, not a user session.
+router.post("/cron/cleanup-expired", cleanupExpiredStories);
 
 // All routes require authentication
 router.use(verifyUser);

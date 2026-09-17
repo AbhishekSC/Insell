@@ -2,6 +2,7 @@ import Story from "../models/Story.model.js";
 import PropertyPost from "../models/PropertyPost.model.js";
 import User from "../models/User.model.js";
 import { logger } from "../utils/logger.js";
+import { deleteFromCloudinary, extractPublicIdFromUrl } from "../config/cloudinary.js";
 
 // Create a new story
 export const createStory = async (req, res) => {
@@ -329,6 +330,9 @@ export const deleteStory = async (req, res) => {
 
     await Story.findByIdAndDelete(storyId);
 
+    const publicId = extractPublicIdFromUrl(story.mediaUrl);
+    if (publicId) await deleteFromCloudinary(publicId);
+
     logger.info(`Story ${storyId} deleted by user ${userId}`);
 
     res.status(200).json({
@@ -340,6 +344,44 @@ export const deleteStory = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to delete story",
+      error: error.message,
+    });
+  }
+};
+
+// POST /stories/cron/cleanup-expired   (header: x-cron-secret)
+// Stories used to rely on a MongoDB TTL index to self-delete after 24h, but
+// TTL deletion happens inside MongoDB with no app hook — it removed the
+// document before anything could read its mediaUrl, silently leaking the
+// Cloudinary asset on every single expired story. This sweep deletes each
+// story's Cloudinary media first, then the document, so nothing is orphaned.
+export const cleanupExpiredStories = async (req, res) => {
+  try {
+    const secret = process.env.CRON_SECRET;
+    if (!secret || req.get("x-cron-secret") !== secret) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const expired = await Story.find({ expiresAt: { $lte: new Date() } })
+      .select("mediaUrl")
+      .limit(500)
+      .lean();
+
+    let cleaned = 0;
+    for (const story of expired) {
+      const publicId = extractPublicIdFromUrl(story.mediaUrl);
+      if (publicId) await deleteFromCloudinary(publicId);
+      await Story.deleteOne({ _id: story._id });
+      cleaned += 1;
+    }
+
+    logger.info(`Story cleanup: removed ${cleaned} expired stories and their Cloudinary media`);
+    res.status(200).json({ success: true, data: { cleaned } });
+  } catch (error) {
+    logger.error("Error cleaning up expired stories:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to clean up expired stories",
       error: error.message,
     });
   }
