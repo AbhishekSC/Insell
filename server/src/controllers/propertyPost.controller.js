@@ -1629,7 +1629,7 @@ export async function expireBoostedPostsSweep(req, res) {
       req.query?.secret ||
       req.get("authorization")?.replace(/^Bearer\s+/i, "");
 
-    if (configuredSecret && incomingSecret !== configuredSecret) {
+    if (!configuredSecret || incomingSecret !== configuredSecret) {
       return sendErrorResponse(res, 401, "Unauthorized: Invalid or missing cron secret");
     }
 
