@@ -237,6 +237,35 @@ const userSchema = new mongoose.Schema(
           { _id: false }
         ),
       ],
+      set: function (tokens) {
+        if (!Array.isArray(tokens)) return [];
+        return tokens
+          .map((entry) => {
+            if (!entry) return null;
+            if (typeof entry === "string") {
+              return { token: entry, platform: "web", updatedAt: new Date() };
+            }
+            if (typeof entry === "object") {
+              if (typeof entry.token === "string" && entry.token.trim()) {
+                return entry;
+              }
+              if (entry["0"] !== undefined) {
+                const chars = [];
+                for (let i = 0; entry[i] !== undefined; i++) chars.push(entry[i]);
+                const reconstructed = chars.join("").trim();
+                if (reconstructed) {
+                  return {
+                    token: reconstructed,
+                    platform: entry.platform || "web",
+                    updatedAt: entry.updatedAt || new Date(),
+                  };
+                }
+              }
+            }
+            return null;
+          })
+          .filter(Boolean);
+      },
       default: [],
     },
     isOnboarded: {
@@ -477,6 +506,39 @@ const userSchema = new mongoose.Schema(
 
 // **Indexes**: Create indexes for email and fullName for faster queries
 userSchema.index({ fullName: 1 });
+
+// **Pre Hooks(Middlewares)**: Normalize fcmTokens defensively
+userSchema.pre("validate", function (next) {
+  if (Array.isArray(this.fcmTokens)) {
+    this.fcmTokens = this.fcmTokens
+      .map((entry) => {
+        if (!entry) return null;
+        if (typeof entry === "string") {
+          return { token: entry, platform: "web", updatedAt: new Date() };
+        }
+        if (typeof entry === "object") {
+          if (typeof entry.token === "string" && entry.token.trim()) {
+            return entry;
+          }
+          if (entry["0"] !== undefined) {
+            const chars = [];
+            for (let i = 0; entry[i] !== undefined; i++) chars.push(entry[i]);
+            const reconstructed = chars.join("").trim();
+            if (reconstructed) {
+              return {
+                token: reconstructed,
+                platform: entry.platform || "web",
+                updatedAt: entry.updatedAt || new Date(),
+              };
+            }
+          }
+        }
+        return null;
+      })
+      .filter(Boolean);
+  }
+  next();
+});
 
 // **Pre Hooks(Middlewares)**: For password hashing
 userSchema.pre("save", async function (next) {
