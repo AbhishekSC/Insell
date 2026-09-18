@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Heart, MessageCircle, Bookmark, Send, Volume2, VolumeX, Building2, Maximize2, Phone, BadgeCheck } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, Send, Volume2, VolumeX, Building2, Maximize2, Phone, BadgeCheck, Zap } from "lucide-react";
 import PostAuthorLink from "./PostAuthorLink";
 import { useStoryOverlay } from "../context/StoryOverlayContext";
 import { lqipUrl, cardImageUrl } from "../lib/cloudinaryImage";
@@ -198,6 +198,12 @@ export default function PropertyPostCard({
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             <div className="flex items-center gap-1.5">
+              {post.isBoosted && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-sm ring-1 ring-amber-300/50">
+                  <Zap className="size-3 fill-current" />
+                  Boosted
+                </span>
+              )}
               {badge && (
                 <span
                   className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${

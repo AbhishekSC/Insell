@@ -53,9 +53,9 @@ export default function ReferralCard() {
         Invite friends
       </div>
 
-      <p className="text-sm text-base-content/65">
-        Share your link — when a friend joins and verifies their account, you both earn a credit
-        toward a boosted listing.
+      <p className="text-sm text-base-content/70">
+        Share your link — when a friend joins and verifies their account, you both earn 1 coin to
+        boost your property listings for 24 hours with priority feed placement!
       </p>
 
       <div className="mt-4 flex items-center gap-2 rounded-xl border border-base-300 bg-base-200 px-3 py-2">
@@ -72,8 +72,13 @@ export default function ReferralCard() {
 
       <div className="mt-4 flex items-center gap-4">
         <div>
-          <p className="text-2xl font-black text-primary">{data?.credits ?? 0}</p>
-          <p className="text-xs text-base-content/55">credit{data?.credits === 1 ? "" : "s"} earned</p>
+          <div className="flex items-baseline gap-1">
+            <p className="text-2xl font-black text-primary">{data?.credits ?? 0}</p>
+            <span className="text-xs font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-md">
+              1 Coin = 1 Boost
+            </span>
+          </div>
+          <p className="text-xs text-base-content/55">coin{data?.credits === 1 ? "" : "s"} available</p>
         </div>
         <div className="flex items-center gap-1.5 text-sm text-base-content/60">
           <Users className="size-4" />
