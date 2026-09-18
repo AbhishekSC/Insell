@@ -42,7 +42,7 @@ export default class CommunityJoinRequestService {
       type: "circle_join_request",
       title: "Join request",
       message: `${requester?.fullName || "A user"} requested to join ${circle.name}`,
-      data: { circle: circle._id, url: `/marketplace?section=communities` },
+      data: { circle: circle._id },
       channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
     });
 
@@ -116,7 +116,7 @@ export default class CommunityJoinRequestService {
         String(action) === "accept"
           ? `Your request to join ${circle.name} was accepted`
           : `Your request to join ${circle.name} was declined`,
-      data: { circle: circle._id, url: `/marketplace?section=communities` },
+      data: { circle: circle._id },
       channels: [NotificationChannel.IN_APP, NotificationChannel.FIREBASE],
     });
 

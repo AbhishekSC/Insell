@@ -93,6 +93,10 @@ app.get("/api/health", (req, res) => {
 app.get("/p/:id", renderListingSharePage);
 app.get("/u/:id", renderProfileSharePage);
 
+// /api/v1 is the versioned prefix new clients (mobile) use going forward;
+// the unprefixed /api mount stays aliased to the same router so the web
+// client keeps working unchanged during the transition.
+app.use("/api/v1", routes);
 app.use("/api", routes);
 app.use(notFoundHandler);
 if (isSentryEnabled()) {

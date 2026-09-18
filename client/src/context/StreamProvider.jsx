@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StreamChat } from "stream-chat";
 import { StreamVideoClient } from "@stream-io/video-react-sdk";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router";
 import axiosInstance from "../lib/axios";
 import PersistentCallOverlay from "../components/PersistentCallOverlay";
 
@@ -85,11 +86,17 @@ export function StreamProvider({ children }) {
   const [videoBusy, setVideoBusy] = useState(false);
   const connectedUserIdRef = useRef(null);
   const activeVideoCallRef = useRef(null);
+  const videoClientRef = useRef(null);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   useEffect(() => {
     activeVideoCallRef.current = activeVideoCall;
   }, [activeVideoCall]);
+
+  useEffect(() => {
+    videoClientRef.current = videoClient;
+  }, [videoClient]);
 
   // Auto-mark presence "busy" while on a call, "ready" once it ends — lets
   // other users see "in a call" status without needing a real cross-user
@@ -233,6 +240,35 @@ export function StreamProvider({ children }) {
           if (event.type === "circle_call_started") {
             queryClient.invalidateQueries({ queryKey: ["activeVideoCalls"] });
           }
+
+          // Incoming call signaling from mobile over chat channel
+          if (event.type === "call.ring" || event.type === "call_ring") {
+            const callerId = event.caller?.id || event.user?.id;
+            if (callerId && callerId !== authUser._id && !activeVideoCallRef.current) {
+              const roomId = event.roomId || [authUser._id, callerId].sort().join("-");
+              const callerName = event.caller?.name || event.user?.name || "Friend";
+              const vClient = videoClientRef.current;
+              if (vClient) {
+                try {
+                  const ringingCall = vClient.call("default", roomId);
+                  setIncomingVideoCall(ringingCall);
+                  setIncomingCallerName(callerName);
+                  toast.success(`Incoming call from ${callerName}`);
+                  notifyBrowser("Incoming call", `${callerName} is calling you`);
+                } catch (e) {
+                  console.warn("Failed to set incoming call from chat event:", e);
+                }
+              }
+            }
+          }
+
+          if (event.type === "call.ended" || event.type === "call.declined") {
+            const callerId = event.caller?.id || event.user?.id;
+            if (callerId !== authUser._id) {
+              setIncomingVideoCall(null);
+              setIncomingCallerName("");
+            }
+          }
         };
 
         client.on(handleEvent);
@@ -309,7 +345,7 @@ export function StreamProvider({ children }) {
       token: streamToken,
     });
 
-    const unsubscribeRing = client.on("call.ring", async (event) => {
+    const handleIncomingVideoCall = async (event) => {
       if (!event.call_cid || event.user?.id === authUser._id) {
         return;
       }
@@ -327,7 +363,18 @@ export function StreamProvider({ children }) {
         toast.success(`Incoming call from ${callerName}`);
         notifyBrowser("Incoming call", `${callerName} is calling you`);
       } catch {
-        toast.error("Failed to load incoming call");
+        // Safe fallback
+      }
+    };
+
+    const unsubscribeRing = client.on("call.ring", handleIncomingVideoCall);
+    const unsubscribeNotify = client.on("call.notification", handleIncomingVideoCall);
+
+    const unsubscribeEnded = client.on("call.ended", async (event) => {
+      const incoming = incomingVideoCall;
+      if (incoming && event.call_cid === incoming.cid) {
+        setIncomingVideoCall(null);
+        setIncomingCallerName("");
       }
     });
 
@@ -359,6 +406,8 @@ export function StreamProvider({ children }) {
 
     return () => {
       unsubscribeRing?.();
+      unsubscribeNotify?.();
+      unsubscribeEnded?.();
       unsubscribeReject?.();
     };
   }, [authUser?._id, authUser?.fullName, authUser?.profilePic, streamToken]);
@@ -470,6 +519,29 @@ export function StreamProvider({ children }) {
       }
 
       await joinCallWithMediaFallback(call);
+
+      if (streamClient) {
+        try {
+          const channel = streamClient.channel("messaging", {
+            members: [authUser._id, peerUserId],
+          });
+          await channel.watch();
+          channel.sendEvent({
+            type: "call.ring",
+            callId: `call_${Date.now()}`,
+            roomId,
+            callType: "video",
+            caller: {
+              id: authUser._id,
+              name: authUser.fullName,
+              image: authUser.profilePic,
+            },
+          }).catch(() => {});
+        } catch {
+          // Non-fatal
+        }
+      }
+
       setIncomingVideoCall(null);
       setIncomingCallerName("");
       setActiveVideoCall(call);
@@ -599,10 +671,62 @@ export function StreamProvider({ children }) {
         await activeVideoCall.leave();
       }
 
+      // Explicitly accept on Stream Video SFU
+      if (typeof incomingVideoCall.accept === "function") {
+        try {
+          await incomingVideoCall.accept();
+        } catch (acceptErr) {
+          console.warn("incomingVideoCall.accept error (non-fatal):", acceptErr);
+        }
+      }
+
+      // Best-effort ensure screensharing is enabled in call settings
+      try {
+        await incomingVideoCall.update({
+          settings_override: {
+            screensharing: {
+              enabled: true,
+              access_request_enabled: true,
+            },
+          },
+        });
+      } catch (error) {
+        console.warn("Could not update call settings on accept (non-fatal):", error);
+      }
+
+      // Join call with camera and microphone media
       await joinCallWithMediaFallback(incomingVideoCall);
+
+      // Send call.accepted over chat signaling so mobile peer connects immediately
+      if (streamClient) {
+        try {
+          const roomId = incomingVideoCall.id;
+          const peerId = roomId?.split("-").find((id) => id !== authUser?._id);
+          if (peerId) {
+            const channel = streamClient.channel("messaging", {
+              members: [authUser._id, peerId],
+            });
+            await channel.watch();
+            channel.sendEvent({
+              type: "call.accepted",
+              roomId,
+              callId: incomingVideoCall.cid || incomingVideoCall.id,
+            }).catch(() => {});
+          }
+        } catch (err) {
+          console.warn("Failed to send call.accepted signaling event:", err);
+        }
+      }
+
       setActiveVideoCall(incomingVideoCall);
       setIncomingVideoCall(null);
       setIncomingCallerName("");
+
+      // Navigate to /call/live so Web opens the full call room stage
+      if (typeof window !== "undefined" && window.location.pathname !== "/call/live") {
+        navigate("/call/live");
+      }
+
       return incomingVideoCall;
     } finally {
       setVideoBusy(false);
@@ -647,12 +771,25 @@ export function StreamProvider({ children }) {
 
     setVideoBusy(true);
     try {
+      if (streamClient && incomingVideoCall) {
+        try {
+          const roomId = incomingVideoCall.id;
+          const peerId = roomId?.split("-").find((id) => id !== authUser?._id);
+          if (peerId) {
+            const channel = streamClient.channel("messaging", {
+              members: [authUser._id, peerId],
+            });
+            channel.sendEvent({
+              type: "call.declined",
+              roomId,
+            }).catch(() => {});
+          }
+        } catch {
+          // Ignore
+        }
+      }
       await incomingVideoCall.reject();
     } catch (error) {
-      // Still clear the local banner even if the reject call itself failed
-      // (network hiccup, the call already ended on Stream's side, etc.) —
-      // previously an error here left the "Incoming call" banner stuck on
-      // screen forever with no feedback, since nothing below this line ran.
       console.error("Failed to reject incoming call:", error);
     } finally {
       setIncomingVideoCall(null);
@@ -668,10 +805,23 @@ export function StreamProvider({ children }) {
 
     setVideoBusy(true);
     try {
-      // Explicitly release the camera/mic before leaving. disable() without
-      // forceStop only pauses/mutes the track by default and can leave the
-      // underlying MediaStream (and the browser's recording indicator) alive
-      // for a fast re-enable — forceStop actually stops the hardware device.
+      if (streamClient && activeVideoCall) {
+        try {
+          const roomId = activeVideoCall.id;
+          const peerId = roomId?.split("-").find((id) => id !== authUser?._id);
+          if (peerId) {
+            const channel = streamClient.channel("messaging", {
+              members: [authUser._id, peerId],
+            });
+            channel.sendEvent({
+              type: "call.ended",
+              roomId,
+            }).catch(() => {});
+          }
+        } catch {
+          // Ignore
+        }
+      }
       await Promise.allSettled([
         activeVideoCall.camera.disable(true),
         activeVideoCall.microphone.disable(true),

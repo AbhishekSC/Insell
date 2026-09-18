@@ -762,16 +762,31 @@ export async function updateDigestPreference(req, res) {
   }
 }
 
+const FCM_PLATFORMS = ["web", "ios", "android"];
+
+// `platform` is optional and defaults to "web" — the existing web client
+// doesn't send it, so its registrations keep working unchanged; the mobile
+// app is the one that passes "ios"/"android" explicitly.
 export async function registerFcmToken(req, res) {
   try {
     const currentUserId = req.user._id;
-    const { token } = req.body || {};
+    const { token, platform } = req.body || {};
 
     if (!token || !String(token).trim()) {
       return sendErrorResponse(res, 400, "A device token is required");
     }
+    const normalizedToken = String(token).trim();
+    const normalizedPlatform = FCM_PLATFORMS.includes(platform) ? platform : "web";
 
-    await User.updateOne({ _id: currentUserId }, { $addToSet: { fcmTokens: String(token).trim() } });
+    // Remove any existing entry for this exact token first — otherwise
+    // re-registering the same device (which happens on every app foreground)
+    // would pile up duplicate entries via $addToSet, since each one carries
+    // a fresh `updatedAt` that makes it look like a distinct array element.
+    await User.updateOne({ _id: currentUserId }, { $pull: { fcmTokens: { token: normalizedToken } } });
+    await User.updateOne(
+      { _id: currentUserId },
+      { $push: { fcmTokens: { token: normalizedToken, platform: normalizedPlatform, updatedAt: new Date() } } }
+    );
 
     return sendSuccessResponse(res, 200, "Device registered for push notifications", {});
   } catch (error) {
@@ -789,7 +804,7 @@ export async function unregisterFcmToken(req, res) {
       return sendErrorResponse(res, 400, "A device token is required");
     }
 
-    await User.updateOne({ _id: currentUserId }, { $pull: { fcmTokens: String(token).trim() } });
+    await User.updateOne({ _id: currentUserId }, { $pull: { fcmTokens: { token: String(token).trim() } } });
 
     return sendSuccessResponse(res, 200, "Device unregistered from push notifications", {});
   } catch (error) {

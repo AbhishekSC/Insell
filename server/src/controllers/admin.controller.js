@@ -9,6 +9,7 @@ import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler
 import { pushRealtimeNotification } from "../services/stream.service.js";
 import * as NotificationService from "../services/NotificationService.js";
 import { NotificationChannel } from "../services/NotificationService.js";
+import redisClient from "../config/redisClient.config.js";
 
 // Roles treated as "verified" — same rule the marketplace's Verified filter
 // already uses (there's no dedicated verified-broker flag yet, just role).
@@ -220,7 +221,7 @@ export const blockPost = async (req, res) => {
         realtimeEventType: "post_moderation_notice",
         title: "Post blocked",
         message: `Your post "${post.title}" was blocked by our moderation team`,
-        data: { propertyPost: post._id, actualMessage: post.blockNote || undefined, url: `/property/${post._id}` },
+        data: { propertyPost: post._id, actualMessage: post.blockNote || undefined },
         channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
       });
     } catch (error) {
@@ -238,13 +239,24 @@ export const blockPost = async (req, res) => {
             realtimeEventType: "post_moderation_notice",
             title: "Report resolved",
             message: `The post you reported ("${post.title}") was blocked by our moderation team. Thanks for the report.`,
-            data: { propertyPost: post._id, url: `/property/${post._id}` },
+            data: { propertyPost: post._id },
             channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
           })
         )
       );
     } catch (error) {
       logger.error("Failed to notify reporters of post block (non-fatal):", { message: error.message });
+    }
+
+    // Invalidate property feed cache so blocked posts disappear immediately platform-wide
+    try {
+      const feedKeys = await redisClient.keys("property:feed:*");
+      if (feedKeys.length > 0) {
+        await redisClient.del(feedKeys);
+        logger.info(`Invalidated ${feedKeys.length} property feed cache entries after post ${postId} blocked`);
+      }
+    } catch (cacheError) {
+      logger.warn("Redis feed cache invalidation error on post block:", cacheError);
     }
 
     return sendSuccessResponse(res, 200, "Post blocked successfully", {
@@ -293,11 +305,22 @@ export const unblockPost = async (req, res) => {
         realtimeEventType: "post_moderation_notice",
         title: "Post restored",
         message: `Your post "${post.title}" is visible again`,
-        data: { propertyPost: post._id, url: `/property/${post._id}` },
+        data: { propertyPost: post._id },
         channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
       });
     } catch (error) {
       logger.error("Failed to notify user of post unblock (non-fatal):", { message: error.message });
+    }
+
+    // Invalidate property feed cache so unblocked posts reappear platform-wide
+    try {
+      const feedKeys = await redisClient.keys("property:feed:*");
+      if (feedKeys.length > 0) {
+        await redisClient.del(feedKeys);
+        logger.info(`Invalidated ${feedKeys.length} property feed cache entries after post ${postId} unblocked`);
+      }
+    } catch (cacheError) {
+      logger.warn("Redis feed cache invalidation error on post unblock:", cacheError);
     }
 
     return sendSuccessResponse(res, 200, "Post unblocked successfully", {

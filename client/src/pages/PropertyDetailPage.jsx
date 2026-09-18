@@ -35,8 +35,10 @@ import {
   VolumeX,
   Wallet,
   X,
+  Zap,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import BoostPropertyModal from "../components/BoostPropertyModal";
 import ShareModal from "../components/ShareModal";
 import NeighbourhoodSummary from "../components/NeighbourhoodSummary";
 import AmenitiesModal from "../components/AmenitiesModal";
@@ -183,6 +185,7 @@ export default function PropertyDetailPage() {
   const [reviewModal, setReviewModal] = useState(null); // { offerId, revieweeName }
   const [reviewedOfferIds, setReviewedOfferIds] = useState([]);
   const [showAllOffers, setShowAllOffers] = useState(false);
+  const [showBoostModal, setShowBoostModal] = useState(false);
 
   const { data: authData } = useQuery({
     queryKey: ["authUser"],
@@ -666,6 +669,12 @@ export default function PropertyDetailPage() {
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none">
             <div className="absolute top-4 right-4 flex items-center gap-2 pointer-events-auto">
+              {postData.isBoosted && !postData.isBlocked && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-3 py-1 text-xs font-extrabold text-white shadow-sm ring-1 ring-amber-300/50">
+                  <Zap className="size-3.5 fill-current" />
+                  Boosted
+                </span>
+              )}
               {media.length > 0 && (
                 <span className="rounded-full bg-black/55 backdrop-blur-sm px-3 py-1 text-xs font-semibold text-white">
                   {carouselIndex + 1}/{media.length}
@@ -872,9 +881,43 @@ export default function PropertyDetailPage() {
                 </div>
               )}
 
-              {/* Listing performance — owner only */}
-              {isOwner && !postData.isDeleted && (
-                <div className="mt-4">
+              {/* Listing performance & Boost — owner only */}
+              {isOwner && !postData.isDeleted && !postData.isBlocked && (
+                <div className="mt-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-300/80 bg-gradient-to-r from-amber-50/90 via-amber-100/50 to-amber-50/80 p-4 shadow-xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-500/20 text-amber-700">
+                        <Zap className="size-5 fill-amber-600 text-amber-600" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-bold text-amber-950 uppercase tracking-wide">
+                            {postData.isBoosted ? "Boost Active" : "Boost Listing (1 Coin)"}
+                          </h4>
+                          {postData.isBoosted && (
+                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-300">
+                              Priority Ranked
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-amber-900/80 font-medium">
+                          {postData.isBoosted
+                            ? "Your property is currently prioritized at the top of feeds."
+                            : "Feature your property at the top of feeds for 24 hours to get more buyer inquiries."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowBoostModal(true)}
+                      className="flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:from-amber-600 hover:to-amber-700 transition-all"
+                    >
+                      <Zap className="size-3.5 fill-white" />
+                      <span>{postData.isBoosted ? "Extend Boost" : "Boost Now"}</span>
+                    </button>
+                  </div>
+
                   <ListingPerformance post={postData} />
                 </div>
               )}
@@ -1487,6 +1530,12 @@ export default function PropertyDetailPage() {
         isPending={isReviewPending}
         onCancel={() => setReviewModal(null)}
         onSubmit={({ rating, comment }) => submitReview({ offerId: reviewModal.offerId, rating, comment })}
+      />
+
+      <BoostPropertyModal
+        isOpen={showBoostModal}
+        post={postData}
+        onClose={() => setShowBoostModal(false)}
       />
     </AppShell>
   );

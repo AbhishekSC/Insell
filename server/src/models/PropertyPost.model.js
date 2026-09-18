@@ -239,6 +239,27 @@ const propertyPostSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Promotional boost using referral coins/credits. Active when isBoosted is true
+    // and boostExpiresAt > Date.now(). Powers priority feed ranking and sponsored badges.
+    isBoosted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    boostedAt: {
+      type: Date,
+      default: null,
+    },
+    boostExpiresAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    boostCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     postMeta: {
       type: PostMetaSchema,
       default: () => ({}),

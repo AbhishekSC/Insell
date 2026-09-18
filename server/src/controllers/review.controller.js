@@ -61,7 +61,9 @@ export async function createReview(req, res) {
       title: `${req.user.fullName} left you a ${rating}-star review`,
       message: `${req.user.fullName} left you a ${rating}-star review for "${offer.post.title}"`,
       pushBody: comment || `${rating}-star review`,
-      data: { url: `/users/${revieweeId}` },
+      // No `data` needed — deriveWebPath() sends the recipient (the
+      // reviewee) to their own /profile for this type, and mobile does the
+      // same from `type` alone.
       channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
     });
 

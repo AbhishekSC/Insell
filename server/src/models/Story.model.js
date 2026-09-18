@@ -56,6 +56,12 @@ const storySchema = new mongoose.Schema(
     // a Highlight) doesn't also yank the story out of the main feed early.
     // feedExpiresAt below is what keeps a highlighted story visible in the
     // normal 24h feed for its natural lifetime, same as any other story.
+    // Deliberately not a TTL index (no expireAfterSeconds) — expired stories
+    // are reaped by the /stories/cron/cleanup-expired sweep instead, which
+    // deletes each story's Cloudinary media before removing the document. A
+    // native TTL index lets MongoDB delete the document first, permanently
+    // losing the mediaUrl needed to clean up Cloudinary and leaking storage
+    // on every single expired story.
     expiresAt: {
       type: Date,
       index: true,
@@ -95,9 +101,6 @@ const storySchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
-// TTL index to automatically delete expired stories (24 hours)
-storySchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 // Index for querying active stories
 storySchema.index({ author: 1, isActive: 1, feedExpiresAt: 1 });

@@ -219,9 +219,24 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
     // FCM device tokens for push notifications — an array since one user can
-    // have multiple open browser sessions/devices at once.
+    // have multiple open browser sessions/devices at once (multiple open
+    // tabs, plus now the mobile app on top of that). Tagged by platform so
+    // NotificationService can send web tokens a `url` for its service
+    // worker to navigate on click, and mobile tokens a platform-neutral
+    // `{ type, ...ids }` payload instead. Kept loosely typed on read paths
+    // (NotificationService, cleanup) so any pre-existing plain-string entry
+    // from before this field existed still works, implicitly as "web".
     fcmTokens: {
-      type: [String],
+      type: [
+        new mongoose.Schema(
+          {
+            token: { type: String, required: true },
+            platform: { type: String, enum: ["web", "ios", "android"], default: "web" },
+            updatedAt: { type: Date, default: Date.now },
+          },
+          { _id: false }
+        ),
+      ],
       default: [],
     },
     isOnboarded: {

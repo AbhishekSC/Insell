@@ -156,7 +156,7 @@ export async function createVisitRequest(req, res) {
       title: `${req.user.fullName} requested a visit`,
       message: `${req.user.fullName} wants to visit "${post.title}" — ${slots.map(fmtSlot).join(" or ")}`,
       pushBody: `Proposed: ${slots.map(fmtSlot).join(" / ")}`,
-      data: { propertyPost: post._id, visitRequest: visit._id, url: `/property/${post._id}` },
+      data: { propertyPost: post._id, visitRequest: visit._id },
       channels: ALL_CHANNELS,
     });
 
@@ -284,7 +284,7 @@ async function notify(recipientId, actorId, type, title, msg, visit, actorName) 
   await NotificationService.send({
     recipientId, actorId, type, title, message: msg,
     pushBody: actorName ? `${actorName}: ${title}` : title,
-    data: { propertyPost: visit.post._id || visit.post, visitRequest: visit._id, url: `/property/${visit.post._id || visit.post}` },
+    data: { propertyPost: visit.post._id || visit.post, visitRequest: visit._id },
     channels: ALL_CHANNELS,
   }).catch((e) => logger.error("visit notify failed (non-fatal):", e));
 }

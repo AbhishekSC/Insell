@@ -4,6 +4,7 @@ import { logger } from "../utils/logger.js";
 import { pushRealtimeNotification } from "./stream.service.js";
 import { sendPushNotification } from "./firebase.service.js";
 import { sendGenericEmail } from "../utils/emailClient.js";
+import { deriveWebPath } from "./notificationRouting.js";
 
 export const NotificationChannel = {
   IN_APP: "IN_APP",       // persistent record in Mongo, shown in the /activity feed
@@ -71,15 +72,43 @@ export async function send({
       case NotificationChannel.REALTIME:
         return pushRealtimeNotification(recipientId, realtimeEventType || type);
 
-      case NotificationChannel.FIREBASE:
+      case NotificationChannel.FIREBASE: {
         if (!recipient?.fcmTokens?.length) return Promise.resolve(null);
-        return sendPushNotification(recipient.fcmTokens, { title: title || message, body: pushBody || message, data }).then(
-          async ({ staleTokens }) => {
-            if (staleTokens.length > 0) {
-              await User.updateOne({ _id: recipientId }, { $pullAll: { fcmTokens: staleTokens } });
-            }
+
+        // Platform-neutral payload — this is what every mobile client
+        // receives and routes on itself, using `type` plus whatever ids
+        // are already in `data` (propertyPost, circle, offer, deal, ...).
+        // Web additionally gets a `url` computed here from the same
+        // inputs, so callers never hardcode a web route string — the web
+        // service worker keeps reading `data.url` exactly as before.
+        const neutralData = { type, ...data };
+        const webPath = deriveWebPath(type, data);
+        const webData = webPath ? { ...neutralData, url: webPath } : neutralData;
+
+        const webTokens = [];
+        const mobileTokens = [];
+        for (const entry of recipient.fcmTokens) {
+          const token = typeof entry === "string" ? entry : entry?.token;
+          const platform = typeof entry === "string" ? "web" : entry?.platform || "web";
+          if (!token) continue;
+          (platform === "web" ? webTokens : mobileTokens).push(token);
+        }
+
+        const sends = [];
+        if (webTokens.length) {
+          sends.push(sendPushNotification(webTokens, { title: title || message, body: pushBody || message, data: webData }));
+        }
+        if (mobileTokens.length) {
+          sends.push(sendPushNotification(mobileTokens, { title: title || message, body: pushBody || message, data: neutralData }));
+        }
+
+        return Promise.all(sends).then(async (results) => {
+          const staleTokens = results.flatMap((r) => r?.staleTokens || []);
+          if (staleTokens.length > 0) {
+            await User.updateOne({ _id: recipientId }, { $pull: { fcmTokens: { token: { $in: staleTokens } } } });
           }
-        );
+        });
+      }
 
       case NotificationChannel.EMAIL:
         if (!recipient?.email) return Promise.resolve(null);

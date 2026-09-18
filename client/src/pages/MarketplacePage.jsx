@@ -42,7 +42,9 @@ import {
   UserRoundPlus,
   Users,
   X,
+  Zap,
 } from "lucide-react";
+import BoostPropertyModal from "../components/BoostPropertyModal";
 import ShareModal from "../components/ShareModal";
 import PostLikesModal from "../components/PostLikesModal";
 import PropertyPostCard from "../components/PropertyPostCard";
@@ -372,6 +374,7 @@ export default function MarketplacePage() {
   const [postMenuAnchor, setPostMenuAnchor] = useState(null); // { post, top, left }
   const [reportTargetPost, setReportTargetPost] = useState(null);
   const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [boostTargetPost, setBoostTargetPost] = useState(null);
 
   // Portaled to <body> so the menu escapes the card's own overflow-hidden
   // (needed for the image's rounded corners) — otherwise it gets clipped.
@@ -1866,6 +1869,8 @@ export default function MarketplacePage() {
                     <PropertyPostCard
                       key={post._id}
                       post={post}
+                      isOwnPost={Boolean(authUser?._id && post.author?._id && String(authUser._id) === String(post.author._id))}
+                      onBoost={(p) => setBoostTargetPost(p)}
                       media={post.media}
                       onDoubleClickMedia={handleDoubleClickMedia}
                       badge={badge}
@@ -3044,26 +3049,50 @@ export default function MarketplacePage() {
         }}
       />
 
+      <BoostPropertyModal
+        isOpen={Boolean(boostTargetPost)}
+        post={boostTargetPost}
+        onClose={() => setBoostTargetPost(null)}
+      />
+
       {postMenuAnchor &&
         createPortal(
           <>
             <div className="fixed inset-0 z-40" onClick={() => setPostMenuAnchor(null)} />
             <div
-              className="fixed z-50 w-36 rounded-xl border border-base-300 bg-base-100 py-1 shadow-lg"
+              className="fixed z-50 w-44 rounded-xl border border-base-300 bg-base-100 py-1 shadow-lg"
               style={{ top: postMenuAnchor.top, left: postMenuAnchor.left }}
             >
               {String(authUser?._id) === String(postMenuAnchor.post.author?._id) ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleEditPost(postMenuAnchor.post);
-                    setPostMenuAnchor(null);
-                  }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-base-content hover:bg-base-200"
-                >
-                  <Edit3 className="size-3.5" />
-                  Edit
-                </button>
+                <>
+                  {!postMenuAnchor.post.isBlocked && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBoostTargetPost(postMenuAnchor.post);
+                          setPostMenuAnchor(null);
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-amber-600 hover:bg-amber-50 transition-colors"
+                      >
+                        <Zap className="size-3.5 fill-amber-500 text-amber-500" />
+                        {postMenuAnchor.post.isBoosted ? "Boosted (Active)" : "Boost listing (1 coin)"}
+                      </button>
+                      <div className="border-t border-base-200" />
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleEditPost(postMenuAnchor.post);
+                      setPostMenuAnchor(null);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-base-content hover:bg-base-200"
+                  >
+                    <Edit3 className="size-3.5" />
+                    Edit
+                  </button>
+                </>
               ) : (
                 <button
                   type="button"

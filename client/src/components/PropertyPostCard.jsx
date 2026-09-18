@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Heart, MessageCircle, Bookmark, Send, Volume2, VolumeX, Building2, Maximize2, Phone, BadgeCheck } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, Send, Volume2, VolumeX, Building2, Maximize2, Phone, BadgeCheck, Zap } from "lucide-react";
 import PostAuthorLink from "./PostAuthorLink";
 import { useStoryOverlay } from "../context/StoryOverlayContext";
 import { lqipUrl, cardImageUrl } from "../lib/cloudinaryImage";
@@ -88,6 +88,8 @@ export default function PropertyPostCard({
   className = "",
   mediaHeightClass = "h-[24rem]",
   mediaOverlay,
+  onBoost,
+  isOwnPost,
 }) {
   const [isMuted, setIsMuted] = useState(true);
   const { isActive: isStoryOverlayActive } = useStoryOverlay();
@@ -198,6 +200,12 @@ export default function PropertyPostCard({
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             <div className="flex items-center gap-1.5">
+              {post.isBoosted && !post.isBlocked && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-sm ring-1 ring-amber-300/50">
+                  <Zap className="size-3 fill-current" />
+                  Boosted
+                </span>
+              )}
               {badge && (
                 <span
                   className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
@@ -217,6 +225,24 @@ export default function PropertyPostCard({
             )}
           </div>
         </div>
+
+        {/* bottom-left: clickable boost badge for owner if not blocked */}
+        {isOwnPost && !post.isBlocked && onBoost && (
+          <div className="absolute bottom-3 left-3 z-10" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => onBoost(post)}
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-white shadow-md backdrop-blur-xs transition-all hover:scale-105 active:scale-95 ${
+                post.isBoosted
+                  ? "bg-emerald-600/90 hover:bg-emerald-600 ring-1 ring-emerald-400/60"
+                  : "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 ring-1 ring-amber-300/60"
+              }`}
+            >
+              <Zap className="size-3.5 fill-white" />
+              <span>{post.isBoosted ? "Boost Active" : "Boost Listing (1 Coin)"}</span>
+            </button>
+          </div>
+        )}
 
         {/* bottom-right: mute · expand · compare */}
         <div className="absolute bottom-3 right-3 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>

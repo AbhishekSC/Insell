@@ -11,6 +11,7 @@ import {
   Edit2,
   Eye,
   Flag,
+  Gift,
   Grid3x3,
   Heart,
   IndianRupee,
@@ -28,7 +29,9 @@ import {
   User,
   UserRoundPlus,
   X,
+  Zap,
 } from "lucide-react";
+import BoostPropertyModal from "../components/BoostPropertyModal";
 import ShareModal from "../components/ShareModal";
 import ReportPostModal from "../components/ReportPostModal";
 import { getCustomBadgeClasses } from "../lib/badgeColors";
@@ -234,6 +237,17 @@ export default function UserProfilePage() {
   const stats = profileData?.stats || { postsCount: 0 };
   const relationship = profileData?.relationship || { isSelf: false, connectionStatus: "none" };
   const isOwnProfile = relationship.isSelf;
+
+  const [boostTargetPost, setBoostTargetPost] = useState(null);
+  const { data: referralData } = useQuery({
+    queryKey: ["referralInfo"],
+    queryFn: async () => {
+      const res = await axiosInstance.get("/referral/me");
+      return res.data?.data;
+    },
+    enabled: Boolean(isOwnProfile),
+    staleTime: 30 * 1000,
+  });
 
   const [selectedPostForComments, setSelectedPostForComments] = useState(null);
   const [showAvatarPreview, setShowAvatarPreview] = useState(false);
@@ -833,6 +847,40 @@ export default function UserProfilePage() {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[3fr_1fr]">
             {/* Left Column */}
             <div className="flex flex-col gap-6">
+              {/* Referral Coins & Boost Dashboard Banner */}
+              {isOwnProfile && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-300/80 bg-gradient-to-r from-amber-50/90 via-amber-100/50 to-amber-50/80 p-4 shadow-xs">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-amber-500/20 text-xl shadow-xs">
+                      🪙
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-extrabold text-amber-950">
+                          {referralData?.credits ?? 0} Referral {(referralData?.credits ?? 0) === 1 ? "Coin" : "Coins"} Available
+                        </span>
+                        <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-bold text-amber-900 border border-amber-300 uppercase tracking-wide">
+                          1 Coin = 1 Boost (24h)
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-amber-900/80 font-medium">
+                        Boost your listings for priority placement or invite friends to earn free coins!
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Link
+                      to="/profile"
+                      className="flex items-center gap-1.5 rounded-xl border border-amber-400/80 bg-white/90 px-3.5 py-2 text-xs font-bold text-amber-950 hover:bg-white shadow-xs transition-colors"
+                    >
+                      <Gift className="size-3.5 text-amber-600" />
+                      Invite Friends
+                    </Link>
+                  </div>
+                </div>
+              )}
+
               {/* Navigation Tabs — desktop/tablet: full labeled set. About
                   moves out of the mobile tab bar (becomes a header button,
                   see above); Reviews stays in both — see the mobile row
@@ -969,6 +1017,8 @@ export default function UserProfilePage() {
                               <PropertyPostCard
                                 key={post._id}
                                 post={post}
+                                isOwnPost={isOwnProfile}
+                                onBoost={(p) => setBoostTargetPost(p)}
                                 media={media}
                                 onDoubleClickMedia={handleDoubleClickMedia}                                mediaOverlay={
                                   likedBurstPostId === post._id ? (
@@ -999,7 +1049,24 @@ export default function UserProfilePage() {
                                         <MoreVertical className="size-3.5" />
                                       </button>
                                       {menuOpenPostId === post._id && (
-                                        <div className="absolute right-0 top-full z-10 mt-1 w-36 rounded-xl border border-base-300 bg-base-100 shadow-xl overflow-hidden">
+                                        <div className="absolute right-0 top-full z-10 mt-1 w-44 rounded-xl border border-base-300 bg-base-100 shadow-xl overflow-hidden">
+                                          {!post.isBlocked && (
+                                            <>
+                                              <button
+                                                type="button"
+                                                className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-semibold text-amber-600 hover:bg-amber-50 transition-colors"
+                                                onClick={(event) => {
+                                                  event.stopPropagation();
+                                                  setBoostTargetPost(post);
+                                                  setMenuOpenPostId(null);
+                                                }}
+                                              >
+                                                <Zap className="size-4 fill-amber-500 text-amber-500" />
+                                                {post.isBoosted ? "Boosted (Active)" : "Boost Listing (1 Coin)"}
+                                              </button>
+                                              <div className="border-t border-base-200" />
+                                            </>
+                                          )}
                                           <button
                                             type="button"
                                             className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-base-content hover:bg-base-200 transition-colors"
@@ -1466,6 +1533,37 @@ export default function UserProfilePage() {
             <div className="hidden flex-col gap-4 lg:flex lg:sticky lg:top-24 lg:h-fit">
               {isOwnProfile ? (
                 <>
+                  {/* Referral Coins & Boost Widget */}
+                  <div className="rounded-2xl border border-amber-300/80 bg-gradient-to-br from-amber-50/90 via-amber-100/40 to-base-100 p-5 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xl">🪙</span>
+                        <div>
+                          <h4 className="text-xs font-bold text-amber-950 uppercase tracking-wide">
+                            Referral Coins
+                          </h4>
+                          <p className="text-[11px] text-amber-900/80 font-semibold">1 Coin = 1 Boost (24h)</p>
+                        </div>
+                      </div>
+                      <span className="text-2xl font-black text-amber-950">
+                        {referralData?.credits ?? 0}
+                      </span>
+                    </div>
+
+                    <p className="mt-2.5 text-xs text-amber-900/80 leading-relaxed">
+                      Boost your listings to appear at the top of buyer feeds with an Instagram-style badge.
+                    </p>
+
+                    <div className="mt-3.5 flex items-center gap-2">
+                      <Link
+                        to="/profile"
+                        className="flex-1 text-center rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 py-2 text-xs font-bold text-white shadow-xs hover:from-amber-600 hover:to-amber-700 transition-all"
+                      >
+                        Earn More Coins
+                      </Link>
+                    </div>
+                  </div>
+
                   {/* Owner Sidebar - Analytics */}
                   <div className="rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm">
                     <h3 className="mb-4 text-sm font-semibold text-base-content">Profile Overview</h3>
@@ -1940,6 +2038,12 @@ export default function UserProfilePage() {
           </div>
         </div>
       )}
+
+      <BoostPropertyModal
+        isOpen={Boolean(boostTargetPost)}
+        post={boostTargetPost}
+        onClose={() => setBoostTargetPost(null)}
+      />
     </AppShell>
   );
 }
