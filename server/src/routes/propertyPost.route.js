@@ -20,6 +20,7 @@ import {
   togglePropertyPostSave,
   updatePropertyPost,
   uploadPropertyMedia as uploadPropertyMediaController,
+  boostPropertyPost,
 } from "../controllers/propertyPost.controller.js";
 import { uploadPropertyMedia } from "../middlewares/upload.middleware.js";
 
@@ -45,5 +46,6 @@ router.post("/:id/like", verifyUser, requireVerified, togglePropertyPostLike);
 router.post("/:id/save", verifyUser, requireVerified, togglePropertyPostSave);
 router.post("/:id/view", verifyUser, requireVerified, incrementViewCount);
 router.post("/:id/report", verifyUser, requireVerified, reportPost);
+router.post("/:id/boost", verifyUser, requireVerified, boostPropertyPost);
 
 export default router;

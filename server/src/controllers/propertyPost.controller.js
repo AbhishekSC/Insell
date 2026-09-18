@@ -666,9 +666,10 @@ export async function getPropertyFeed(req, res) {
       return await getNearMeFeed(req, res, { filter, page, limit, skip, currentUserId });
     }
 
+    const nowMs = Date.now();
     const [posts, total] = await Promise.all([
       PropertyPost.find(filter)
-        .sort({ createdAt: -1 })
+        .sort({ isBoosted: -1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate")
@@ -680,8 +681,16 @@ export async function getPropertyFeed(req, res) {
       posts.map((post) => {
         const likedBy = Array.isArray(post.likedBy) ? post.likedBy.map((item) => String(item)) : [];
         const savedBy = Array.isArray(post.savedBy) ? post.savedBy.map((item) => String(item)) : [];
+        const isBoostActive = Boolean(
+          post.isBoosted &&
+          post.boostExpiresAt &&
+          new Date(post.boostExpiresAt).getTime() > nowMs
+        );
         return {
           ...post,
+          isBoosted: isBoostActive,
+          boostExpiresAt: post.boostExpiresAt,
+          boostCount: post.boostCount || 0,
           likesCount: likedBy.length,
           isLikedByMe: currentUserId ? likedBy.includes(currentUserId) : false,
           savesCount: savedBy.length,
@@ -1476,6 +1485,108 @@ export async function togglePropertyPostSave(req, res) {
     });
   } catch (error) {
     logger.error("Error toggling property post save:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
+export async function boostPropertyPost(req, res) {
+  try {
+    const userId = req.user?._id;
+    const postId = req.params?.id;
+
+    if (!userId) {
+      return sendErrorResponse(res, 401, "Unauthorized");
+    }
+
+    const post = await PropertyPost.findById(postId).populate(
+      "author",
+      "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate"
+    );
+
+    if (!post || post.isDeleted || post.isBlocked) {
+      return sendErrorResponse(res, 404, "Post not found");
+    }
+
+    const authorId = post.author?._id ? String(post.author._id) : String(post.author);
+    if (authorId !== String(userId)) {
+      return sendErrorResponse(res, 403, "You can only boost your own property listings");
+    }
+
+    // Check user's referral credits / coins
+    const User = (await import("../models/User.model.js")).default;
+    const user = await User.findById(userId);
+    if (!user) {
+      return sendErrorResponse(res, 404, "User not found");
+    }
+
+    const currentCredits = Number(user.referralCredits || 0);
+    if (currentCredits < 1) {
+      return sendErrorResponse(
+        res,
+        400,
+        "Insufficient referral coins. You need 1 referral coin to boost this property."
+      );
+    }
+
+    // Deduct 1 referral credit
+    user.referralCredits = Math.max(0, currentCredits - 1);
+    await user.save();
+
+    // 24-hour boost window: stack on top of existing boost if currently active
+    const now = Date.now();
+    const currentExpiry =
+      post.isBoosted && post.boostExpiresAt ? new Date(post.boostExpiresAt).getTime() : 0;
+    const baseTime = currentExpiry > now ? currentExpiry : now;
+    const boostDurationMs = 24 * 60 * 60 * 1000;
+
+    post.isBoosted = true;
+    post.boostedAt = new Date();
+    post.boostExpiresAt = new Date(baseTime + boostDurationMs);
+    post.boostCount = (post.boostCount || 0) + 1;
+
+    await post.save();
+
+    // Clear caches
+    await invalidateDiscoverCache(userId);
+    await invalidateActivityCache(userId);
+    await PersonalizationService.invalidatePersonalizationCache(userId);
+
+    try {
+      const keys = await redisClient.keys("property:feed:*");
+      if (keys.length > 0) {
+        await redisClient.del(keys);
+        logger.info(`Invalidated ${keys.length} property feed cache entries on boost`);
+      }
+    } catch (cacheError) {
+      logger.warn("Redis cache invalidation error:", cacheError);
+    }
+
+    // Create in-app notification celebrating the boost
+    try {
+      await NotificationService.send({
+        recipientId: userId,
+        actorId: userId,
+        type: "post_boosted",
+        title: "Property Boosted! 🚀",
+        message: `Your property "${post.title}" is now boosted for 24 hours with priority feed visibility.`,
+        data: { propertyPost: post._id },
+        channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME],
+      });
+    } catch (notifyErr) {
+      logger.warn("Failed to send boost notification (non-fatal):", notifyErr);
+    }
+
+    return sendSuccessResponse(res, 200, "Property successfully boosted for 24 hours", {
+      post: {
+        ...post.toObject(),
+        isBoosted: true,
+        boostExpiresAt: post.boostExpiresAt,
+        boostCount: post.boostCount,
+      },
+      remainingCredits: user.referralCredits,
+    });
+  } catch (error) {
+    logger.error("Error boosting property post:", error);
     return sendErrorResponse(res, 500, "Internal Server Error");
   }
 }
