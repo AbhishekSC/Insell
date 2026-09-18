@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import PropertyPost from "../models/PropertyPost.model.js";
+import User from "../models/User.model.js";
 import PostReport, { REPORT_REASON_CODES } from "../models/PostReport.model.js";
 import Notification from "../models/Notification.model.js";
 import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler.js";
@@ -1516,25 +1517,26 @@ export async function boostPropertyPost(req, res) {
       return sendErrorResponse(res, 403, "You can only boost your own property listings");
     }
 
-    // Check user's referral credits / coins
-    const User = (await import("../models/User.model.js")).default;
-    const user = await User.findById(userId);
-    if (!user) {
-      return sendErrorResponse(res, 404, "User not found");
-    }
+    // Atomically deduct 1 referral credit if the user has at least 1 credit.
+    // Atomic update prevents race conditions and bypasses full-document validation
+    // on unrelated user fields.
+    const user = await User.findOneAndUpdate(
+      { _id: userId, referralCredits: { $gte: 1 } },
+      { $inc: { referralCredits: -1 } },
+      { new: true }
+    );
 
-    const currentCredits = Number(user.referralCredits || 0);
-    if (currentCredits < 1) {
+    if (!user) {
+      const userExists = await User.exists({ _id: userId });
+      if (!userExists) {
+        return sendErrorResponse(res, 404, "User not found");
+      }
       return sendErrorResponse(
         res,
         400,
         "Insufficient referral coins. You need 1 referral coin to boost this property."
       );
     }
-
-    // Deduct 1 referral credit
-    user.referralCredits = Math.max(0, currentCredits - 1);
-    await user.save();
 
     // 24-hour boost window: stack on top of existing boost if currently active
     const now = Date.now();
@@ -1543,26 +1545,41 @@ export async function boostPropertyPost(req, res) {
     const baseTime = currentExpiry > now ? currentExpiry : now;
     const boostDurationMs = 24 * 60 * 60 * 1000;
 
+    const boostedAt = new Date();
+    const boostExpiresAt = new Date(baseTime + boostDurationMs);
+    const newBoostCount = (post.boostCount || 0) + 1;
+
+    // Atomic update on property post (avoids save on populated doc)
+    await PropertyPost.updateOne(
+      { _id: postId },
+      {
+        $set: {
+          isBoosted: true,
+          boostedAt,
+          boostExpiresAt,
+        },
+        $inc: { boostCount: 1 },
+      }
+    );
+
     post.isBoosted = true;
-    post.boostedAt = new Date();
-    post.boostExpiresAt = new Date(baseTime + boostDurationMs);
-    post.boostCount = (post.boostCount || 0) + 1;
+    post.boostedAt = boostedAt;
+    post.boostExpiresAt = boostExpiresAt;
+    post.boostCount = newBoostCount;
 
-    await post.save();
-
-    // Clear caches
-    await invalidateDiscoverCache(userId);
-    await invalidateActivityCache(userId);
-    await PersonalizationService.invalidatePersonalizationCache(userId);
-
+    // Clear caches (safe/non-blocking)
     try {
+      await invalidateDiscoverCache(userId);
+      await invalidateActivityCache(userId);
+      await PersonalizationService.invalidatePersonalizationCache(userId);
+
       const keys = await redisClient.keys("property:feed:*");
-      if (keys.length > 0) {
+      if (keys && keys.length > 0) {
         await redisClient.del(keys);
         logger.info(`Invalidated ${keys.length} property feed cache entries on boost`);
       }
     } catch (cacheError) {
-      logger.warn("Redis cache invalidation error:", cacheError);
+      logger.warn("Cache invalidation error on boost (non-fatal):", cacheError);
     }
 
     // Create in-app notification celebrating the boost
