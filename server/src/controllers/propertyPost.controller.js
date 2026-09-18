@@ -1612,6 +1612,64 @@ export async function boostPropertyPost(req, res) {
   }
 }
 
+/**
+ * Cron sweep: deactivates expired property post boosts.
+ * Reaps posts where `isBoosted: true` and `boostExpiresAt <= now`, resetting `isBoosted = false`.
+ *
+ * Authentication:
+ * - Header: `x-cron-secret`
+ * - Query: `?secret=...`
+ * - Authorization: `Bearer <secret>`
+ */
+export async function expireBoostedPostsSweep(req, res) {
+  try {
+    const configuredSecret = process.env.CRON_SECRET;
+    const incomingSecret =
+      req.get("x-cron-secret") ||
+      req.query?.secret ||
+      req.get("authorization")?.replace(/^Bearer\s+/i, "");
+
+    if (configuredSecret && incomingSecret !== configuredSecret) {
+      return sendErrorResponse(res, 401, "Unauthorized: Invalid or missing cron secret");
+    }
+
+    const now = new Date();
+
+    const result = await PropertyPost.updateMany(
+      {
+        isBoosted: true,
+        boostExpiresAt: { $lte: now },
+      },
+      {
+        $set: { isBoosted: false },
+      }
+    );
+
+    const expiredCount = result.modifiedCount || 0;
+
+    if (expiredCount > 0) {
+      try {
+        await PersonalizationService.invalidatePersonalizationCache();
+        const keys = await redisClient.keys("property:feed:*");
+        if (keys && keys.length > 0) {
+          await redisClient.del(keys);
+        }
+        logger.info(`[Boost Sweep] Deactivated ${expiredCount} expired property boosts and invalidated feed caches.`);
+      } catch (cacheErr) {
+        logger.warn("[Boost Sweep] Cache invalidation warning (non-fatal):", cacheErr);
+      }
+    }
+
+    return sendSuccessResponse(res, 200, "Boost expiration sweep executed successfully", {
+      expiredCount,
+      timestamp: now.toISOString(),
+    });
+  } catch (error) {
+    logger.error("Error in expireBoostedPostsSweep:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
 export async function getPropertyPostById(req, res) {
   try {
     const postId = req.params?.id;
