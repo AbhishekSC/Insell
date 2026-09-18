@@ -1503,8 +1503,12 @@ export async function boostPropertyPost(req, res) {
       "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate"
     );
 
-    if (!post || post.isDeleted || post.isBlocked) {
+    if (!post || post.isDeleted) {
       return sendErrorResponse(res, 404, "Post not found");
+    }
+
+    if (post.isBlocked) {
+      return sendErrorResponse(res, 400, "Cannot boost a blocked property listing");
     }
 
     const authorId = post.author?._id ? String(post.author._id) : String(post.author);

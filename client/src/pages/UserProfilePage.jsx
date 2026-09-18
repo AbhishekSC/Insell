@@ -1014,9 +1014,11 @@ export default function UserProfilePage() {
                             };
 
                             return (
-                              <div key={post._id} className="flex flex-col">
-                                <PropertyPostCard
-                                  post={post}
+                              <PropertyPostCard
+                                key={post._id}
+                                post={post}
+                                isOwnPost={isOwnProfile}
+                                onBoost={(p) => setBoostTargetPost(p)}
                                 media={media}
                                 onDoubleClickMedia={handleDoubleClickMedia}                                mediaOverlay={
                                   likedBurstPostId === post._id ? (
@@ -1048,19 +1050,23 @@ export default function UserProfilePage() {
                                       </button>
                                       {menuOpenPostId === post._id && (
                                         <div className="absolute right-0 top-full z-10 mt-1 w-44 rounded-xl border border-base-300 bg-base-100 shadow-xl overflow-hidden">
-                                          <button
-                                            type="button"
-                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-semibold text-amber-600 hover:bg-amber-50 transition-colors"
-                                            onClick={(event) => {
-                                              event.stopPropagation();
-                                              setBoostTargetPost(post);
-                                              setMenuOpenPostId(null);
-                                            }}
-                                          >
-                                            <Zap className="size-4 fill-amber-500 text-amber-500" />
-                                            {post.isBoosted ? "Boosted (Active)" : "Boost Listing (1 Coin)"}
-                                          </button>
-                                          <div className="border-t border-base-200" />
+                                          {!post.isBlocked && (
+                                            <>
+                                              <button
+                                                type="button"
+                                                className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-semibold text-amber-600 hover:bg-amber-50 transition-colors"
+                                                onClick={(event) => {
+                                                  event.stopPropagation();
+                                                  setBoostTargetPost(post);
+                                                  setMenuOpenPostId(null);
+                                                }}
+                                              >
+                                                <Zap className="size-4 fill-amber-500 text-amber-500" />
+                                                {post.isBoosted ? "Boosted (Active)" : "Boost Listing (1 Coin)"}
+                                              </button>
+                                              <div className="border-t border-base-200" />
+                                            </>
+                                          )}
                                           <button
                                             type="button"
                                             className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-base-content hover:bg-base-200 transition-colors"
@@ -1166,41 +1172,9 @@ export default function UserProfilePage() {
                                 savesCount={post.savesCount || 0}
                                 onContact={!isOwnProfile ? () => navigate(`/property/${post._id}`) : undefined}
                                 onOpenPost={() => navigate(`/property/${post._id}`)}
-                                className={`${selectedForComparison.includes(post._id) ? "border-primary ring-2 ring-primary/20" : "border-base-200"} ${isOwnProfile ? "!rounded-b-none" : ""}`}
+                                className={selectedForComparison.includes(post._id) ? "border-primary ring-2 ring-primary/20" : "border-base-200"}
                               />
-                              {isOwnProfile && (
-                                <div className="-mt-px flex items-center justify-between rounded-b-2xl border-x border-b border-base-200 bg-base-100 px-4 py-2.5 shadow-xs">
-                                  <div className="flex items-center gap-1.5 min-w-0 mr-2">
-                                    <Zap
-                                      className={`size-3.5 shrink-0 ${
-                                        post.isBoosted
-                                          ? "fill-emerald-500 text-emerald-500"
-                                          : "fill-amber-500 text-amber-500"
-                                      }`}
-                                    />
-                                    <span
-                                      className={`truncate text-xs font-semibold ${
-                                        post.isBoosted ? "text-emerald-700" : "text-base-content/75"
-                                      }`}
-                                    >
-                                      {post.isBoosted ? "Boost Active (Priority Feed)" : "1 Coin to Boost Listing"}
-                                    </span>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => setBoostTargetPost(post)}
-                                    className={`btn btn-xs rounded-xl px-3 font-bold text-white shadow-xs border-none ${
-                                      post.isBoosted
-                                        ? "bg-emerald-600 hover:bg-emerald-700"
-                                        : "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700"
-                                    }`}
-                                  >
-                                    {post.isBoosted ? "Extend Boost" : "Boost Listing"}
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          );
+                            );
                           })}
                         </div>
 

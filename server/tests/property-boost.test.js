@@ -80,6 +80,28 @@ describe("Property Post Boosting with Referral Coins", () => {
     expect(res.body.message).toContain("own property");
   });
 
+  it("fails if property post is blocked", async () => {
+    const blockedPost = await PropertyPost.create({
+      author: userWithCoins._id,
+      title: "Blocked Luxury Villa",
+      price: 50000000,
+      status: "PUBLISHED",
+      visibility: "PUBLIC",
+      isBlocked: true,
+      mediaUrls: ["villa.jpg"],
+    });
+
+    const res = fakeRes();
+    const req = {
+      user: userWithCoins,
+      params: { id: String(blockedPost._id) },
+    };
+
+    await boostPropertyPost(req, res);
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toContain("Cannot boost a blocked property listing");
+  });
+
   it("fails if owner has 0 referral coins", async () => {
     const brokePost = await PropertyPost.create({
       author: userWithoutCoins._id,

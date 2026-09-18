@@ -669,7 +669,7 @@ export default function PropertyDetailPage() {
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none">
             <div className="absolute top-4 right-4 flex items-center gap-2 pointer-events-auto">
-              {postData.isBoosted && (
+              {postData.isBoosted && !postData.isBlocked && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-3 py-1 text-xs font-extrabold text-white shadow-sm ring-1 ring-amber-300/50">
                   <Zap className="size-3.5 fill-current" />
                   Boosted
@@ -882,7 +882,7 @@ export default function PropertyDetailPage() {
               )}
 
               {/* Listing performance & Boost — owner only */}
-              {isOwner && !postData.isDeleted && (
+              {isOwner && !postData.isDeleted && !postData.isBlocked && (
                 <div className="mt-4 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-300/80 bg-gradient-to-r from-amber-50/90 via-amber-100/50 to-amber-50/80 p-4 shadow-xs">
                     <div className="flex items-center gap-3 min-w-0">
