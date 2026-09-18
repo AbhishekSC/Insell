@@ -21,10 +21,14 @@ import {
   updatePropertyPost,
   uploadPropertyMedia as uploadPropertyMediaController,
   boostPropertyPost,
+  expireBoostedPostsSweep,
 } from "../controllers/propertyPost.controller.js";
 import { uploadPropertyMedia } from "../middlewares/upload.middleware.js";
 
 const router = new express.Router();
+
+// Cron sweep — authenticated by a shared secret header or query param, not a user session.
+router.all("/cron/expire-boosts", expireBoostedPostsSweep);
 
 router.get("/", verifyUser, requireVerified, getPropertyFeed);
 router.get("/latest", verifyUser, requireVerified, getLatestFeedPost);

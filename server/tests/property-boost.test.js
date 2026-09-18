@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { beforeAll, afterAll, describe, it, expect } from "vitest";
 import User from "../src/models/User.model.js";
 import PropertyPost from "../src/models/PropertyPost.model.js";
-import { boostPropertyPost, getPropertyFeed } from "../src/controllers/propertyPost.controller.js";
+import { boostPropertyPost, getPropertyFeed, expireBoostedPostsSweep } from "../src/controllers/propertyPost.controller.js";
 
 function fakeRes() {
   return {
@@ -156,5 +156,39 @@ describe("Property Post Boosting with Referral Coins", () => {
     const found = res.body.data.posts.find((p) => String(p._id) === String(post._id));
     expect(found).toBeDefined();
     expect(found.isBoosted).toBe(true);
+  });
+
+  it("cleans up expired boosted posts while leaving active boosts alone", async () => {
+    // Create an expired boosted post
+    const expiredPost = await PropertyPost.create({
+      author: userWithCoins._id,
+      title: "Expired Boost Villa",
+      price: 100000,
+      status: "PUBLISHED",
+      visibility: "PUBLIC",
+      isBoosted: true,
+      boostExpiresAt: new Date(Date.now() - 1000 * 60 * 60), // Expired 1 hour ago
+      mediaUrls: ["expired.jpg"],
+    });
+
+    const res = fakeRes();
+    const req = {
+      get: (header) => (header === "x-cron-secret" ? (process.env.CRON_SECRET || "") : ""),
+      query: {},
+    };
+
+    await expireBoostedPostsSweep(req, res);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data.expiredCount).toBeGreaterThanOrEqual(1);
+
+    // Verify expired post is now marked isBoosted: false
+    const checkedExpired = await PropertyPost.findById(expiredPost._id);
+    expect(checkedExpired.isBoosted).toBe(false);
+
+    // Verify still active post is still isBoosted: true
+    const checkedActive = await PropertyPost.findById(post._id);
+    expect(checkedActive.isBoosted).toBe(true);
+
+    await PropertyPost.deleteOne({ _id: expiredPost._id });
   });
 });
