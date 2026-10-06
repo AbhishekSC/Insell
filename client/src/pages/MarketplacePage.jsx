@@ -60,6 +60,7 @@ import { getPropertySignals, toneClass } from "../lib/propertySignalBadges";
 import PreferencePrompt from "../components/PreferencePrompt";
 import LocationPrompt from "../components/LocationPrompt";
 import { trackRecoEvent } from "../lib/recoEvents";
+import FeedSuggestionCard from "../components/FeedSuggestionCard";
 import PostTypeFields from "../components/PostTypeFields";
 import PriceSuggestion from "../components/PriceSuggestion";
 import { getPostTypeConfig } from "../config/postTypeConfig";
@@ -442,12 +443,13 @@ export default function MarketplacePage() {
   // Total unread count for badges (includes all notification types + friend requests)
   const totalUnreadCount = activityNotifications + messageRequests + incomingRequests.length;
 
-  // Fetch personalized recommendations for the sidebar
+  // Fetch personalized recommendations — used both for the sidebar widget
+  // (first 3) and interleaved into the main "For You" feed (see feedItems).
   const { data: personalizedRecommendations = [] } = useQuery({
     queryKey: ["personalizedRecommendations"],
     queryFn: async () => {
       if (!authUser) return [];
-      const res = await axiosInstance.get("/personalization/recommendations?limit=3");
+      const res = await axiosInstance.get("/personalization/recommendations?limit=12");
       return res.data?.data?.recommendations || [];
     },
     enabled: !!authUser,
@@ -769,11 +771,13 @@ export default function MarketplacePage() {
   // proximity + how fast they're gaining engagement. A fresh GPS fix (when
   // the user has granted it) is passed through so "near you" means where
   // they actually are right now, not just their saved profile city.
+  // Also used both for the sidebar widget (first 4) and interleaved into the
+  // main "For You" feed (see feedItems).
   const { data: trendingNearYou = [] } = useQuery({
     queryKey: ["trendingNearYou", liveLocation?.lat, liveLocation?.lon],
     queryFn: async () => {
       if (!authUser) return [];
-      const params = { limit: 5 };
+      const params = { limit: 10 };
       if (liveLocation?.lat && liveLocation?.lon) {
         params.lat = liveLocation.lat;
         params.lon = liveLocation.lon;
@@ -947,6 +951,59 @@ export default function MarketplacePage() {
         likesCount: Number(post.likesCount || 0),
       }));
   }, [activeCategory, appliedFilters, authUser?.city, data]);
+
+  // Interleave "Recommended for You" / "Trending Near You" suggestion cards
+  // into the main "For You" feed — mirrors the insell-app mobile feed, which
+  // inserts a suggestion after the 3rd post and then every 4 posts after,
+  // alternating recommended/trending and falling back to whichever list
+  // still has items.
+  const activeRecommended = useMemo(
+    () => personalizedRecommendations.filter((p) => !dismissedRecs.has(String(p._id))),
+    [personalizedRecommendations, dismissedRecs]
+  );
+  const activeTrending = useMemo(
+    () => trendingNearYou.filter((p) => !dismissedRecs.has(String(p.id))),
+    [trendingNearYou, dismissedRecs]
+  );
+
+  const feedItems = useMemo(() => {
+    const base = posts.map((post) => ({ type: "post", post }));
+    const shouldInterleave =
+      activeCategory === "For You" && !search.trim() && (activeRecommended.length > 0 || activeTrending.length > 0);
+    if (!shouldInterleave) return base;
+
+    const recQueue = [...activeRecommended];
+    const trendQueue = [...activeTrending];
+    let preferRecommended = true;
+    const result = [];
+
+    base.forEach((item, index) => {
+      result.push(item);
+      const shouldInsert = index === 2 || (index > 2 && (index - 2) % 4 === 0);
+      if (!shouldInsert) return;
+
+      let suggestion = null;
+      if (preferRecommended && recQueue.length > 0) {
+        suggestion = { type: "suggestion", suggestionType: "recommended", data: recQueue.shift() };
+      } else if (trendQueue.length > 0) {
+        suggestion = { type: "suggestion", suggestionType: "trending", data: trendQueue.shift() };
+      } else if (recQueue.length > 0) {
+        suggestion = { type: "suggestion", suggestionType: "recommended", data: recQueue.shift() };
+      }
+      preferRecommended = !preferRecommended;
+      if (suggestion) result.push(suggestion);
+    });
+
+    return result;
+  }, [posts, activeCategory, search, activeRecommended, activeTrending]);
+
+  const handleSuggestionDismiss = (postId) => {
+    setDismissedRecs((prev) => new Set(prev).add(String(postId)));
+    setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ["personalizedRecommendations"] });
+      queryClient.invalidateQueries({ queryKey: ["trendingNearYou"] });
+    }, 400);
+  };
 
   // Batch the extras the feed payload doesn't carry (price-vs-area verdict,
   // live offer count) in one call for all visible cards.
@@ -1834,7 +1891,20 @@ export default function MarketplacePage() {
               <>
               <PreferencePrompt />
               <div className="mt-4 grid gap-5 2xl:grid-cols-2">
-                {posts.map((post) => {
+                {feedItems.map((item, feedIndex) => {
+                  if (item.type === "suggestion") {
+                    return (
+                      <FeedSuggestionCard
+                        key={`suggestion-${item.suggestionType}-${item.data.id || item.data._id}`}
+                        suggestionType={item.suggestionType}
+                        data={item.data}
+                        position={feedIndex}
+                        onDismiss={handleSuggestionDismiss}
+                      />
+                    );
+                  }
+
+                  const post = item.post;
                   const badge = getListingBadge(post);
                   const postType = String(post.postType || "").toUpperCase();
                   const isRequirement = postType.startsWith("REQUIREMENT_");
