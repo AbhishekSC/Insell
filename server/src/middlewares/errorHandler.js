@@ -11,8 +11,7 @@ export function errorHandler(error, _req, res, _next) {
   const details = error?.details || {};
 
   if (statusCode >= 500) {
-    logger.error("Unhandled server error", {
-      message,
+    logger.error(`Unhandled server error: ${error?.message || error}`, {
       stack: error?.stack,
       details,
     });

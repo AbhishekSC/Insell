@@ -75,7 +75,8 @@ async function destAssetExists(client, publicId, resourceType) {
     await client.api.resource(publicId, { resource_type: resourceType });
     return true;
   } catch (error) {
-    if (error?.http_code === 404) return false;
+    const code = error?.http_code ?? error?.error?.http_code;
+    if (code === 404) return false;
     throw error;
   }
 }
@@ -125,8 +126,9 @@ async function migrate() {
         console.log(`  ✅ copied: ${label}`);
         report.copied.push(label);
       } catch (error) {
-        console.error(`  ❌ failed: ${label} — ${error.message}`);
-        report.failed.push({ label, error: error.message });
+        const errMsg = error?.error?.message || error?.message || String(error);
+        console.error(`  ❌ failed: ${label} — ${errMsg}`);
+        report.failed.push({ label, error: errMsg });
       }
       await sleep(REQUEST_DELAY_MS);
     }

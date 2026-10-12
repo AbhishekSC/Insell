@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { cdnMediaPlugin } from "../plugins/cdnMedia.plugin.js";
 
 // A named, permanent collection of a user's own stories — Instagram-style
 // "Highlights". Stories referenced here have had their TTL (expiresAt)
@@ -34,6 +35,8 @@ const highlightSchema = new mongoose.Schema(
 );
 
 highlightSchema.index({ owner: 1, createdAt: -1 });
+
+highlightSchema.plugin(cdnMediaPlugin, { fields: ["coverImage"] });
 
 const Highlight = mongoose.model("Highlight", highlightSchema);
 

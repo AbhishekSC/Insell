@@ -3,20 +3,42 @@ import mongoose from "mongoose";
 import { beforeAll, afterAll, beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import User from "../src/models/User.model.js";
 
-// Isolate NotificationService from the real FCM/Stream/email integrations —
-// these tests are about *how tokens get grouped and what payload each group
-// gets*, not about Firebase itself.
-vi.mock("../src/services/firebase.service.js", () => ({
+const mocks = vi.hoisted(() => ({
   sendPushNotification: vi.fn(async () => ({ sent: 1, staleTokens: [] })),
-}));
-vi.mock("../src/services/stream.service.js", () => ({
   pushRealtimeNotification: vi.fn(async () => {}),
-}));
-vi.mock("../src/utils/emailClient.js", () => ({
   sendGenericEmail: vi.fn(async () => {}),
 }));
 
-const { sendPushNotification } = await import("../src/services/firebase.service.js");
+vi.mock("../src/services/firebase.service.js", () => ({
+  sendPushNotification: mocks.sendPushNotification,
+}));
+vi.mock("../src/services/stream.service.js", () => ({
+  pushRealtimeNotification: mocks.pushRealtimeNotification,
+}));
+vi.mock("../src/utils/emailClient.js", () => ({
+  sendGenericEmail: mocks.sendGenericEmail,
+}));
+vi.mock("../src/queues/notification.queue.js", () => ({
+  enqueueNotification: vi.fn(async (channel, payload) => {
+    if (channel === "FIREBASE") {
+      const result = await mocks.sendPushNotification(payload.tokens, payload.message);
+      const staleTokens = result?.staleTokens || [];
+      if (staleTokens.length > 0 && payload.recipientId) {
+        const User = (await import("../src/models/User.model.js")).default;
+        await User.updateOne({ _id: payload.recipientId }, { $pull: { fcmTokens: { token: { $in: staleTokens } } } });
+      }
+      return result;
+    }
+    if (channel === "REALTIME") {
+      return mocks.pushRealtimeNotification(payload.userId, payload.eventType);
+    }
+    if (channel === "EMAIL") {
+      return mocks.sendGenericEmail(payload);
+    }
+  }),
+}));
+
+const { sendPushNotification } = mocks;
 const { send, NotificationChannel } = await import("../src/services/NotificationService.js");
 
 const mk = (suffix, fcmTokens) =>

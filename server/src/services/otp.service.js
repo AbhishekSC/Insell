@@ -36,12 +36,15 @@ export function verifyOTP(storedOTP, providedOTP, expiryDate) {
     return false;
   }
 
-  if (storedOTP !== providedOTP) {
+  const cleanStored = String(storedOTP).trim();
+  const cleanProvided = String(providedOTP).trim();
+
+  if (cleanStored !== cleanProvided) {
     logger.warn('OTP verification failed: Invalid OTP');
     return false;
   }
 
-  if (new Date() > expiryDate) {
+  if (new Date() > new Date(expiryDate)) {
     logger.warn('OTP verification failed: OTP expired');
     return false;
   }

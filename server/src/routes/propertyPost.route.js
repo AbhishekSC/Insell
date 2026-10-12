@@ -4,6 +4,7 @@ import {
   compareProperties,
   createPropertyPost,
   deletePropertyPost,
+  getHotPropertiesFeed,
   getLatestFeedPost,
   getPropertyAnalytics,
   getPropertyFeed,
@@ -32,6 +33,7 @@ router.all("/cron/expire-boosts", expireBoostedPostsSweep);
 
 router.get("/", verifyUser, requireVerified, getPropertyFeed);
 router.get("/latest", verifyUser, requireVerified, getLatestFeedPost);
+router.get("/hot", verifyUser, requireVerified, getHotPropertiesFeed);
 // Static paths before the "/:id" catch-all so they don't resolve as an id.
 router.get("/price-suggestion", verifyUser, requireVerified, getPriceSuggestion);
 router.post("/card-signals", verifyUser, requireVerified, getCardSignals);

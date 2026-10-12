@@ -61,6 +61,7 @@ router.use("/admin", adminRoutes);
 router.use("/offers", offerRoutes);
 router.use("/visits", visitRequestRoutes);
 router.use("/deals", dealRoutes);
+router.use("/api/deals", dealRoutes);
 router.use("/reviews", reviewRoutes);
 router.use("/feedback", feedbackRoutes);
 router.use("/public", publicListingRoutes);

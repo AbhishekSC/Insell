@@ -208,11 +208,13 @@ export default function EmailVerification({ onClose, dismissible = true }) {
 
   const handleVerify = (e) => {
     e.preventDefault();
-    if (code.length !== 6) {
+    if (verifyMutation.isPending) return;
+    const cleanCode = code.trim();
+    if (cleanCode.length !== 6) {
       toast.error("Please enter a 6-digit code");
       return;
     }
-    verifyMutation.mutate(code);
+    verifyMutation.mutate(cleanCode);
   };
 
   if (isAuthenticatedMode && verificationStatus?.isVerified) {

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { cdnMediaPlugin } from "../plugins/cdnMedia.plugin.js";
 
 // Picks up where the Offer flow ends. An accepted offer creates a Deal, and
 // the two parties walk it through the closing stages in-app instead of
@@ -25,9 +26,19 @@ export const DEAL_STAGES = {
 };
 
 export const DEAL_STAGE_KEYS = [...new Set(Object.values(DEAL_STAGES).flat().map((s) => s.key))];
+export const DOCUMENT_CATEGORIES = [
+  "IDENTITY_PROOF",
+  "PROPERTY_TITLE",
+  "SALE_AGREEMENT",
+  "PAYMENT_RECEIPT",
+  "NOC_TAX_RECEIPT",
+  "SITE_INSPECTION",
+  "OTHER",
+];
 const DEAL_HISTORY_ACTIONS = [
   "create", "propose", "confirm", "dispute", "revert", "note", "attach",
-  "cancel_request", "cancel_confirm", "cancel", "complete", "report",
+  "verify_doc", "cancel_request", "cancel_confirm", "cancel", "complete", "report",
+  "propose_amendment", "accept_amendment", "reject_amendment",
 ];
 
 const dealSchema = new mongoose.Schema(
@@ -45,6 +56,25 @@ const dealSchema = new mongoose.Schema(
     // block — just visible to them and to admin.
     disputed: { type: Boolean, default: false },
     disputeCounts: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+    disputeDeadline: { type: Date, default: null },
+
+    pendingAmendment: {
+      type: {
+        proposedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+        amendmentType: {
+          type: String,
+          enum: ["PRICE_ADJUSTMENT", "TIMELINE_EXTENSION", "CONDITION_RESOLUTION"],
+          required: true,
+        },
+        adjustmentAmount: { type: Number, default: 0 },
+        extensionDays: { type: Number, default: 0 },
+        note: { type: String, trim: true, maxlength: 500, default: "" },
+        proposedAt: { type: Date, default: Date.now },
+      },
+      default: null,
+    },
+
+    verificationToken: { type: String, default: null, index: true },
 
     currentStage: { type: String, enum: DEAL_STAGE_KEYS, default: "agreed" },
     completedStages: { type: [String], default: ["agreed"] },
@@ -57,6 +87,10 @@ const dealSchema = new mongoose.Schema(
         proposedAt: { type: Date, default: Date.now },
         message: { type: String, trim: true, maxlength: 500, default: "" },
         amount: { type: Number, default: null }, // rupees, for the payment stage
+        paymentMode: { type: String, default: "NEFT" },
+        transactionRef: { type: String, default: "" },
+        bankName: { type: String, default: "" },
+        receiptUrl: { type: String, default: null },
       },
       default: null,
     },
@@ -75,14 +109,39 @@ const dealSchema = new mongoose.Schema(
     // Amount actually paid at the payment stage + who confirmed it.
     paymentAmount: { type: Number, default: null },
     paymentConfirmedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    paymentDetails: {
+      amount: { type: Number, default: null },
+      paymentMode: {
+        type: String,
+        enum: ["NEFT", "RTGS", "UPI", "CHEQUE", "DEMAND_DRAFT", "CASH", "OTHER"],
+        default: "NEFT",
+      },
+      transactionRef: { type: String, trim: true, default: "" },
+      bankName: { type: String, trim: true, default: "" },
+      paidAt: { type: Date, default: null },
+      receiptUrl: { type: String, default: null },
+    },
 
     attachments: [
       {
         url: { type: String, required: true },
         name: { type: String, trim: true, default: "Document" },
+        category: {
+          type: String,
+          enum: DOCUMENT_CATEGORIES,
+          default: "OTHER",
+        },
         stage: { type: String, default: "" },
         uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
         uploadedAt: { type: Date, default: Date.now },
+        verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+        verifiedAt: { type: Date, default: null },
+        geoVerified: { type: Boolean, default: false },
+        inspectionDistanceMeters: { type: Number, default: null },
+        inspectionCoordinates: {
+          lat: { type: Number, default: null },
+          lng: { type: Number, default: null },
+        },
       },
     ],
 
@@ -119,11 +178,16 @@ const dealSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+dealSchema.index({ post: 1, status: 1 });
 dealSchema.index({ buyer: 1, status: 1, updatedAt: -1 });
 dealSchema.index({ owner: 1, status: 1, updatedAt: -1 });
 dealSchema.index({ disputed: 1, status: 1 });
 // Concurrency-safe idempotency, exactly as Offer does it.
 dealSchema.index({ "history.requestId": 1 }, { unique: true, sparse: true });
+
+dealSchema.plugin(cdnMediaPlugin, {
+  subdocFields: [{ array: "attachments", field: "url" }],
+});
 
 const Deal = mongoose.model("Deal", dealSchema);
 export default Deal;

@@ -5,6 +5,7 @@ import { pushRealtimeNotification } from "./stream.service.js";
 import { sendPushNotification } from "./firebase.service.js";
 import { sendGenericEmail } from "../utils/emailClient.js";
 import { deriveWebPath } from "./notificationRouting.js";
+import { enqueueNotification } from "../queues/notification.queue.js";
 
 export const NotificationChannel = {
   IN_APP: "IN_APP",       // persistent record in Mongo, shown in the /activity feed
@@ -52,6 +53,7 @@ export async function send({
   emailHtml,
   realtimeEventType,
   channels = [NotificationChannel.IN_APP],
+  idempotencyKey,
 }) {
   if (!recipientId || !type || !message) {
     logger.warn("NotificationService.send called with missing required fields", { recipientId, type });
@@ -70,7 +72,14 @@ export async function send({
         return Notification.create({ recipient: recipientId, actor: actorId, type, message, ...data });
 
       case NotificationChannel.REALTIME:
-        return pushRealtimeNotification(recipientId, realtimeEventType || type);
+        return enqueueNotification(
+          "REALTIME",
+          {
+            userId: recipientId,
+            eventType: realtimeEventType || type,
+          },
+          idempotencyKey ? { jobId: `REALTIME:${recipientId}:${idempotencyKey}` } : {}
+        );
 
       case NotificationChannel.FIREBASE: {
         if (!recipient?.fcmTokens?.length) return Promise.resolve(null);
@@ -96,27 +105,46 @@ export async function send({
 
         const sends = [];
         if (webTokens.length) {
-          sends.push(sendPushNotification(webTokens, { title: title || message, body: pushBody || message, data: webData }));
+          sends.push(
+            enqueueNotification(
+              "FIREBASE",
+              {
+                recipientId,
+                tokens: webTokens,
+                message: { title: title || message, body: pushBody || message, data: webData },
+              },
+              idempotencyKey ? { jobId: `FIREBASE_WEB:${recipientId}:${idempotencyKey}` } : {}
+            )
+          );
         }
         if (mobileTokens.length) {
-          sends.push(sendPushNotification(mobileTokens, { title: title || message, body: pushBody || message, data: neutralData }));
+          sends.push(
+            enqueueNotification(
+              "FIREBASE",
+              {
+                recipientId,
+                tokens: mobileTokens,
+                message: { title: title || message, body: pushBody || message, data: neutralData },
+              },
+              idempotencyKey ? { jobId: `FIREBASE_MOB:${recipientId}:${idempotencyKey}` } : {}
+            )
+          );
         }
 
-        return Promise.all(sends).then(async (results) => {
-          const staleTokens = results.flatMap((r) => r?.staleTokens || []);
-          if (staleTokens.length > 0) {
-            await User.updateOne({ _id: recipientId }, { $pull: { fcmTokens: { token: { $in: staleTokens } } } });
-          }
-        });
+        return Promise.all(sends);
       }
 
       case NotificationChannel.EMAIL:
         if (!recipient?.email) return Promise.resolve(null);
-        return sendGenericEmail({
-          email: recipient.email,
-          subject: emailSubject || title || message,
-          htmlContent: emailHtml || `<p>${message}</p>`,
-        });
+        return enqueueNotification(
+          "EMAIL",
+          {
+            email: recipient.email,
+            subject: emailSubject || title || message,
+            htmlContent: emailHtml || `<p>${message}</p>`,
+          },
+          idempotencyKey ? { jobId: `EMAIL:${recipient.email}:${idempotencyKey}` } : {}
+        );
 
       default:
         logger.warn(`Unknown notification channel: ${channel}`);

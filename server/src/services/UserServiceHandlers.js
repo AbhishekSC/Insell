@@ -2,6 +2,7 @@ import FriendRequest from "../models/FriendRequest.model.js";
 import PropertyPost from "../models/PropertyPost.model.js";
 import User from "../models/User.model.js";
 import Comment from "../models/Comment.model.js";
+import MobileDetail from "../models/MobileDetail.model.js";
 import { getDiscoverRecommendations, invalidateDiscoverCache } from "./DiscoverRecommendationService.js";
 import { redisClient } from "../config/redis.js";
 import { logger } from "../utils/logger.js";
@@ -770,7 +771,7 @@ const FCM_PLATFORMS = ["web", "ios", "android"];
 export async function registerFcmToken(req, res) {
   try {
     const currentUserId = req.user._id;
-    const { token, platform } = req.body || {};
+    const { token, platform, deviceId } = req.body || {};
 
     if (!token || !String(token).trim()) {
       return sendErrorResponse(res, 400, "A device token is required");
@@ -788,6 +789,25 @@ export async function registerFcmToken(req, res) {
       { $push: { fcmTokens: { token: normalizedToken, platform: normalizedPlatform, updatedAt: new Date() } } }
     );
 
+    // If deviceId is also provided, sync with MobileDetail model
+    if (deviceId && String(deviceId).trim()) {
+      const cleanDeviceId = String(deviceId).trim();
+      await MobileDetail.findOneAndUpdate(
+        { user: currentUserId, deviceId: cleanDeviceId },
+        {
+          $set: {
+            user: currentUserId,
+            deviceId: cleanDeviceId,
+            pushToken: normalizedToken,
+            platform: normalizedPlatform === "web" ? "android" : normalizedPlatform,
+            isActive: true,
+            lastActiveAt: new Date(),
+          },
+        },
+        { upsert: true, setDefaultsOnInsert: true }
+      ).catch((err) => logger.warn("Failed to sync MobileDetail in registerFcmToken:", err));
+    }
+
     return sendSuccessResponse(res, 200, "Device registered for push notifications", {});
   } catch (error) {
     logger.error("Error registering FCM token:", error);
@@ -804,12 +824,150 @@ export async function unregisterFcmToken(req, res) {
       return sendErrorResponse(res, 400, "A device token is required");
     }
 
-    await User.updateOne({ _id: currentUserId }, { $pull: { fcmTokens: { token: String(token).trim() } } });
+    const cleanToken = String(token).trim();
+    await User.updateOne({ _id: currentUserId }, { $pull: { fcmTokens: { token: cleanToken } } });
+    await MobileDetail.updateMany(
+      { user: currentUserId, pushToken: cleanToken },
+      { $set: { pushToken: null, isActive: false } }
+    ).catch(() => {});
 
     return sendSuccessResponse(res, 200, "Device unregistered from push notifications", {});
   } catch (error) {
     logger.error("Error unregistering FCM token:", error);
     return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
+// **Mobile Detail & Device Tracking Handlers**
+export async function syncMobileDetail(req, res) {
+  try {
+    const currentUserId = req.user._id;
+    const {
+      deviceId,
+      brand,
+      manufacturer,
+      modelName,
+      deviceType,
+      isPhysicalDevice,
+      totalMemoryMB,
+      platform,
+      osName,
+      osVersion,
+      osBuildId,
+      appVersion,
+      buildNumber,
+      bundleId,
+      pushToken,
+      pushTokenType,
+      pushPermissionStatus,
+      locale,
+      timezone,
+    } = req.body || {};
+
+    if (!deviceId || !String(deviceId).trim()) {
+      return sendErrorResponse(res, 400, "A valid deviceId is required");
+    }
+
+    const cleanDeviceId = String(deviceId).trim();
+    const cleanPlatform = platform === "ios" ? "ios" : "android";
+    const clientIp =
+      req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+      req.socket?.remoteAddress ||
+      req.ip ||
+      "";
+
+    const updateFields = {
+      user: currentUserId,
+      deviceId: cleanDeviceId,
+      platform: cleanPlatform,
+      lastActiveAt: new Date(),
+      isActive: true,
+      ...(brand !== undefined ? { brand: String(brand).trim() } : {}),
+      ...(manufacturer !== undefined ? { manufacturer: String(manufacturer).trim() } : {}),
+      ...(modelName !== undefined ? { modelName: String(modelName).trim() } : {}),
+      ...(deviceType !== undefined ? { deviceType } : {}),
+      ...(isPhysicalDevice !== undefined ? { isPhysicalDevice: Boolean(isPhysicalDevice) } : {}),
+      ...(totalMemoryMB !== undefined && !isNaN(Number(totalMemoryMB)) ? { totalMemoryMB: Number(totalMemoryMB) } : {}),
+      ...(osName !== undefined ? { osName: String(osName).trim() } : {}),
+      ...(osVersion !== undefined ? { osVersion: String(osVersion).trim() } : {}),
+      ...(osBuildId !== undefined ? { osBuildId: String(osBuildId).trim() } : {}),
+      ...(appVersion !== undefined ? { appVersion: String(appVersion).trim() } : {}),
+      ...(buildNumber !== undefined ? { buildNumber: String(buildNumber).trim() } : {}),
+      ...(bundleId !== undefined ? { bundleId: String(bundleId).trim() } : {}),
+      ...(pushToken !== undefined ? { pushToken: pushToken ? String(pushToken).trim() : null } : {}),
+      ...(pushTokenType !== undefined ? { pushTokenType } : {}),
+      ...(pushPermissionStatus !== undefined ? { pushPermissionStatus } : {}),
+      ...(locale !== undefined ? { locale: String(locale).trim() } : {}),
+      ...(timezone !== undefined ? { timezone: String(timezone).trim() } : {}),
+      ...(clientIp ? { ipAddress: clientIp } : {}),
+    };
+
+    const device = await MobileDetail.findOneAndUpdate(
+      { user: currentUserId, deviceId: cleanDeviceId },
+      { $set: updateFields },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    // If pushToken provided, keep User.fcmTokens synchronized for backwards compatibility
+    if (pushToken && String(pushToken).trim()) {
+      const cleanToken = String(pushToken).trim();
+      await User.updateOne({ _id: currentUserId }, { $pull: { fcmTokens: { token: cleanToken } } });
+      await User.updateOne(
+        { _id: currentUserId },
+        { $push: { fcmTokens: { token: cleanToken, platform: cleanPlatform, updatedAt: new Date() } } }
+      );
+    }
+
+    logger.info(`Mobile device synchronized for user ${currentUserId}: ${device.modelName || cleanDeviceId} (${cleanPlatform})`);
+    return sendSuccessResponse(res, 200, "Mobile device details synchronized successfully", device);
+  } catch (error) {
+    logger.error("Error syncing mobile detail:", error);
+    return sendErrorResponse(res, 500, "Failed to synchronize mobile device details");
+  }
+}
+
+export async function getUserDevices(req, res) {
+  try {
+    const currentUserId = req.user._id;
+    const devices = await MobileDetail.find({ user: currentUserId, isActive: true })
+      .sort({ lastActiveAt: -1 })
+      .lean();
+
+    return sendSuccessResponse(res, 200, "User devices retrieved successfully", devices);
+  } catch (error) {
+    logger.error("Error fetching user devices:", error);
+    return sendErrorResponse(res, 500, "Failed to retrieve user devices");
+  }
+}
+
+export async function deactivateDevice(req, res) {
+  try {
+    const currentUserId = req.user._id;
+    const { deviceId } = req.params;
+
+    if (!deviceId) {
+      return sendErrorResponse(res, 400, "Device ID is required");
+    }
+
+    const existingDevice = await MobileDetail.findOne({ user: currentUserId, deviceId });
+    if (existingDevice) {
+      const oldPushToken = existingDevice.pushToken;
+      existingDevice.isActive = false;
+      existingDevice.pushToken = null;
+      await existingDevice.save();
+
+      if (oldPushToken) {
+        await User.updateOne(
+          { _id: currentUserId },
+          { $pull: { fcmTokens: { token: oldPushToken } } }
+        );
+      }
+    }
+
+    return sendSuccessResponse(res, 200, "Device deactivated successfully", {});
+  } catch (error) {
+    logger.error("Error deactivating device:", error);
+    return sendErrorResponse(res, 500, "Failed to deactivate device");
   }
 }
 

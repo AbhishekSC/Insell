@@ -62,8 +62,9 @@ export default class AuthService extends BaseService {
   // expires via PendingSignup's TTL index instead.
   async signup({ fullName, email, password, referralCode }) {
     const { userRepository } = this.dependencies;
+    const cleanEmail = String(email || "").trim().toLowerCase();
 
-    const existingUser = await userRepository.findByEmail(email);
+    const existingUser = await userRepository.findByEmail(cleanEmail);
     if (existingUser) {
       throw new AppError("Email already exists. Please use a different email.", 400);
     }
@@ -76,21 +77,42 @@ export default class AuthService extends BaseService {
     const verificationCode = generateVerificationCode();
     const verificationCodeExpires = new Date(Date.now() + VERIFICATION_CODE_EXPIRY_MINUTES * 60 * 1000);
 
-    // Re-attempting a signup with the same (still-unverified) email just
-    // refreshes the pending record and issues a new code, rather than
-    // erroring — this is also how a stuck/expired signup gets resumed.
+    // Re-attempting a signup with the same (still-unverified) email refreshes
+    // the pending record. Preserve any active unexpired code in recentVerificationCodes
+    // so an email in transit can still be verified without "invalid code" errors.
     const cleanReferralCode = String(referralCode || "").trim().toUpperCase() || undefined;
+    const existingPending = await PendingSignup.findOne({ email: cleanEmail });
+    const now = new Date();
+    const recentCodes = [];
+
+    if (existingPending) {
+      if (existingPending.verificationCode && existingPending.verificationCodeExpires && new Date(existingPending.verificationCodeExpires) > now) {
+        recentCodes.push({
+          code: String(existingPending.verificationCode).trim(),
+          expiresAt: existingPending.verificationCodeExpires,
+        });
+      }
+      if (Array.isArray(existingPending.recentVerificationCodes)) {
+        for (const item of existingPending.recentVerificationCodes) {
+          if (item?.code && item?.expiresAt && new Date(item.expiresAt) > now) {
+            recentCodes.push({
+              code: String(item.code).trim(),
+              expiresAt: new Date(item.expiresAt),
+            });
+          }
+        }
+      }
+    }
+
     const pendingSignup = await PendingSignup.findOneAndUpdate(
-      { email },
+      { email: cleanEmail },
       {
-        fullName,
-        email,
+        fullName: String(fullName || "").trim(),
+        email: cleanEmail,
         password: hashedPassword,
         verificationCode,
         verificationCodeExpires,
-        // Only overwrite a previously-captured code if this attempt actually
-        // has one — a "resend code" retry that doesn't resubmit ?ref
-        // shouldn't wipe out the referral from the original attempt.
+        recentVerificationCodes: recentCodes.slice(-5),
         ...(cleanReferralCode ? { referralCode: cleanReferralCode } : {}),
       },
       { new: true, upsert: true, setDefaultsOnInsert: true }
@@ -100,7 +122,7 @@ export default class AuthService extends BaseService {
       await sendVerificationEmail(pendingSignup.email, verificationCode, pendingSignup.fullName);
     } catch (error) {
       logger.error("Failed to send signup verification email:", error);
-      logger.info(`Verification code for ${email}: ${verificationCode}`);
+      logger.info(`Verification code for ${cleanEmail}: ${verificationCode}`);
     }
 
     return { email: pendingSignup.email, expiresAt: verificationCodeExpires };
@@ -110,21 +132,59 @@ export default class AuthService extends BaseService {
   // point at which a signup actually creates a DB row and a login session.
   async verifySignup({ email, code, res }) {
     const { userRepository, tokenIssuer, streamUpdater, queuePublisher } = this.dependencies;
+    const cleanEmail = String(email || "").trim().toLowerCase();
+    const cleanCode = String(code || "").trim();
 
-    const pendingSignup = await PendingSignup.findOne({ email });
+    if (!cleanCode) {
+      throw new AppError("Verification code is required", 400);
+    }
+
+    const pendingSignup = await PendingSignup.findOne({ email: cleanEmail });
     if (!pendingSignup) {
       throw new AppError("No pending signup found for this email. Please sign up again.", 404);
     }
 
-    if (pendingSignup.verificationCodeExpires < new Date()) {
-      throw new AppError("Verification code has expired. Please request a new one.", 400);
+    if ((pendingSignup.verificationAttempts || 0) >= 5) {
+      throw new AppError("Too many failed verification attempts. Please request a new code.", 429);
     }
 
-    if (pendingSignup.verificationCode !== code) {
-      throw new AppError("Invalid verification code", 400);
+    const now = new Date();
+
+    // Check primary code and any active recent codes from recent resends
+    const isPrimaryMatch =
+      String(pendingSignup.verificationCode).trim() === cleanCode &&
+      pendingSignup.verificationCodeExpires &&
+      new Date(pendingSignup.verificationCodeExpires) > now;
+
+    const isRecentMatch =
+      Array.isArray(pendingSignup.recentVerificationCodes) &&
+      pendingSignup.recentVerificationCodes.some(
+        (entry) => String(entry?.code).trim() === cleanCode && entry?.expiresAt && new Date(entry.expiresAt) > now
+      );
+
+    const isMatch = isPrimaryMatch || isRecentMatch;
+
+    if (!isMatch) {
+      pendingSignup.verificationAttempts = (pendingSignup.verificationAttempts || 0) + 1;
+      await pendingSignup.save().catch(() => {});
+      const remaining = Math.max(0, 5 - pendingSignup.verificationAttempts);
+
+      // Check if it was a previously valid code that expired
+      const isExpired =
+        (String(pendingSignup.verificationCode).trim() === cleanCode && new Date(pendingSignup.verificationCodeExpires) <= now) ||
+        (Array.isArray(pendingSignup.recentVerificationCodes) &&
+          pendingSignup.recentVerificationCodes.some(
+            (entry) => String(entry?.code).trim() === cleanCode && new Date(entry.expiresAt) <= now
+          ));
+
+      if (isExpired) {
+        throw new AppError(`Verification code has expired. Please request a new one. (${remaining} attempts remaining)`, 400);
+      }
+
+      throw new AppError(`Invalid verification code. (${remaining} attempts remaining)`, 400);
     }
 
-    const existingUser = await userRepository.findByEmail(email);
+    const existingUser = await userRepository.findByEmail(cleanEmail);
     if (existingUser) {
       // Someone else finished signing up with this email in the meantime
       // (e.g. two tabs). Clean up the now-redundant pending record instead
@@ -188,23 +248,46 @@ export default class AuthService extends BaseService {
 
   // Resends a fresh OTP for a still-pending (not yet verified) signup.
   async resendSignupCode({ email }) {
-    const pendingSignup = await PendingSignup.findOne({ email });
+    const cleanEmail = String(email || "").trim().toLowerCase();
+    const pendingSignup = await PendingSignup.findOne({ email: cleanEmail });
     if (!pendingSignup) {
       throw new AppError("No pending signup found for this email. Please sign up again.", 404);
     }
 
+    const now = new Date();
     const verificationCode = generateVerificationCode();
     const verificationCodeExpires = new Date(Date.now() + VERIFICATION_CODE_EXPIRY_MINUTES * 60 * 1000);
 
+    // Keep current verification code in recentVerificationCodes so if the previous
+    // email arrives, the user's attempt doesn't fail with "invalid code".
+    const recentCodes = [];
+    if (pendingSignup.verificationCode && pendingSignup.verificationCodeExpires && new Date(pendingSignup.verificationCodeExpires) > now) {
+      recentCodes.push({
+        code: String(pendingSignup.verificationCode).trim(),
+        expiresAt: pendingSignup.verificationCodeExpires,
+      });
+    }
+    if (Array.isArray(pendingSignup.recentVerificationCodes)) {
+      for (const item of pendingSignup.recentVerificationCodes) {
+        if (item?.code && item?.expiresAt && new Date(item.expiresAt) > now) {
+          recentCodes.push({
+            code: String(item.code).trim(),
+            expiresAt: new Date(item.expiresAt),
+          });
+        }
+      }
+    }
+
     pendingSignup.verificationCode = verificationCode;
     pendingSignup.verificationCodeExpires = verificationCodeExpires;
+    pendingSignup.recentVerificationCodes = recentCodes.slice(-5);
     await pendingSignup.save();
 
     try {
       await sendVerificationEmail(pendingSignup.email, verificationCode, pendingSignup.fullName);
     } catch (error) {
       logger.error("Failed to send signup verification email:", error);
-      logger.info(`Verification code for ${email}: ${verificationCode}`);
+      logger.info(`Verification code for ${cleanEmail}: ${verificationCode}`);
     }
 
     return { email: pendingSignup.email, expiresAt: verificationCodeExpires };
@@ -222,6 +305,12 @@ export default class AuthService extends BaseService {
     if (!isPasswordValid) {
       throw new AppError("Invalid credentials.", 401);
     }
+
+    return this.loginUser(user, res);
+  }
+
+  async loginUser(user, res) {
+    const { tokenIssuer, queuePublisher } = this.dependencies;
 
     if (user.isBlocked) {
       throw new AppError("Your account has been blocked. Contact support for help.", 403, {

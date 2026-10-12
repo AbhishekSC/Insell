@@ -15,7 +15,7 @@ export const signupValidation = [
     .trim()
     .isEmail()
     .withMessage("Invalid email format")
-    .normalizeEmail()
+    .normalizeEmail({ gmail_remove_dots: false })
     .custom((value) => {
       // Stricter email regex requiring a top-level domain
       const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -37,7 +37,7 @@ export const loginValidation = [
   body("email")
     .trim()
     .isEmail()
-    .normalizeEmail()
+    .normalizeEmail({ gmail_remove_dots: false })
     .withMessage("Invalid email format")
     .notEmpty()
     .withMessage("Email is required"),

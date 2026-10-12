@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { cdnMediaPlugin } from "../plugins/cdnMedia.plugin.js";
 
 // The "Verified Owner" trust badge — a user submits an ID / ownership
 // document, an admin approves or rejects it. Separate from email
@@ -53,6 +54,8 @@ const ownerVerificationRequestSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+ownerVerificationRequestSchema.plugin(cdnMediaPlugin, { fields: ["docUrl"] });
 
 const OwnerVerificationRequest = mongoose.model("OwnerVerificationRequest", ownerVerificationRequestSchema);
 

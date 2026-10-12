@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import { SCHEMA_CONSTANTS } from "../utils/constants.js";
 import { logger } from "../utils/logger.js";
+import { cdnMediaPlugin } from "../plugins/cdnMedia.plugin.js";
 
 // **Constants**: Destructure constants for schema validation
 const {
@@ -49,12 +50,30 @@ const userSchema = new mongoose.Schema(
       type: Date,
       select: false,
     },
+    resetOTPAttempts: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
     // Set once verifyResetOTP succeeds, consumed by resetPassword — without
     // this, resetPassword had no way to confirm an OTP was ever verified for
     // this user, letting anyone reset any account's password knowing only
     // their email.
     resetVerifiedExpires: {
       type: Date,
+      select: false,
+    },
+    loginOTP: {
+      type: String,
+      select: false,
+    },
+    loginOTPExpires: {
+      type: Date,
+      select: false,
+    },
+    loginOTPAttempts: {
+      type: Number,
+      default: 0,
       select: false,
     },
     password: {
@@ -573,6 +592,8 @@ userSchema.methods.verifyCredentials = async function (password) {
     throw new Error("Failed to verify credentials");
   }
 };
+
+userSchema.plugin(cdnMediaPlugin, { fields: [{ field: "profilePic", preset: "avatar" }] });
 
 const User = mongoose.model("User", userSchema);
 

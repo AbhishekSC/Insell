@@ -16,5 +16,8 @@ export {
   answerPreferencePrompt,
   registerFcmToken,
   unregisterFcmToken,
+  syncMobileDetail,
+  getUserDevices,
+  deactivateDevice,
   getUserActivity,
 } from "../services/UserServiceHandlers.js";

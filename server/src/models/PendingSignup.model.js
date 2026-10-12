@@ -41,6 +41,19 @@ const pendingSignupSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // Allows any unexpired OTP generated in the 10-minute window to be accepted,
+    // protecting against email delivery latency or out-of-order inbox arrivals.
+    recentVerificationCodes: [
+      {
+        code: { type: String, required: true },
+        expiresAt: { type: Date, required: true },
+      },
+    ],
+    // Rate-limits invalid code guesses — locks after 5 failed attempts to prevent brute force
+    verificationAttempts: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );

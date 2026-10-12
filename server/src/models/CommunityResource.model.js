@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { cdnMediaPlugin } from "../plugins/cdnMedia.plugin.js";
 
 const communityResourceSchema = new mongoose.Schema(
   {
@@ -41,6 +42,8 @@ const communityResourceSchema = new mongoose.Schema(
 );
 
 communityResourceSchema.index({ circle: 1, createdAt: -1 });
+
+communityResourceSchema.plugin(cdnMediaPlugin, { fields: ["url"] });
 
 const CommunityResource = mongoose.model("CommunityResource", communityResourceSchema);
 

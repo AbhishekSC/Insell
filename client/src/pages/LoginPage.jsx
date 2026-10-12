@@ -45,6 +45,37 @@ export default function LoginPage() {
     window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/auth/google?intent=login`;
   };
 
+  const [loginMode, setLoginMode] = useState("password"); // "password" | "otp"
+  const [otpStep, setOtpStep] = useState("request"); // "request" | "verify"
+  const [otpEmail, setOtpEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const interval = setInterval(() => setCooldown((prev) => prev - 1), 1000);
+    return () => clearInterval(interval);
+  }, [cooldown]);
+
+  const completeLogin = (response) => {
+    setAuthToken(response?.data?.token);
+    toast.success("Welcome back to NearMySpace");
+    queryClient.setQueryData(["authUser"], {
+      status: "success",
+      data: {
+        user: response?.data || null,
+      },
+    });
+    queryClient.invalidateQueries({ queryKey: ["authUser"] });
+    if (isPostHogEnabled()) {
+      posthog.capture("login_completed");
+    }
+    const next = searchParams.get("next");
+    if (next && next.startsWith("/")) {
+      navigate(next);
+    }
+  };
+
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
       // Login owns its own error copy below (wrong password, blocked, etc.),
@@ -53,22 +84,7 @@ export default function LoginPage() {
       return response.data;
     },
     onSuccess: (response) => {
-      setAuthToken(response?.data?.token);
-      toast.success("Welcome back to NearMySpace");
-      queryClient.setQueryData(["authUser"], {
-        status: "success",
-        data: {
-          user: response?.data || null,
-        },
-      });
-      queryClient.invalidateQueries({ queryKey: ["authUser"] });
-      if (isPostHogEnabled()) {
-        posthog.capture("login_completed");
-      }
-      const next = searchParams.get("next");
-      if (next && next.startsWith("/")) {
-        navigate(next);
-      }
+      completeLogin(response);
     },
     onError: (err) => {
       if (err?.response?.data?.missingFields?.code === "ACCOUNT_BLOCKED") {
@@ -76,6 +92,49 @@ export default function LoginPage() {
         return;
       }
       notify.warning("Login failed", err?.response?.data?.message || "Check your email and password.");
+    },
+  });
+
+  const requestOtpMutation = useMutation({
+    mutationFn: async () => {
+      const email = (otpEmail || loginData.email).trim().toLowerCase();
+      const response = await axiosInstance.post("/auth/otp-login/request", { email }, { skipErrorToast: true });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success("Login code sent to your email");
+      setOtpStep("verify");
+      setCooldown(data?.data?.cooldownSeconds || 60);
+    },
+    onError: (err) => {
+      if (err?.response?.data?.missingFields?.code === "ACCOUNT_BLOCKED") {
+        setShowBlockedModal(true);
+        return;
+      }
+      const msg = err?.response?.data?.message || "Failed to send login code.";
+      if (err?.response?.status === 404) {
+        notify.warning("Account not found", "No account found with this email. Please sign up first.");
+      } else {
+        notify.warning("Request failed", msg);
+      }
+    },
+  });
+
+  const verifyOtpMutation = useMutation({
+    mutationFn: async () => {
+      const email = (otpEmail || loginData.email).trim().toLowerCase();
+      const response = await axiosInstance.post("/auth/otp-login/verify", { email, otp: otpCode.trim() }, { skipErrorToast: true });
+      return response.data;
+    },
+    onSuccess: (response) => {
+      completeLogin(response);
+    },
+    onError: (err) => {
+      if (err?.response?.data?.missingFields?.code === "ACCOUNT_BLOCKED") {
+        setShowBlockedModal(true);
+        return;
+      }
+      notify.warning("Verification failed", err?.response?.data?.message || "Invalid or expired login code.");
     },
   });
 
@@ -89,6 +148,25 @@ export default function LoginPage() {
     mutate();
   };
 
+  const handleRequestOtp = (e) => {
+    e.preventDefault();
+    const emailToUse = (otpEmail || loginData.email).trim();
+    if (!emailToUse) {
+      notify.warning("Email required", "Please enter your registered email address.");
+      return;
+    }
+    requestOtpMutation.mutate();
+  };
+
+  const handleVerifyOtp = (e) => {
+    e.preventDefault();
+    if (!otpCode.trim() || otpCode.trim().length < 6) {
+      notify.warning("Code required", "Please enter the 6-digit verification code sent to your email.");
+      return;
+    }
+    verifyOtpMutation.mutate();
+  };
+
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8 overflow-hidden bg-[radial-gradient(circle_at_20%_20%,hsl(var(--p)/0.18),transparent_40%),radial-gradient(circle_at_80%_10%,hsl(var(--s)/0.2),transparent_40%)]"
@@ -99,7 +177,7 @@ export default function LoginPage() {
             <img src={logoDesktop} alt="NearMySpace" className="h-10 w-auto" />
           </div>
 
-          <form onSubmit={handleLogin} className="w-full space-y-4">
+          <div className="w-full space-y-4">
             <div>
               <h2 className="text-xl font-semibold">Welcome Back</h2>
               <p className="text-sm opacity-70">
@@ -107,55 +185,198 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <div className="form-control w-full">
-              <label className="label" htmlFor="email">
-                <span className="label-text">Email</span>
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="john@gmail.com"
-                className="input input-bordered w-full"
-                value={loginData.email}
-                onChange={handleChange}
-                required
-              />
+            {/* Mode Switcher: Password | OTP */}
+            <div className="flex bg-base-200/90 p-1 rounded-2xl border border-base-300">
+              <button
+                type="button"
+                onClick={() => setLoginMode("password")}
+                className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-all ${
+                  loginMode === "password"
+                    ? "bg-primary text-primary-content shadow-sm"
+                    : "text-base-content/70 hover:text-base-content"
+                }`}
+              >
+                Password
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMode("otp");
+                  if (!otpEmail && loginData.email) setOtpEmail(loginData.email);
+                }}
+                className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-all ${
+                  loginMode === "otp"
+                    ? "bg-primary text-primary-content shadow-sm"
+                    : "text-base-content/70 hover:text-base-content"
+                }`}
+              >
+                Instant OTP
+              </button>
             </div>
 
-            <div className="form-control w-full">
-              <label className="label" htmlFor="password">
-                <span className="label-text">Password</span>
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="********"
-                className="input input-bordered w-full"
-                value={loginData.password}
-                onChange={handleChange}
-                required
-                minLength={6}
-              />
-            </div>
+            {loginMode === "password" ? (
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="form-control w-full">
+                  <label className="label" htmlFor="email">
+                    <span className="label-text">Email</span>
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="john@gmail.com"
+                    className="input input-bordered w-full rounded-xl"
+                    value={loginData.email}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
 
-            <button className="btn btn-primary w-full rounded-xl" type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <span className="loading loading-spinner loading-xs"></span>
-                  Logging in...
-                </>
-              ) : (
-                "Log In"
-              )}
-            </button>
+                <div className="form-control w-full">
+                  <label className="label" htmlFor="password">
+                    <span className="label-text">Password</span>
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="********"
+                    className="input input-bordered w-full rounded-xl"
+                    value={loginData.password}
+                    onChange={handleChange}
+                    required
+                    minLength={6}
+                  />
+                </div>
 
-            <div className="text-center mt-2">
-              <Link to="/forgot-password" className="text-sm text-primary hover:underline">
-                Forgot password?
-              </Link>
-            </div>
+                <button className="btn btn-primary w-full rounded-xl" type="submit" disabled={isPending}>
+                  {isPending ? (
+                    <>
+                      <span className="loading loading-spinner loading-xs"></span>
+                      Logging in...
+                    </>
+                  ) : (
+                    "Log In"
+                  )}
+                </button>
+
+                <div className="text-center mt-2">
+                  <Link to="/forgot-password" className="text-sm text-primary hover:underline font-medium">
+                    Forgot password?
+                  </Link>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                {otpStep === "request" ? (
+                  <form onSubmit={handleRequestOtp} className="space-y-4">
+                    <div className="form-control w-full">
+                      <label className="label" htmlFor="otpEmail">
+                        <span className="label-text">Registered Email</span>
+                      </label>
+                      <input
+                        id="otpEmail"
+                        type="email"
+                        placeholder="john@gmail.com"
+                        className="input input-bordered w-full rounded-xl"
+                        value={otpEmail || loginData.email}
+                        onChange={(e) => {
+                          setOtpEmail(e.target.value);
+                          setLoginData((prev) => ({ ...prev, email: e.target.value }));
+                        }}
+                        required
+                      />
+                      <label className="label">
+                        <span className="label-text-alt text-xs opacity-60">
+                          We will send a 6-digit login code to your registered email.
+                        </span>
+                      </label>
+                    </div>
+
+                    <button
+                      className="btn btn-primary w-full rounded-xl"
+                      type="submit"
+                      disabled={requestOtpMutation.isPending}
+                    >
+                      {requestOtpMutation.isPending ? (
+                        <>
+                          <span className="loading loading-spinner loading-xs"></span>
+                          Sending Code...
+                        </>
+                      ) : (
+                        "Send Login Code"
+                      )}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleVerifyOtp} className="space-y-4">
+                    <div className="p-3 bg-base-200/60 rounded-xl text-xs space-y-1 border border-base-300">
+                      <div className="font-semibold text-base-content">Code sent to:</div>
+                      <div className="text-primary font-mono text-sm break-all">{otpEmail || loginData.email}</div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOtpStep("request");
+                          setOtpCode("");
+                        }}
+                        className="text-primary hover:underline inline-block mt-1"
+                      >
+                        Change email
+                      </button>
+                    </div>
+
+                    <div className="form-control w-full">
+                      <label className="label" htmlFor="otpCode">
+                        <span className="label-text">Enter 6-Digit Code</span>
+                      </label>
+                      <input
+                        id="otpCode"
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        placeholder="123456"
+                        className="input input-bordered w-full rounded-xl tracking-widest text-center text-xl font-bold font-mono"
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        required
+                        autoFocus
+                      />
+                    </div>
+
+                    <button
+                      className="btn btn-primary w-full rounded-xl"
+                      type="submit"
+                      disabled={verifyOtpMutation.isPending || otpCode.length < 6}
+                    >
+                      {verifyOtpMutation.isPending ? (
+                        <>
+                          <span className="loading loading-spinner loading-xs"></span>
+                          Verifying...
+                        </>
+                      ) : (
+                        "Verify & Log In"
+                      )}
+                    </button>
+
+                    <div className="flex items-center justify-between text-xs pt-1">
+                      <span className="opacity-60">Didn't receive the code?</span>
+                      <button
+                        type="button"
+                        onClick={() => requestOtpMutation.mutate()}
+                        disabled={cooldown > 0 || requestOtpMutation.isPending}
+                        className={`font-semibold ${
+                          cooldown > 0
+                            ? "opacity-50 cursor-not-allowed"
+                            : "text-primary hover:underline cursor-pointer"
+                        }`}
+                      >
+                        {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend Code"}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            )}
 
             <div className="divider text-xs opacity-70">OR</div>
 
@@ -191,7 +412,7 @@ export default function LoginPage() {
                 Create New Account
               </Link>
             </div>
-          </form>
+          </div>
         </div>
 
         <div className="hidden lg:flex w-full lg:w-1/2 bg-gradient-to-br from-primary/15 via-secondary/10 to-accent/15 items-center justify-center">

@@ -5,9 +5,10 @@ import "dotenv/config";
 // **Configuration for MongoDB connection
 const getMongoOptions = () => ({
   connectTimeoutMS: parseInt(process.env.MONGO_CONNECT_TIMEOUT_MS || "30000", 10) || 30000,
-  maxPoolSize: parseInt(process.env.MONGO_MAX_POOL_SIZE || "10", 10) || 10,
+  maxPoolSize: parseInt(process.env.MONGO_MAX_POOL_SIZE || "50", 10) || 50,
   serverSelectionTimeoutMS: 5000,
   heartbeatFrequencyMS: 10000,
+  socketTimeoutMS: 45000,
 });
 
 // **Setup event listeners for Mongoose connection
