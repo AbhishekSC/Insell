@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { cdnMediaPlugin } from "../plugins/cdnMedia.plugin.js";
 
 const storySchema = new mongoose.Schema(
   {
@@ -107,6 +108,8 @@ storySchema.index({ author: 1, isActive: 1, feedExpiresAt: 1 });
 
 // Index for category-based queries
 storySchema.index({ category: 1, isActive: 1, feedExpiresAt: 1 });
+
+storySchema.plugin(cdnMediaPlugin, { fields: [{ field: "mediaUrl", preset: "story" }] });
 
 const Story = mongoose.model("Story", storySchema);
 

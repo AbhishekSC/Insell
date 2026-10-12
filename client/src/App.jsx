@@ -51,6 +51,7 @@ const PropertyComparisonPage = lazy(() => import("./pages/PropertyComparisonPage
 const PropertyMapView = lazy(() => import("./pages/PropertyMapView"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const HelpGuidePage = lazy(() => import("./pages/HelpGuidePage"));
+const VerifyStatementPage = lazy(() => import("./pages/VerifyStatementPage"));
 
 function App() {
   const queryClient = useQueryClient();
@@ -298,6 +299,11 @@ function App() {
           <Route
             path="/help"
             element={guard(<HelpGuidePage />)}
+          />
+          {/* Public verification portal for closing statement certificates */}
+          <Route
+            path="/verify-statement/:token"
+            element={<VerifyStatementPage />}
           />
         </Routes>
       </Suspense>

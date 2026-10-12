@@ -18,6 +18,9 @@ import {
   answerPreferencePrompt,
   registerFcmToken,
   unregisterFcmToken,
+  syncMobileDetail,
+  getUserDevices,
+  deactivateDevice,
   getUserActivity,
 } from "../controllers/user.controller.js";
 import { uploadProfileImage } from "../middlewares/upload.middleware.js";
@@ -42,6 +45,11 @@ router.get("/preference-prompt", getPreferencePrompt);
 router.post("/preference-prompt", answerPreferencePrompt);
 router.post("/fcm-token", registerFcmToken);
 router.delete("/fcm-token", unregisterFcmToken);
+
+// Mobile Device Tracking Routes
+router.post("/mobile-detail", syncMobileDetail);
+router.get("/mobile-devices", getUserDevices);
+router.delete("/mobile-devices/:deviceId", deactivateDevice);
 
 // Friend Request Routes
 router.post("/friend-request/:id", sendFriendRequest);

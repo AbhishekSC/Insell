@@ -17,6 +17,7 @@ import {
 import path from "path";
 import { invalidateDiscoverCache } from "../services/DiscoverRecommendationService.js";
 import { invalidateActivityCache } from "../services/UserServiceHandlers.js";
+import { getHotPostsByCity, invalidateHotCityCache } from "../services/HotFeedCacheService.js";
 import PersonalizationService from "../services/PersonalizationService.js";
 import * as NotificationService from "../services/NotificationService.js";
 import { NotificationChannel } from "../services/NotificationService.js";
@@ -434,6 +435,7 @@ export async function getPropertyFeed(req, res) {
     const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 12));
     const skip = (page - 1) * limit;
     const query = String(req.query.q || "").trim();
+    const city = String(req.query.city || "").trim();
     const listingType = String(req.query.listingType || "").trim();
     const propertyType = String(req.query.propertyType || "").trim();
     const postType = normalizePostType(req.query.postType);
@@ -454,16 +456,55 @@ export async function getPropertyFeed(req, res) {
     const statusFilter = String(req.query.status || "").trim().toUpperCase();
     const currentUserId = req.user?._id ? String(req.user._id) : "";
 
-    // Generate cache key based on query parameters
-    const cacheKey = `property:feed:${page}:${limit}:${query}:${listingType}:${propertyType}:${postType}:${authorId}:${savedBy}:${category}:${currentUserId}:${priceMin ?? ""}:${priceMax ?? ""}:${amenities.join("|")}`;
+    // Shared cache key for generic public feeds (independent of currentUserId)
+    const isStandardPublicFeed = (
+      page === 1 &&
+      !query &&
+      !authorId &&
+      !savedBy &&
+      category !== "for you" &&
+      category !== "near me" &&
+      priceMin === undefined &&
+      priceMax === undefined &&
+      amenities.length === 0
+    );
+
+    const sharedCacheKey = `property:feed:shared:${page}:${limit}:${city}:${listingType}:${propertyType}:${postType}:${category}`;
+    const userCacheKey = `property:feed:${page}:${limit}:${query}:${city}:${listingType}:${propertyType}:${postType}:${authorId}:${savedBy}:${category}:${currentUserId}:${priceMin ?? ""}:${priceMax ?? ""}:${amenities.join("|")}`;
 
     // Try to get from cache (only for first page without complex filters).
-    // "Near Me" is never cached — its result depends on the request's live
-    // lat/lon, which isn't in the cache key. Price/amenities filters skip
-    // the cache too — narrow enough combinations that caching them isn't
-    // worth the key-space churn.
+    // Standard public feeds share a single hot Redis cache across all users.
     try {
-      if (
+      if (isStandardPublicFeed) {
+        const cachedRaw = await redisClient.get(sharedCacheKey);
+        if (cachedRaw) {
+          const { posts: rawPosts, total } = JSON.parse(cachedRaw);
+          let userReportedIds = new Set();
+          if (currentUserId) {
+            const myReports = await PostReport.find({ reporter: currentUserId }).select("post").lean();
+            if (myReports.length > 0) {
+              userReportedIds = new Set(myReports.map((r) => String(r.post)));
+            }
+          }
+          const visiblePosts = userReportedIds.size > 0
+            ? rawPosts.filter((p) => !userReportedIds.has(String(p._id)))
+            : rawPosts;
+          const decoratedPosts = await attachSocialProof(
+            visiblePosts.map((p) => decorateForUser(p, currentUserId)),
+            currentUserId
+          );
+          logger.info("Shared cache hit for property feed");
+          return sendSuccessResponse(res, 200, "Property feed retrieved (cached)", {
+            posts: decoratedPosts,
+            pagination: {
+              page,
+              limit,
+              total,
+              totalPages: Math.max(1, Math.ceil(total / limit)),
+            },
+          });
+        }
+      } else if (
         page === 1 &&
         !query &&
         !authorId &&
@@ -473,9 +514,9 @@ export async function getPropertyFeed(req, res) {
         priceMax === undefined &&
         amenities.length === 0
       ) {
-        const cachedData = await redisClient.get(cacheKey);
+        const cachedData = await redisClient.get(userCacheKey);
         if (cachedData) {
-          logger.info("Cache hit for property feed");
+          logger.info("User cache hit for property feed");
           return sendSuccessResponse(res, 200, "Property feed retrieved (cached)", JSON.parse(cachedData));
         }
       }
@@ -514,6 +555,10 @@ export async function getPropertyFeed(req, res) {
     }
     if (savedBy) {
       filter.savedBy = savedBy;
+    }
+    if (city) {
+      const escapedCity = city.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      filter.city = new RegExp(`^${escapedCity}$`, "i");
     }
     if (query) {
       const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -748,11 +793,11 @@ export async function getPropertyFeed(req, res) {
         }
       };
 
-      // Cache the response for 5 minutes (only for first page)
+      // Cache the response for 3 minutes (only for first page)
       try {
         if (page === 1 && !query && !authorId && !savedBy && priceMin === undefined && priceMax === undefined && amenities.length === 0) {
-          await redisClient.setEx(cacheKey, 180, JSON.stringify(responseData));
-          logger.info("Cached property feed data");
+          await redisClient.setEx(userCacheKey, 180, JSON.stringify(responseData));
+          logger.info("Cached personalized property feed data");
         }
       } catch (cacheError) {
         logger.warn("Redis cache write error:", cacheError);
@@ -771,11 +816,14 @@ export async function getPropertyFeed(req, res) {
       },
     };
 
-    // Cache the response for 5 minutes (only for first page without complex filters)
+    // Cache the response for 3 minutes (shared across all users if standard public feed, else user-scoped)
     try {
-      if (page === 1 && !query && !authorId && !savedBy && priceMin === undefined && priceMax === undefined && amenities.length === 0) {
-        await redisClient.setEx(cacheKey, 180, JSON.stringify(responseData));
-        logger.info("Cached property feed data");
+      if (isStandardPublicFeed) {
+        await redisClient.setEx(sharedCacheKey, 180, JSON.stringify({ posts, total }));
+        logger.info("Cached shared property feed data");
+      } else if (page === 1 && !query && !authorId && !savedBy && priceMin === undefined && priceMax === undefined && amenities.length === 0) {
+        await redisClient.setEx(userCacheKey, 180, JSON.stringify(responseData));
+        logger.info("Cached user property feed data");
       }
     } catch (cacheError) {
       logger.warn("Redis cache write error:", cacheError);
@@ -833,8 +881,16 @@ function nearMeWithinBandScore(post) {
 function decorateForUser(post, currentUserId) {
   const likedBy = Array.isArray(post.likedBy) ? post.likedBy.map(String) : [];
   const savedBy = Array.isArray(post.savedBy) ? post.savedBy.map(String) : [];
+  const isBoostActive = Boolean(
+    post.isBoosted &&
+    post.boostExpiresAt &&
+    new Date(post.boostExpiresAt).getTime() > Date.now()
+  );
   return {
     ...post,
+    isBoosted: isBoostActive,
+    boostExpiresAt: post.boostExpiresAt,
+    boostCount: post.boostCount || 0,
     likesCount: likedBy.length,
     savesCount: savedBy.length,
     isLikedByMe: currentUserId ? likedBy.includes(currentUserId) : false,
@@ -1089,6 +1145,9 @@ export async function createPropertyPost(req, res) {
       if (keys.length > 0) {
         await redisClient.del(keys);
         logger.info(`Invalidated ${keys.length} property feed cache entries`);
+      }
+      if (post.city) {
+        await invalidateHotCityCache(post.city);
       }
     } catch (cacheError) {
       logger.warn("Redis cache invalidation error:", cacheError);
@@ -1410,6 +1469,9 @@ export async function togglePropertyPostLike(req, res) {
         await redisClient.del(keys);
         logger.info(`Invalidated ${keys.length} property feed cache entries on like`);
       }
+      if (post.city) {
+        await invalidateHotCityCache(post.city);
+      }
     } catch (cacheError) {
       logger.warn("Redis cache invalidation error:", cacheError);
     }
@@ -1475,6 +1537,9 @@ export async function togglePropertyPostSave(req, res) {
       if (keys.length > 0) {
         await redisClient.del(keys);
         logger.info(`Invalidated ${keys.length} property feed cache entries on save`);
+      }
+      if (post.city) {
+        await invalidateHotCityCache(post.city);
       }
     } catch (cacheError) {
       logger.warn("Redis cache invalidation error:", cacheError);
@@ -1577,6 +1642,9 @@ export async function boostPropertyPost(req, res) {
       if (keys && keys.length > 0) {
         await redisClient.del(keys);
         logger.info(`Invalidated ${keys.length} property feed cache entries on boost`);
+      }
+      if (post.city) {
+        await invalidateHotCityCache(post.city);
       }
     } catch (cacheError) {
       logger.warn("Cache invalidation error on boost (non-fatal):", cacheError);
@@ -2226,6 +2294,17 @@ export async function deletePropertyPost(req, res) {
       return sendErrorResponse(res, 403, "You can only delete your own posts");
     }
 
+    // Security guard: Cannot delete property while an active deal is in progress
+    const Deal = (await import("../models/Deal.model.js")).default;
+    const activeDeal = await Deal.findOne({ post: postId, status: "ACTIVE" });
+    if (activeDeal) {
+      return sendErrorResponse(
+        res,
+        409,
+        "Cannot delete listing while an active deal is in progress. Complete or cancel the deal first."
+      );
+    }
+
     // Soft delete - mark as deleted instead of removing from database
     post.isDeleted = true;
     post.deletedAt = new Date();
@@ -2246,6 +2325,9 @@ export async function deletePropertyPost(req, res) {
     // Invalidate caches
     await invalidateDiscoverCache();
     await invalidateActivityCache(userId);
+    if (post.city) {
+      await invalidateHotCityCache(post.city);
+    }
 
     logger.info(`Post soft deleted successfully`, { postId, userId });
 
@@ -2330,3 +2412,42 @@ export async function reportPost(req, res) {
     return sendErrorResponse(res, 500, "Internal Server Error");
   }
 }
+
+/**
+ * GET /api/posts/hot?city=Ratlam&limit=20
+ * Retrieves hot, engagement-decay ranked listings for a specific city or globally.
+ * Backed by Redis cache with edge warming for sub-5ms load times.
+ */
+export async function getHotPropertiesFeed(req, res) {
+  try {
+    const city = String(req.query.city || "").trim();
+    const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
+    const currentUserId = req.user?._id ? String(req.user._id) : "";
+
+    const hotPosts = await getHotPostsByCity(city, limit);
+    const decoratedPosts = await attachSocialProof(
+      hotPosts.map((post) => {
+        const likedBy = Array.isArray(post.likedBy) ? post.likedBy.map((id) => String(id)) : [];
+        const savedBy = Array.isArray(post.savedBy) ? post.savedBy.map((id) => String(id)) : [];
+        return {
+          ...post,
+          likesCount: likedBy.length,
+          isLikedByMe: currentUserId ? likedBy.includes(currentUserId) : false,
+          savesCount: savedBy.length,
+          isSavedByMe: currentUserId ? savedBy.includes(currentUserId) : false,
+        };
+      }),
+      currentUserId
+    );
+
+    return sendSuccessResponse(res, 200, "Hot properties feed retrieved successfully", {
+      city: city || "all",
+      posts: decoratedPosts,
+      total: decoratedPosts.length,
+    });
+  } catch (error) {
+    logger.error("Error in getHotPropertiesFeed:", error);
+    return sendErrorResponse(res, 500, "Failed to retrieve hot properties feed");
+  }
+}
+

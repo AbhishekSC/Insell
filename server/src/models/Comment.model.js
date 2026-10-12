@@ -6,13 +6,11 @@ const commentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "PropertyPost",
       required: true,
-      index: true,
     },
     author: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      index: true,
     },
     content: {
       type: String,
@@ -80,9 +78,6 @@ const commentSchema = new mongoose.Schema(
 // Index for efficient queries
 commentSchema.index({ post: 1, createdAt: -1 });
 commentSchema.index({ author: 1, createdAt: -1 });
-commentSchema.index({ keywords: 1 });
-commentSchema.index({ sentiment: 1 });
-commentSchema.index({ category: 1 });
 commentSchema.index({ intent: 1 });
 commentSchema.index({ author: 1, intent: 1 });
 

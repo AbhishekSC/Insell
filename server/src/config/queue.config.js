@@ -21,6 +21,10 @@ async function connectQueue() {
 // ({ event: "user_logged_in", email: user.email, name: user.fullName }
 async function publishToQueue(data) {
   try {
+    if (!channel) {
+      logger.warn("RabbitMQ channel not connected. Message skipped safely.");
+      return;
+    }
     await channel.sendToQueue(
       process.env.QUEUE_NAME,
       Buffer.from(JSON.stringify(data))

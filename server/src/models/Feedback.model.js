@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { cdnMediaPlugin } from "../plugins/cdnMedia.plugin.js";
 
 export const FEEDBACK_STATUSES = ["OPEN", "RESOLVED"];
 
@@ -43,6 +44,8 @@ const feedbackSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+feedbackSchema.plugin(cdnMediaPlugin, { fields: ["screenshotUrl"] });
 
 const Feedback = mongoose.model("Feedback", feedbackSchema);
 

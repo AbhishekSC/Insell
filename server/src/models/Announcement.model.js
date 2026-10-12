@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { cdnMediaPlugin } from "../plugins/cdnMedia.plugin.js";
 
 // One row per broadcast sent from the admin panel — the actual per-user
 // delivery lives in the Notification collection (type: "admin_announcement").
@@ -35,6 +36,8 @@ const announcementSchema = new mongoose.Schema(
 );
 
 announcementSchema.index({ createdAt: -1 });
+
+announcementSchema.plugin(cdnMediaPlugin, { fields: ["image"] });
 
 const Announcement = mongoose.model("Announcement", announcementSchema);
 

@@ -84,6 +84,7 @@ const SignupPage = () => {
   // handle submit
   const handleSignup = async (e) => {
     e.preventDefault();
+    if (isPending) return;
     if (!isPasswordValid) {
       toast.error("Password doesn't meet the requirements below");
       return;

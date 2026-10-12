@@ -75,7 +75,9 @@ export async function verifyCode(userId, code) {
     }
 
     // Check if code matches
-    if (user.verificationCode !== code) {
+    const cleanStored = String(user.verificationCode || "").trim();
+    const cleanProvided = String(code || "").trim();
+    if (cleanStored !== cleanProvided) {
       throw new Error("Invalid verification code");
     }
 

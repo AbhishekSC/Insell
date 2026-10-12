@@ -5,6 +5,7 @@ import { connectToMongoDB, closeMongoConnection } from "./config/db.config.js";
 import { connectQueue } from "./config/queue.config.js";
 import { testCloudinaryConnection } from "./config/cloudinary.js";
 import { connectToRedis, closeRedisConnection } from "./config/redisClient.config.js";
+import { initNotificationWorker, closeNotificationQueue } from "./queues/notification.queue.js";
 
 let httpServer = null;
 let shuttingDown = false;
@@ -28,7 +29,11 @@ async function shutdown(signal) {
 
   try {
     await closeHttpServer();
-    await Promise.allSettled([closeMongoConnection(), closeRedisConnection()]);
+    await Promise.allSettled([
+      closeMongoConnection(),
+      closeRedisConnection(),
+      closeNotificationQueue(),
+    ]);
   } catch (error) {
     logger.error(`Error during shutdown: ${error.message}`, { stack: error.stack });
   } finally {
@@ -39,6 +44,18 @@ async function shutdown(signal) {
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGUSR2", () => shutdown("SIGUSR2"));
+
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error("Unhandled Promise Rejection:", {
+    reason: reason?.stack || reason,
+    promise,
+  });
+});
+
+process.on("uncaughtException", (error) => {
+  logger.error("Uncaught Exception thrown:", { error: error?.stack || error });
+  shutdown("uncaughtException");
+});
 
 async function startServer() {
   try {
@@ -55,6 +72,7 @@ async function startServer() {
     await Promise.all([connectToRedis(), connectToMongoDB(), testCloudinaryConnection()]);
 
     httpServer = app.listen(PORT, async () => {
+      initNotificationWorker();
       await connectQueue();
       logger.info(`Server is running on port ${PORT}`);
     }).on("error", (err) => {

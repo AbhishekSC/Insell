@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { POST_TYPES } from "../utils/postPolicy.js";
 import { PostMetaSchema } from "./postMeta.schema.js";
+import { cdnMediaPlugin } from "../plugins/cdnMedia.plugin.js";
 
 const postTypeValues = Object.values(POST_TYPES);
 const statusValues = ["DRAFT", "PUBLISHED", "ARCHIVED"];
@@ -331,9 +332,17 @@ propertyPostSchema.index({ createdAt: -1 });
 // newest) — without this, that filter+sort can't be served by a single
 // index and falls back to a slower in-memory sort as the collection grows.
 propertyPostSchema.index({ isDeleted: 1, isBlocked: 1, createdAt: -1 });
+// Compound index for city-filtered feeds sorted by newest
+propertyPostSchema.index({ city: 1, isDeleted: 1, isBlocked: 1, createdAt: -1 });
+// Compound index for city + listingType filtered feeds
+propertyPostSchema.index({ city: 1, listingType: 1, isDeleted: 1, isBlocked: 1, createdAt: -1 });
+// Compound index for listingType (Buy/Rent) filtered feeds
+propertyPostSchema.index({ listingType: 1, isDeleted: 1, isBlocked: 1, createdAt: -1 });
 // Matches "my posts" / author-filtered feeds (profile pages, authorId
 // query param) sorted by newest.
 propertyPostSchema.index({ author: 1, isDeleted: 1, createdAt: -1 });
+
+propertyPostSchema.plugin(cdnMediaPlugin, { fields: [{ field: "mediaUrls", preset: "property" }] });
 
 const PropertyPost = mongoose.model("PropertyPost", propertyPostSchema);
 

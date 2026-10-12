@@ -3,8 +3,11 @@ import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import helmet from "helmet";
+import compression from "compression";
 import path from "path";
 import session from "express-session";
+import mongoose from "mongoose";
+import redisClient from "./config/redisClient.config.js";
 
 import routes from "./routes/index.js";
 import { renderListingSharePage } from "./modules/public-listing/publicListing.controller.js";
@@ -39,34 +42,58 @@ const corsOptions = {
   exposedHeaders: ["Authorization"],
 };
 
-// Baseline security headers (HSTS, X-Content-Type-Options, X-Frame-Options,
-// hides X-Powered-By, etc). CSP and Cross-Origin-*-Policy are switched off
-// rather than left at helmet's defaults: this server also renders the
-// crawler-facing OG share pages (/p/:id, /u/:id — raw HTML with inline
-// styles/meta refresh) and the browser loads Cloudinary/Stream assets
-// cross-origin, both of which a default-strict CSP/COEP/CORP would break.
-// Add a real CSP later if these routes get audited for it specifically.
+// Baseline security headers with safe Content Security Policy allowing Cloudinary, Stream, and Map tiles
 app.use(
   helmet({
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+        imgSrc: ["'self'", "data:", "blob:", "https://res.cloudinary.com", "https://*.stream-io-cdn.com", "https://*.tile.openstreetmap.org", "https://placehold.co", "https://*.googleusercontent.com"],
+        mediaSrc: ["'self'", "blob:", "https://res.cloudinary.com", "https://*.stream-io-cdn.com"],
+        connectSrc: ["'self'", "https://*.stream-io-api.com", "https://res.cloudinary.com", "https://*.tile.openstreetmap.org", "https://*.sentry.io", "https://*.posthog.com"],
+        frameSrc: ["'self'"],
+        objectSrc: ["'none'"],
+      },
+    },
     crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: false,
   })
 );
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
+app.use(compression({ threshold: 1024 }));
 app.use(requestIdMiddleware);
+// Guard against stalled connections (30s standard, 60s for file uploads)
+app.use((req, res, next) => {
+  const isUpload = req.originalUrl?.includes("/upload") || req.originalUrl?.includes("/media");
+  const timeoutMs = isUpload ? 60000 : 30000;
+  req.setTimeout(timeoutMs, () => {
+    if (!res.headersSent) {
+      res.status(504).json({ success: false, message: "Gateway timeout: request took too long" });
+    }
+  });
+  next();
+});
 app.use(express.json());
 app.use(cookieParser());
 
-// Session configuration for Passport
+// Session configuration for Passport with strict production secret validation
+const sessionSecret = process.env.SESSION_SECRET || process.env.JWT_SECRET;
+if (!sessionSecret && process.env.NODE_ENV === "production") {
+  throw new Error("FATAL SECURITY CONFIGURATION: SESSION_SECRET or JWT_SECRET must be set in production.");
+}
+
 app.use(session({
-  secret: process.env.JWT_SECRET || 'your_session_secret',
+  secret: sessionSecret || "dev-only-session-secret-change-in-production",
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    sameSite: "lax",
   }
 }));
 
@@ -84,9 +111,40 @@ app.use(
 // Lightweight liveness probe — no DB, no auth. Used by the external
 // keep-alive ping (see .github/workflows/keep-alive.yml) and any uptime
 // monitor.
-app.get("/api/health", (req, res) => {
+const handleLiveness = (req, res) => {
   res.json({ status: "ok", uptime: process.uptime(), ts: Date.now() });
-});
+};
+app.get("/api/health", handleLiveness);
+app.get("/healthz", handleLiveness);
+
+// Deep readiness probe — actively verifies Mongo connection and Redis reachability.
+const handleReadiness = async (req, res) => {
+  const isMongoReady = mongoose.connection.readyState === 1;
+  let isRedisReady = false;
+  try {
+    if (redisClient && typeof redisClient.ping === "function") {
+      await redisClient.ping();
+      isRedisReady = true;
+    }
+  } catch (_) {}
+
+  if (!isMongoReady) {
+    return res.status(503).json({
+      status: "not_ready",
+      database: "disconnected",
+      redis: isRedisReady ? "connected" : "disconnected",
+    });
+  }
+
+  return res.status(200).json({
+    status: "ready",
+    database: "connected",
+    redis: isRedisReady ? "connected" : "disconnected",
+    uptime: process.uptime(),
+  });
+};
+app.get("/api/readyz", handleReadiness);
+app.get("/readyz", handleReadiness);
 
 // Public server-rendered listing share page (Open Graph unfurl). Sits
 // outside /api so share links are short; Vercel proxies /p/:id here.

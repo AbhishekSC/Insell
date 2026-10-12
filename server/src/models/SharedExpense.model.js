@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { cdnMediaPlugin } from "../plugins/cdnMedia.plugin.js";
 
 const sharedExpenseSchema = new mongoose.Schema(
   {
@@ -124,6 +125,8 @@ const sharedExpenseSchema = new mongoose.Schema(
 );
 
 sharedExpenseSchema.index({ workspace: 1, createdAt: -1 });
+
+sharedExpenseSchema.plugin(cdnMediaPlugin, { fields: ["receiptUrl"] });
 
 const SharedExpense = mongoose.model("SharedExpense", sharedExpenseSchema);
 
