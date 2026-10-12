@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Award, Check, CheckCheck, Circle, Clock, FileText, Loader2, MapPin, Paperclip, Scale, ShieldCheck, Star, ThumbsUp, Undo2, X } from "lucide-react";
 import toast from "react-hot-toast";
@@ -73,7 +73,6 @@ export default function TransactionTracker({ deal, postId, meId, alreadyReviewed
   const [cancelReason, setCancelReason] = useState("");
   const [disputing, setDisputing] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
-  const fileRef = useRef(null);
 
   // 48-Hour Dispute & Contract Amendment States
   const [showAmendmentModal, setShowAmendmentModal] = useState(false);

@@ -12,7 +12,7 @@ const DOCUMENT_CATEGORIES = [
   { value: "OTHER", label: "Other Legal Document" },
 ];
 
-export default function AttachDocumentModal({ deal, onUpload, isUploading, onClose }) {
+export default function AttachDocumentModal({ onUpload, isUploading, onClose }) {
   const [category, setCategory] = useState("PROPERTY_TITLE");
   const [selectedFile, setSelectedFile] = useState(null);
   const [coords, setCoords] = useState(null);
