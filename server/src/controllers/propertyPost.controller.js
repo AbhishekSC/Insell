@@ -23,6 +23,7 @@ import * as NotificationService from "../services/NotificationService.js";
 import { NotificationChannel } from "../services/NotificationService.js";
 import { notifyTriggeredAlerts as notifyTriggeredPriceAlerts } from "../modules/price-alert/priceAlert.app.service.js";
 import { activeUserIdsForPost as activeAlertUserIdsForPost, deleteForPost as deletePriceAlertsForPost } from "../modules/price-alert/priceAlert.repository.js";
+import { calculateLivePropertyValuation } from "../utils/propertyValuationService.js";
 import { notifyMatches as notifySavedSearchMatches } from "../modules/saved-search/savedSearch.app.service.js";
 import Offer from "../models/Offer.model.js";
 import { closeActiveOffersForPost } from "./offer.controller.js";
@@ -2085,6 +2086,24 @@ export async function getPriceInsight(req, res) {
   } catch (error) {
     logger.error("Error in getPriceInsight:", error);
     return sendErrorResponse(res, 500, "Failed to compute price insight");
+  }
+}
+
+// GET /posts/:id/valuation
+// Returns AI Property Valuation computed dynamically from live database comparables
+export async function getPropertyValuation(req, res) {
+  try {
+    const { id } = req.params;
+    const post = await PropertyPost.findById(id).lean();
+    if (!post || post.isDeleted) {
+      return sendErrorResponse(res, 404, "Post not found");
+    }
+
+    const valuation = await calculateLivePropertyValuation(post);
+    return sendSuccessResponse(res, 200, "Property valuation computed", valuation);
+  } catch (error) {
+    logger.error("Error in getPropertyValuation:", error);
+    return sendErrorResponse(res, 500, "Failed to compute property valuation");
   }
 }
 

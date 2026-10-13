@@ -821,6 +821,7 @@ export default function PropertyDetailPage() {
 
                 {isAiValuationEnabled && postData.price > 0 && (
                   <AiValuationCard
+                    postId={postData._id}
                     price={postData.price}
                     propertyType={postData.propertyType}
                     locality={postData.locality}
