@@ -344,10 +344,10 @@ export default function VerifyStatementPage() {
             <div className="bg-base-200 rounded-2xl p-5 border border-base-300 flex flex-col md:flex-row items-center gap-5">
               <div className="relative p-2 bg-white rounded-xl shadow-xs border border-base-300 shrink-0 flex items-center justify-center">
                 <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&ecc=H&data=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : `https://nearmyspace.com/verify-statement/${token}`)}`}
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&ecc=H&data=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : `https://nearmy-space.vercel.app/verify-statement/${token}`)}`}
                   onError={(e) => {
                     e.currentTarget.onerror = null;
-                    e.currentTarget.src = `https://quickchart.io/qr?size=200&ecLevel=H&text=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : `https://nearmyspace.com/verify-statement/${token}`)}`;
+                    e.currentTarget.src = `https://quickchart.io/qr?size=200&ecLevel=H&text=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : `https://nearmy-space.vercel.app/verify-statement/${token}`)}`;
                   }}
                   alt="Official Closing Statement QR Code"
                   className="size-24 rounded-lg object-contain"

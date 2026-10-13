@@ -18,6 +18,13 @@ import {
   getAdminFeedback,
   resolveFeedback,
 } from "../controllers/admin.controller.js";
+import {
+  adminListFeatureFlags,
+  adminCreateFeatureFlag,
+  adminUpdateFeatureFlag,
+  adminDeleteFeatureFlag,
+  adminAddUserToWhitelist,
+} from "../controllers/featureFlag.controller.js";
 
 const router = new express.Router();
 
@@ -49,5 +56,12 @@ router.post("/deals/:id/force-cancel", adminForceCancelDeal);
 router.get("/announcements", getAnnouncements);
 router.post("/announcements", createAnnouncement);
 router.post("/announcements/upload-image", uploadAnnouncementImage.single("image"), uploadAnnouncementImageController);
+
+// Feature Flags management
+router.get("/feature-flags", adminListFeatureFlags);
+router.post("/feature-flags", adminCreateFeatureFlag);
+router.patch("/feature-flags/:id", adminUpdateFeatureFlag);
+router.delete("/feature-flags/:id", adminDeleteFeatureFlag);
+router.post("/feature-flags/:id/whitelist-user", adminAddUserToWhitelist);
 
 export default router;
