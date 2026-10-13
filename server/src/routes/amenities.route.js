@@ -45,6 +45,10 @@ const AMENITY_TYPES = {
     categories: ["commercial.shopping_mall"],
     label: "Malls",
   },
+  parks: {
+    categories: ["leisure.park", "leisure.playground"],
+    label: "Parks & Green Spaces",
+  },
 };
 
 // A network/API failure vs. a genuine zero-results search need different handling

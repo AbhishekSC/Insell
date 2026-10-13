@@ -3,11 +3,12 @@ import { X } from "lucide-react";
 
 const TYPE_META = {
   metro: { emoji: "🚇", label: "Transit" },
+  parks: { emoji: "🌳", label: "Parks & Greenery" },
   schools: { emoji: "🏫", label: "Schools" },
   hospitals: { emoji: "🏥", label: "Healthcare" },
   malls: { emoji: "🛒", label: "Shopping" },
 };
-const TYPE_ORDER = ["metro", "schools", "hospitals", "malls"];
+const TYPE_ORDER = ["metro", "parks", "schools", "hospitals", "malls"];
 
 function fmt(m) {
   const n = Number(m);
