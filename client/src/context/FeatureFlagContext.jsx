@@ -36,6 +36,7 @@ export function FeatureFlagProvider({ children }) {
  * @param {boolean} [defaultValue=false]
  * @returns {boolean}
  */
+// eslint-disable-next-line react-refresh/only-export-components -- co-located with FeatureFlagProvider by design
 export function useFeatureFlag(flagKey, defaultValue = false) {
   const flags = useContext(FeatureFlagContext);
   if (!flagKey || typeof flags !== "object") return defaultValue;

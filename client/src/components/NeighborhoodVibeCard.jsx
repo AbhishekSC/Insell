@@ -30,7 +30,7 @@ export default function NeighborhoodVibeCard({ latitude, longitude, locality, ci
     return null;
   }
 
-  const { overallScore, label, tagline, metrics, nearbyHighlights, dataSource } = vibe;
+  const { overallScore, label, tagline, metrics, dataSource } = vibe;
 
   return (
     <div className="mb-6 overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-base-100 via-base-100 to-primary/5 p-5 shadow-sm">
