@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { MapContainer, TileLayer, Marker, Popup, Tooltip, Circle, Polyline, useMap } from "react-leaflet";
-import { MapPin, Bed, Bath, Square, Building2, Home, Filter, X, SlidersHorizontal, GraduationCap, Hospital, Train, ShoppingBag, ChevronDown, ArrowLeft, Search, LocateFixed, Loader2 } from "lucide-react";
+import { MapPin, Bed, Bath, Square, Building2, Home, Filter, X, SlidersHorizontal, GraduationCap, Hospital, Train, ShoppingBag, Trees, ChevronDown, ArrowLeft, Search, LocateFixed, Loader2 } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useQuery } from "@tanstack/react-query";
@@ -100,19 +100,23 @@ const AMENITY_CONFIG = {
     icon: ShoppingBag,
     color: "#f59e0b",
     label: "Malls"
+  },
+  parks: {
+    icon: Trees,
+    color: "#16a34a",
+    label: "Parks"
   }
 };
 
 const createAmenityIcon = (type) => {
-  const config = AMENITY_CONFIG[type];
-  const IconComponent = config.icon;
+  const config = AMENITY_CONFIG[type] || AMENITY_CONFIG.schools;
   
   return L.divIcon({
     className: "amenity-marker",
     html: `
       <div class="bg-base-100 rounded-full shadow-lg border-2 flex items-center justify-center" style="width: 36px; height: 36px; border-color: ${config.color};">
         <div style="color: ${config.color}; font-size: 16px;">
-          ${config.label === "Schools" ? "🏫" : config.label === "Hospitals" ? "🏥" : config.label === "Metro" ? "🚇" : "🏬"}
+          ${config.label === "Schools" ? "🏫" : config.label === "Hospitals" ? "🏥" : config.label === "Metro" ? "🚇" : config.label === "Parks" ? "🌳" : "🏬"}
         </div>
       </div>
     `,
@@ -184,7 +188,7 @@ export default function PropertyMapView() {
   // All amenity types are always shown on the map now that the toggle UI
   // has been removed from the Filters panel — kept as a plain object since
   // the amenities query still expects this shape.
-  const amenityFilters = { schools: true, hospitals: true, metro: true, malls: true };
+  const amenityFilters = { schools: true, hospitals: true, metro: true, malls: true, parks: true };
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["propertyFeed", "map"],
@@ -710,7 +714,7 @@ export default function PropertyMapView() {
                   <div className="p-3">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-2xl">
-                        {amenity.type === 'schools' ? '🏫' : amenity.type === 'hospitals' ? '🏥' : amenity.type === 'metro' ? '🚇' : '🏬'}
+                        {amenity.type === 'schools' ? '🏫' : amenity.type === 'hospitals' ? '🏥' : amenity.type === 'metro' ? '🚇' : amenity.type === 'parks' ? '🌳' : '🏬'}
                       </span>
                       <div className="flex-1">
                         <h4 className="font-semibold text-base-content text-sm">{amenity.name}</h4>
@@ -955,7 +959,7 @@ export default function PropertyMapView() {
                     {amenitiesData.slice(0, 5).map((amenity) => (
                       <div key={amenity.id} className="flex items-center gap-2 text-xs">
                         <span>
-                          {amenity.type === 'schools' ? '🏫' : amenity.type === 'hospitals' ? '🏥' : amenity.type === 'metro' ? '🚇' : '🏬'}
+                          {amenity.type === 'schools' ? '🏫' : amenity.type === 'hospitals' ? '🏥' : amenity.type === 'metro' ? '🚇' : amenity.type === 'parks' ? '🌳' : '🏬'}
                         </span>
                         <span className="truncate text-base-content">{amenity.name}</span>
                         <span className="text-base-content/50 ml-auto">{amenity.distance}m</span>

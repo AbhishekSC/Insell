@@ -5,6 +5,7 @@
 
 const TYPE_META = {
   metro: { emoji: "🚇", one: "transit stop", many: "transit stops" },
+  parks: { emoji: "🌳", one: "park", many: "parks" },
   schools: { emoji: "🏫", one: "school", many: "schools" },
   hospitals: { emoji: "🏥", one: "hospital", many: "hospitals" },
   malls: { emoji: "🛒", one: "mall", many: "malls" },
