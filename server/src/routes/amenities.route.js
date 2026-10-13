@@ -231,4 +231,38 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c * 1000; // Distance in meters
 }
 
+import { computeNeighborhoodVibe } from "../utils/neighborhoodVibeService.js";
+
+/**
+ * GET /api/amenities/vibe
+ * Calculates walkability, transit, green cover, and night safety scores for a property.
+ * Query params: lat, lng, locality
+ */
+router.get("/vibe", async (req, res) => {
+  try {
+    const { lat, lng, locality } = req.query;
+
+    if (!lat || !lng) {
+      return res.status(400).json({
+        success: false,
+        message: "Latitude and longitude are required",
+      });
+    }
+
+    const vibe = await computeNeighborhoodVibe(Number(lat), Number(lng), locality || "Neighborhood");
+
+    return res.status(200).json({
+      success: true,
+      data: vibe,
+    });
+  } catch (error) {
+    logger.error("Error computing neighborhood vibe:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to compute neighborhood vibe",
+      error: error.message,
+    });
+  }
+});
+
 export default router;

@@ -60,6 +60,8 @@ const featureFlagSchema = new mongoose.Schema(
     },
   },
   { timestamps: true }
+);
+
 featureFlagSchema.index({ isActive: 1 });
 
 const FeatureFlag = mongoose.model("FeatureFlag", featureFlagSchema);

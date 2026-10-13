@@ -41,6 +41,8 @@ import toast from "react-hot-toast";
 import BoostPropertyModal from "../components/BoostPropertyModal";
 import ShareModal from "../components/ShareModal";
 import NeighbourhoodSummary from "../components/NeighbourhoodSummary";
+import NeighborhoodVibeCard from "../components/NeighborhoodVibeCard";
+import { useFeatureFlag } from "../context/FeatureFlagContext";
 import AmenitiesModal from "../components/AmenitiesModal";
 import PriceAlertButton from "../components/PriceAlertButton";
 import ReportPostModal from "../components/ReportPostModal";
@@ -186,6 +188,7 @@ export default function PropertyDetailPage() {
   const [reviewedOfferIds, setReviewedOfferIds] = useState([]);
   const [showAllOffers, setShowAllOffers] = useState(false);
   const [showBoostModal, setShowBoostModal] = useState(false);
+  const isNeighborhoodVibeEnabled = useFeatureFlag("neighborhood_vibe_score");
 
   const { data: authData } = useQuery({
     queryKey: ["authUser"],
@@ -1141,6 +1144,15 @@ export default function PropertyDetailPage() {
                       title="Property Location"
                     />
                   </div>
+
+                  {isNeighborhoodVibeEnabled && latitude && longitude && (
+                    <NeighborhoodVibeCard
+                      latitude={latitude}
+                      longitude={longitude}
+                      locality={postData.locality}
+                      city={postData.city}
+                    />
+                  )}
 
                   {!amenitiesLoading && !amenitiesError && amenitiesData.length > 0 && (
                     <NeighbourhoodSummary
