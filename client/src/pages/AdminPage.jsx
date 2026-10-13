@@ -15,10 +15,15 @@ import {
   Megaphone,
   MessageSquareWarning,
   MoreVertical,
+  Plus,
   Search,
   ShieldAlert,
   ShieldCheck,
   ShieldOff,
+  Sliders,
+  ToggleLeft,
+  ToggleRight,
+  Trash2,
   User as UserIcon,
   Users,
   X,
@@ -2321,12 +2326,489 @@ function VerificationReportModal({ request, onClose }) {
   );
 }
 
+function FeatureFlagsPanel() {
+  const queryClient = useQueryClient();
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [whitelistTargetFlag, setWhitelistTargetFlag] = useState(null);
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [newFlag, setNewFlag] = useState({
+    key: "",
+    name: "",
+    description: "",
+    rolloutPercentage: 0,
+    isActive: true,
+  });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["adminFeatureFlags"],
+    queryFn: async () => {
+      const res = await axiosInstance.get("/admin/feature-flags");
+      return res.data?.data?.flags || [];
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (payload) => {
+      const res = await axiosInstance.post("/admin/feature-flags", payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Feature flag created");
+      queryClient.invalidateQueries({ queryKey: ["adminFeatureFlags"] });
+      setShowCreateModal(false);
+      setNewFlag({ key: "", name: "", description: "", rolloutPercentage: 0, isActive: true });
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Failed to create feature flag");
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, updates }) => {
+      const res = await axiosInstance.patch(`/admin/feature-flags/${id}`, updates);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Feature flag updated");
+      queryClient.invalidateQueries({ queryKey: ["adminFeatureFlags"] });
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Failed to update feature flag");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => {
+      const res = await axiosInstance.delete(`/admin/feature-flags/${id}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Feature flag deleted");
+      queryClient.invalidateQueries({ queryKey: ["adminFeatureFlags"] });
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Failed to delete feature flag");
+    },
+  });
+
+  const whitelistMutation = useMutation({
+    mutationFn: async ({ id, userIdentifier }) => {
+      const res = await axiosInstance.post(`/admin/feature-flags/${id}/whitelist-user`, { userIdentifier });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data?.message || "User whitelisted");
+      queryClient.invalidateQueries({ queryKey: ["adminFeatureFlags"] });
+      setUserSearchQuery("");
+      setWhitelistTargetFlag(null);
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Failed to whitelist user");
+    },
+  });
+
+  const removeWhitelistedUser = (flag, userIdToRemove) => {
+    const updatedIds = (flag.enabledUserIds || [])
+      .map((u) => (typeof u === "object" ? u._id : u))
+      .filter((id) => id !== userIdToRemove);
+
+    updateMutation.mutate({
+      id: flag._id,
+      updates: { enabledUserIds: updatedIds },
+    });
+  };
+
+  const flags = data || [];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-base-content flex items-center gap-2">
+            <Flag className="size-5 text-primary" /> Feature Flags & % Rollouts
+          </h2>
+          <p className="text-sm text-base-content/60">
+            Dynamically roll out features to percentages of users using deterministic MD5 hashing, or whitelist specific accounts.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowCreateModal(true)}
+          className="btn btn-primary btn-sm gap-2"
+        >
+          <Plus className="size-4" /> New Flag
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center p-12">
+          <Loader2 className="size-8 animate-spin text-primary" />
+        </div>
+      ) : flags.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-base-300 p-12 text-center">
+          <Flag className="mx-auto size-12 text-base-content/30" />
+          <h3 className="mt-4 font-semibold text-base-content">No feature flags created yet</h3>
+          <p className="mt-1 text-sm text-base-content/60">
+            Create your first flag to start canary-testing new features safely.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowCreateModal(true)}
+            className="btn btn-primary btn-sm mt-4 gap-2"
+          >
+            <Plus className="size-4" /> Create Feature Flag
+          </button>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {flags.map((flag) => {
+            const isKillswitchOff = !flag.isActive;
+            return (
+              <div
+                key={flag._id}
+                className="rounded-2xl border border-base-200 bg-base-100 p-5 shadow-sm transition-all"
+              >
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded">
+                        {flag.key}
+                      </span>
+                      <h3 className="font-bold text-base-content text-base">{flag.name}</h3>
+                      {flag.isActive ? (
+                        <span className="badge badge-success badge-sm">Active</span>
+                      ) : (
+                        <span className="badge badge-error badge-sm">Disabled (Killswitch)</span>
+                      )}
+                    </div>
+                    {flag.description && (
+                      <p className="text-sm text-base-content/70">{flag.description}</p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end lg:self-start">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateMutation.mutate({
+                          id: flag._id,
+                          updates: { isActive: !flag.isActive },
+                        })
+                      }
+                      className={`btn btn-sm gap-2 ${flag.isActive ? "btn-outline btn-error" : "btn-success"}`}
+                      title="Killswitch Toggle"
+                    >
+                      {flag.isActive ? <ToggleRight className="size-4" /> : <ToggleLeft className="size-4" />}
+                      {flag.isActive ? "Killswitch / Disable" : "Enable"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm(`Are you sure you want to permanently delete flag "${flag.key}"?`)) {
+                          deleteMutation.mutate(flag._id);
+                        }
+                      }}
+                      className="btn btn-ghost btn-sm text-error"
+                      title="Delete Flag"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Rollout Percentage Controls */}
+                <div className="mt-5 rounded-xl bg-base-200/50 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Sliders className="size-4 text-primary" />
+                      <span className="text-sm font-semibold text-base-content">Deterministic Rollout:</span>
+                      <span className="text-sm font-bold text-primary font-mono">{flag.rolloutPercentage}%</span>
+                    </div>
+                    <div className="flex gap-1.5">
+                      {[0, 10, 25, 50, 100].map((pct) => (
+                        <button
+                          key={pct}
+                          type="button"
+                          onClick={() =>
+                            updateMutation.mutate({
+                              id: flag._id,
+                              updates: { rolloutPercentage: pct },
+                            })
+                          }
+                          className={`btn btn-xs ${flag.rolloutPercentage === pct ? "btn-primary" : "btn-ghost"}`}
+                        >
+                          {pct}%
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={flag.rolloutPercentage}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      updateMutation.mutate({
+                        id: flag._id,
+                        updates: { rolloutPercentage: val },
+                      });
+                    }}
+                    className="range range-primary range-sm w-full"
+                    disabled={isKillswitchOff}
+                  />
+                  <div className="mt-1 flex justify-between text-[11px] text-base-content/50">
+                    <span>0% (Whitelisted only)</span>
+                    <span>25%</span>
+                    <span>50%</span>
+                    <span>75%</span>
+                    <span>100% (All users)</span>
+                  </div>
+                </div>
+
+                {/* Explicit Whitelist Section */}
+                <div className="mt-4 pt-3 border-t border-base-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Users className="size-4 text-base-content/70" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-base-content/70">
+                        Explicit User Whitelist ({(flag.enabledUserIds || []).length})
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setWhitelistTargetFlag(flag)}
+                      className="btn btn-ghost btn-xs text-primary gap-1"
+                    >
+                      <Plus className="size-3" /> Add Specific User
+                    </button>
+                  </div>
+
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    {(flag.enabledUserIds || []).length === 0 ? (
+                      <span className="text-xs text-base-content/50 italic">
+                        No specific users whitelisted. Access is determined purely by rollout percentage and roles.
+                      </span>
+                    ) : (
+                      flag.enabledUserIds.map((u) => {
+                        const userId = typeof u === "object" ? u._id : u;
+                        const label = typeof u === "object" ? (u.fullName || u.email || userId) : userId;
+                        return (
+                          <span
+                            key={userId}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-base-200 px-3 py-1 text-xs font-medium text-base-content"
+                          >
+                            <UserAvatar
+                              src={typeof u === "object" ? u.profilePic : null}
+                              name={label}
+                              className="size-4 rounded-full"
+                            />
+                            <span>{label}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeWhitelistedUser(flag, userId)}
+                              className="text-base-content/50 hover:text-error ml-0.5"
+                            >
+                              <X className="size-3" />
+                            </button>
+                          </span>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Whitelist User Modal */}
+      {whitelistTargetFlag && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-base-100 p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-base-content">
+                Whitelist User for {whitelistTargetFlag.name}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setWhitelistTargetFlag(null)}
+                className="btn btn-ghost btn-sm btn-circle"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <p className="text-xs text-base-content/70">
+              Users added here will ALWAYS have access to this feature, even if the rollout percentage is set to 0%.
+            </p>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!userSearchQuery.trim()) return;
+                whitelistMutation.mutate({
+                  id: whitelistTargetFlag._id,
+                  userIdentifier: userSearchQuery.trim(),
+                });
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                  User Email or MongoDB ID
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. tester@example.com or 64f1..."
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    className="input input-bordered w-full pr-10"
+                  />
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-base-content/40" />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setWhitelistTargetFlag(null)}
+                  className="btn btn-ghost btn-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={whitelistMutation.isPending || !userSearchQuery.trim()}
+                  className="btn btn-primary btn-sm gap-2"
+                >
+                  {whitelistMutation.isPending && <Loader2 className="size-3 animate-spin" />}
+                  Add User
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Flag Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-base-100 p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-base-content">Create Feature Flag</h3>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="btn btn-ghost btn-sm btn-circle"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                createMutation.mutate(newFlag);
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                  Unique Key (snake_case)
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. ai_property_valuation"
+                  value={newFlag.key}
+                  onChange={(e) =>
+                    setNewFlag((prev) => ({
+                      ...prev,
+                      key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_"),
+                    }))
+                  }
+                  className="input input-bordered w-full font-mono text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                  Display Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. AI Property Valuation"
+                  value={newFlag.name}
+                  onChange={(e) => setNewFlag((prev) => ({ ...prev, name: e.target.value }))}
+                  className="input input-bordered w-full text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                  Description
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Briefly describe what this feature does..."
+                  value={newFlag.description}
+                  onChange={(e) => setNewFlag((prev) => ({ ...prev, description: e.target.value }))}
+                  className="textarea textarea-bordered w-full text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                  Initial Rollout Percentage ({newFlag.rolloutPercentage}%)
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={newFlag.rolloutPercentage}
+                  onChange={(e) =>
+                    setNewFlag((prev) => ({ ...prev, rolloutPercentage: Number(e.target.value) }))
+                  }
+                  className="range range-primary range-sm w-full"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="btn btn-ghost btn-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createMutation.isPending || !newFlag.key.trim() || !newFlag.name.trim()}
+                  className="btn btn-primary btn-sm gap-2"
+                >
+                  {createMutation.isPending && <Loader2 className="size-3 animate-spin" />}
+                  Create Flag
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("users");
 
   return (
     <AppShell title="Admin" subtitle="Manage platform users and marketplace posts.">
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => setActiveTab("users")}
@@ -2390,6 +2872,15 @@ export default function AdminPage() {
         >
           <ShieldCheck className="size-4" /> Verification
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("feature-flags")}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+            activeTab === "feature-flags" ? "bg-primary text-white" : "bg-base-200 text-base-content/70 hover:bg-base-300"
+          }`}
+        >
+          <Flag className="size-4" /> Feature Flags
+        </button>
       </div>
 
       {activeTab === "users" ? (
@@ -2404,6 +2895,8 @@ export default function AdminPage() {
         <DealsPanel />
       ) : activeTab === "verification" ? (
         <VerificationPanel />
+      ) : activeTab === "feature-flags" ? (
+        <FeatureFlagsPanel />
       ) : (
         <AnnouncementsPanel />
       )}
