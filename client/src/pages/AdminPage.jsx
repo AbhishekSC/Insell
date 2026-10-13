@@ -2345,11 +2345,16 @@ function FeatureFlagsPanel() {
     isActive: true,
   });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["adminFeatureFlags"],
     queryFn: async () => {
-      const res = await axiosInstance.get("/admin/feature-flags");
-      return res.data?.data?.flags || [];
+      try {
+        const res = await axiosInstance.get("/admin/feature-flags");
+        return res.data?.data?.flags || [];
+      } catch (err) {
+        toast.error(err?.response?.data?.message || "Failed to load feature flags");
+        throw err;
+      }
     },
   });
 
@@ -2449,6 +2454,19 @@ function FeatureFlagsPanel() {
       {isLoading ? (
         <div className="flex items-center justify-center p-12">
           <Loader2 className="size-8 animate-spin text-primary" />
+        </div>
+      ) : isError ? (
+        <div className="rounded-2xl border border-error/20 bg-error/5 p-8 text-center">
+          <p className="text-sm font-semibold text-error">
+            Failed to load feature flags: {error?.response?.data?.message || error?.message || "Unknown error"}
+          </p>
+          <button
+            type="button"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["adminFeatureFlags"] })}
+            className="btn btn-sm btn-outline btn-error mt-3"
+          >
+            Retry
+          </button>
         </div>
       ) : flags.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-base-300 p-12 text-center">
