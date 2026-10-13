@@ -42,6 +42,7 @@ import BoostPropertyModal from "../components/BoostPropertyModal";
 import ShareModal from "../components/ShareModal";
 import NeighbourhoodSummary from "../components/NeighbourhoodSummary";
 import NeighborhoodVibeCard from "../components/NeighborhoodVibeCard";
+import AiValuationCard from "../components/AiValuationCard";
 import { useFeatureFlag } from "../context/FeatureFlagContext";
 import AmenitiesModal from "../components/AmenitiesModal";
 import PriceAlertButton from "../components/PriceAlertButton";
@@ -189,6 +190,7 @@ export default function PropertyDetailPage() {
   const [showAllOffers, setShowAllOffers] = useState(false);
   const [showBoostModal, setShowBoostModal] = useState(false);
   const isNeighborhoodVibeEnabled = useFeatureFlag("neighborhood_vibe_score");
+  const isAiValuationEnabled = useFeatureFlag("ai_property_valuation");
 
   const { data: authData } = useQuery({
     queryKey: ["authUser"],
@@ -816,6 +818,15 @@ export default function PropertyDetailPage() {
                     {wasEdited && <p className="text-xs text-base-content/50">Edited {relativeDate(postData.updatedAt)}</p>}
                   </div>
                 </div>
+
+                {isAiValuationEnabled && postData.price > 0 && (
+                  <AiValuationCard
+                    price={postData.price}
+                    propertyType={postData.propertyType}
+                    locality={postData.locality}
+                    city={postData.city}
+                  />
+                )}
 
                 <div className="flex items-center gap-2 flex-wrap mt-6">
                   <button
