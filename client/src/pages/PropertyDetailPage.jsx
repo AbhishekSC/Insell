@@ -140,7 +140,7 @@ function getListingBadge(post) {
 
 function Section({ title, icon: Icon, children }) {
   return (
-    <div className="bg-base-100 rounded-2xl shadow-sm border border-base-300 p-6 md:p-8">
+    <div className="bg-base-100 rounded-2xl shadow-sm border border-base-300 p-4 sm:p-6 md:p-8">
       {title ? (
         <h2 className="text-xl font-semibold text-base-content mb-6 flex items-center gap-2">
           {Icon ? <Icon className="size-5 text-primary" /> : null}
@@ -765,39 +765,39 @@ export default function PropertyDetailPage() {
             <div className="lg:col-span-3 space-y-6">
               {/* Core Information */}
               <Section>
-                <div className="flex items-start justify-between flex-wrap gap-4">
-                  <div className="flex-1 min-w-[240px]">
-                    <div className="flex items-center gap-3 mb-3 flex-wrap">
-                      <h1 className="text-3xl md:text-4xl font-bold text-base-content">{postData.title || "Property Listing"}</h1>
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${postData.status === "PUBLISHED" ? "bg-success/15 text-success" : "bg-base-200 text-base-content/70"}`}>
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3 flex-wrap">
+                      <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-base-content break-words">{postData.title || "Property Listing"}</h1>
+                      <span className={`rounded-full px-2.5 py-0.5 sm:px-3 sm:py-1 text-xs font-semibold ${postData.status === "PUBLISHED" ? "bg-success/15 text-success" : "bg-base-200 text-base-content/70"}`}>
                         {titleCase(postData.status) || "Active"}
                       </span>
                       {postData.visibility === "PRIVATE" && (
-                        <span className="rounded-full bg-neutral px-3 py-1 text-xs font-semibold text-white">Private</span>
+                        <span className="rounded-full bg-neutral px-2.5 py-0.5 text-xs font-semibold text-white">Private</span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-base-content/70 flex-wrap">
-                      <MapPin className="size-5 text-primary" />
-                      <span className="text-lg">
+                    <div className="flex items-center gap-2 sm:gap-3 text-base-content/70 flex-wrap text-sm sm:text-base">
+                      <MapPin className="size-4 sm:size-5 text-primary shrink-0" />
+                      <span className="break-words">
                         {[postData.locality, postData.city].filter(Boolean).join(", ") || "Location not specified"}
                       </span>
                       {latitude && longitude && (
                         <button
                           type="button"
                           onClick={() => navigate(`/map-view?propertyId=${postData._id}`)}
-                          className="flex items-center gap-1 text-primary text-sm hover:underline"
+                          className="flex items-center gap-1 text-primary text-xs sm:text-sm hover:underline"
                         >
                           <span className="size-2 rounded-full bg-primary"></span>
                           <span>Live Location</span>
                         </button>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 mt-3 flex-wrap">
-                      <span className="rounded-full bg-base-200 px-2.5 py-1 text-xs font-medium text-base-content/70">
-                        {titleCase(postData.postType)}
+                    <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                      <span className="rounded-full bg-base-200 px-2.5 py-0.5 text-xs font-medium text-base-content/70">
+                        {String(postData.listingType || "").toLowerCase() === "rent" || postData.postType === "PROPERTY_RENT" ? "For Rent" : titleCase(postData.postType)}
                       </span>
                       {isOwner && (
-                        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
                           Your listing
                         </span>
                       )}
@@ -805,29 +805,32 @@ export default function PropertyDetailPage() {
                     {allSignalBadges.length > 0 && (
                       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                         {allSignalBadges.map((s) => (
-                          <span key={s.key} className={`rounded-full px-2.5 py-1 text-xs font-semibold ${toneClass(s.tone)}`}>
+                          <span key={s.key} className={`rounded-full px-2 py-0.5 text-[11px] sm:text-xs font-semibold ${toneClass(s.tone)}`}>
                             {s.label}
                           </span>
                         ))}
                       </div>
                     )}
                   </div>
-                  <div className="text-right">
-                    <p className="text-3xl md:text-4xl font-bold text-primary">{formatMoney(postData.price)}</p>
-                    <p className="text-sm text-base-content/60 mt-1">Posted {relativeDate(postData.createdAt)}</p>
-                    {wasEdited && <p className="text-xs text-base-content/50">Edited {relativeDate(postData.updatedAt)}</p>}
+                  <div className="text-left sm:text-right shrink-0">
+                    <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary">{formatMoney(postData.price)}</p>
+                    <p className="text-xs sm:text-sm text-base-content/60 mt-0.5">Posted {relativeDate(postData.createdAt)}</p>
+                    {wasEdited && <p className="text-[11px] sm:text-xs text-base-content/50">Edited {relativeDate(postData.updatedAt)}</p>}
+                    {isAiValuationEnabled && postData.price > 0 && (
+                      <div className="mt-2 flex justify-start sm:justify-end">
+                        <AiValuationCard
+                          postId={postData._id}
+                          price={postData.price}
+                          propertyType={postData.propertyType}
+                          locality={postData.locality}
+                          city={postData.city}
+                          listingType={postData.listingType}
+                          postType={postData.postType}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
-
-                {isAiValuationEnabled && postData.price > 0 && (
-                  <AiValuationCard
-                    postId={postData._id}
-                    price={postData.price}
-                    propertyType={postData.propertyType}
-                    locality={postData.locality}
-                    city={postData.city}
-                  />
-                )}
 
                 <div className="flex items-center gap-2 flex-wrap mt-6">
                   <button
