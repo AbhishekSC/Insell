@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import PropertyPost from "../models/PropertyPost.model.js";
 import { logger } from "../utils/logger.js";
+import { getOrFetchMarketBenchmark } from "../services/marketPriceScraper.service.js";
 
 /**
  * Sanity bounds for price per sq.ft to protect against corrupt listings.
@@ -28,7 +29,24 @@ function computeAverage(values) {
 export function getListingIntent(post) {
   const lt = String(post?.listingType || "").toLowerCase();
   const pt = String(post?.postType || "").toUpperCase();
-  return lt === "rent" || lt === "lease" || pt === "PROPERTY_RENT" || pt === "REQUIREMENT_RENT" ? "rent" : "buy";
+  const title = String(post?.title || "").toLowerCase();
+
+  // Explicit listingType takes highest priority
+  if (lt === "rent" || lt === "lease") return "rent";
+  if (lt === "sell" || lt === "buy") return "buy";
+
+  // Title keywords
+  if (/\b(rent|rental|to-let|lease|pg)\b/i.test(title)) return "rent";
+
+  // PostType defaults
+  if (pt === "PROPERTY_RENT" || pt === "REQUIREMENT_RENT") return "rent";
+  if (pt === "PROPERTY_SALE" || pt === "REQUIREMENT_BUY") return "buy";
+
+  // Price heuristic fallback
+  const price = Number(post?.price) || 0;
+  if (price >= 1000000) return "buy";
+
+  return "buy";
 }
 
 /**
@@ -66,7 +84,7 @@ export async function calculateLivePropertyValuation(post) {
     return { available: false, reason: "Listing price not specified" };
   }
 
-  const cacheKey = `valuation:live:${post._id || "anon"}:${subjectPrice}:${subjectArea}:${intent}`;
+  const cacheKey = `valuation:v2:${post._id || "anon"}:${subjectPrice}:${subjectArea}:${intent}`;
   try {
     const cached = await redisClient.get(cacheKey);
     if (cached) return JSON.parse(cached);
@@ -199,16 +217,108 @@ export async function calculateLivePropertyValuation(post) {
     }
   }
 
+  // Filter comps for area compatibility if subject property has a defined area
+  if (subjectArea > 0 && comps.length > 0) {
+    const areaCompatibleComps = comps.filter((c) => {
+      const cArea = Number(c.areaSqft) || Number(c.postMeta?.commercial?.carpetArea) || 0;
+      if (cArea <= 0) return false;
+      const ratio = cArea / subjectArea;
+      return ratio >= 0.2 && ratio <= 5.0;
+    });
+    if (areaCompatibleComps.length >= 2) {
+      comps = areaCompatibleComps;
+    }
+  }
+
   // Extract real valid psfs from matched comps
-  const validCompPsfs = comps
+  let validCompPsfs = comps
     .map((c) => extractValidPsf(c, intent))
     .filter((psf) => psf > 0);
+
+  // Prune extreme outliers if 3+ comps exist (> 3x median or < 0.3x median)
+  if (validCompPsfs.length >= 3) {
+    const tempMedian = computeMedian(validCompPsfs);
+    if (tempMedian > 0) {
+      const pruned = validCompPsfs.filter((psf) => psf <= tempMedian * 3.2 && psf >= tempMedian * 0.3);
+      if (pruned.length >= 2) {
+        validCompPsfs = pruned;
+      }
+    }
+  }
 
   const compCount = validCompPsfs.length;
 
   if (compCount === 0) {
-    // When no comps exist yet in the database for this market,
-    // establish a conservative baseline around listed price rather than hardcoding static city constants.
+    // 1. Attempt to retrieve real-world market pricing benchmark from Google Serper search snippets
+    let benchmark = null;
+    try {
+      benchmark = await getOrFetchMarketBenchmark({
+        city: post.city,
+        locality: post.locality,
+        intent,
+        propertyType: post.propertyType,
+      });
+    } catch (err) {
+      logger.warn("Benchmark fallback lookup failed (non-fatal):", err?.message);
+    }
+
+    if (benchmark && benchmark.avgPsf > 0) {
+      const estimatedBasePrice = subjectArea > 0
+        ? Math.round(benchmark.avgPsf * subjectArea)
+        : subjectPrice;
+      const fairMin = subjectArea > 0
+        ? Math.round(benchmark.minPsf * subjectArea * 0.95)
+        : Math.round(subjectPrice * 0.93);
+      const fairMax = subjectArea > 0
+        ? Math.round(benchmark.maxPsf * subjectArea * 1.05)
+        : Math.round(subjectPrice * 1.07);
+
+      const deltaPct = Math.round(((subjectPrice - estimatedBasePrice) / estimatedBasePrice) * 100);
+
+      let dealIndex = "Fair Market Price";
+      let dealTone = "fair";
+      if (deltaPct <= -8) {
+        dealIndex = "Great Deal (Under Market)";
+        dealTone = "good";
+      } else if (deltaPct >= 10) {
+        dealIndex = "Premium (Above Market)";
+        dealTone = "premium";
+      }
+
+      const sourcesStr = (benchmark.topSources && benchmark.topSources.length > 0)
+        ? benchmark.topSources.join(", ")
+        : "99acres & Magicbricks";
+
+      const result = {
+        available: true,
+        hasLiveComps: false,
+        compCount: benchmark.sampleCount || 0,
+        compScope: "serper_market_benchmark",
+        confidenceScore: 85,
+        confidenceLabel: "Market Benchmark",
+        marketAverageSqft: Math.round(benchmark.avgPsf),
+        subjectPricePerSqft: Math.round(subjectPsf),
+        fairMin,
+        fairMax,
+        dealIndex,
+        dealTone,
+        deltaPct,
+        intent,
+        period: intent === "rent" ? "/mo" : "",
+        expectedLabel: intent === "rent" ? "Expected Rent" : "Expected Price",
+        locationLabel: post.locality || post.city || "this location",
+        summary: `Derived from live market price trends for ${post.locality || post.city || "this area"} (aggregated from ${sourcesStr}).`,
+      };
+
+      try {
+        await redisClient.setEx(cacheKey, 600, JSON.stringify(result));
+      } catch {
+        // ignore
+      }
+      return result;
+    }
+
+    // 2. Fallback to conservative mathematical baseline if external search data is unavailable
     const fairMin = Math.round(subjectPrice * 0.94);
     const fairMax = Math.round(subjectPrice * 1.05);
     const result = {
@@ -225,6 +335,9 @@ export async function calculateLivePropertyValuation(post) {
       dealIndex: "Fair Market Price",
       dealTone: "fair",
       deltaPct: 0,
+      intent,
+      period: intent === "rent" ? "/mo" : "",
+      expectedLabel: intent === "rent" ? "Expected Rent" : "Expected Price",
       locationLabel: post.locality || post.city || "this location",
       summary: `Automated baseline valuation based on listing specifications in ${post.locality || post.city || "this location"}.`,
     };
@@ -304,6 +417,9 @@ export async function calculateLivePropertyValuation(post) {
     dealIndex,
     dealTone,
     deltaPct,
+    intent,
+    period: intent === "rent" ? "/mo" : "",
+    expectedLabel: intent === "rent" ? "Expected Rent" : "Expected Price",
     locationLabel,
     summary: `Automated model trained on ${compCount} live verified comparables ${locationLabel}.`,
   };
