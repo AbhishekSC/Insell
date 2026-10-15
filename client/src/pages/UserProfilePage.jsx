@@ -30,8 +30,10 @@ import {
   UserRoundPlus,
   X,
   Zap,
+  Megaphone,
 } from "lucide-react";
 import BoostPropertyModal from "../components/BoostPropertyModal";
+import AdToolsModal from "../components/AdToolsModal";
 import ShareModal from "../components/ShareModal";
 import ReportPostModal from "../components/ReportPostModal";
 import { getCustomBadgeClasses } from "../lib/badgeColors";
@@ -239,6 +241,8 @@ export default function UserProfilePage() {
   const isOwnProfile = relationship.isSelf;
 
   const [boostTargetPost, setBoostTargetPost] = useState(null);
+  const [adToolsOpen, setAdToolsOpen] = useState(false);
+  const [adToolsPost, setAdToolsPost] = useState(null);
   const { data: referralData } = useQuery({
     queryKey: ["referralInfo"],
     queryFn: async () => {
@@ -571,6 +575,17 @@ export default function UserProfilePage() {
           </Link>
           <button
             type="button"
+            onClick={() => {
+              setAdToolsPost(null);
+              setAdToolsOpen(true);
+            }}
+            className={`btn btn-xs h-8 whitespace-nowrap rounded-full border border-primary/30 bg-primary/10 text-xs font-bold text-primary hover:bg-primary hover:text-white ${buttonClass}`}
+          >
+            <Megaphone className="size-3.5" />
+            Ad Tools
+          </button>
+          <button
+            type="button"
             onClick={shareProfile}
             className={`btn btn-xs h-8 whitespace-nowrap rounded-full border border-base-300 bg-base-100 text-xs font-medium text-base-content hover:bg-base-200 ${buttonClass}`}
           >
@@ -860,16 +875,27 @@ export default function UserProfilePage() {
                           {referralData?.credits ?? 0} Referral {(referralData?.credits ?? 0) === 1 ? "Coin" : "Coins"} Available
                         </span>
                         <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-bold text-amber-900 border border-amber-300 uppercase tracking-wide">
-                          1 Coin = 1 Boost (24h)
+                          4 Coins = ₹0.40 • 65 Coins/Invite
                         </span>
                       </div>
                       <p className="mt-0.5 text-xs text-amber-900/80 font-medium">
-                        Boost your listings for priority placement or invite friends to earn free coins!
+                        Promote your properties with sponsored feed ads or boost listings for 24h!
                       </p>
                     </div>
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAdToolsPost(null);
+                        setAdToolsOpen(true);
+                      }}
+                      className="flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-bold text-white hover:bg-primary/90 shadow-xs transition-colors"
+                    >
+                      <Megaphone className="size-3.5" />
+                      Ad Tools
+                    </button>
                     <Link
                       to="/profile"
                       className="flex items-center gap-1.5 rounded-xl border border-amber-400/80 bg-white/90 px-3.5 py-2 text-xs font-bold text-amber-950 hover:bg-white shadow-xs transition-colors"
@@ -1019,6 +1045,10 @@ export default function UserProfilePage() {
                                 post={post}
                                 isOwnPost={isOwnProfile}
                                 onBoost={(p) => setBoostTargetPost(p)}
+                                onPromote={(p) => {
+                                  setAdToolsPost(p);
+                                  setAdToolsOpen(true);
+                                }}
                                 media={media}
                                 onDoubleClickMedia={handleDoubleClickMedia}                                mediaOverlay={
                                   likedBurstPostId === post._id ? (
@@ -2043,6 +2073,15 @@ export default function UserProfilePage() {
         isOpen={Boolean(boostTargetPost)}
         post={boostTargetPost}
         onClose={() => setBoostTargetPost(null)}
+      />
+
+      <AdToolsModal
+        isOpen={adToolsOpen}
+        preselectedPost={adToolsPost}
+        onClose={() => {
+          setAdToolsOpen(false);
+          setAdToolsPost(null);
+        }}
       />
     </AppShell>
   );

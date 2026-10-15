@@ -54,8 +54,8 @@ export default function ReferralCard() {
       </div>
 
       <p className="text-sm text-base-content/70">
-        Share your link — when a friend joins and verifies their account, you both earn 1 coin to
-        boost your property listings for 24 hours with priority feed placement!
+        Share your link — when a friend joins and verifies their account, you both earn 65 Coins
+        (worth ₹6.50) to promote your properties with sponsored feed ads and boosts!
       </p>
 
       <div className="mt-4 flex items-center gap-2 rounded-xl border border-base-300 bg-base-200 px-3 py-2">
@@ -75,10 +75,10 @@ export default function ReferralCard() {
           <div className="flex items-baseline gap-1">
             <p className="text-2xl font-black text-primary">{data?.credits ?? 0}</p>
             <span className="text-xs font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-md">
-              1 Coin = 1 Boost
+              4 Coins = ₹0.40
             </span>
           </div>
-          <p className="text-xs text-base-content/55">coin{data?.credits === 1 ? "" : "s"} available</p>
+          <p className="text-xs text-base-content/55">coins available (≈ ₹{((data?.credits ?? 0) * 0.1).toFixed(2)})</p>
         </div>
         <div className="flex items-center gap-1.5 text-sm text-base-content/60">
           <Users className="size-4" />
