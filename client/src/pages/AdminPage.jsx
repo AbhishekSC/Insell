@@ -3,9 +3,11 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  BarChart3,
   ChevronLeft,
   ChevronRight,
   Download,
+  ExternalLink,
   Eye,
   FileText,
   Flag,
@@ -15,12 +17,15 @@ import {
   Megaphone,
   MessageSquareWarning,
   MoreVertical,
+  MousePointerClick,
+  Pencil,
   Plus,
   Search,
   ShieldAlert,
   ShieldCheck,
   ShieldOff,
   Sliders,
+  Sparkles,
   ToggleLeft,
   ToggleRight,
   Trash2,
@@ -2827,6 +2832,733 @@ function FeatureFlagsPanel() {
   );
 }
 
+function AdvertisementsPanel() {
+  const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [editingAd, setEditingAd] = useState(null);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    mediaUrl: "",
+    ctaText: "Learn More",
+    targetUrl: "",
+    badgeText: "Sponsored",
+    companyName: "",
+    targetCity: "",
+    targetIntent: "All",
+    status: "active",
+    frequencyCap: 3,
+    startDate: new Date().toISOString().split("T")[0],
+    endDate: "",
+  });
+
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ["adminAdvertisements", page, statusFilter, search],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/admin/advertisements", {
+        params: {
+          page,
+          limit: 9,
+          status: statusFilter !== "all" ? statusFilter : undefined,
+          search: search.trim() || undefined,
+        },
+      });
+      return response.data?.data;
+    },
+    placeholderData: keepPreviousData,
+  });
+
+  const advertisements = data?.advertisements || [];
+  const pagination = data?.pagination || { page: 1, totalPages: 1, total: 0 };
+
+  // Image upload mutation
+  const { mutate: uploadImage, isPending: isUploadingImage } = useMutation({
+    mutationFn: async (file) => {
+      const form = new FormData();
+      form.append("image", file);
+      const response = await axiosInstance.post("/admin/advertisements/upload-image", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data?.data;
+    },
+    onSuccess: (result) => {
+      setFormData((prev) => ({ ...prev, mediaUrl: result.url }));
+      toast.success("Banner image uploaded successfully");
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Failed to upload banner image");
+    },
+  });
+
+  // Create / Update mutation
+  const { mutate: saveAd, isPending: isSaving } = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        mediaUrl: formData.mediaUrl.trim(),
+        ctaText: formData.ctaText.trim() || "Learn More",
+        targetUrl: formData.targetUrl.trim(),
+        badgeText: formData.badgeText.trim() || "Sponsored",
+        companyName: formData.companyName.trim(),
+        targetCity: formData.targetCity.trim(),
+        targetIntent: formData.targetIntent,
+        status: formData.status,
+        frequencyCap: Math.max(1, Math.min(50, Number(formData.frequencyCap) || 3)),
+        startDate: formData.startDate ? new Date(formData.startDate) : undefined,
+        endDate: formData.endDate ? new Date(formData.endDate) : null,
+      };
+
+      if (editingAd) {
+        const response = await axiosInstance.patch(`/admin/advertisements/${editingAd._id}`, payload);
+        return response.data?.data;
+      }
+      const response = await axiosInstance.post("/admin/advertisements", payload);
+      return response.data?.data;
+    },
+    onSuccess: () => {
+      toast.success(editingAd ? "Advertisement updated" : "Advertisement campaign created!");
+      setShowModal(false);
+      setEditingAd(null);
+      queryClient.invalidateQueries({ queryKey: ["adminAdvertisements"] });
+      queryClient.invalidateQueries({ queryKey: ["activeAdvertisements"] });
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Failed to save advertisement");
+    },
+  });
+
+  // Toggle active/paused
+  const { mutate: toggleStatus } = useMutation({
+    mutationFn: async ({ id, newStatus }) => {
+      const response = await axiosInstance.patch(`/admin/advertisements/${id}`, { status: newStatus });
+      return response.data?.data;
+    },
+    onSuccess: (_, vars) => {
+      toast.success(`Campaign marked as ${vars.newStatus}`);
+      queryClient.invalidateQueries({ queryKey: ["adminAdvertisements"] });
+      queryClient.invalidateQueries({ queryKey: ["activeAdvertisements"] });
+    },
+    onError: () => toast.error("Failed to update status"),
+  });
+
+  // Delete mutation
+  const { mutate: deleteAd } = useMutation({
+    mutationFn: async (id) => {
+      const response = await axiosInstance.delete(`/admin/advertisements/${id}`);
+      return response.data?.data;
+    },
+    onSuccess: () => {
+      toast.success("Campaign deleted");
+      queryClient.invalidateQueries({ queryKey: ["adminAdvertisements"] });
+      queryClient.invalidateQueries({ queryKey: ["activeAdvertisements"] });
+    },
+    onError: () => toast.error("Failed to delete campaign"),
+  });
+
+  const handleOpenCreate = () => {
+    setEditingAd(null);
+    setFormData({
+      title: "",
+      description: "",
+      mediaUrl: "",
+      ctaText: "Learn More",
+      targetUrl: "",
+      badgeText: "Sponsored",
+      companyName: "",
+      targetCity: "",
+      targetIntent: "All",
+      status: "active",
+      frequencyCap: 3,
+      startDate: new Date().toISOString().split("T")[0],
+      endDate: "",
+    });
+    setShowModal(true);
+  };
+
+  const handleOpenEdit = (ad) => {
+    setEditingAd(ad);
+    setFormData({
+      title: ad.title || "",
+      description: ad.description || "",
+      mediaUrl: ad.mediaUrl || "",
+      ctaText: ad.ctaText || "Learn More",
+      targetUrl: ad.targetUrl || "",
+      badgeText: ad.badgeText || "Sponsored",
+      companyName: ad.companyName || "",
+      targetCity: ad.targetCity || "",
+      targetIntent: ad.targetIntent || "All",
+      status: ad.status || "active",
+      frequencyCap: ad.frequencyCap || 3,
+      startDate: ad.startDate ? new Date(ad.startDate).toISOString().split("T")[0] : "",
+      endDate: ad.endDate ? new Date(ad.endDate).toISOString().split("T")[0] : "",
+    });
+    setShowModal(true);
+  };
+
+  const handleDeletePrompt = (id, title) => {
+    if (window.confirm(`Are you sure you want to delete campaign "${title}"?`)) {
+      deleteAd(id);
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Top Banner & Action */}
+      <div className="flex flex-col gap-4 rounded-2xl border border-base-300 bg-base-100 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div className="flex items-center gap-3">
+          <div className="grid size-11 place-items-center rounded-xl bg-primary/15 text-primary">
+            <Sparkles className="size-5" />
+          </div>
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-base-content">
+              Advertisements & Sponsored Campaigns
+            </h2>
+            <p className="text-xs text-base-content/60">
+              Create and manage native sponsored ad cards interleaved into the marketplace feed.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleOpenCreate}
+          className="btn btn-primary btn-sm gap-2 shrink-0 shadow-sm"
+        >
+          <Plus className="size-4" />
+          <span>New Campaign</span>
+        </button>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-1.5">
+          {["all", "active", "paused", "draft"].map((st) => (
+            <button
+              key={st}
+              type="button"
+              onClick={() => {
+                setStatusFilter(st);
+                setPage(1);
+              }}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
+                statusFilter === st
+                  ? "bg-primary text-white"
+                  : "bg-base-200 text-base-content/70 hover:bg-base-300"
+              }`}
+            >
+              {st}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-base-content/40" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search campaigns..."
+            className="input input-sm input-bordered w-full pl-9 text-xs"
+          />
+        </div>
+      </div>
+
+      {/* Campaign Cards List */}
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="size-8 animate-spin text-primary" />
+        </div>
+      ) : advertisements.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-base-300 bg-base-100 p-12 text-center">
+          <Megaphone className="mx-auto size-10 text-base-content/30" />
+          <h3 className="mt-3 text-sm font-semibold text-base-content">No campaigns found</h3>
+          <p className="mt-1 text-xs text-base-content/60">
+            Create your first sponsored campaign to feature developer projects or announcements in the feed.
+          </p>
+          <button
+            type="button"
+            onClick={handleOpenCreate}
+            className="btn btn-primary btn-sm mt-4 gap-2"
+          >
+            <Plus className="size-4" />
+            <span>Create Campaign</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {advertisements.map((ad) => {
+            const isActive = ad.status === "active";
+            const impressions = ad.impressionsCount || 0;
+            const clicks = ad.clicksCount || 0;
+            const ctr = ad.ctr != null ? ad.ctr : impressions > 0 ? ((clicks / impressions) * 100).toFixed(2) : 0;
+
+            return (
+              <div
+                key={ad._id}
+                className="flex flex-col justify-between overflow-hidden rounded-2xl border border-base-300 bg-base-100 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+              >
+                <div>
+                  {/* Image banner preview */}
+                  <div className="relative aspect-[16/9] w-full overflow-hidden bg-base-200">
+                    {ad.mediaUrl ? (
+                      <img
+                        src={ad.mediaUrl}
+                        alt={ad.title}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center bg-base-300">
+                        <ImageIcon className="size-8 text-base-content/30" />
+                      </div>
+                    )}
+
+                    <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                          isActive
+                            ? "bg-emerald-500 text-white"
+                            : ad.status === "paused"
+                              ? "bg-amber-500 text-white"
+                              : "bg-gray-500 text-white"
+                        }`}
+                      >
+                        {ad.status}
+                      </span>
+                      <span className="rounded-full bg-black/60 backdrop-blur px-2 py-0.5 text-[10px] font-medium text-white">
+                        {ad.badgeText || "Sponsored"}
+                      </span>
+                    </div>
+
+                    {ad.targetCity && (
+                      <div className="absolute top-2.5 right-2.5">
+                        <span className="rounded-full bg-base-100/90 backdrop-blur px-2 py-0.5 text-[10px] font-semibold text-base-content shadow">
+                          {ad.targetCity}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Body Info */}
+                  <div className="p-4">
+                    <div className="flex items-center justify-between text-xs text-base-content/60">
+                      <span>{ad.companyName || "Partner"}</span>
+                      <span>Intent: {ad.targetIntent || "All"}</span>
+                    </div>
+
+                    <h3 className="mt-1.5 font-bold text-base-content text-sm sm:text-base line-clamp-1">
+                      {ad.title}
+                    </h3>
+                    <p className="mt-1 text-xs text-base-content/70 line-clamp-2 leading-relaxed">
+                      {ad.description}
+                    </p>
+
+                    {/* Schedule Date Badge */}
+                    <div className="mt-2 flex items-center justify-between text-[11px] text-base-content/60">
+                      <span>Schedule:</span>
+                      <span className="font-medium text-base-content/80">
+                        {ad.startDate ? new Date(ad.startDate).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "Immediate"}
+                        {ad.endDate ? ` → ${new Date(ad.endDate).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}` : " (Ongoing)"}
+                      </span>
+                    </div>
+
+                    {/* Analytics Summary */}
+                    <div className="mt-3 grid grid-cols-3 gap-1.5 rounded-xl bg-base-200/60 p-2 text-center text-xs">
+                      <div>
+                        <div className="flex items-center justify-center gap-1 text-[11px] text-base-content/60">
+                          <Eye className="size-3" />
+                          <span>Views</span>
+                        </div>
+                        <span className="font-bold text-base-content">{impressions.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-center gap-1 text-[11px] text-base-content/60">
+                          <MousePointerClick className="size-3" />
+                          <span>Clicks</span>
+                        </div>
+                        <span className="font-bold text-base-content">{clicks.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-center gap-1 text-[11px] text-base-content/60">
+                          <BarChart3 className="size-3" />
+                          <span>CTR</span>
+                        </div>
+                        <span className="font-bold text-primary">{ctr}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Controls */}
+                <div className="flex items-center justify-between border-t border-base-200 bg-base-100 px-4 py-2.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      toggleStatus({
+                        id: ad._id,
+                        newStatus: isActive ? "paused" : "active",
+                      })
+                    }
+                    className={`btn btn-xs gap-1 ${
+                      isActive ? "btn-warning btn-outline" : "btn-success btn-outline"
+                    }`}
+                  >
+                    {isActive ? <ToggleRight className="size-3.5" /> : <ToggleLeft className="size-3.5" />}
+                    <span>{isActive ? "Pause" : "Activate"}</span>
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {ad.targetUrl && (
+                      <a
+                        href={ad.targetUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-ghost btn-xs btn-circle text-base-content/60 hover:text-base-content"
+                        title="Open Target Link"
+                      >
+                        <ExternalLink className="size-3.5" />
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(ad)}
+                      className="btn btn-ghost btn-xs btn-circle text-base-content/60 hover:text-base-content"
+                      title="Edit Campaign"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePrompt(ad._id, ad.title)}
+                      className="btn btn-ghost btn-xs btn-circle text-error/70 hover:text-error"
+                      title="Delete Campaign"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2 text-xs text-base-content/70">
+          <span>
+            Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={page <= 1 || isFetching}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="btn btn-xs btn-ghost gap-1"
+            >
+              <ChevronLeft className="size-3.5" /> Prev
+            </button>
+            <button
+              type="button"
+              disabled={page >= pagination.totalPages || isFetching}
+              onClick={() => setPage((p) => p + 1)}
+              className="btn btn-xs btn-ghost gap-1"
+            >
+              Next <ChevronRight className="size-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Create / Edit Campaign Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-base-100 p-5 shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-base-200">
+              <div className="flex items-center gap-2">
+                <Sparkles className="size-5 text-primary" />
+                <h3 className="font-bold text-base text-base-content">
+                  {editingAd ? "Edit Advertisement Campaign" : "New Advertisement Campaign"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="btn btn-ghost btn-xs btn-circle text-base-content/60"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                saveAd();
+              }}
+              className="mt-4 space-y-3.5"
+            >
+              {/* Campaign Title */}
+              <div>
+                <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                  Campaign Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Godrej Horizon Luxury 3 BHKs"
+                  value={formData.title}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+                  className="input input-sm input-bordered w-full text-xs"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                  Description / Copy *
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="e.g. Exclusive launch with world-class amenities. Zero brokerage on first 20 bookings."
+                  value={formData.description}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+                  className="textarea textarea-bordered w-full text-xs"
+                />
+              </div>
+
+              {/* Advertiser & Badge */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                    Advertiser / Brand Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Godrej Properties"
+                    value={formData.companyName}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, companyName: e.target.value }))}
+                    className="input input-sm input-bordered w-full text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                    Badge Label
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Sponsored"
+                    value={formData.badgeText}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, badgeText: e.target.value }))}
+                    className="input input-sm input-bordered w-full text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Banner Image Upload & Preview */}
+              <div>
+                <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                  Banner Image *
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Image URL or upload banner below"
+                    value={formData.mediaUrl}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, mediaUrl: e.target.value }))}
+                    className="input input-sm input-bordered flex-1 text-xs"
+                  />
+                  <label className="btn btn-sm btn-outline gap-1 text-xs cursor-pointer">
+                    {isUploadingImage ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <ImageIcon className="size-3.5" />
+                    )}
+                    <span>Upload</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) uploadImage(file);
+                      }}
+                    />
+                  </label>
+                </div>
+
+                {formData.mediaUrl && (
+                  <div className="mt-2 relative aspect-[21/9] w-full overflow-hidden rounded-xl border border-base-200">
+                    <img
+                      src={formData.mediaUrl}
+                      alt="Banner Preview"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Target Link & CTA Text */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                    Target URL / Link *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="https://... or /property/..."
+                    value={formData.targetUrl}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, targetUrl: e.target.value }))}
+                    className="input input-sm input-bordered w-full text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                    CTA Button Label
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Learn More"
+                    value={formData.ctaText}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, ctaText: e.target.value }))}
+                    className="input input-sm input-bordered w-full text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Targeting (City & Intent) */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                    Target City (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Leave empty for Pan-India"
+                    value={formData.targetCity}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, targetCity: e.target.value }))}
+                    className="input input-sm input-bordered w-full text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                    Target Intent
+                  </label>
+                  <select
+                    value={formData.targetIntent}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, targetIntent: e.target.value }))}
+                    className="select select-sm select-bordered w-full text-xs"
+                  >
+                    <option value="All">All Intent (Buy/Rent/Sell)</option>
+                    <option value="Buy">Buyers only</option>
+                    <option value="Rent">Renters only</option>
+                    <option value="Sell">Sellers only</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Status & Daily Frequency Cap */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                    Campaign Status
+                  </label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value }))}
+                    className="select select-sm select-bordered w-full text-xs"
+                  >
+                    <option value="active">Active (Served in feed)</option>
+                    <option value="paused">Paused (Hidden)</option>
+                    <option value="draft">Draft (Saved for later)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                    Frequency Cap (Views/day)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    placeholder="e.g. 3"
+                    value={formData.frequencyCap}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, frequencyCap: e.target.value }))}
+                    className="input input-sm input-bordered w-full text-xs"
+                  />
+                  <span className="mt-0.5 block text-[10px] text-base-content/50">
+                    Max views per user per 24 hours
+                  </span>
+                </div>
+              </div>
+
+              {/* Schedule: Start Date & End Date */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                    Start Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.startDate}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, startDate: e.target.value }))}
+                    className="input input-sm input-bordered w-full text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                    End Date (Optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.endDate}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, endDate: e.target.value }))}
+                    className="input input-sm input-bordered w-full text-xs"
+                  />
+                  <span className="mt-1 block text-[10px] text-base-content/50">
+                    Leave blank to run continuously
+                  </span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-2 pt-3 border-t border-base-200">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="btn btn-ghost btn-sm text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving || !formData.title.trim() || !formData.mediaUrl.trim() || !formData.targetUrl.trim()}
+                  className="btn btn-primary btn-sm gap-2 text-xs"
+                >
+                  {isSaving && <Loader2 className="size-3.5 animate-spin" />}
+                  <span>{editingAd ? "Save Changes" : "Publish Campaign"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("users");
 
@@ -2905,6 +3637,15 @@ export default function AdminPage() {
         >
           <Flag className="size-4" /> Feature Flags
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("advertisements")}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+            activeTab === "advertisements" ? "bg-primary text-white" : "bg-base-200 text-base-content/70 hover:bg-base-300"
+          }`}
+        >
+          <Sparkles className="size-4" /> Advertisements
+        </button>
       </div>
 
       {activeTab === "users" ? (
@@ -2921,6 +3662,8 @@ export default function AdminPage() {
         <VerificationPanel />
       ) : activeTab === "feature-flags" ? (
         <FeatureFlagsPanel />
+      ) : activeTab === "advertisements" ? (
+        <AdvertisementsPanel />
       ) : (
         <AnnouncementsPanel />
       )}

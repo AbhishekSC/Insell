@@ -23,10 +23,12 @@ const PREFERENCE_PROMPTS = {
   intent: {
     key: "intent",
     kind: "choice",
-    question: "Are you looking to buy or rent?",
+    question: "What are you looking for today?",
+    hint: "Pick an option to personalize your feed instantly.",
     options: [
-      { value: "Buy", label: "Buy" },
-      { value: "Rent", label: "Rent" },
+      { value: "Buy", label: "Buy Home", icon: "home" },
+      { value: "Rent", label: "Rent Home", icon: "key" },
+      { value: "Sell", label: "Sell Property", icon: "tag" },
     ],
   },
   budget: {
@@ -71,14 +73,16 @@ export async function getPreferencePrompt(req, res) {
     if (!user) return sendErrorResponse(res, 404, "User not found");
 
     const hints = user.preferenceHints || {};
-    if (user.isOnboarded) return sendSuccessResponse(res, 200, "No prompt", { prompt: null });
+    const answeredNow = preferenceAnsweredState(user);
+    // If the user already answered intent AND is onboarded, do not prompt.
+    // However, if an existing/old user never answered intent (!user.listingIntent), allow them to pick intent in 1 click!
+    if (user.isOnboarded && answeredNow.intent) return sendSuccessResponse(res, 200, "No prompt", { prompt: null });
 
     const lastAt = hints.lastPromptAt ? new Date(hints.lastPromptAt).getTime() : 0;
     if (lastAt && Date.now() - lastAt < PREFERENCE_PROMPT_COOLDOWN_MS) {
       return sendSuccessResponse(res, 200, "Cooling down", { prompt: null });
     }
 
-    const answeredNow = preferenceAnsweredState(user);
     const answeredKeys = new Set(hints.answered || []);
     const skipped = hints.skipped || {};
 
@@ -110,8 +114,8 @@ export async function answerPreferencePrompt(req, res) {
     } else {
       switch (key) {
         case "intent": {
-          const v = ["Buy", "Rent"].includes(String(value)) ? String(value) : null;
-          if (!v) return sendErrorResponse(res, 400, "Pick Buy or Rent");
+          const v = ["Buy", "Rent", "Sell"].includes(String(value)) ? String(value) : null;
+          if (!v) return sendErrorResponse(res, 400, "Pick Buy, Rent, or Sell");
           set.listingIntent = v;
           break;
         }

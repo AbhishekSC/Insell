@@ -106,6 +106,21 @@ export const uploadAnnouncementImage = multer({
   },
 });
 
+const advertisementImageStorage = createCloudinaryStorage("advertisements", ["jpg", "jpeg", "png", "webp"], {
+  maxWidth: 1600,
+  maxHeight: 1200,
+  quality: 'auto:good',
+  resourceType: 'image',
+});
+
+export const uploadAdvertisementImage = multer({
+  storage: advertisementImageStorage,
+  fileFilter: announcementImageFileFilter,
+  limits: {
+    fileSize: 8 * 1024 * 1024,
+  },
+});
+
 const feedbackScreenshotStorage = createCloudinaryStorage("feedback-screenshots", ["jpg", "jpeg", "png", "webp"], {
   maxWidth: 1600,
   maxHeight: 1600,

@@ -176,6 +176,10 @@ const userSchema = new mongoose.Schema(
       skipped: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
       lastPromptAt: { type: Date, default: null },
     },
+    hiddenAds: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Advertisement" }],
+      default: [],
+    },
     roleProfiles: {
       type: mongoose.Schema.Types.Mixed,
       default: {},

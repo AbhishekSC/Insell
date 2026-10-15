@@ -34,6 +34,7 @@ import ownerVerificationRoutes from "../modules/owner-verification/ownerVerifica
 import referralRoutes from "../modules/referral/referral.routes.js";
 import communityCallRoutes from "../modules/community-call/communityCall.routes.js";
 import featureFlagRoutes from "./featureFlag.routes.js";
+import advertisementRoutes from "./advertisement.routes.js";
 
 const router = new express.Router();
 
@@ -74,5 +75,6 @@ router.use("/owner-verification", ownerVerificationRoutes);
 router.use("/referral", referralRoutes);
 router.use("/community-calls", communityCallRoutes);
 router.use("/feature-flags", featureFlagRoutes);
+router.use("/advertisements", advertisementRoutes);
 
 export default router;
