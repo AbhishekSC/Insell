@@ -226,21 +226,23 @@ export default function PropertyPostCard({
           </div>
         </div>
 
-        {/* bottom-left: clickable boost badge for owner if not blocked */}
-        {isOwnPost && !post.isBlocked && onBoost && (
-          <div className="absolute bottom-3 left-3 z-10" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              onClick={() => onBoost(post)}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-white shadow-md backdrop-blur-xs transition-all hover:scale-105 active:scale-95 ${
-                post.isBoosted
-                  ? "bg-emerald-600/90 hover:bg-emerald-600 ring-1 ring-emerald-400/60"
-                  : "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 ring-1 ring-amber-300/60"
-              }`}
-            >
-              <Zap className="size-3.5 fill-white" />
-              <span>{post.isBoosted ? "Boost Active" : "Boost Listing (1 Coin)"}</span>
-            </button>
+        {/* bottom-left: clickable boost and promote badges for owner if not blocked */}
+        {isOwnPost && !post.isBlocked && (
+          <div className="absolute bottom-3 left-3 z-10 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+            {onBoost && (
+              <button
+                type="button"
+                onClick={() => onBoost(post)}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-white shadow-md backdrop-blur-xs transition-all hover:scale-105 active:scale-95 ${
+                  post.isBoosted
+                    ? "bg-emerald-600/90 hover:bg-emerald-600 ring-1 ring-emerald-400/60"
+                    : "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 ring-1 ring-amber-300/60"
+                }`}
+              >
+                <Zap className="size-3.5 fill-white" />
+                <span>{post.isBoosted ? "Boost Active" : "Boost"}</span>
+              </button>
+            )}
           </div>
         )}
 

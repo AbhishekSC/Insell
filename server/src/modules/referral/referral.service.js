@@ -14,7 +14,7 @@ import {
   countSuccessfulReferrals,
 } from "./referral.repository.js";
 
-const REWARD_CREDITS = 1;
+const REWARD_CREDITS = 65;
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O/1/I — avoids look-alike confusion when read aloud/typed
 
 function randomCode(length = 7) {
@@ -95,7 +95,7 @@ export async function rewardIfEligible(userId) {
       actorId: userId,
       type: "referral_reward",
       title: "Referral reward earned 🎉",
-      message: `${user.fullName || "Someone you invited"} joined NearMySpace — you both earned a listing-boost credit.`,
+      message: `${user.fullName || "Someone you invited"} joined NearMySpace — you both earned 65 Coins!`,
       channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
     }).catch(() => {});
   } catch (error) {

@@ -35,7 +35,7 @@ const advertisementSchema = new mongoose.Schema(
     badgeText: {
       type: String,
       trim: true,
-      default: "Sponsored",
+      default: "Ad",
       maxlength: 30,
     },
     companyName: {
@@ -93,6 +93,16 @@ const advertisementSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+    },
+    coinsSpent: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    associatedPostId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PropertyPost",
+      default: null,
     },
   },
   { timestamps: true }

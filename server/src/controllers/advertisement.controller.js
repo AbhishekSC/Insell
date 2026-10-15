@@ -236,7 +236,7 @@ export const adminCreateAdvertisement = async (req, res) => {
       mediaUrl,
       ctaText = "Learn More",
       targetUrl,
-      badgeText = "Sponsored",
+      badgeText = "Ad",
       companyName = "",
       companyLogo = "",
       targetCity = "",
@@ -364,6 +364,159 @@ export const uploadAdvertisementImageController = async (req, res) => {
     return sendSuccessResponse(res, 200, "Image uploaded successfully", { url: req.file.path });
   } catch (error) {
     logger.error("Error uploading ad image:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+};
+
+export const AD_COIN_PLANS = [
+  { durationDays: 1, coins: 200, label: "1 Day", rupeeValue: 20 },
+  { durationDays: 3, coins: 500, label: "3 Days", rupeeValue: 50, popular: true },
+  { durationDays: 7, coins: 1000, label: "7 Days", rupeeValue: 100 },
+  { durationDays: 14, coins: 1800, label: "14 Days", rupeeValue: 180 },
+  { durationDays: 30, coins: 3500, label: "30 Days", rupeeValue: 350 },
+];
+
+/**
+ * User: Create an advertisement using referral coins.
+ */
+export const createAdvertisementWithCoins = async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      mediaUrl,
+      targetUrl,
+      ctaText = "Learn More",
+      badgeText = "Ad",
+      companyName,
+      targetCity = "",
+      targetIntent = "All",
+      durationDays = 3,
+      associatedPostId,
+    } = req.body;
+
+    if (!title || !description || !mediaUrl || !targetUrl) {
+      return sendErrorResponse(res, 400, "Title, description, banner image, and destination link are required");
+    }
+
+    const plan = AD_COIN_PLANS.find((p) => p.durationDays === Number(durationDays)) || {
+      durationDays: Number(durationDays) || 3,
+      coins: Math.max(200, (Number(durationDays) || 3) * 160),
+    };
+
+    const costInCoins = plan.coins;
+
+    // Atomically deduct coins from user's referral balance
+    const user = await User.findOneAndUpdate(
+      { _id: req.user._id, referralCredits: { $gte: costInCoins } },
+      { $inc: { referralCredits: -costInCoins } },
+      { new: true }
+    );
+
+    if (!user) {
+      const currentUser = await User.findById(req.user._id).select("referralCredits").lean();
+      const currentCoins = currentUser?.referralCredits || 0;
+      return sendErrorResponse(
+        res,
+        400,
+        `Insufficient coins. You have ${currentCoins} coins, but this ${plan.durationDays}-day campaign requires ${costInCoins} coins.`
+      );
+    }
+
+    const startDate = new Date();
+    const endDate = new Date(Date.now() + plan.durationDays * 24 * 60 * 60 * 1000);
+
+    const advertisement = await Advertisement.create({
+      title: title.trim(),
+      description: description.trim(),
+      mediaUrl: mediaUrl.trim(),
+      targetUrl: targetUrl.trim(),
+      ctaText: ctaText.trim() || "Learn More",
+      badgeText: badgeText?.trim() || "Ad",
+      companyName: (companyName || user.fullName || "").trim(),
+      targetCity: (targetCity || "").trim(),
+      targetIntent: ["All", "Buy", "Rent", "Sell"].includes(targetIntent) ? targetIntent : "All",
+      status: "active",
+      startDate,
+      endDate,
+      frequencyCap: 3,
+      coinsSpent: costInCoins,
+      associatedPostId: associatedPostId || null,
+      createdBy: user._id,
+    });
+
+    return sendSuccessResponse(res, 201, "Campaign launched successfully!", {
+      advertisement,
+      remainingCoins: user.referralCredits,
+    });
+  } catch (error) {
+    logger.error("Error creating advertisement with coins:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+};
+
+/**
+ * User: Fetch my campaigns / Ad Tools dashboard.
+ */
+export const getMyCampaigns = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("referralCredits").lean();
+    const ads = await Advertisement.find({ createdBy: req.user._id })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const now = Date.now();
+    const formatted = ads.map((ad) => {
+      const endMs = ad.endDate ? new Date(ad.endDate).getTime() : 0;
+      const isExpired = endMs > 0 && endMs <= now;
+      const daysRemaining = endMs > now ? Math.ceil((endMs - now) / (24 * 60 * 60 * 1000)) : 0;
+      const ctr = ad.impressionsCount > 0 ? ((ad.clicksCount / ad.impressionsCount) * 100).toFixed(1) : "0.0";
+
+      return {
+        ...ad,
+        isExpired,
+        daysRemaining,
+        ctr: `${ctr}%`,
+      };
+    });
+
+    return sendSuccessResponse(res, 200, "Campaigns fetched successfully", {
+      campaigns: formatted,
+      coinBalance: user?.referralCredits || 0,
+      rupeeValue: ((user?.referralCredits || 0) * 0.1).toFixed(2),
+      plans: AD_COIN_PLANS,
+    });
+  } catch (error) {
+    logger.error("Error fetching user campaigns:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+};
+
+/**
+ * User: Pause or resume their campaign.
+ */
+export const toggleMyCampaignStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const ad = await Advertisement.findOne({ _id: id, createdBy: req.user._id });
+
+    if (!ad) {
+      return sendErrorResponse(res, 404, "Campaign not found");
+    }
+
+    if (ad.endDate && new Date(ad.endDate).getTime() <= Date.now()) {
+      return sendErrorResponse(res, 400, "Cannot toggle an expired campaign");
+    }
+
+    ad.status = ad.status === "active" ? "paused" : "active";
+    await ad.save();
+
+    return sendSuccessResponse(res, 200, `Campaign ${ad.status === "active" ? "resumed" : "paused"}`, {
+      id: ad._id,
+      status: ad.status,
+    });
+  } catch (error) {
+    logger.error("Error toggling campaign status:", error);
     return sendErrorResponse(res, 500, "Internal Server Error");
   }
 };

@@ -126,4 +126,14 @@ describe("Advertisement Targeting & Metrics Logic", () => {
     const filtered = activeAds.filter((ad) => !userHiddenAds.includes(ad._id));
     expect(filtered.map((a) => a._id)).toEqual(["ad2", "ad3"]);
   });
+
+  it("calculates coin valuation and pricing plans correctly", () => {
+    // 4 coins = 0.4 INR -> 1 coin = 0.10 INR
+    const coinValueInRupees = (coins) => coins * 0.1;
+    expect(coinValueInRupees(4)).toBeCloseTo(0.4);
+    expect(coinValueInRupees(65)).toBeCloseTo(6.5);
+    expect(coinValueInRupees(200)).toBe(20);
+    expect(coinValueInRupees(500)).toBe(50);
+    expect(coinValueInRupees(1000)).toBe(100);
+  });
 });

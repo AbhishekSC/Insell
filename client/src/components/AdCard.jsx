@@ -63,20 +63,18 @@ export default function AdCard({ ad, onDismiss }) {
       {/* Top Meta Bar */}
       <div className="flex items-center justify-between border-b border-base-200 bg-gradient-to-r from-primary/10 via-base-100 to-primary/5 px-4 py-2.5">
         <div className="flex items-center gap-2">
-          <div className="flex size-6 items-center justify-center rounded-lg bg-primary/20 text-primary">
-            <Sparkles className="size-3.5" />
-          </div>
+          <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-black tracking-wider text-primary uppercase">
+            Ad
+          </span>
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-semibold tracking-wide text-primary uppercase">
-              {ad.badgeText || "Sponsored"}
-            </span>
-            {ad.companyName && (
-              <>
-                <span className="text-xs text-base-content/40">•</span>
-                <span className="text-xs font-medium text-base-content/80 truncate max-w-[140px] sm:max-w-[200px]">
-                  {ad.companyName}
-                </span>
-              </>
+            {ad.companyName ? (
+              <span className="text-xs font-semibold text-base-content/80 truncate max-w-[160px] sm:max-w-[220px]">
+                {ad.companyName}
+              </span>
+            ) : (
+              <span className="text-xs font-semibold text-base-content/70">
+                Promoted Listing
+              </span>
             )}
           </div>
         </div>
@@ -147,6 +145,14 @@ export default function AdCard({ ad, onDismiss }) {
         <div className="mt-4 flex items-center justify-between gap-3 pt-3 border-t border-base-200">
           <div className="flex items-center gap-1.5 text-xs text-base-content/50">
             <span>Verified partner</span>
+            {(ad.impressionsCount ?? 0) > 0 && (
+              <>
+                <span>•</span>
+                <span className="text-base-content/60 font-medium">
+                  {ad.impressionsCount} view{ad.impressionsCount === 1 ? "" : "s"}
+                </span>
+              </>
+            )}
           </div>
 
           <button
