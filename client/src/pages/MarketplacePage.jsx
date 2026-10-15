@@ -61,6 +61,7 @@ import PreferencePrompt from "../components/PreferencePrompt";
 import LocationPrompt from "../components/LocationPrompt";
 import { trackRecoEvent } from "../lib/recoEvents";
 import FeedSuggestionCard from "../components/FeedSuggestionCard";
+import AdCard from "../components/AdCard";
 import PostTypeFields from "../components/PostTypeFields";
 import PriceSuggestion from "../components/PriceSuggestion";
 import { getPostTypeConfig } from "../config/postTypeConfig";
@@ -372,6 +373,7 @@ export default function MarketplacePage() {
   const [postToShare, setPostToShare] = useState(null);
   const [selectedForComparison, setSelectedForComparison] = useState([]);
   const [dismissedRecs, setDismissedRecs] = useState(() => new Set());
+  const [dismissedAds, setDismissedAds] = useState(() => new Set());
   const [postMenuAnchor, setPostMenuAnchor] = useState(null); // { post, top, left }
   const [reportTargetPost, setReportTargetPost] = useState(null);
   const [reportSubmitted, setReportSubmitted] = useState(false);
@@ -952,11 +954,36 @@ export default function MarketplacePage() {
       }));
   }, [activeCategory, appliedFilters, authUser?.city, data]);
 
+  // Fetch active sponsored advertisements for the feed
+  const targetCityForAds = appliedFilters?.city || authUser?.city || "";
+  const targetIntentForAds = activeCategory === "Buy" || activeCategory === "Rent" ? activeCategory : undefined;
+
+  const { data: activeAdvertisementsRaw = [] } = useQuery({
+    queryKey: ["activeAdvertisements", targetCityForAds, targetIntentForAds],
+    queryFn: async () => {
+      const res = await axiosInstance.get("/advertisements/active", {
+        params: {
+          city: targetCityForAds || undefined,
+          intent: targetIntentForAds,
+          limit: 10,
+        },
+      });
+      return res.data?.data?.ads || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const activeAds = useMemo(() => {
+    const list = Array.isArray(activeAdvertisementsRaw) ? activeAdvertisementsRaw : [];
+    return list.filter((ad) => !dismissedAds.has(String(ad._id)));
+  }, [activeAdvertisementsRaw, dismissedAds]);
+
+  const handleAdDismiss = (adId) => {
+    setDismissedAds((prev) => new Set(prev).add(String(adId)));
+  };
+
   // Interleave "Recommended for You" / "Trending Near You" suggestion cards
-  // into the main "For You" feed — mirrors the insell-app mobile feed, which
-  // inserts a suggestion after the 3rd post and then every 4 posts after,
-  // alternating recommended/trending and falling back to whichever list
-  // still has items.
+  // and Sponsored Advertisements into the main feed.
   const activeRecommended = useMemo(
     () => personalizedRecommendations.filter((p) => !dismissedRecs.has(String(p._id))),
     [personalizedRecommendations, dismissedRecs]
@@ -968,34 +995,50 @@ export default function MarketplacePage() {
 
   const feedItems = useMemo(() => {
     const base = posts.map((post) => ({ type: "post", post }));
-    const shouldInterleave =
+    const shouldInterleaveSuggestions =
       activeCategory === "For You" && !search.trim() && (activeRecommended.length > 0 || activeTrending.length > 0);
-    if (!shouldInterleave) return base;
+    const hasAds = activeAds.length > 0 && !search.trim();
+
+    if (!shouldInterleaveSuggestions && !hasAds) return base;
 
     const recQueue = [...activeRecommended];
     const trendQueue = [...activeTrending];
+    const adQueue = [...activeAds];
     let preferRecommended = true;
     const result = [];
 
     base.forEach((item, index) => {
       result.push(item);
-      const shouldInsert = index === 2 || (index > 2 && (index - 2) % 4 === 0);
-      if (!shouldInsert) return;
 
-      let suggestion = null;
-      if (preferRecommended && recQueue.length > 0) {
-        suggestion = { type: "suggestion", suggestionType: "recommended", data: recQueue.shift() };
-      } else if (trendQueue.length > 0) {
-        suggestion = { type: "suggestion", suggestionType: "trending", data: trendQueue.shift() };
-      } else if (recQueue.length > 0) {
-        suggestion = { type: "suggestion", suggestionType: "recommended", data: recQueue.shift() };
+      // Suggestions: after 3rd post (index 2), then every 4 posts after (index 6, 10, ...)
+      const shouldInsertSuggestion =
+        shouldInterleaveSuggestions && (index === 2 || (index > 2 && (index - 2) % 4 === 0));
+      if (shouldInsertSuggestion) {
+        let suggestion = null;
+        if (preferRecommended && recQueue.length > 0) {
+          suggestion = { type: "suggestion", suggestionType: "recommended", data: recQueue.shift() };
+        } else if (trendQueue.length > 0) {
+          suggestion = { type: "suggestion", suggestionType: "trending", data: trendQueue.shift() };
+        } else if (recQueue.length > 0) {
+          suggestion = { type: "suggestion", suggestionType: "recommended", data: recQueue.shift() };
+        }
+        preferRecommended = !preferRecommended;
+        if (suggestion) result.push(suggestion);
       }
-      preferRecommended = !preferRecommended;
-      if (suggestion) result.push(suggestion);
+
+      // Sponsored Ad cadence: after 2nd post (index 1), or for 1-post feeds, then every 5 posts
+      const shouldInsertAd =
+        hasAds &&
+        (index === 1 || (posts.length === 1 && index === 0) || (index > 1 && (index - 1) % 5 === 0));
+      if (shouldInsertAd && adQueue.length > 0) {
+        const nextAd = adQueue.shift();
+        result.push({ type: "ad", data: nextAd });
+        adQueue.push(nextAd);
+      }
     });
 
     return result;
-  }, [posts, activeCategory, search, activeRecommended, activeTrending]);
+  }, [posts, activeCategory, search, activeRecommended, activeTrending, activeAds]);
 
   const handleSuggestionDismiss = (postId) => {
     setDismissedRecs((prev) => new Set(prev).add(String(postId)));
@@ -1872,6 +1915,7 @@ export default function MarketplacePage() {
             )}
 
             {authUser?._id && <LocationPrompt />}
+            <PreferencePrompt />
 
             {isLoading ? (
               <div className="mt-4 grid gap-4 xl:grid-cols-2">
@@ -1889,7 +1933,6 @@ export default function MarketplacePage() {
               </div>
             ) : (
               <>
-              <PreferencePrompt />
               <div className="mt-4 grid gap-5 2xl:grid-cols-2">
                 {feedItems.map((item, feedIndex) => {
                   if (item.type === "suggestion") {
@@ -1900,6 +1943,17 @@ export default function MarketplacePage() {
                         data={item.data}
                         position={feedIndex}
                         onDismiss={handleSuggestionDismiss}
+                      />
+                    );
+                  }
+
+                  if (item.type === "ad") {
+                    return (
+                      <AdCard
+                        key={`ad-${item.data._id}-${feedIndex}`}
+                        ad={item.data}
+                        position={feedIndex}
+                        onDismiss={handleAdDismiss}
                       />
                     );
                   }

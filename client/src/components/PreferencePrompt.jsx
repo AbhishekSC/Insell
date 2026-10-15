@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sparkles, X } from "lucide-react";
+import { Sparkles, X, Home, Key, Tag } from "lucide-react";
 import { usePreferencePrompt } from "../hooks/usePreferencePrompt";
 
 // A single, dismissible onboarding question shown inline in the feed. One
@@ -24,7 +24,7 @@ export default function PreferencePrompt() {
   };
 
   return (
-    <div className="my-4 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+    <div className="my-4 rounded-2xl border border-primary/25 bg-gradient-to-r from-primary/10 via-base-100 to-primary/5 p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-base-content">
           <Sparkles className="size-4 text-primary" />
@@ -32,7 +32,7 @@ export default function PreferencePrompt() {
         </p>
         <button
           type="button"
-          className="btn btn-xs btn-ghost btn-circle -mr-1 -mt-1"
+          className="btn btn-xs btn-ghost btn-circle -mr-1 -mt-1 text-base-content/50 hover:text-base-content"
           onClick={skip}
           disabled={submitting}
           aria-label="Skip"
@@ -40,21 +40,25 @@ export default function PreferencePrompt() {
           <X className="size-4" />
         </button>
       </div>
-      {prompt.hint && <p className="mt-1 text-xs text-base-content/60">{prompt.hint}</p>}
+      {prompt.hint && <p className="mt-1 text-xs text-base-content/70">{prompt.hint}</p>}
 
       {prompt.kind === "choice" && (
-        <div className="mt-3 flex gap-2">
-          {prompt.options.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              className="btn btn-sm flex-1 border-none bg-primary text-white hover:bg-primary disabled:bg-base-300"
-              disabled={submitting}
-              onClick={() => answer(o.value)}
-            >
-              {o.label}
-            </button>
-          ))}
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {prompt.options.map((o) => {
+            const Icon = o.value === "Buy" ? Home : o.value === "Rent" ? Key : Tag;
+            return (
+              <button
+                key={o.value}
+                type="button"
+                className="group flex flex-col items-center justify-center gap-1.5 rounded-xl border border-base-300 bg-base-100 py-3 px-2 text-xs font-semibold text-base-content shadow-sm transition-all hover:border-primary hover:bg-primary hover:text-white hover:shadow-md disabled:opacity-50"
+                disabled={submitting}
+                onClick={() => answer(o.value)}
+              >
+                <Icon className="size-5 text-primary transition-transform group-hover:scale-110 group-hover:text-white" />
+                <span className="text-center text-[11px] sm:text-xs font-medium">{o.label}</span>
+              </button>
+            );
+          })}
         </div>
       )}
 

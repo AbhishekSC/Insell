@@ -64,7 +64,9 @@ export function usePreferencePrompt() {
     onError: (e) => toast.error(e?.response?.data?.message || "Couldn't save that"),
   });
 
-  const ready = Boolean(prompt) && sessionViews >= SHOW_AFTER_VIEWS;
+  // Intent prompt ("What are you looking for today?") is Day 0 priority: show immediately.
+  // Deeper prompts (budget, areas, types) wait until user views listings to avoid nagging.
+  const ready = Boolean(prompt) && (prompt.key === "intent" || sessionViews >= SHOW_AFTER_VIEWS);
 
   return {
     prompt: ready ? prompt : null,

@@ -1,6 +1,6 @@
 import express from "express";
 import { verifyUser, requireVerified, requireAdmin } from "../middlewares/auth.middleware.js";
-import { uploadAnnouncementImage } from "../middlewares/upload.middleware.js";
+import { uploadAnnouncementImage, uploadAdvertisementImage } from "../middlewares/upload.middleware.js";
 import { getDealStats, adminListDeals, adminResolveDealReports, adminForceCancelDeal } from "../controllers/deal.controller.js";
 import {
   getAdminUsers,
@@ -25,6 +25,13 @@ import {
   adminDeleteFeatureFlag,
   adminAddUserToWhitelist,
 } from "../controllers/featureFlag.controller.js";
+import {
+  adminGetAdvertisements,
+  adminCreateAdvertisement,
+  adminUpdateAdvertisement,
+  adminDeleteAdvertisement,
+  uploadAdvertisementImageController,
+} from "../controllers/advertisement.controller.js";
 
 const router = new express.Router();
 
@@ -63,5 +70,12 @@ router.post("/feature-flags", adminCreateFeatureFlag);
 router.patch("/feature-flags/:id", adminUpdateFeatureFlag);
 router.delete("/feature-flags/:id", adminDeleteFeatureFlag);
 router.post("/feature-flags/:id/whitelist-user", adminAddUserToWhitelist);
+
+// Advertisements management
+router.get("/advertisements", adminGetAdvertisements);
+router.post("/advertisements", adminCreateAdvertisement);
+router.patch("/advertisements/:id", adminUpdateAdvertisement);
+router.delete("/advertisements/:id", adminDeleteAdvertisement);
+router.post("/advertisements/upload-image", uploadAdvertisementImage.single("image"), uploadAdvertisementImageController);
 
 export default router;

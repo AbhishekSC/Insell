@@ -119,7 +119,9 @@ app.use(
 const handleLiveness = (req, res) => {
   res.json({ status: "ok", uptime: process.uptime(), ts: Date.now() });
 };
+app.get("/api/v1/health", handleLiveness);
 app.get("/api/health", handleLiveness);
+app.get("/health", handleLiveness);
 app.get("/healthz", handleLiveness);
 
 // Deep readiness probe — actively verifies Mongo connection and Redis reachability.
@@ -148,6 +150,7 @@ const handleReadiness = async (req, res) => {
     uptime: process.uptime(),
   });
 };
+app.get("/api/v1/readyz", handleReadiness);
 app.get("/api/readyz", handleReadiness);
 app.get("/readyz", handleReadiness);
 

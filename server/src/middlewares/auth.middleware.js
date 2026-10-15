@@ -95,3 +95,27 @@ export const requireAdmin = (req, res, next) => {
   }
   next();
 };
+
+/**
+ * Attaches user to req.user if a valid token is present, but does NOT block unauthenticated requests.
+ */
+export const attachOptionalUser = async (req, _res, next) => {
+  const token = req.cookies?.syncspace_token || req.headers?.authorization?.split(" ")[1];
+  if (!token) return next();
+
+  try {
+    const jwtSecret = process.env.JWT_SECRET || process.env.JWT_SECRET_KEY;
+    if (!jwtSecret) return next();
+
+    const decoded = jwt.verify(token, jwtSecret);
+    if (!decoded?.id) return next();
+
+    const user = await User.findById(decoded.id).select("_id email isAdmin isBlocked hiddenAds").lean();
+    if (user && !user.isBlocked) {
+      req.user = user;
+    }
+  } catch {
+    // Ignore invalid or expired token for optional auth
+  }
+  next();
+};
