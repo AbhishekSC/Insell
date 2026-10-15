@@ -73,7 +73,7 @@ export default function AdCard({ ad, onDismiss }) {
               </span>
             ) : (
               <span className="text-xs font-semibold text-base-content/70">
-                Sponsored Listing
+                Promoted Listing
               </span>
             )}
           </div>

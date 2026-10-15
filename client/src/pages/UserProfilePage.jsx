@@ -1045,10 +1045,6 @@ export default function UserProfilePage() {
                                 post={post}
                                 isOwnPost={isOwnProfile}
                                 onBoost={(p) => setBoostTargetPost(p)}
-                                onPromote={(p) => {
-                                  setAdToolsPost(p);
-                                  setAdToolsOpen(true);
-                                }}
                                 media={media}
                                 onDoubleClickMedia={handleDoubleClickMedia}                                mediaOverlay={
                                   likedBurstPostId === post._id ? (

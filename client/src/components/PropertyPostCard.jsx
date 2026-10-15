@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Heart, MessageCircle, Bookmark, Send, Volume2, VolumeX, Building2, Maximize2, Phone, BadgeCheck, Zap, Megaphone } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, Send, Volume2, VolumeX, Building2, Maximize2, Phone, BadgeCheck, Zap } from "lucide-react";
 import PostAuthorLink from "./PostAuthorLink";
 import { useStoryOverlay } from "../context/StoryOverlayContext";
 import { lqipUrl, cardImageUrl } from "../lib/cloudinaryImage";
@@ -89,7 +89,6 @@ export default function PropertyPostCard({
   mediaHeightClass = "h-[24rem]",
   mediaOverlay,
   onBoost,
-  onPromote,
   isOwnPost,
 }) {
   const [isMuted, setIsMuted] = useState(true);
@@ -242,17 +241,6 @@ export default function PropertyPostCard({
               >
                 <Zap className="size-3.5 fill-white" />
                 <span>{post.isBoosted ? "Boost Active" : "Boost"}</span>
-              </button>
-            )}
-
-            {onPromote && (
-              <button
-                type="button"
-                onClick={() => onPromote(post)}
-                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-white shadow-md backdrop-blur-xs transition-all hover:scale-105 active:scale-95 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 ring-1 ring-blue-300/60"
-              >
-                <Megaphone className="size-3.5" />
-                <span>Promote (Ad)</span>
               </button>
             )}
           </div>

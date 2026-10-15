@@ -35,7 +35,7 @@ const advertisementSchema = new mongoose.Schema(
     badgeText: {
       type: String,
       trim: true,
-      default: "Sponsored",
+      default: "Ad",
       maxlength: 30,
     },
     companyName: {
