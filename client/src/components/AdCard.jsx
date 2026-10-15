@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import { cardImageUrl } from "../lib/cloudinaryImage";
 
-export default function AdCard({ ad, position, onDismiss }) {
+export default function AdCard({ ad, onDismiss }) {
   const cardRef = useRef(null);
   const [firedImpression, setFiredImpression] = useState(false);
   const [imageError, setImageError] = useState(false);
