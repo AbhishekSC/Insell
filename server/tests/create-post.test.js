@@ -11,7 +11,7 @@ import mongoose from "mongoose";
 import { beforeAll, afterAll, afterEach, describe, it, expect } from "vitest";
 import User from "../src/models/User.model.js";
 import PropertyPost from "../src/models/PropertyPost.model.js";
-import { createPropertyPost, updatePropertyPost } from "../src/controllers/propertyPost.controller.js";
+import { createPropertyPost, updatePropertyPost, getMyPropertyPosts, getPropertyPostById } from "../src/controllers/propertyPost.controller.js";
 
 function fakeRes() {
   return {
@@ -326,3 +326,32 @@ describe("updatePropertyPost — current behaviour", () => {
     expect(res.statusCode).toBe(403);
   });
 });
+
+describe("getMyPropertyPosts and getPropertyPostById safety", () => {
+  it("getMyPropertyPosts returns active posts belonging to the authenticated user", async () => {
+    await create(seller, {
+      postType: "PROPERTY_SALE",
+      title: "Seller Post 1",
+      city: "Indore",
+      status: "PUBLISHED",
+    });
+
+    const res = fakeRes();
+    await getMyPropertyPosts({ user: seller }, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.status).toBe("success");
+    expect(Array.isArray(res.body.data.posts)).toBe(true);
+    expect(res.body.data.posts.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.data.posts.every((p) => String(p.author._id || p.author) === String(seller._id))).toBe(true);
+  });
+
+  it("getPropertyPostById safely returns 404 instead of 500 when given a non-ObjectId string like 'me'", async () => {
+    const res = fakeRes();
+    await getPropertyPostById({ user: seller, params: { id: "me" } }, res);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body.status).toBe("error");
+  });
+});
+

@@ -579,7 +579,7 @@ export default function UserProfilePage() {
               setAdToolsPost(null);
               setAdToolsOpen(true);
             }}
-            className={`btn btn-xs h-8 whitespace-nowrap rounded-full border border-primary/30 bg-primary/10 text-xs font-bold text-primary hover:bg-primary hover:text-white ${buttonClass}`}
+            className={`btn btn-xs h-8 hidden sm:inline-flex whitespace-nowrap rounded-full border border-primary/30 bg-primary/10 text-xs font-bold text-primary hover:bg-primary hover:text-white ${buttonClass}`}
           >
             <Megaphone className="size-3.5" />
             Ad Tools
@@ -863,8 +863,41 @@ export default function UserProfilePage() {
             {/* Left Column */}
             <div className="flex flex-col gap-6">
               {/* Referral Coins & Boost Dashboard Banner */}
+              {/* Mobile: compact coin balance card */}
               {isOwnProfile && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-300/80 bg-gradient-to-r from-amber-50/90 via-amber-100/50 to-amber-50/80 p-4 shadow-xs">
+                <div className="flex items-center gap-2.5 rounded-2xl border border-base-300/70 bg-base-100 px-3 py-2.5 shadow-sm sm:hidden">
+                  <div className="grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-300 to-amber-500 ring-[3px] ring-amber-200/70">
+                    <span className="text-sm font-black text-amber-900">₹</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="whitespace-nowrap text-sm font-extrabold leading-tight text-base-content">
+                      {referralData?.credits ?? 0} {(referralData?.credits ?? 0) === 1 ? "coin" : "coins"}
+                    </p>
+                    <p className="whitespace-nowrap text-[11px] font-semibold text-green-700">+65 per invite</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAdToolsPost(null);
+                      setAdToolsOpen(true);
+                    }}
+                    aria-label="Ad Tools"
+                    className="grid size-9 shrink-0 place-items-center rounded-xl border border-base-300 bg-base-100 text-base-content transition-colors active:bg-base-200"
+                  >
+                    <Megaphone className="size-4" />
+                  </button>
+                  <Link
+                    to="/marketplace?section=profile"
+                    className="flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3 text-xs font-bold text-white shadow-sm transition-colors active:bg-primary/90"
+                  >
+                    <Gift className="size-3.5" />
+                    Invite
+                  </Link>
+                </div>
+              )}
+
+              {isOwnProfile && (
+                <div className="hidden sm:flex sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-300/80 bg-gradient-to-r from-amber-50/90 via-amber-100/50 to-amber-50/80 p-4 shadow-xs">
                   <div className="flex items-center gap-3.5 min-w-0">
                     <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-amber-500/20 text-xl shadow-xs">
                       🪙
@@ -897,7 +930,7 @@ export default function UserProfilePage() {
                       Ad Tools
                     </button>
                     <Link
-                      to="/profile"
+                      to="/marketplace?section=profile"
                       className="flex items-center gap-1.5 rounded-xl border border-amber-400/80 bg-white/90 px-3.5 py-2 text-xs font-bold text-amber-950 hover:bg-white shadow-xs transition-colors"
                     >
                       <Gift className="size-3.5 text-amber-600" />
@@ -1582,7 +1615,7 @@ export default function UserProfilePage() {
 
                     <div className="mt-3.5 flex items-center gap-2">
                       <Link
-                        to="/profile"
+                        to="/marketplace?section=profile"
                         className="flex-1 text-center rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 py-2 text-xs font-bold text-white shadow-xs hover:from-amber-600 hover:to-amber-700 transition-all"
                       >
                         Earn More Coins

@@ -3,20 +3,40 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Sparkles,
   X,
-  ExternalLink,
   Pause,
   Play,
   Upload,
-  Coins,
-  Eye,
-  MousePointerClick,
   PlusCircle,
   Building,
   Image as ImageIcon,
   Loader2,
+  Megaphone,
+  MapPin,
+  Clock,
+  Plus,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
+
+const CAMPAIGN_TILE_COLORS = [
+  "bg-slate-900 text-amber-400",
+  "bg-red-700 text-white",
+  "bg-emerald-700 text-white",
+  "bg-indigo-600 text-white",
+  "bg-amber-500 text-white",
+  "bg-sky-600 text-white",
+];
+
+const SECTION_CLASS = "space-y-2.5 rounded-xl border border-base-300/60 bg-base-100 p-3";
+const LABEL_CLASS = "mb-1 block text-[11px] font-semibold text-base-content/70";
+const INPUT_CLASS =
+  "h-9 w-full rounded-lg border border-base-300 bg-base-100 px-3 text-xs text-base-content placeholder:text-base-content/35 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15";
+
+const tileColorFor = (name = "") => {
+  let hash = 0;
+  for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return CAMPAIGN_TILE_COLORS[hash % CAMPAIGN_TILE_COLORS.length];
+};
 
 export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }) {
   const queryClient = useQueryClient();
@@ -36,6 +56,7 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
   const [targetIntent, setTargetIntent] = useState("All");
   const [durationDays, setDurationDays] = useState(3);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [brokenImages, setBrokenImages] = useState({});
 
   // Fetch my campaigns and coins balance
   const { data: myData, isLoading: loadingCampaigns } = useQuery({
@@ -75,7 +96,7 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
     if (post) {
       setTitle(post.title || "");
       setDescription(post.caption || post.description || "");
-      const img = post.media?.[0]?.url || post.photos?.[0] || "";
+      const img = post.mediaUrls?.[0] || post.media?.[0]?.url || post.photos?.[0] || "";
       setMediaUrl(img);
       setTargetUrl(`/property/${post._id}`);
       setTargetCity(post.city || "");
@@ -158,330 +179,305 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
   const hasEnoughCoins = coinBalance >= selectedPlan.coins;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-2xl rounded-2xl bg-base-100 p-5 shadow-2xl max-h-[92vh] flex flex-col">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[92vh] w-full max-w-2xl flex-col rounded-t-3xl bg-base-200 px-4 pb-4 pt-2 shadow-2xl sm:rounded-3xl sm:p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Drag handle (mobile sheet) */}
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-base-content/20 sm:hidden" />
+
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-base-200">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Sparkles className="size-5" />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+              <Megaphone className="size-4" />
             </div>
-            <div>
-              <h3 className="font-bold text-base text-base-content">
-                Advertisement Campaigns
-              </h3>
-              <p className="text-xs text-base-content/60">
-                Promote properties or services in the feed using Referral Coins
-              </p>
+            <div className="min-w-0">
+              <h3 className="text-base font-extrabold leading-tight text-base-content">Ad campaigns</h3>
+              <p className="truncate text-[11px] text-base-content/60">Promote listings in the feed with coins</p>
             </div>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="btn btn-ghost btn-xs btn-circle text-base-content/60"
+            aria-label="Close"
+            className="grid size-8 shrink-0 place-items-center rounded-full bg-base-300/60 text-base-content/70 transition-colors hover:bg-base-300"
           >
             <X className="size-4" />
           </button>
         </div>
 
-        {/* Coins Wallet Bar */}
-        <div className="flex flex-wrap items-center justify-between rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-2.5 mt-3">
-          <div className="flex items-center gap-2">
-            <Coins className="size-4 text-amber-600" />
-            <span className="text-xs font-bold text-amber-950">
-              {coinBalance} Coins Available
-            </span>
-            <span className="text-xs font-medium text-amber-800">
-              (≈ ₹{((coinBalance || 0) * 0.1).toFixed(2)})
-            </span>
-          </div>
-
-          <div className="text-[11px] font-semibold text-amber-900">
-            4 Coins = ₹0.40 • Earn 65 Coins per Referral
-          </div>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div className="flex border-b border-base-200 mt-3">
+        {/* Segmented Tabs */}
+        <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-base-300/60 p-1">
           <button
             type="button"
             onClick={() => setActiveTab("create")}
-            className={`border-b-2 py-2.5 px-4 text-xs font-bold transition-all ${
+            className={`flex h-8 items-center justify-center gap-1 rounded-lg text-xs font-bold transition-all ${
               activeTab === "create"
-                ? "border-primary text-primary"
-                : "border-transparent text-base-content/60 hover:text-base-content"
+                ? "bg-base-100 text-base-content shadow-sm"
+                : "text-base-content/55 hover:text-base-content"
             }`}
           >
-            <span className="flex items-center gap-1.5">
-              <PlusCircle className="size-3.5" />
-              Create Campaign
-            </span>
+            <Plus className="size-3.5" />
+            Create
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab("campaigns")}
-            className={`border-b-2 py-2.5 px-4 text-xs font-bold transition-all ${
+            className={`flex h-8 items-center justify-center gap-1.5 rounded-lg text-xs font-bold transition-all ${
               activeTab === "campaigns"
-                ? "border-primary text-primary"
-                : "border-transparent text-base-content/60 hover:text-base-content"
+                ? "bg-base-100 text-base-content shadow-sm"
+                : "text-base-content/55 hover:text-base-content"
             }`}
           >
-            <span className="flex items-center gap-1.5">
-              <Sparkles className="size-3.5" />
-              My Running Campaigns ({campaigns.length})
-            </span>
+            Running
+            {campaigns.length > 0 && (
+              <span className="grid min-w-4 h-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-white">
+                {campaigns.length}
+              </span>
+            )}
           </button>
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 overflow-y-auto py-4 pr-1">
+        <div className="-mx-1 flex-1 overflow-y-auto px-1 py-3">
           {activeTab === "create" ? (
-            <div className="space-y-3.5">
-              {/* Promotion Mode Selection */}
+            <div className="space-y-3">
+              {/* Source */}
               <div>
-                <label className="text-xs font-semibold text-base-content/80 mb-1.5 block">
-                  Campaign Source
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCreationMode("post");
-                      if (myPostsData?.length > 0 && !selectedPostId) {
-                        handleSelectPost(myPostsData[0]._id);
-                      }
-                    }}
-                    className={`rounded-xl border p-3 text-left transition ${
-                      creationMode === "post"
-                        ? "border-primary bg-primary/5 shadow-xs"
-                        : "border-base-300 hover:border-base-content/30"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 font-bold text-xs text-base-content">
-                      <Building className="size-3.5 text-primary" />
-                      Promote a Listing
-                    </div>
-                    <p className="mt-0.5 text-[11px] text-base-content/60">
-                      Auto-fill from one of your active property posts.
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCreationMode("custom");
-                    }}
-                    className={`rounded-xl border p-3 text-left transition ${
-                      creationMode === "custom"
-                        ? "border-primary bg-primary/5 shadow-xs"
-                        : "border-base-300 hover:border-base-content/30"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 font-bold text-xs text-base-content">
-                      <Upload className="size-3.5 text-primary" />
-                      Custom Ad Banner
-                    </div>
-                    <p className="mt-0.5 text-[11px] text-base-content/60">
-                      Upload your own flyer, banner, or promotional creative.
-                    </p>
-                  </button>
-                </div>
-              </div>
-
-              {/* Select Existing Property */}
-              {creationMode === "post" && (
-                <div>
-                  <label className="text-xs font-semibold text-base-content/80 mb-1 block">
-                    Select Property Listing *
-                  </label>
-                  {myPostsData?.length === 0 ? (
-                    <div className="rounded-xl border border-warning/30 bg-warning/10 p-3 text-xs text-warning-content">
-                      You haven&apos;t posted any properties yet. Switch to &quot;Custom Ad Banner&quot; or create a post first.
-                    </div>
-                  ) : (
-                    <select
-                      className="select select-bordered select-sm w-full rounded-xl text-xs"
-                      value={selectedPostId}
-                      onChange={(e) => handleSelectPost(e.target.value)}
+              <label className={LABEL_CLASS}>Campaign Source</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: "post", icon: Building, label: "Promote a Listing", hint: "Auto-fill from one of your active property posts." },
+                  { id: "custom", icon: Upload, label: "Custom Ad Banner", hint: "Upload your own flyer, banner, or promotional creative." },
+                ].map((opt) => {
+                  const Icon = opt.icon;
+                  const selected = creationMode === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        setCreationMode(opt.id);
+                        if (opt.id === "post" && myPostsData?.length > 0 && !selectedPostId) {
+                          handleSelectPost(myPostsData[0]._id);
+                        }
+                      }}
+                      className={`flex items-start gap-2.5 rounded-xl border bg-base-100 p-2.5 text-left transition ${
+                        selected ? "border-primary ring-1 ring-primary" : "border-base-300/60 hover:border-base-300"
+                      }`}
                     >
-                      <option value="">-- Choose a property --</option>
-                      {(myPostsData || []).map((post) => (
-                        <option key={post._id} value={post._id}>
-                          {post.title} (₹{post.price?.toLocaleString("en-IN") || "N/A"} in {post.city})
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              )}
-
-              {/* Campaign Title */}
-              <div>
-                <label className="text-xs font-semibold text-base-content/80 mb-1 block">
-                  Campaign Title *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Luxury 3 BHK in Whitefield with Zero Brokerage"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="input input-sm input-bordered w-full rounded-xl text-xs"
-                />
+                      <span
+                        className={`grid size-8 shrink-0 place-items-center rounded-lg ${
+                          selected ? "bg-primary text-white" : "bg-base-200 text-base-content/60"
+                        }`}
+                      >
+                        <Icon className="size-4" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-xs font-bold text-base-content">{opt.label}</span>
+                        <span className="mt-0.5 block text-[10px] leading-snug text-base-content/55">{opt.hint}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
               </div>
 
-              {/* Description */}
-              <div>
-                <label className="text-xs font-semibold text-base-content/80 mb-1 block">
-                  Description / Copy *
-                </label>
-                <textarea
-                  required
-                  rows={2}
-                  placeholder="e.g. Spacious modern apartment with pool and gym amenities. Available immediately."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="textarea textarea-bordered textarea-sm w-full rounded-xl text-xs"
-                />
-              </div>
+              {/* Creative */}
+              <section className={SECTION_CLASS}>
 
-              {/* Advertiser & Badge */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-base-content/80 mb-1 block">
-                    Advertiser / Brand Name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Sunrise Realty or Your Name"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    className="input input-sm input-bordered w-full rounded-xl text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-base-content/80 mb-1 block">
-                    Badge Label
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ad"
-                    value={badgeText}
-                    onChange={(e) => setBadgeText(e.target.value)}
-                    className="input input-sm input-bordered w-full rounded-xl text-xs"
-                  />
-                </div>
-              </div>
-
-              {/* Banner Image Upload & Preview */}
-              <div>
-                <label className="text-xs font-semibold text-base-content/80 mb-1 block">
-                  Banner Image *
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Image URL or upload banner"
-                    value={mediaUrl}
-                    onChange={(e) => setMediaUrl(e.target.value)}
-                    className="input input-sm input-bordered flex-1 rounded-xl text-xs"
-                  />
-                  <label className="btn btn-sm btn-outline gap-1.5 rounded-xl text-xs cursor-pointer">
-                    {uploadingImage ? (
-                      <Loader2 className="size-3.5 animate-spin" />
+                {creationMode === "post" && (
+                  <div>
+                    <label className={LABEL_CLASS}>Select Property Listing *</label>
+                    {myPostsData?.length === 0 ? (
+                      <p className="rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-800">
+                        You haven&apos;t posted any properties yet. Switch to &quot;Custom Ad Banner&quot; or create a post first.
+                      </p>
                     ) : (
-                      <ImageIcon className="size-3.5" />
+                      <select
+                        className={INPUT_CLASS}
+                        value={selectedPostId}
+                        onChange={(e) => handleSelectPost(e.target.value)}
+                      >
+                        <option value="">-- Choose a property --</option>
+                        {(myPostsData || []).map((post) => (
+                          <option key={post._id} value={post._id}>
+                            {post.title} (₹{post.price?.toLocaleString("en-IN") || "N/A"} in {post.city})
+                          </option>
+                        ))}
+                      </select>
                     )}
-                    <span>Upload</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleUploadBanner}
-                    />
-                  </label>
-                </div>
-
-                {mediaUrl && (
-                  <div className="mt-2 relative aspect-[21/9] w-full overflow-hidden rounded-xl border border-base-200">
-                    <img
-                      src={mediaUrl}
-                      alt="Banner Preview"
-                      className="h-full w-full object-cover"
-                    />
                   </div>
                 )}
-              </div>
 
-              {/* Target Link & CTA Text */}
-              <div className="grid grid-cols-2 gap-3">
+                {/* Banner */}
                 <div>
-                  <label className="text-xs font-semibold text-base-content/80 mb-1 block">
-                    Destination URL / Link *
-                  </label>
+                  <label className={LABEL_CLASS}>Banner Image *</label>
+                  {mediaUrl ? (
+                    <div className="relative aspect-[21/9] w-full overflow-hidden rounded-xl border border-base-300/60 bg-base-200">
+                      <img src={mediaUrl} alt="Banner preview" className="h-full w-full object-cover" />
+                      <div className="absolute bottom-2 right-2 flex gap-1.5">
+                        <label className="flex h-7 cursor-pointer items-center gap-1 rounded-lg bg-black/60 px-2.5 text-[11px] font-bold text-white backdrop-blur-sm">
+                          {uploadingImage ? <Loader2 className="size-3 animate-spin" /> : <ImageIcon className="size-3" />}
+                          Change
+                          <input type="file" accept="image/*" className="hidden" onChange={handleUploadBanner} />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setMediaUrl("")}
+                          aria-label="Remove banner"
+                          className="grid size-7 place-items-center rounded-lg bg-black/60 text-white backdrop-blur-sm"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <label className="flex aspect-[21/9] w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-base-300 bg-base-200/50 text-base-content/55 transition hover:border-primary hover:text-primary">
+                        {uploadingImage ? (
+                          <Loader2 className="size-5 animate-spin" />
+                        ) : (
+                          <ImageIcon className="size-5" />
+                        )}
+                        <span className="text-xs font-bold">{uploadingImage ? "Uploading…" : "Upload banner"}</span>
+                        <span className="text-[10px]">Wide image works best (21:9)</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={handleUploadBanner} />
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Image URL or upload banner"
+                        value={mediaUrl}
+                        onChange={(e) => setMediaUrl(e.target.value)}
+                        className={`${INPUT_CLASS} mt-2`}
+                      />
+                    </>
+                  )}
+                </div>
+
+                <div>
+                  <label className={LABEL_CLASS}>Campaign Title *</label>
                   <input
                     type="text"
-                    required
-                    placeholder="https://... or /property/123"
-                    value={targetUrl}
-                    onChange={(e) => setTargetUrl(e.target.value)}
-                    className="input input-sm input-bordered w-full rounded-xl text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-base-content/80 mb-1 block">
-                    CTA Button Text
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="View Listing"
-                    value={ctaText}
-                    onChange={(e) => setCtaText(e.target.value)}
-                    className="input input-sm input-bordered w-full rounded-xl text-xs"
-                  />
-                </div>
-              </div>
-
-              {/* Targeting Options */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-base-content/80 mb-1 block">
-                    Target City (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={targetCity}
-                    onChange={(e) => setTargetCity(e.target.value)}
-                    placeholder="Leave blank for Pan-India"
-                    className="input input-sm input-bordered w-full rounded-xl text-xs"
+                    placeholder="e.g. Luxury 3 BHK in Whitefield with Zero Brokerage"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className={INPUT_CLASS}
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-base-content/80 mb-1 block">
-                    Audience Intent
-                  </label>
-                  <select
-                    value={targetIntent}
-                    onChange={(e) => setTargetIntent(e.target.value)}
-                    className="select select-bordered select-sm w-full rounded-xl text-xs"
-                  >
-                    <option value="All">All Feed Users</option>
-                    <option value="Buy">Buyers Only</option>
-                    <option value="Rent">Renters Only</option>
-                  </select>
+                  <label className={LABEL_CLASS}>Description / Copy *</label>
+                  <textarea
+                    rows={2}
+                    placeholder="e.g. Spacious modern apartment with pool and gym amenities. Available immediately."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className={`${INPUT_CLASS} h-auto resize-none py-2`}
+                  />
                 </div>
-              </div>
 
-              {/* Duration & Coin Package Selection */}
-              <div>
-                <label className="text-xs font-semibold text-base-content/80 mb-1.5 block">
-                  Select Campaign Duration & Budget
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={LABEL_CLASS}>Advertiser / Brand Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Sunrise Realty or Your Name"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Badge Label</label>
+                    <input
+                      type="text"
+                      placeholder="Ad"
+                      value={badgeText}
+                      onChange={(e) => setBadgeText(e.target.value)}
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              {/* Link */}
+              <section className={SECTION_CLASS}>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[2fr_1fr]">
+                  <div>
+                    <label className={LABEL_CLASS}>Destination URL / Link *</label>
+                    <input
+                      type="text"
+                      placeholder="https://... or /property/123"
+                      value={targetUrl}
+                      onChange={(e) => setTargetUrl(e.target.value)}
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>CTA Button Text</label>
+                    <input
+                      type="text"
+                      placeholder="View Listing"
+                      value={ctaText}
+                      onChange={(e) => setCtaText(e.target.value)}
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              {/* Audience */}
+              <section className={SECTION_CLASS}>
+                <div>
+                  <label className={LABEL_CLASS}>Target City (Optional)</label>
+                  <div className="relative">
+                    <MapPin className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-base-content/40" />
+                    <input
+                      type="text"
+                      value={targetCity}
+                      onChange={(e) => setTargetCity(e.target.value)}
+                      placeholder="Leave blank for Pan-India"
+                      className={`${INPUT_CLASS} pl-8`}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Audience Intent</label>
+                  <div className="grid grid-cols-3 gap-1 rounded-lg bg-base-200 p-1">
+                    {[
+                      { value: "All", label: "All Feed Users" },
+                      { value: "Buy", label: "Buyers Only" },
+                      { value: "Rent", label: "Renters Only" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setTargetIntent(opt.value)}
+                        className={`h-7 rounded-md text-xs font-bold transition ${
+                          targetIntent === opt.value
+                            ? "bg-base-100 text-base-content shadow-sm"
+                            : "text-base-content/55 hover:text-base-content"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </section>
+
+              {/* Duration */}
+              <section className={SECTION_CLASS}>
+                <label className={LABEL_CLASS}>Select Campaign Duration &amp; Budget</label>
+                <div className="grid grid-cols-4 gap-1.5">
                   {plans.map((plan) => {
                     const isSelected = selectedPlan.durationDays === plan.durationDays;
                     return (
@@ -489,26 +485,28 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
                         key={plan.durationDays}
                         type="button"
                         onClick={() => setDurationDays(plan.durationDays)}
-                        className={`rounded-xl border p-2.5 text-center transition ${
+                        className={`relative rounded-xl border px-1 py-2 text-center transition ${
                           isSelected
-                            ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary"
-                            : "border-base-300 hover:border-base-content/30"
+                            ? "border-primary bg-primary/5 ring-1 ring-primary"
+                            : "border-base-300/70 hover:border-base-300"
                         }`}
                       >
                         {plan.popular && (
-                          <span className="badge badge-primary badge-xs mb-1">Popular</span>
+                          <span className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-1.5 text-[9px] font-bold leading-4 text-white">
+                            Popular
+                          </span>
                         )}
-                        <p className="text-xs font-bold text-base-content">{plan.label}</p>
-                        <div className="mt-1 flex items-center justify-center gap-1 text-primary font-bold text-xs">
-                          <Coins className="size-3 text-amber-500" />
+                        <p className="text-xs font-extrabold text-base-content">{plan.label}</p>
+                        <p className="mt-0.5 flex items-center justify-center gap-1 text-[11px] font-bold text-base-content/70">
+                          <span className="size-2 rounded-full bg-amber-400" />
                           {plan.coins} Coins
-                        </div>
-                        <p className="text-[10px] text-base-content/50 mt-0.5">(₹{plan.rupeeValue} value)</p>
+                        </p>
+                        <p className="text-[10px] text-base-content/45">(₹{plan.rupeeValue} value)</p>
                       </button>
                     );
                   })}
                 </div>
-              </div>
+              </section>
             </div>
           ) : (
             /* My Campaigns Tab */
@@ -534,85 +532,110 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
                   </button>
                 </div>
               ) : (
-                campaigns.map((camp) => (
-                  <div
-                    key={camp._id}
-                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 rounded-xl border border-base-300 p-3.5 transition hover:border-primary/40 bg-base-100"
-                  >
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={camp.mediaUrl}
-                        alt={camp.title}
-                        className="h-14 w-14 rounded-xl object-cover border border-base-200"
-                      />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-bold text-xs text-base-content line-clamp-1">{camp.title}</h4>
-                          <span
-                            className={`badge badge-xs font-bold uppercase ${
-                              camp.status === "active" && !camp.isExpired
-                                ? "badge-success text-white"
-                                : camp.status === "paused"
-                                ? "badge-warning"
-                                : "badge-ghost"
-                            }`}
+                campaigns.map((camp) => {
+                  const isActive = camp.status === "active" && !camp.isExpired;
+                  const name = camp.companyName || camp.title || "Ad";
+                  const endingSoon = !camp.isExpired && camp.daysRemaining <= 1;
+                  return (
+                    <div key={camp._id} className="rounded-xl border border-base-300/60 bg-base-100 p-3">
+                      <div className="flex gap-2.5">
+                        {camp.mediaUrl && !brokenImages[camp._id] ? (
+                          <img
+                            src={camp.mediaUrl}
+                            alt={camp.title}
+                            onError={() => setBrokenImages((prev) => ({ ...prev, [camp._id]: true }))}
+                            className="size-10 shrink-0 rounded-xl border border-base-200 object-cover"
+                          />
+                        ) : (
+                          <div
+                            className={`grid size-10 shrink-0 place-items-center rounded-xl text-base font-extrabold ${tileColorFor(name)}`}
                           >
-                            {camp.isExpired ? "Expired" : camp.status}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-base-content/60 line-clamp-1 mt-0.5">{camp.description}</p>
-                        <div className="mt-1 flex items-center gap-2 text-[10px] text-base-content/50">
-                          <span>📍 {camp.targetCity || "Pan-India"}</span>
-                          <span>•</span>
-                          <span>⏳ {camp.isExpired ? "Ended" : `${camp.daysRemaining} days left`}</span>
-                          <span>•</span>
-                          <span>🪙 {camp.coinsSpent || 0} coins</span>
+                            {name.trim().charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <h4 className="truncate text-sm font-extrabold text-base-content">{camp.title}</h4>
+                            <span
+                              className={`flex shrink-0 items-center gap-1 rounded-full px-1.5 py-px text-[10px] font-bold ${
+                                isActive
+                                  ? "bg-green-100 text-green-700"
+                                  : camp.isExpired
+                                  ? "bg-base-200 text-base-content/60"
+                                  : "bg-amber-100 text-amber-700"
+                              }`}
+                            >
+                              <span
+                                className={`size-1.5 rounded-full ${
+                                  isActive ? "bg-green-600" : camp.isExpired ? "bg-base-content/40" : "bg-amber-500"
+                                }`}
+                              />
+                              {camp.isExpired ? "Expired" : isActive ? "Active" : "Paused"}
+                            </span>
+                          </div>
+                          <p className="truncate text-xs text-base-content/60">{camp.description}</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] font-medium text-base-content/60">
+                            <span className="flex items-center gap-1">
+                              <MapPin className="size-3" />
+                              {camp.targetCity || "Pan-India"}
+                            </span>
+                            <span className={`flex items-center gap-1 ${endingSoon ? "text-orange-600" : ""}`}>
+                              <Clock className="size-3" />
+                              {camp.isExpired
+                                ? "Ended"
+                                : `${camp.daysRemaining} ${camp.daysRemaining === 1 ? "day" : "days"} left`}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="size-2 rounded-full bg-amber-400" />
+                              {camp.coinsSpent || 0} coins
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Analytics & Controls */}
-                    <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-2 sm:pt-0 border-base-200">
-                      <div className="flex items-center gap-3 text-center">
-                        <div>
-                          <div className="flex items-center gap-1 text-xs font-bold text-base-content">
-                            <Eye className="size-3 text-primary" />
-                            {camp.impressionsCount}
-                          </div>
-                          <span className="text-[9px] text-base-content/50">Views</span>
+                      <div className="mt-2.5 flex items-center gap-2">
+                        <div className="grid flex-1 grid-cols-3 divide-x divide-base-300/70 rounded-lg bg-base-200/60 py-1.5">
+                          {[
+                            { label: "Views", value: camp.impressionsCount ?? 0 },
+                            { label: "Clicks", value: camp.clicksCount ?? 0 },
+                            { label: "CTR", value: `${String(camp.ctr ?? 0).replace(/%$/, "")}%`, accent: true },
+                          ].map((stat) => (
+                            <div key={stat.label} className="px-2.5">
+                              <p className="text-[10px] font-medium text-base-content/50">{stat.label}</p>
+                              <p
+                                className={`text-[13px] font-semibold tabular-nums leading-tight ${
+                                  stat.accent ? "text-primary" : "text-base-content/85"
+                                }`}
+                              >
+                                {stat.value}
+                              </p>
+                            </div>
+                          ))}
                         </div>
 
-                        <div>
-                          <div className="flex items-center gap-1 text-xs font-bold text-base-content">
-                            <MousePointerClick className="size-3 text-secondary" />
-                            {camp.clicksCount}
-                          </div>
-                          <span className="text-[9px] text-base-content/50">Clicks ({camp.ctr}%)</span>
-                        </div>
+                        {!camp.isExpired && (
+                          <button
+                            type="button"
+                            onClick={() => toggleStatus(camp._id)}
+                            className="flex h-9 shrink-0 items-center gap-1 rounded-lg border border-base-300 bg-base-100 px-3 text-xs font-medium text-base-content/75 transition-colors hover:bg-base-200 hover:text-base-content"
+                          >
+                            {camp.status === "active" ? (
+                              <>
+                                <Pause className="size-3 fill-current" />
+                                Pause
+                              </>
+                            ) : (
+                              <>
+                                <Play className="size-3 fill-current" />
+                                Resume
+                              </>
+                            )}
+                          </button>
+                        )}
                       </div>
-
-                      {!camp.isExpired && (
-                        <button
-                          type="button"
-                          onClick={() => toggleStatus(camp._id)}
-                          className="btn btn-xs btn-outline rounded-lg"
-                        >
-                          {camp.status === "active" ? (
-                            <>
-                              <Pause className="size-3 mr-0.5" />
-                              Pause
-                            </>
-                          ) : (
-                            <>
-                              <Play className="size-3 mr-0.5" />
-                              Resume
-                            </>
-                          )}
-                        </button>
-                      )}
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}
@@ -620,42 +643,37 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
 
         {/* Footer Action (when in Create tab) */}
         {activeTab === "create" && (
-          <div className="pt-3 border-t border-base-200 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-base-content/80">
+          <div className="border-t border-base-300/60 pt-3">
+            <div className="mb-2 flex items-center justify-between text-xs">
+              <span className="text-base-content/60">
                 Cost: <span className="font-bold text-primary">{selectedPlan.coins} Coins</span>
-              </p>
-              {!hasEnoughCoins && (
-                <p className="text-[11px] text-error font-medium">
-                  Need {selectedPlan.coins - coinBalance} more coins. Refer friends for 65 coins each.
-                </p>
+              </span>
+              <span className={`font-semibold ${hasEnoughCoins ? "text-base-content/60" : "text-error"}`}>
+                {hasEnoughCoins
+                  ? `Balance: ${coinBalance}`
+                  : `Need ${selectedPlan.coins - coinBalance} more coins`}
+              </span>
+            </div>
+            <button
+              type="button"
+              disabled={!hasEnoughCoins || launching || !title || !description || !mediaUrl || !targetUrl}
+              onClick={() => launchCampaign()}
+              className="flex h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-primary text-sm font-bold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-base-300 disabled:text-base-content/40"
+            >
+              {launching ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <>
+                  <Megaphone className="size-4" />
+                  Launch Campaign
+                </>
               )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="btn btn-ghost btn-sm rounded-xl text-xs"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={!hasEnoughCoins || launching || !title || !description || !mediaUrl || !targetUrl}
-                onClick={() => launchCampaign()}
-                className="btn btn-primary btn-sm rounded-xl px-5 text-xs font-bold"
-              >
-                {launching ? (
-                  <span className="loading loading-spinner loading-xs" />
-                ) : (
-                  <>
-                    <Sparkles className="size-3.5 mr-1" />
-                    Launch Campaign
-                  </>
-                )}
-              </button>
-            </div>
+            </button>
+            {!hasEnoughCoins && (
+              <p className="mt-1.5 text-center text-[10px] text-base-content/50">
+                Refer friends for 65 coins each.
+              </p>
+            )}
           </div>
         )}
       </div>

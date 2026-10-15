@@ -120,7 +120,7 @@ export default function ProfilePage() {
       subtitle="Keep your marketplace identity fresh with role, city, and profile details."
     >
       <div className="grid gap-5 lg:grid-cols-3">
-        <section className="space-y-5 lg:col-span-2">
+        <section className="min-w-0 space-y-5 lg:col-span-2">
           {!authUser?.isOnboarded ? (
             <div className="rounded-3xl border border-primary/30 bg-primary/5 p-5 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -309,7 +309,7 @@ export default function ProfilePage() {
           </button>
         </section>
 
-        <aside className="rounded-3xl border border-base-300 bg-base-100 p-5 shadow-sm">
+        <aside className="min-w-0 rounded-3xl border border-base-300 bg-base-100 p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-base-content/60">Live preview</p>
 
           <div className="mt-4 rounded-3xl border border-base-300/80 bg-[radial-gradient(circle_at_10%_10%,hsl(var(--p)/0.12),transparent_35%),radial-gradient(circle_at_90%_15%,hsl(var(--s)/0.12),transparent_35%),hsl(var(--b1))] p-5">

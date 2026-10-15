@@ -1739,13 +1739,56 @@ export async function expireBoostedPostsSweep(req, res) {
   }
 }
 
+/**
+ * GET /posts/me
+ * Returns active properties created by the authenticated user.
+ */
+export async function getMyPropertyPosts(req, res) {
+  try {
+    const userId = req.user?._id;
+    if (!userId) {
+      return sendErrorResponse(res, 401, "Authentication required");
+    }
+
+    const posts = await PropertyPost.find({
+      author: userId,
+      isDeleted: { $ne: true },
+    })
+      .sort({ createdAt: -1 })
+      .populate(
+        "author",
+        "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified"
+      )
+      .lean();
+
+    const formattedPosts = posts.map((post) => {
+      const media = Array.isArray(post.mediaUrls)
+        ? post.mediaUrls.map((url) => ({ url }))
+        : [];
+      return {
+        ...post,
+        media,
+        photos: post.mediaUrls || [],
+      };
+    });
+
+    return sendSuccessResponse(res, 200, "User posts fetched successfully", {
+      posts: formattedPosts,
+      total: formattedPosts.length,
+    });
+  } catch (error) {
+    logger.error("Error in getMyPropertyPosts:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
 export async function getPropertyPostById(req, res) {
   try {
     const postId = req.params?.id;
     const currentUserId = req.user?._id ? String(req.user._id) : "";
 
-    if (!postId) {
-      return sendErrorResponse(res, 400, "Post ID is required");
+    if (!postId || !mongoose.Types.ObjectId.isValid(postId)) {
+      return sendErrorResponse(res, 404, "Post not found");
     }
 
     const post = await PropertyPost.findById(postId)

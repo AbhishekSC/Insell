@@ -24,6 +24,7 @@ import {
   uploadPropertyMedia as uploadPropertyMediaController,
   boostPropertyPost,
   expireBoostedPostsSweep,
+  getMyPropertyPosts,
 } from "../controllers/propertyPost.controller.js";
 import { uploadPropertyMedia } from "../middlewares/upload.middleware.js";
 
@@ -36,6 +37,7 @@ router.get("/", verifyUser, requireVerified, getPropertyFeed);
 router.get("/latest", verifyUser, requireVerified, getLatestFeedPost);
 router.get("/hot", verifyUser, requireVerified, getHotPropertiesFeed);
 // Static paths before the "/:id" catch-all so they don't resolve as an id.
+router.get("/me", verifyUser, requireVerified, getMyPropertyPosts);
 router.get("/price-suggestion", verifyUser, requireVerified, getPriceSuggestion);
 router.post("/card-signals", verifyUser, requireVerified, getCardSignals);
 router.get("/:id", verifyUser, requireVerified, getPropertyPostById);
