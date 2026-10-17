@@ -101,6 +101,7 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
   });
 
   const campaigns = myData?.campaigns || [];
+  const runningCount = campaigns.filter((c) => c.status === "active" && !c.isExpired).length;
   const coinBalance = passbookData?.wallet?.balance ?? myData?.coinBalance ?? 0;
   const rupeeValue = passbookData?.wallet?.rupeeValue ?? myData?.rupeeValue ?? "0.00";
   const passbookTransactions = passbookData?.transactions || [];
@@ -264,9 +265,9 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
             }`}
           >
             Running
-            {campaigns.length > 0 && (
+            {runningCount > 0 && (
               <span className="grid min-w-4 h-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-white">
-                {campaigns.length}
+                {runningCount}
               </span>
             )}
           </button>
@@ -564,7 +565,7 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
                 </div>
               </section>
             </div>
-          ) : (
+          ) : activeTab === "campaigns" ? (
             /* My Campaigns Tab */
             <div className="space-y-3">
               {loadingCampaigns ? (
@@ -699,10 +700,8 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
                 })
               )}
             </div>
-          )}
-
-          {/* TAB 3: Coin Passbook & Ledger */}
-          {activeTab === "passbook" && (
+          ) : (
+            /* TAB 3: Coin Passbook & Ledger */
             <div className="space-y-3.5">
               {/* Wallet Summary Card */}
               <div className="rounded-2xl border border-amber-300/80 bg-gradient-to-br from-amber-50 via-amber-100/30 to-base-100 p-4 shadow-sm">
