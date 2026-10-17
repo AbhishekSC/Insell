@@ -14,9 +14,20 @@ import {
   MapPin,
   Clock,
   Plus,
+  History,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Wallet,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
+
+const AD_CATEGORIES = [
+  "Real Estate",
+  "Home Loans & Finance",
+  "Interiors & Services",
+  "Lifestyle & Entertainment",
+];
 
 const CAMPAIGN_TILE_COLORS = [
   "bg-slate-900 text-amber-400",
@@ -52,6 +63,7 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
   const [mediaUrl, setMediaUrl] = useState(preselectedPost?.media?.[0]?.url || preselectedPost?.photos?.[0] || "");
   const [targetUrl, setTargetUrl] = useState(preselectedPost ? `/property/${preselectedPost._id}` : "");
   const [ctaText, setCtaText] = useState("View Listing");
+  const [adCategory, setAdCategory] = useState("Real Estate");
   const [targetCity, setTargetCity] = useState(preselectedPost?.city || "");
   const [targetIntent, setTargetIntent] = useState("All");
   const [durationDays, setDurationDays] = useState(3);
@@ -78,8 +90,21 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
     enabled: isOpen,
   });
 
+  // Fetch Coin Wallet & Passbook Ledger
+  const { data: passbookData, isLoading: loadingPassbook } = useQuery({
+    queryKey: ["myPassbook"],
+    queryFn: async () => {
+      const res = await axiosInstance.get("/wallet/history");
+      return res.data?.data;
+    },
+    enabled: isOpen,
+  });
+
   const campaigns = myData?.campaigns || [];
-  const coinBalance = myData?.coinBalance ?? 0;
+  const runningCount = campaigns.filter((c) => c.status === "active" && !c.isExpired).length;
+  const coinBalance = passbookData?.wallet?.balance ?? myData?.coinBalance ?? 0;
+  const rupeeValue = passbookData?.wallet?.rupeeValue ?? myData?.rupeeValue ?? "0.00";
+  const passbookTransactions = passbookData?.transactions || [];
   const plans = myData?.plans || [
     { durationDays: 1, coins: 200, label: "1 Day", rupeeValue: 20 },
     { durationDays: 3, coins: 500, label: "3 Days", rupeeValue: 50, popular: true },
@@ -101,6 +126,7 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
       setTargetUrl(`/property/${post._id}`);
       setTargetCity(post.city || "");
       setTargetIntent(post.listingType === "Rent" ? "Rent" : post.listingType === "Sell" ? "Buy" : "All");
+      setAdCategory("Real Estate");
       setCtaText("View Property");
     }
   };
@@ -138,6 +164,7 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
         mediaUrl,
         targetUrl,
         ctaText,
+        adCategory,
         targetCity,
         targetIntent,
         durationDays: selectedPlan.durationDays,
@@ -149,6 +176,7 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
     onSuccess: (data) => {
       toast.success(data?.message || "Campaign launched successfully!");
       queryClient.invalidateQueries({ queryKey: ["myCampaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["myPassbook"] });
       queryClient.invalidateQueries({ queryKey: ["activeAdvertisements"] });
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
       setActiveTab("campaigns");
@@ -213,7 +241,7 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
         </div>
 
         {/* Segmented Tabs */}
-        <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-base-300/60 p-1">
+        <div className="mt-3 grid grid-cols-3 gap-1 rounded-xl bg-base-300/60 p-1">
           <button
             type="button"
             onClick={() => setActiveTab("create")}
@@ -237,11 +265,24 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
             }`}
           >
             Running
-            {campaigns.length > 0 && (
+            {runningCount > 0 && (
               <span className="grid min-w-4 h-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-white">
-                {campaigns.length}
+                {runningCount}
               </span>
             )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("passbook")}
+            className={`flex h-8 items-center justify-center gap-1.5 rounded-lg text-xs font-bold transition-all ${
+              activeTab === "passbook"
+                ? "bg-base-100 text-base-content shadow-sm"
+                : "text-base-content/55 hover:text-base-content"
+            }`}
+          >
+            <History className="size-3.5" />
+            Passbook
           </button>
         </div>
 
@@ -434,19 +475,35 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
                 </div>
               </section>
 
-              {/* Audience */}
+              {/* Audience & Category */}
               <section className={SECTION_CLASS}>
-                <div>
-                  <label className={LABEL_CLASS}>Target City (Optional)</label>
-                  <div className="relative">
-                    <MapPin className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-base-content/40" />
-                    <input
-                      type="text"
-                      value={targetCity}
-                      onChange={(e) => setTargetCity(e.target.value)}
-                      placeholder="Leave blank for Pan-India"
-                      className={`${INPUT_CLASS} pl-8`}
-                    />
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  <div>
+                    <label className={LABEL_CLASS}>Ad Category</label>
+                    <select
+                      value={adCategory}
+                      onChange={(e) => setAdCategory(e.target.value)}
+                      className={INPUT_CLASS}
+                    >
+                      {AD_CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Target City (Optional)</label>
+                    <div className="relative">
+                      <MapPin className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-base-content/40" />
+                      <input
+                        type="text"
+                        value={targetCity}
+                        onChange={(e) => setTargetCity(e.target.value)}
+                        placeholder="Leave blank for Pan-India"
+                        className={`${INPUT_CLASS} pl-8`}
+                      />
+                    </div>
                   </div>
                 </div>
                 <div>
@@ -508,7 +565,7 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
                 </div>
               </section>
             </div>
-          ) : (
+          ) : activeTab === "campaigns" ? (
             /* My Campaigns Tab */
             <div className="space-y-3">
               {loadingCampaigns ? (
@@ -575,6 +632,11 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
                           </div>
                           <p className="truncate text-xs text-base-content/60">{camp.description}</p>
                           <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] font-medium text-base-content/60">
+                            {camp.adCategory && (
+                              <span className="rounded bg-base-200 px-1.5 py-0.2 text-[10px] font-semibold text-base-content/75">
+                                {camp.adCategory}
+                              </span>
+                            )}
                             <span className="flex items-center gap-1">
                               <MapPin className="size-3" />
                               {camp.targetCity || "Pan-India"}
@@ -636,6 +698,99 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
                     </div>
                   );
                 })
+              )}
+            </div>
+          ) : (
+            /* TAB 3: Coin Passbook & Ledger */
+            <div className="space-y-3.5">
+              {/* Wallet Summary Card */}
+              <div className="rounded-2xl border border-amber-300/80 bg-gradient-to-br from-amber-50 via-amber-100/30 to-base-100 p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="grid size-10 place-items-center rounded-xl bg-amber-500 text-white shadow-sm font-black text-lg">
+                      🪙
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-amber-900/70">Available Coins</p>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-black text-amber-950">{coinBalance}</span>
+                        <span className="text-xs font-semibold text-amber-800">≈ ₹{rupeeValue}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-right text-[11px] font-medium text-amber-900/80 space-y-0.5">
+                    <div>Earned: <span className="font-bold text-green-700">+{passbookData?.wallet?.lifetimeEarned ?? coinBalance}</span></div>
+                    <div>Spent: <span className="font-bold text-amber-900">-{passbookData?.wallet?.lifetimeSpent ?? 0}</span></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Transactions History Header */}
+              <div className="flex items-center justify-between px-1">
+                <h4 className="text-xs font-bold text-base-content uppercase tracking-wider">Transaction History</h4>
+                <span className="text-[11px] text-base-content/50">{passbookTransactions.length} records</span>
+              </div>
+
+              {/* Transactions List */}
+              {loadingPassbook ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="size-6 animate-spin text-primary" />
+                </div>
+              ) : passbookTransactions.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-base-300 p-8 text-center">
+                  <History className="mx-auto size-8 text-base-content/30" />
+                  <p className="mt-2 text-xs font-bold text-base-content">No transactions yet</p>
+                  <p className="text-[11px] text-base-content/60 mt-1">
+                    Invite friends or create listings to start earning coins!
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {passbookTransactions.map((tx) => {
+                    const isCredit = tx.type === "CREDIT";
+                    return (
+                      <div
+                        key={tx._id}
+                        className="flex items-center justify-between rounded-xl border border-base-300/60 bg-base-100 p-3 shadow-xs hover:border-base-300 transition"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 mr-2">
+                          <div
+                            className={`grid size-8 shrink-0 place-items-center rounded-lg ${
+                              isCredit ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                            }`}
+                          >
+                            {isCredit ? <ArrowDownLeft className="size-4" /> : <ArrowUpRight className="size-4" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-bold text-base-content">{tx.description}</p>
+                            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-base-content/55">
+                              <span className="rounded bg-base-200 px-1 py-0.2 font-semibold">
+                                {tx.category?.replace(/_/g, " ")}
+                              </span>
+                              <span>•</span>
+                              <span>
+                                {new Date(tx.createdAt).toLocaleDateString("en-IN", {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className={`text-xs font-black ${isCredit ? "text-green-600" : "text-red-500"}`}>
+                            {isCredit ? `+${tx.amount}` : `-${tx.amount}`}
+                          </span>
+                          <p className="text-[10px] text-base-content/40 font-medium">Bal: {tx.balanceAfter}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}

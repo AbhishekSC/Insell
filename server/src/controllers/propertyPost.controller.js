@@ -23,6 +23,7 @@ import * as NotificationService from "../services/NotificationService.js";
 import { NotificationChannel } from "../services/NotificationService.js";
 import { notifyTriggeredAlerts as notifyTriggeredPriceAlerts } from "../modules/price-alert/priceAlert.app.service.js";
 import { activeUserIdsForPost as activeAlertUserIdsForPost, deleteForPost as deletePriceAlertsForPost } from "../modules/price-alert/priceAlert.repository.js";
+import { debitCoins } from "../services/wallet.service.js";
 import { calculateLivePropertyValuation } from "../utils/propertyValuationService.js";
 import { notifyMatches as notifySavedSearchMatches } from "../modules/saved-search/savedSearch.app.service.js";
 import Offer from "../models/Offer.model.js";
@@ -1583,16 +1584,17 @@ export async function boostPropertyPost(req, res) {
       return sendErrorResponse(res, 403, "You can only boost your own property listings");
     }
 
-    // Atomically deduct 1 referral credit if the user has at least 1 credit.
-    // Atomic update prevents race conditions and bypasses full-document validation
-    // on unrelated user fields.
-    const user = await User.findOneAndUpdate(
-      { _id: userId, referralCredits: { $gte: 1 } },
-      { $inc: { referralCredits: -1 } },
-      { new: true }
-    );
+    // Atomically debit 1 referral coin from user's CoinWallet and record ledger entry
+    const debitResult = await debitCoins({
+      userId,
+      amount: 1,
+      category: "POST_BOOST_SPEND",
+      description: `Boosted listing "${post.title || "Property"}" for 24 hours`,
+      referenceId: post._id,
+      referenceModel: "PropertyPost",
+    });
 
-    if (!user) {
+    if (!debitResult.success) {
       const userExists = await User.exists({ _id: userId });
       if (!userExists) {
         return sendErrorResponse(res, 404, "User not found");
@@ -1673,7 +1675,7 @@ export async function boostPropertyPost(req, res) {
         boostExpiresAt: post.boostExpiresAt,
         boostCount: post.boostCount,
       },
-      remainingCredits: user.referralCredits,
+      remainingCredits: debitResult.wallet.balance,
     });
   } catch (error) {
     logger.error("Error boosting property post:", error);

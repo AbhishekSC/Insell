@@ -2832,10 +2832,18 @@ function FeatureFlagsPanel() {
   );
 }
 
+const AD_CATEGORIES = [
+  "Real Estate",
+  "Home Loans & Finance",
+  "Interiors & Services",
+  "Lifestyle & Entertainment",
+];
+
 function AdvertisementsPanel() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingAd, setEditingAd] = useState(null);
@@ -2851,6 +2859,7 @@ function AdvertisementsPanel() {
     companyName: "",
     targetCity: "",
     targetIntent: "All",
+    adCategory: "Real Estate",
     status: "active",
     frequencyCap: 3,
     startDate: new Date().toISOString().split("T")[0],
@@ -2858,13 +2867,14 @@ function AdvertisementsPanel() {
   });
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ["adminAdvertisements", page, statusFilter, search],
+    queryKey: ["adminAdvertisements", page, statusFilter, categoryFilter, search],
     queryFn: async () => {
       const response = await axiosInstance.get("/admin/advertisements", {
         params: {
           page,
           limit: 9,
           status: statusFilter !== "all" ? statusFilter : undefined,
+          category: categoryFilter !== "all" ? categoryFilter : undefined,
           search: search.trim() || undefined,
         },
       });
@@ -2908,6 +2918,7 @@ function AdvertisementsPanel() {
         companyName: formData.companyName.trim(),
         targetCity: formData.targetCity.trim(),
         targetIntent: formData.targetIntent,
+        adCategory: formData.adCategory || "Real Estate",
         status: formData.status,
         frequencyCap: Math.max(1, Math.min(50, Number(formData.frequencyCap) || 3)),
         startDate: formData.startDate ? new Date(formData.startDate) : undefined,
@@ -2973,6 +2984,7 @@ function AdvertisementsPanel() {
       companyName: "",
       targetCity: "",
       targetIntent: "All",
+      adCategory: "Real Estate",
       status: "active",
       frequencyCap: 3,
       startDate: new Date().toISOString().split("T")[0],
@@ -2993,6 +3005,7 @@ function AdvertisementsPanel() {
       companyName: ad.companyName || "",
       targetCity: ad.targetCity || "",
       targetIntent: ad.targetIntent || "All",
+      adCategory: ad.adCategory || "Real Estate",
       status: ad.status || "active",
       frequencyCap: ad.frequencyCap || 3,
       startDate: ad.startDate ? new Date(ad.startDate).toISOString().split("T")[0] : "",
@@ -3037,24 +3050,45 @@ function AdvertisementsPanel() {
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-1.5">
-          {["all", "active", "paused", "draft"].map((st) => (
-            <button
-              key={st}
-              type="button"
-              onClick={() => {
-                setStatusFilter(st);
-                setPage(1);
-              }}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
-                statusFilter === st
-                  ? "bg-primary text-white"
-                  : "bg-base-200 text-base-content/70 hover:bg-base-300"
-              }`}
-            >
-              {st}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-1.5">
+            {["all", "active", "paused", "draft"].map((st) => (
+              <button
+                key={st}
+                type="button"
+                onClick={() => {
+                  setStatusFilter(st);
+                  setPage(1);
+                }}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
+                  statusFilter === st
+                    ? "bg-primary text-white"
+                    : "bg-base-200 text-base-content/70 hover:bg-base-300"
+                }`}
+              >
+                {st}
+              </button>
+            ))}
+          </div>
+
+          <div className="h-4 w-px bg-base-300 hidden sm:block" />
+
+          {/* Category Filter */}
+          <select
+            value={categoryFilter}
+            onChange={(e) => {
+              setCategoryFilter(e.target.value);
+              setPage(1);
+            }}
+            className="select select-bordered select-xs text-xs h-8 rounded-lg"
+          >
+            <option value="all">All Categories</option>
+            {AD_CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="relative w-full sm:w-72">
@@ -3151,8 +3185,15 @@ function AdvertisementsPanel() {
                   {/* Body Info */}
                   <div className="p-4">
                     <div className="flex items-center justify-between text-xs text-base-content/60">
-                      <span>{ad.companyName || "Partner"}</span>
-                      <span>Intent: {ad.targetIntent || "All"}</span>
+                      <div className="flex items-center gap-1.5 truncate mr-2">
+                        <span className="truncate">{ad.companyName || "Partner"}</span>
+                        {ad.adCategory && (
+                          <span className="shrink-0 rounded bg-base-200 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                            {ad.adCategory}
+                          </span>
+                        )}
+                      </div>
+                      <span className="shrink-0">Intent: {ad.targetIntent || "All"}</span>
                     </div>
 
                     <h3 className="mt-1.5 font-bold text-base-content text-sm sm:text-base line-clamp-1">
@@ -3437,8 +3478,24 @@ function AdvertisementsPanel() {
                 </div>
               </div>
 
-              {/* Targeting (City & Intent) */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Category & Targeting (City & Intent) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-base-content/80 mb-1 block">
+                    Category *
+                  </label>
+                  <select
+                    value={formData.adCategory}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, adCategory: e.target.value }))}
+                    className="select select-sm select-bordered w-full text-xs"
+                  >
+                    {AD_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className="text-xs font-semibold text-base-content/80 mb-1 block">
                     Target City (Optional)
