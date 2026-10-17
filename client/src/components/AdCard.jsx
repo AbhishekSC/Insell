@@ -12,20 +12,33 @@ export default function AdCard({ ad, onDismiss }) {
   useEffect(() => {
     if (firedImpression || !cardRef.current || !ad?._id) return;
 
+    let dwellTimer = null;
+
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting) {
-          // Record impression asynchronously without blocking UI
-          axiosInstance.post(`/advertisements/${ad._id}/impression`).catch(() => {});
-          setFiredImpression(true);
-          observer.disconnect();
+        const entry = entries[0];
+        if (entry?.isIntersecting) {
+          // Must remain visible for at least 1.5s to count as an engaged viewable impression
+          dwellTimer = setTimeout(() => {
+            axiosInstance.post(`/advertisements/${ad._id}/impression`).catch(() => {});
+            setFiredImpression(true);
+            observer.disconnect();
+          }, 1500);
+        } else {
+          if (dwellTimer) {
+            clearTimeout(dwellTimer);
+            dwellTimer = null;
+          }
         }
       },
       { threshold: 0.5 }
     );
 
     observer.observe(cardRef.current);
-    return () => observer.disconnect();
+    return () => {
+      if (dwellTimer) clearTimeout(dwellTimer);
+      observer.disconnect();
+    };
   }, [firedImpression, ad?._id]);
 
   const handleCtaClick = (e) => {
@@ -62,13 +75,18 @@ export default function AdCard({ ad, onDismiss }) {
     >
       {/* Top Meta Bar */}
       <div className="flex items-center justify-between border-b border-base-200 bg-gradient-to-r from-primary/10 via-base-100 to-primary/5 px-4 py-2.5">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-black tracking-wider text-primary uppercase">
-            Ad
+            {ad.badgeText || "Ad"}
           </span>
+          {ad.adCategory && (
+            <span className="rounded-full bg-base-200/90 border border-base-300 px-2 py-0.5 text-[10px] font-semibold text-base-content/70">
+              {ad.adCategory}
+            </span>
+          )}
           <div className="flex items-center gap-1.5">
             {ad.companyName ? (
-              <span className="text-xs font-semibold text-base-content/80 truncate max-w-[160px] sm:max-w-[220px]">
+              <span className="text-xs font-semibold text-base-content/80 truncate max-w-[140px] sm:max-w-[200px]">
                 {ad.companyName}
               </span>
             ) : (

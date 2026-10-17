@@ -18,6 +18,13 @@ import {
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 
+export const AD_CATEGORIES = [
+  "Real Estate",
+  "Home Loans & Finance",
+  "Interiors & Services",
+  "Lifestyle & Entertainment",
+];
+
 const CAMPAIGN_TILE_COLORS = [
   "bg-slate-900 text-amber-400",
   "bg-red-700 text-white",
@@ -52,6 +59,7 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
   const [mediaUrl, setMediaUrl] = useState(preselectedPost?.media?.[0]?.url || preselectedPost?.photos?.[0] || "");
   const [targetUrl, setTargetUrl] = useState(preselectedPost ? `/property/${preselectedPost._id}` : "");
   const [ctaText, setCtaText] = useState("View Listing");
+  const [adCategory, setAdCategory] = useState("Real Estate");
   const [targetCity, setTargetCity] = useState(preselectedPost?.city || "");
   const [targetIntent, setTargetIntent] = useState("All");
   const [durationDays, setDurationDays] = useState(3);
@@ -101,6 +109,7 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
       setTargetUrl(`/property/${post._id}`);
       setTargetCity(post.city || "");
       setTargetIntent(post.listingType === "Rent" ? "Rent" : post.listingType === "Sell" ? "Buy" : "All");
+      setAdCategory("Real Estate");
       setCtaText("View Property");
     }
   };
@@ -138,6 +147,7 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
         mediaUrl,
         targetUrl,
         ctaText,
+        adCategory,
         targetCity,
         targetIntent,
         durationDays: selectedPlan.durationDays,
@@ -434,19 +444,35 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
                 </div>
               </section>
 
-              {/* Audience */}
+              {/* Audience & Category */}
               <section className={SECTION_CLASS}>
-                <div>
-                  <label className={LABEL_CLASS}>Target City (Optional)</label>
-                  <div className="relative">
-                    <MapPin className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-base-content/40" />
-                    <input
-                      type="text"
-                      value={targetCity}
-                      onChange={(e) => setTargetCity(e.target.value)}
-                      placeholder="Leave blank for Pan-India"
-                      className={`${INPUT_CLASS} pl-8`}
-                    />
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  <div>
+                    <label className={LABEL_CLASS}>Ad Category</label>
+                    <select
+                      value={adCategory}
+                      onChange={(e) => setAdCategory(e.target.value)}
+                      className={INPUT_CLASS}
+                    >
+                      {AD_CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Target City (Optional)</label>
+                    <div className="relative">
+                      <MapPin className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-base-content/40" />
+                      <input
+                        type="text"
+                        value={targetCity}
+                        onChange={(e) => setTargetCity(e.target.value)}
+                        placeholder="Leave blank for Pan-India"
+                        className={`${INPUT_CLASS} pl-8`}
+                      />
+                    </div>
                   </div>
                 </div>
                 <div>
@@ -575,6 +601,11 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
                           </div>
                           <p className="truncate text-xs text-base-content/60">{camp.description}</p>
                           <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] font-medium text-base-content/60">
+                            {camp.adCategory && (
+                              <span className="rounded bg-base-200 px-1.5 py-0.2 text-[10px] font-semibold text-base-content/75">
+                                {camp.adCategory}
+                              </span>
+                            )}
                             <span className="flex items-center gap-1">
                               <MapPin className="size-3" />
                               {camp.targetCity || "Pan-India"}

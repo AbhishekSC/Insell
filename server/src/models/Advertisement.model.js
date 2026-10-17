@@ -1,6 +1,13 @@
 import mongoose from "mongoose";
 import { cdnMediaPlugin } from "../plugins/cdnMedia.plugin.js";
 
+export const AD_CATEGORIES = [
+  "Real Estate",
+  "Home Loans & Finance",
+  "Interiors & Services",
+  "Lifestyle & Entertainment",
+];
+
 const advertisementSchema = new mongoose.Schema(
   {
     title: {
@@ -58,6 +65,12 @@ const advertisementSchema = new mongoose.Schema(
       type: String,
       enum: ["All", "Buy", "Rent", "Sell"],
       default: "All",
+    },
+    adCategory: {
+      type: String,
+      enum: AD_CATEGORIES,
+      default: "Real Estate",
+      index: true,
     },
     status: {
       type: String,

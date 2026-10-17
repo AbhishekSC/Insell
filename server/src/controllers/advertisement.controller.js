@@ -1,4 +1,4 @@
-import Advertisement from "../models/Advertisement.model.js";
+import Advertisement, { AD_CATEGORIES } from "../models/Advertisement.model.js";
 import User from "../models/User.model.js";
 import { redisClient } from "../config/redis.js";
 import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler.js";
@@ -38,11 +38,98 @@ const incrementImpressionCount = async (userKey, adId) => {
 };
 
 /**
+ * Calculates a relevance and quality score for an ad.
+ * - Base relevance by category (Real Estate > Loans > Interiors > Lifestyle)
+ * - City match bonus (+0.4)
+ * - CTR Quality multiplier (higher CTR = higher score)
+ * - Anti-fatigue penalty for ads seen earlier today by this user
+ */
+export const calculateAdScore = ({ ad, userCity, viewsToday = 0 }) => {
+  const categoryWeights = {
+    "Real Estate": 1.5,
+    "Home Loans & Finance": 1.3,
+    "Interiors & Services": 1.2,
+    "Lifestyle & Entertainment": 0.9,
+  };
+  let relevance = categoryWeights[ad.adCategory] || 1.0;
+
+  if (
+    userCity &&
+    ad.targetCity &&
+    String(ad.targetCity).trim().toLowerCase() === String(userCity).trim().toLowerCase()
+  ) {
+    relevance += 0.4;
+  }
+
+  // CTR quality multiplier (baseline ~1.5% CTR gives ~1.0 multiplier)
+  const ctr =
+    ad.impressionsCount && ad.impressionsCount > 0
+      ? (ad.clicksCount / ad.impressionsCount) * 100
+      : 1.5;
+  const quality = Math.min(2.5, Math.max(0.5, (ctr + 0.5) / 2));
+
+  // Anti-fatigue penalty for ads seen earlier today (0.4 penalty per view)
+  const fatigue = Math.max(0, viewsToday) * 0.4;
+
+  const score = relevance * quality - fatigue;
+  return Number(score.toFixed(3));
+};
+
+/**
+ * Smoothly interleaves ads to prevent generic lifestyle ads (movies, drinks)
+ * from overwhelming the real estate and property feed.
+ * Ratio: up to 2 Core (Property/Loans/Interiors) : 1 Lifestyle.
+ */
+export const balanceAdFeed = (scoredAds, limit = 10) => {
+  const coreAds = [];
+  const lifestyleAds = [];
+
+  for (const item of scoredAds) {
+    if (item.ad?.adCategory === "Lifestyle & Entertainment") {
+      lifestyleAds.push(item);
+    } else {
+      coreAds.push(item);
+    }
+  }
+
+  coreAds.sort((a, b) => b.score - a.score);
+  lifestyleAds.sort((a, b) => b.score - a.score);
+
+  const result = [];
+  let coreIdx = 0;
+  let lifeIdx = 0;
+
+  while ((coreIdx < coreAds.length || lifeIdx < lifestyleAds.length) && result.length < limit) {
+    let added = 0;
+    // Add up to 2 core property/services ads
+    for (let i = 0; i < 2 && coreIdx < coreAds.length && result.length < limit; i++) {
+      result.push(coreAds[coreIdx++].ad);
+      added++;
+    }
+    // Add 1 lifestyle ad
+    if (lifeIdx < lifestyleAds.length && result.length < limit) {
+      result.push(lifestyleAds[lifeIdx++].ad);
+      added++;
+    }
+    // If no more core ads available, continue with lifestyle ads
+    if (coreIdx >= coreAds.length && lifeIdx < lifestyleAds.length && result.length < limit) {
+      result.push(lifestyleAds[lifeIdx++].ad);
+      added++;
+    }
+    if (added === 0) break;
+  }
+
+  return result;
+};
+
+/**
  * Public: Fetch active advertisements for marketplace feed.
  * Applies:
  * 1. City and Intent targeting
  * 2. User permanent dismissals (hiddenAds)
- * 3. Instagram-style Frequency Capping (max views per user per 24 hours)
+ * 3. Daily Frequency Capping (max views per user per 24 hours)
+ * 4. Relevance & CTR Quality scoring + Anti-fatigue penalty
+ * 5. Balanced feed distribution (Core property vs Lifestyle ads)
  */
 export const getActiveAdvertisements = async (req, res) => {
   try {
@@ -76,22 +163,28 @@ export const getActiveAdvertisements = async (req, res) => {
 
     const ads = await Advertisement.find(query)
       .sort({ updatedAt: -1 })
-      .limit(20)
+      .limit(50)
       .lean();
 
-    // Frequency capping check: filter out ads that hit today's cap for this user/IP
+    // Frequency capping check & scoring
     const userKey = getUserIdentifier(req);
-    const eligibleAds = [];
+    const scoredAds = [];
 
     for (const ad of ads) {
       const cap = ad.frequencyCap || 3;
       const viewsToday = await getImpressionCount(userKey, ad._id);
       if (viewsToday < cap) {
-        eligibleAds.push(ad);
+        const score = calculateAdScore({
+          ad,
+          userCity: city,
+          viewsToday,
+        });
+        scoredAds.push({ ad, score });
       }
     }
 
-    const finalAds = eligibleAds.slice(0, Math.min(20, Math.max(1, Number.parseInt(limit, 10) || 10)));
+    const parsedLimit = Math.min(20, Math.max(1, Number.parseInt(limit, 10) || 10));
+    const finalAds = balanceAdFeed(scoredAds, parsedLimit);
 
     return sendSuccessResponse(res, 200, "Active ads fetched successfully", { ads: finalAds });
   } catch (error) {
@@ -177,11 +270,14 @@ export const adminGetAdvertisements = async (req, res) => {
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
     const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 12));
     const skip = (page - 1) * limit;
-    const { status, search } = req.query;
+    const { status, search, category } = req.query;
 
     const query = {};
     if (status && status !== "all") {
       query.status = status;
+    }
+    if (category && category !== "all" && AD_CATEGORIES.includes(category)) {
+      query.adCategory = category;
     }
     if (search && String(search).trim()) {
       const term = String(search).trim();
@@ -241,6 +337,7 @@ export const adminCreateAdvertisement = async (req, res) => {
       companyLogo = "",
       targetCity = "",
       targetIntent = "All",
+      adCategory = "Real Estate",
       status = "active",
       frequencyCap = 3,
       startDate,
@@ -271,6 +368,7 @@ export const adminCreateAdvertisement = async (req, res) => {
       companyLogo: companyLogo.trim(),
       targetCity: targetCity.trim(),
       targetIntent: ["All", "Buy", "Rent", "Sell"].includes(targetIntent) ? targetIntent : "All",
+      adCategory: AD_CATEGORIES.includes(adCategory) ? adCategory : "Real Estate",
       status: ["active", "paused", "draft", "expired"].includes(status) ? status : "active",
       frequencyCap: Math.max(1, Math.min(50, Number.parseInt(frequencyCap, 10) || 3)),
       startDate: startDate ? new Date(startDate) : new Date(),
@@ -302,6 +400,7 @@ export const adminUpdateAdvertisement = async (req, res) => {
       "companyLogo",
       "targetCity",
       "targetIntent",
+      "adCategory",
       "status",
       "frequencyCap",
       "startDate",
@@ -315,6 +414,10 @@ export const adminUpdateAdvertisement = async (req, res) => {
           updates[key] = req.body[key] ? new Date(req.body[key]) : null;
         } else if (key === "frequencyCap") {
           updates[key] = Math.max(1, Math.min(50, Number.parseInt(req.body[key], 10) || 3));
+        } else if (key === "adCategory") {
+          if (AD_CATEGORIES.includes(req.body.adCategory)) {
+            updates.adCategory = req.body.adCategory;
+          }
         } else if (typeof req.body[key] === "string") {
           updates[key] = req.body[key].trim();
         } else {
@@ -391,6 +494,7 @@ export const createAdvertisementWithCoins = async (req, res) => {
       companyName,
       targetCity = "",
       targetIntent = "All",
+      adCategory = "Real Estate",
       durationDays = 3,
       associatedPostId,
     } = req.body;
@@ -436,6 +540,7 @@ export const createAdvertisementWithCoins = async (req, res) => {
       companyName: (companyName || user.fullName || "").trim(),
       targetCity: (targetCity || "").trim(),
       targetIntent: ["All", "Buy", "Rent", "Sell"].includes(targetIntent) ? targetIntent : "All",
+      adCategory: AD_CATEGORIES.includes(adCategory) ? adCategory : "Real Estate",
       status: "active",
       startDate,
       endDate,
