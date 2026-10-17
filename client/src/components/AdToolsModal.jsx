@@ -22,7 +22,7 @@ import {
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 
-export const AD_CATEGORIES = [
+const AD_CATEGORIES = [
   "Real Estate",
   "Home Loans & Finance",
   "Interiors & Services",
