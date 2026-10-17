@@ -3,6 +3,7 @@ import User from "../../models/User.model.js";
 import { logger } from "../../utils/logger.js";
 import * as NotificationService from "../../services/NotificationService.js";
 import { NotificationChannel } from "../../services/NotificationService.js";
+import { creditCoins } from "../../services/wallet.service.js";
 import {
   findUserByCode,
   findUserByEmailOrId,
@@ -86,8 +87,22 @@ export async function rewardIfEligible(userId) {
     if (!referral) return; // already rewarded, or was never a real referral
 
     await Promise.all([
-      incrementCredits(referral.referrer, REWARD_CREDITS),
-      incrementCredits(userId, REWARD_CREDITS),
+      creditCoins({
+        userId: referral.referrer,
+        amount: REWARD_CREDITS,
+        category: "REFERRAL_BONUS",
+        description: `${user.fullName || "Someone you invited"} joined using your invite link`,
+        referenceId: referral._id,
+        referenceModel: "Referral",
+      }),
+      creditCoins({
+        userId,
+        amount: REWARD_CREDITS,
+        category: "REFERRAL_BONUS",
+        description: "Welcome bonus for joining with invite code",
+        referenceId: referral._id,
+        referenceModel: "Referral",
+      }),
     ]);
 
     await NotificationService.send({

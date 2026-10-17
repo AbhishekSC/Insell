@@ -3,6 +3,11 @@ import User from "../models/User.model.js";
 import { redisClient } from "../config/redis.js";
 import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler.js";
 import { logger } from "../utils/logger.js";
+import {
+  debitCoins,
+  getOrCreateWallet,
+  updateTransactionReference,
+} from "../services/wallet.service.js";
 
 const getTodayDateString = () => new Date().toISOString().slice(0, 10);
 
@@ -510,20 +515,26 @@ export const createAdvertisementWithCoins = async (req, res) => {
 
     const costInCoins = plan.coins;
 
-    // Atomically deduct coins from user's referral balance
-    const user = await User.findOneAndUpdate(
-      { _id: req.user._id, referralCredits: { $gte: costInCoins } },
-      { $inc: { referralCredits: -costInCoins } },
-      { new: true }
-    );
+    // Atomically debit coins from user's CoinWallet and record ledger entry
+    const debitResult = await debitCoins({
+      userId: req.user._id,
+      amount: costInCoins,
+      category: "AD_CAMPAIGN_SPEND",
+      description: `Launched ${plan.durationDays}-day Ad campaign: "${title.trim()}"`,
+      referenceModel: "Advertisement",
+      metadata: {
+        durationDays: plan.durationDays,
+        targetCity,
+        targetIntent,
+        adCategory,
+      },
+    });
 
-    if (!user) {
-      const currentUser = await User.findById(req.user._id).select("referralCredits").lean();
-      const currentCoins = currentUser?.referralCredits || 0;
+    if (!debitResult.success) {
       return sendErrorResponse(
         res,
         400,
-        `Insufficient coins. You have ${currentCoins} coins, but this ${plan.durationDays}-day campaign requires ${costInCoins} coins.`
+        `Insufficient coins. You have ${debitResult.currentBalance} coins, but this ${plan.durationDays}-day campaign requires ${costInCoins} coins.`
       );
     }
 
@@ -537,7 +548,7 @@ export const createAdvertisementWithCoins = async (req, res) => {
       targetUrl: targetUrl.trim(),
       ctaText: ctaText.trim() || "Learn More",
       badgeText: badgeText?.trim() || "Ad",
-      companyName: (companyName || user.fullName || "").trim(),
+      companyName: (companyName || req.user.fullName || "").trim(),
       targetCity: (targetCity || "").trim(),
       targetIntent: ["All", "Buy", "Rent", "Sell"].includes(targetIntent) ? targetIntent : "All",
       adCategory: AD_CATEGORIES.includes(adCategory) ? adCategory : "Real Estate",
@@ -547,12 +558,17 @@ export const createAdvertisementWithCoins = async (req, res) => {
       frequencyCap: 3,
       coinsSpent: costInCoins,
       associatedPostId: associatedPostId || null,
-      createdBy: user._id,
+      createdBy: req.user._id,
     });
+
+    // Link transaction to created advertisement
+    if (debitResult.transaction?._id) {
+      await updateTransactionReference(debitResult.transaction._id, advertisement._id, "Advertisement");
+    }
 
     return sendSuccessResponse(res, 201, "Campaign launched successfully!", {
       advertisement,
-      remainingCoins: user.referralCredits,
+      remainingCoins: debitResult.wallet.balance,
     });
   } catch (error) {
     logger.error("Error creating advertisement with coins:", error);
@@ -565,10 +581,10 @@ export const createAdvertisementWithCoins = async (req, res) => {
  */
 export const getMyCampaigns = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select("referralCredits").lean();
-    const ads = await Advertisement.find({ createdBy: req.user._id })
-      .sort({ createdAt: -1 })
-      .lean();
+    const [wallet, ads] = await Promise.all([
+      getOrCreateWallet(req.user._id),
+      Advertisement.find({ createdBy: req.user._id }).sort({ createdAt: -1 }).lean(),
+    ]);
 
     const now = Date.now();
     const formatted = ads.map((ad) => {
@@ -587,8 +603,8 @@ export const getMyCampaigns = async (req, res) => {
 
     return sendSuccessResponse(res, 200, "Campaigns fetched successfully", {
       campaigns: formatted,
-      coinBalance: user?.referralCredits || 0,
-      rupeeValue: ((user?.referralCredits || 0) * 0.1).toFixed(2),
+      coinBalance: wallet.balance || 0,
+      rupeeValue: Number(((wallet.balance || 0) * 0.1).toFixed(2)),
       plans: AD_COIN_PLANS,
     });
   } catch (error) {
