@@ -36,6 +36,7 @@ import communityCallRoutes from "../modules/community-call/communityCall.routes.
 import featureFlagRoutes from "./featureFlag.routes.js";
 import advertisementRoutes from "./advertisement.routes.js";
 import walletRoutes from "./wallet.routes.js";
+import localityTrendsRoutes from "./localityTrends.route.js";
 
 const router = new express.Router();
 
@@ -78,5 +79,6 @@ router.use("/community-calls", communityCallRoutes);
 router.use("/feature-flags", featureFlagRoutes);
 router.use("/advertisements", advertisementRoutes);
 router.use("/wallet", walletRoutes);
+router.use("/locality-trends", localityTrendsRoutes);
 
 export default router;
