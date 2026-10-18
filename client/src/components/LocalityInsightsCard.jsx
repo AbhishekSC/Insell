@@ -10,17 +10,16 @@ function formatMoney(amount) {
 }
 
 const CHART_W = 600;
-const CHART_H = 160;
+const CHART_H = 140;
 const PAD = 28;
 
 function MiniTrendChart({ data }) {
   if (!data || data.length < 2) {
     return data?.length === 1 ? (
-      <div className="flex items-center justify-center rounded-xl border border-base-200 bg-base-200/30 px-4 py-6 text-center">
+      <div className="flex items-center justify-center rounded-lg border border-base-200 bg-base-200/30 px-3 py-4 text-center">
         <div>
           <p className="text-sm font-semibold text-base-content">₹{data[0].avgPsf.toLocaleString("en-IN")}/sqft</p>
           <p className="mt-1 text-xs text-base-content/50">{data[0].month} · {data[0].listings} listing{data[0].listings > 1 ? "s" : ""}</p>
-          <p className="mt-2 text-[11px] text-base-content/40">More data needed to show a trend chart</p>
         </div>
       </div>
     ) : null;
@@ -46,9 +45,9 @@ function MiniTrendChart({ data }) {
   const area = `${line} L ${coords.at(-1).x.toFixed(1)} ${CHART_H - PAD} L ${coords[0].x.toFixed(1)} ${CHART_H - PAD} Z`;
 
   return (
-    <div className="rounded-xl border border-base-200 bg-base-200/30 p-3">
-      <p className="mb-2 text-xs font-semibold text-base-content/60">
-        Avg Price per Sqft — Last {data.length} Months
+    <div className="rounded-lg border border-base-200 bg-base-200/20 p-2.5">
+      <p className="mb-1.5 text-[11px] font-medium text-base-content/50">
+        Avg ₹/sqft — {data.length} months
       </p>
       <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} className="w-full" preserveAspectRatio="none">
         <defs>
@@ -58,7 +57,6 @@ function MiniTrendChart({ data }) {
           </linearGradient>
         </defs>
 
-        {/* grid lines */}
         {[0, 0.5, 1].map((pct) => {
           const y = CHART_H - PAD - pct * (CHART_H - PAD * 2);
           const val = Math.round(min + pct * range);
@@ -97,17 +95,17 @@ function StatCard({ icon: Icon, label, value, subtext, tone }) {
     success: "border-success/20 bg-success/5",
     error: "border-error/20 bg-error/5",
     primary: "border-primary/20 bg-primary/5",
-    neutral: "border-base-200 bg-base-200/40",
+    neutral: "border-base-200 bg-base-200/30",
   };
 
   return (
-    <div className={`rounded-xl border p-3.5 ${toneClasses[tone] || toneClasses.neutral}`}>
-      <div className="mb-1 flex items-center gap-1.5">
-        {Icon && <Icon className="size-3.5 text-base-content/40" />}
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-base-content/50">{label}</p>
+    <div className={`rounded-lg border p-2.5 ${toneClasses[tone] || toneClasses.neutral}`}>
+      <div className="mb-0.5 flex items-center gap-1">
+        {Icon && <Icon className="size-3 text-base-content/40" />}
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-base-content/50">{label}</p>
       </div>
-      <p className="text-xl font-bold text-base-content">{value}</p>
-      {subtext && <p className="mt-0.5 text-xs text-base-content/50">{subtext}</p>}
+      <p className="text-lg font-bold leading-tight text-base-content">{value}</p>
+      {subtext && <p className="mt-0.5 text-[11px] text-base-content/50">{subtext}</p>}
     </div>
   );
 }
@@ -130,7 +128,7 @@ export default function LocalityInsightsCard({ city, locality, price, areaSqft, 
   if (!city || !locality) return null;
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-8">
+      <div className="flex items-center justify-center py-6">
         <span className="loading loading-spinner loading-sm text-primary" />
       </div>
     );
@@ -143,114 +141,114 @@ export default function LocalityInsightsCard({ city, locality, price, areaSqft, 
     ? Number((((propertyPsf - currentAvgPsf) / currentAvgPsf) * 100).toFixed(1))
     : null;
 
-  // Fallback: compare total price if per-sqft not available
   const latestAvgPrice = data.monthlyData[data.monthlyData.length - 1]?.avgPrice;
   const pricePct = !comparisonPct && price > 0 && latestAvgPrice > 0
     ? Number((((price - latestAvgPrice) / latestAvgPrice) * 100).toFixed(1))
     : null;
 
-  // Latest monthly data for avg price
   const latestMonth = data.monthlyData[data.monthlyData.length - 1];
 
-  // Human-readable insight sentence
-  let insightText = "";
   const cmp = comparisonPct ?? pricePct;
-  if (data.changePercent !== null && data.monthlyData.length >= 2) {
-    const direction = data.changePercent > 0 ? "increased" : data.changePercent < 0 ? "decreased" : "remained stable";
-    const pctText = data.changePercent !== 0 ? ` by ${Math.abs(data.changePercent)}%` : "";
-    insightText = `Property prices in ${locality} have ${direction}${pctText} over the past ${data.monthlyData.length} months.`;
-  } else if (currentAvgPsf) {
-    insightText = `The average price in ${locality} is ₹${currentAvgPsf.toLocaleString("en-IN")}/sqft based on ${data.totalListings} listing${data.totalListings > 1 ? "s" : ""}.`;
-  }
+  let insightTag = null;
   if (cmp !== null) {
     if (cmp < -5) {
-      insightText += ` This property is priced ${Math.abs(cmp)}% below the locality average — a potential deal.`;
+      insightTag = { text: `${Math.abs(cmp)}% below avg`, tone: "success" };
     } else if (cmp > 10) {
-      insightText += ` This property is priced ${cmp}% above the locality average.`;
+      insightTag = { text: `${cmp}% above avg`, tone: "error" };
     } else {
-      insightText += ` This property is priced close to the locality average.`;
+      insightTag = { text: "Near avg price", tone: "neutral" };
     }
   }
 
   return (
-    <div>
-      {/* Insight sentence */}
-      {insightText && (
-        <div className="mb-4 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3">
-          <p className="text-sm leading-relaxed text-base-content/80">
-            <span className="font-semibold text-primary">Insight:</span> {insightText}
-          </p>
+    <div className="space-y-3">
+      {/* Compact insight badge */}
+      {insightTag && (
+        <div className="flex items-center gap-2">
+          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+            insightTag.tone === "success"
+              ? "bg-success/10 text-success"
+              : insightTag.tone === "error"
+                ? "bg-error/10 text-error"
+                : "bg-base-200 text-base-content/60"
+          }`}>
+            {cmp < 0 ? <ArrowDown className="size-3" /> : cmp > 0 ? <ArrowUp className="size-3" /> : null}
+            {insightTag.text}
+          </span>
+          <span className="text-xs text-base-content/40">
+            based on {data.totalListings} listings
+          </span>
         </div>
       )}
 
-      {/* Stats grid */}
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* Stats grid — 2x2 on mobile, 4 columns on sm+ */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
         <StatCard
           icon={IndianRupee}
-          label="Locality Avg"
+          label="Avg Price"
           value={
             <>
               ₹{currentAvgPsf?.toLocaleString("en-IN")}
-              <span className="text-sm font-normal text-base-content/40">/sqft</span>
+              <span className="text-xs font-normal text-base-content/40">/sqft</span>
             </>
           }
-          subtext={`Avg price ${formatMoney(latestMonth?.avgPrice || 0)}`}
+          subtext={formatMoney(latestMonth?.avgPrice || 0)}
           tone="primary"
         />
 
         <StatCard
           icon={TrendingUp}
-          label="Price Trend"
+          label="Trend"
           value={
             data.changePercent !== null ? (
               <span
-                className={`flex items-center gap-1 ${
+                className={`flex items-center gap-0.5 ${
                   data.changePercent > 0 ? "text-success" : data.changePercent < 0 ? "text-error" : ""
                 }`}
               >
-                {data.changePercent > 0 ? <ArrowUp className="size-5" /> : data.changePercent < 0 ? <ArrowDown className="size-5" /> : null}
+                {data.changePercent > 0 ? <ArrowUp className="size-4" /> : data.changePercent < 0 ? <ArrowDown className="size-4" /> : null}
                 {data.changePercent > 0 ? "+" : ""}{data.changePercent}%
               </span>
             ) : "—"
           }
-          subtext={`Over ${data.monthlyData.length} months`}
+          subtext={`${data.monthlyData.length}mo`}
           tone={data.changePercent > 0 ? "success" : data.changePercent < 0 ? "error" : "neutral"}
         />
 
         {(() => {
-          const cmp = comparisonPct ?? pricePct;
-          const subLabel = comparisonPct !== null
-            ? `₹${propertyPsf.toLocaleString("en-IN")}/sqft vs avg`
+          const cmpVal = comparisonPct ?? pricePct;
+          const sub = comparisonPct !== null
+            ? `vs ₹${currentAvgPsf?.toLocaleString("en-IN")}/sqft`
             : pricePct !== null
-              ? `${formatMoney(price)} vs avg ${formatMoney(latestAvgPrice)}`
-              : "Not enough data";
+              ? `vs ${formatMoney(latestAvgPrice)}`
+              : "";
           return (
             <StatCard
               icon={Home}
-              label="This Property"
+              label="This Listing"
               value={
-                cmp !== null ? (
+                cmpVal !== null ? (
                   <span
-                    className={`flex items-center gap-1 ${
-                      cmp > 5 ? "text-error" : cmp < -5 ? "text-success" : ""
+                    className={`flex items-center gap-0.5 ${
+                      cmpVal > 5 ? "text-error" : cmpVal < -5 ? "text-success" : ""
                     }`}
                   >
-                    {cmp > 0 ? <ArrowUp className="size-5" /> : cmp < 0 ? <ArrowDown className="size-5" /> : null}
-                    {cmp > 0 ? "+" : ""}{cmp}%
+                    {cmpVal > 0 ? <ArrowUp className="size-4" /> : cmpVal < 0 ? <ArrowDown className="size-4" /> : null}
+                    {cmpVal > 0 ? "+" : ""}{cmpVal}%
                   </span>
                 ) : "—"
               }
-              subtext={subLabel}
-              tone={cmp > 5 ? "error" : cmp < -5 ? "success" : "neutral"}
+              subtext={sub}
+              tone={cmpVal > 5 ? "error" : cmpVal < -5 ? "success" : "neutral"}
             />
           );
         })()}
 
         <StatCard
           icon={Building2}
-          label="Market Activity"
-          value={`${data.totalListings} listings`}
-          subtext={`In ${locality}, ${city}`}
+          label="Listings"
+          value={data.totalListings}
+          subtext={locality}
           tone="neutral"
         />
       </div>
@@ -258,39 +256,35 @@ export default function LocalityInsightsCard({ city, locality, price, areaSqft, 
       {/* Trend chart */}
       <MiniTrendChart data={data.monthlyData} />
 
-      {/* Half-year comparison */}
+      {/* Half-year comparison — compact single row */}
       {data.summary?.halfYearChange !== null && data.summary?.recentAvgPsf && data.summary?.olderAvgPsf && (
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-base-200 bg-base-200/30 px-4 py-3">
-          <div className="flex-1">
-            <p className="text-xs font-medium text-base-content/50">Previous 6 months</p>
-            <p className="text-sm font-bold text-base-content">₹{data.summary.olderAvgPsf.toLocaleString("en-IN")}/sqft</p>
-            <p className="text-[11px] text-base-content/40">{data.summary.olderListings} listings</p>
+        <div className="flex items-center justify-between rounded-lg border border-base-200 bg-base-200/20 px-3 py-2">
+          <div>
+            <p className="text-[10px] text-base-content/40">6mo ago</p>
+            <p className="text-xs font-bold text-base-content">₹{data.summary.olderAvgPsf.toLocaleString("en-IN")}</p>
           </div>
-          <div className="text-center">
-            <span
-              className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-bold ${
-                data.summary.halfYearChange > 0
-                  ? "bg-success/10 text-success"
-                  : data.summary.halfYearChange < 0
-                    ? "bg-error/10 text-error"
-                    : "bg-base-200 text-base-content/60"
-              }`}
-            >
-              {data.summary.halfYearChange > 0 ? <ArrowUp className="size-4" /> : <ArrowDown className="size-4" />}
-              {data.summary.halfYearChange > 0 ? "+" : ""}{data.summary.halfYearChange}%
-            </span>
-          </div>
-          <div className="flex-1 text-right">
-            <p className="text-xs font-medium text-base-content/50">Recent 6 months</p>
-            <p className="text-sm font-bold text-base-content">₹{data.summary.recentAvgPsf.toLocaleString("en-IN")}/sqft</p>
-            <p className="text-[11px] text-base-content/40">{data.summary.recentListings} listings</p>
+          <span
+            className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-bold ${
+              data.summary.halfYearChange > 0
+                ? "bg-success/10 text-success"
+                : data.summary.halfYearChange < 0
+                  ? "bg-error/10 text-error"
+                  : "bg-base-200 text-base-content/60"
+            }`}
+          >
+            {data.summary.halfYearChange > 0 ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
+            {data.summary.halfYearChange > 0 ? "+" : ""}{data.summary.halfYearChange}%
+          </span>
+          <div className="text-right">
+            <p className="text-[10px] text-base-content/40">Now</p>
+            <p className="text-xs font-bold text-base-content">₹{data.summary.recentAvgPsf.toLocaleString("en-IN")}</p>
           </div>
         </div>
       )}
 
       {/* Footer */}
-      <p className="mt-3 text-center text-[11px] text-base-content/35">
-        Market data based on {data.totalListings} NearMySpace listings in {locality}, {city} · Updated in real-time
+      <p className="text-center text-[10px] text-base-content/30">
+        Based on NearMySpace listings in {locality}, {city}
       </p>
     </div>
   );
