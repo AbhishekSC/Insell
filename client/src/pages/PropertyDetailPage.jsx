@@ -28,6 +28,7 @@ import {
   Share2,
   ShieldCheck,
   Star,
+  BarChart3,
   TrendingUp,
   UserRoundPlus,
   Users,
@@ -51,6 +52,7 @@ import OfferModal from "../components/OfferModal";
 import VisitScheduler from "../components/VisitScheduler";
 import OfferHistoryTimeline from "../components/OfferHistoryTimeline";
 import PriceHistoryChart from "../components/PriceHistoryChart";
+import LocalityInsightsCard from "../components/LocalityInsightsCard";
 import ListingPerformance from "../components/ListingPerformance";
 import TransactionTracker from "../components/TransactionTracker";
 import ReviewModal from "../components/ReviewModal";
@@ -1141,6 +1143,19 @@ export default function PropertyDetailPage() {
               {postData.priceHistory?.length > 1 && (
                 <Section title="Price History" icon={TrendingUp}>
                   <PriceHistoryChart history={postData.priceHistory} />
+                </Section>
+              )}
+
+              {/* Locality Price Insights */}
+              {postData.city && postData.locality && (
+                <Section title={`${postData.locality} Price Insights`} icon={BarChart3}>
+                  <LocalityInsightsCard
+                    city={postData.city}
+                    locality={postData.locality}
+                    price={postData.price}
+                    areaSqft={postData.areaSqft}
+                    listingType={postData.listingType}
+                  />
                 </Section>
               )}
 
