@@ -29,7 +29,8 @@ export default function LoginPage() {
       // the redirect URL (see googleAuthCallback), since Safari blocks the
       // cross-site cookie the backend also tried to set.
       const token = searchParams.get('token');
-      if (token) setAuthToken(token);
+      const refreshToken = searchParams.get('refreshToken');
+      if (token) setAuthToken(token, refreshToken);
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
       toast.success('Successfully logged in with Google');
       // Remove success/token from URL
@@ -58,7 +59,7 @@ export default function LoginPage() {
   }, [cooldown]);
 
   const completeLogin = (response) => {
-    setAuthToken(response?.data?.token);
+    setAuthToken(response?.data?.token, response?.data?.refreshToken);
     toast.success("Welcome back to NearMySpace");
     queryClient.setQueryData(["authUser"], {
       status: "success",

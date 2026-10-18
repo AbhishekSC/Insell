@@ -11,9 +11,16 @@ import {
 } from "../utils/responseHandler.js";
 import { publishToQueue } from "../config/queue.config.js";
 import User from "../models/User.model.js";
+import MobileDetail from "../models/MobileDetail.model.js";
 import passport from "../config/googleAuth.config.js";
 import { generateResetOTP, verifyOTP } from "../services/otp.service.js";
 import { sendResetOTPEmail, sendLoginOTPEmail } from "../utils/emailClient.js";
+import {
+  createRefreshToken,
+  rotateRefreshToken,
+  revokeRefreshToken,
+  revokeAllUserRefreshTokens,
+} from "../services/refreshToken.service.js";
 
 const authService = new AuthService({
   userRepository: new UserRepository(),
@@ -57,8 +64,19 @@ export async function verifySignup(req, res) {
     return sendErrorResponse(res, 400, "Email and verification code are required");
   }
 
+  const deviceId = req.body?.deviceId || req.headers["x-device-id"] || null;
+  const userAgent = req.headers["user-agent"] || "";
+  const ipAddress = req.ip || req.connection?.remoteAddress || "";
+
   try {
-    const user = await authService.verifySignup({ email, code, res });
+    const user = await authService.verifySignup({
+      email,
+      code,
+      res,
+      deviceId,
+      userAgent,
+      ipAddress,
+    });
     logger.info(`Account created after verification: ${email}`);
     return sendSuccessResponse(res, 201, "Account created successfully", user);
   } catch (error) {
@@ -98,14 +116,56 @@ export async function login(req, res) {
   }
 
   const { email, password } = req.body;
+  const deviceId = req.body?.deviceId || req.headers["x-device-id"] || null;
+  const userAgent = req.headers["user-agent"] || "";
+  const ipAddress = req.ip || req.connection?.remoteAddress || "";
 
   try {
-    const user = await authService.login({ email, password, res });
+    const user = await authService.login({
+      email,
+      password,
+      res,
+      deviceId,
+      userAgent,
+      ipAddress,
+    });
     logger.info(`User logged in successfully: ${email}`);
     return sendSuccessResponse(res, 200, "Login successful", user);
   } catch (error) {
     logger.error("Error during login:", error);
     return sendErrorResponse(res, error?.statusCode || 500, error?.message || "Internal server error.", error?.details || {});
+  }
+}
+
+// **Refresh Token - Silent rotation**
+export async function refresh(req, res) {
+  try {
+    const rawRefreshToken =
+      req.body?.refreshToken ||
+      req.cookies?.syncspace_refresh_token ||
+      req.headers["x-refresh-token"];
+
+    const deviceId = req.body?.deviceId || req.headers["x-device-id"] || null;
+    const userAgent = req.headers["user-agent"] || "";
+    const ipAddress = req.ip || req.connection?.remoteAddress || "";
+
+    const result = await rotateRefreshToken({
+      rawRefreshToken,
+      deviceId,
+      userAgent,
+      ipAddress,
+      res,
+    });
+
+    return sendSuccessResponse(res, 200, "Token refreshed successfully", result);
+  } catch (error) {
+    logger.warn("Token refresh rejected:", { message: error.message });
+    return sendErrorResponse(
+      res,
+      error?.statusCode || 401,
+      error?.message || "Invalid or expired refresh token",
+      error?.details || {}
+    );
   }
 }
 
@@ -116,14 +176,60 @@ export async function logout(req, res) {
   try {
     const token =
       req.cookies.syncspace_token || req.headers.authorization?.split(" ")[1];
+    const refreshToken =
+      req.body?.refreshToken ||
+      req.cookies?.syncspace_refresh_token ||
+      req.headers["x-refresh-token"];
 
-    await authService.logout({ token, res });
+    await authService.logout({ token, refreshToken, res });
 
     logger.info(`User logged out successfully`);
     return sendSuccessResponse(res, 200, "Logout successful");
   } catch (error) {
     logger.error("Error during logout:", error);
     return sendErrorResponse(res, error?.statusCode || 500, error?.message || "Internal server error.", error?.details || {});
+  }
+}
+
+// **Logout from all devices**
+export async function logoutAll(req, res) {
+  try {
+    const userId = req.user?._id;
+    if (!userId) {
+      return sendErrorResponse(res, 401, "Unauthorized");
+    }
+
+    logger.info(`Received logout-all request for user ${userId}`);
+
+    // 1. Revoke all refresh tokens for this user in MongoDB
+    await revokeAllUserRefreshTokens(userId);
+
+    // 2. Deactivate active mobile device records
+    await MobileDetail.updateMany(
+      { user: userId, isActive: true },
+      { $set: { isActive: false, pushToken: null } }
+    ).catch((err) => {
+      logger.warn("Failed to deactivate mobile details on logoutAll:", { message: err.message });
+    });
+
+    // 3. Blacklist the current access token in Redis and clear cookies
+    const token =
+      req.cookies.syncspace_token || req.headers.authorization?.split(" ")[1];
+    if (token) {
+      await authService.logout({ token, res });
+    } else {
+      await revokeRefreshToken({ rawRefreshToken: null, res });
+    }
+
+    logger.info(`User ${userId} logged out from all devices successfully`);
+    return sendSuccessResponse(res, 200, "Logged out from all devices successfully");
+  } catch (error) {
+    logger.error("Error during logoutAll:", error);
+    return sendErrorResponse(
+      res,
+      error?.statusCode || 500,
+      error?.message || "Failed to log out from all devices"
+    );
   }
 }
 
@@ -216,21 +322,29 @@ export async function googleAuthCallback(req, res, next) {
     try {
       // Generate JWT token and set cookie
       const token = generateAccessToken(user, res);
+      let refreshToken = null;
+      try {
+        refreshToken = await createRefreshToken({ userId: user._id, res });
+      } catch (err) {
+        logger.error("Error creating refresh token for Google user:", err);
+      }
       logger.info(`Generated token for Google user: ${user.email}`);
       logger.info(`Cookie set for Google user: ${user.email}`);
 
       logger.info(`Google authentication successful for user: ${user.email}`);
 
+      const rfParam = refreshToken ? `&refreshToken=${encodeURIComponent(refreshToken)}` : '';
+
       if (customRedirect) {
         const sep = customRedirect.includes('?') ? '&' : '?';
-        return res.redirect(`${customRedirect}${sep}success=true&token=${encodeURIComponent(token)}`);
+        return res.redirect(`${customRedirect}${sep}success=true&token=${encodeURIComponent(token)}${rfParam}`);
       }
 
       // Redirect to frontend with success — the token rides along in the
       // URL too (not just the cookie) since Safari blocks third-party
       // cookies from the backend's onrender.com domain by default.
       const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-      res.redirect(`${clientUrl}/${authPage}?success=true&token=${encodeURIComponent(token)}`);
+      res.redirect(`${clientUrl}/${authPage}?success=true&token=${encodeURIComponent(token)}${rfParam}`);
     } catch (error) {
       logger.error('Error generating token after Google auth:', error);
       if (customRedirect) {
@@ -386,6 +500,9 @@ export async function resetPassword(req, res) {
     user.password = newPassword;
     user.resetVerifiedExpires = undefined;
     await user.save();
+
+    // Invalidate all active refresh sessions across devices on password change
+    await revokeAllUserRefreshTokens(user._id);
 
     logger.info(`Password reset successful for: ${email}`);
     return sendSuccessResponse(res, 200, "Password reset successfully");

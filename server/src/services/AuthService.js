@@ -12,6 +12,7 @@ import { logger } from "../utils/logger.js";
 import Notification from "../models/Notification.model.js";
 import { pushRealtimeNotification } from "./stream.service.js";
 import { attachReferrerFromCode, rewardIfEligible } from "../modules/referral/referral.service.js";
+import { createRefreshToken, revokeRefreshToken } from "./refreshToken.service.js";
 
 const { BCRYPT_SALT_ROUNDS, PASSWORD_MIN_LENGTH } = SCHEMA_CONSTANTS;
 
@@ -130,7 +131,7 @@ export default class AuthService extends BaseService {
 
   // Promotes a verified PendingSignup into a real User — this is the only
   // point at which a signup actually creates a DB row and a login session.
-  async verifySignup({ email, code, res }) {
+  async verifySignup({ email, code, res, ...options }) {
     const { userRepository, tokenIssuer, streamUpdater, queuePublisher } = this.dependencies;
     const cleanEmail = String(email || "").trim().toLowerCase();
     const cleanCode = String(code || "").trim();
@@ -215,6 +216,18 @@ export default class AuthService extends BaseService {
     }
 
     const accessToken = tokenIssuer(newUser, res);
+    let refreshToken = null;
+    try {
+      refreshToken = await createRefreshToken({
+        userId: newUser._id,
+        deviceId: options?.deviceId || null,
+        userAgent: options?.userAgent || "",
+        ipAddress: options?.ipAddress || "",
+        res,
+      });
+    } catch (error) {
+      logger.error("Failed to create refresh token during signup verification:", error);
+    }
 
     try {
       await streamUpdater({
@@ -243,7 +256,12 @@ export default class AuthService extends BaseService {
     // Cookie auth is unreliable cross-site (Safari blocks third-party
     // cookies by default) — also hand the token back in the body so the
     // client can send it as an Authorization header instead.
-    return { ...sanitizeUserData(newUser), token: accessToken };
+    return {
+      ...sanitizeUserData(newUser),
+      token: accessToken,
+      accessToken,
+      refreshToken,
+    };
   }
 
   // Resends a fresh OTP for a still-pending (not yet verified) signup.
@@ -293,7 +311,7 @@ export default class AuthService extends BaseService {
     return { email: pendingSignup.email, expiresAt: verificationCodeExpires };
   }
 
-  async login({ email, password, res }) {
+  async login({ email, password, res, ...options }) {
     const { userRepository, tokenIssuer, queuePublisher } = this.dependencies;
 
     const user = await userRepository.findByEmailWithPassword(email);
@@ -306,10 +324,10 @@ export default class AuthService extends BaseService {
       throw new AppError("Invalid credentials.", 401);
     }
 
-    return this.loginUser(user, res);
+    return this.loginUser(user, res, options);
   }
 
-  async loginUser(user, res) {
+  async loginUser(user, res, options = {}) {
     const { tokenIssuer, queuePublisher } = this.dependencies;
 
     if (user.isBlocked) {
@@ -319,6 +337,18 @@ export default class AuthService extends BaseService {
     }
 
     const accessToken = tokenIssuer(user, res);
+    let refreshToken = null;
+    try {
+      refreshToken = await createRefreshToken({
+        userId: user._id,
+        deviceId: options?.deviceId || null,
+        userAgent: options?.userAgent || "",
+        ipAddress: options?.ipAddress || "",
+        res,
+      });
+    } catch (error) {
+      logger.error("Failed to create refresh token during login:", error);
+    }
 
     try {
       queuePublisher({ event: "user_logged_in", email: user.email, name: user.fullName });
@@ -326,27 +356,41 @@ export default class AuthService extends BaseService {
       // Queue failures should not block auth flow.
     }
 
-    return { ...sanitizeUserData(user), token: accessToken };
+    return {
+      ...sanitizeUserData(user),
+      token: accessToken,
+      accessToken,
+      refreshToken,
+    };
   }
 
-  async logout({ token, res }) {
+  async logout({ token, refreshToken, res }) {
     const { tokenBlacklistService } = this.dependencies;
+
+    // Revoke refresh token and clear refresh cookie
+    try {
+      await revokeRefreshToken({ rawRefreshToken: refreshToken, res });
+    } catch (error) {
+      logger.warn("Failed to revoke refresh token on logout:", { message: error.message });
+    }
 
     // Best-effort — drops the user from the admin "live users" count
     // immediately on an explicit logout, instead of waiting out the full
     // 5-minute window. Decoded before blacklisting since it's still a
     // valid token at this point; failures here must never block logout.
-    try {
-      const jwtSecret = process.env.JWT_SECRET || process.env.JWT_SECRET_KEY;
-      const decoded = jwt.verify(token, jwtSecret);
-      if (decoded?.id) {
-        await User.updateOne({ _id: decoded.id }, { $set: { lastActiveAt: null } });
+    if (token) {
+      try {
+        const jwtSecret = process.env.JWT_SECRET || process.env.JWT_SECRET_KEY;
+        const decoded = jwt.verify(token, jwtSecret);
+        if (decoded?.id) {
+          await User.updateOne({ _id: decoded.id }, { $set: { lastActiveAt: null } });
+        }
+      } catch (error) {
+        logger.warn("Failed to clear lastActiveAt on logout (non-fatal):", { message: error.message });
       }
-    } catch (error) {
-      logger.warn("Failed to clear lastActiveAt on logout (non-fatal):", { message: error.message });
-    }
 
-    await tokenBlacklistService(res, token);
+      await tokenBlacklistService(res, token);
+    }
 
     // Must match the attributes issueAccessToken() used to set this cookie
     // (utils/jwt.js) exactly — a mismatched `secure`/`sameSite` can make the

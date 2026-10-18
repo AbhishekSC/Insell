@@ -114,7 +114,7 @@ export default function EmailVerification({ onClose, dismissible = true }) {
       } else {
         toast.success("Account created! Welcome to NearMySpace.");
         sessionStorage.removeItem(PENDING_SIGNUP_EMAIL_KEY);
-        setAuthToken(data?.data?.token);
+        setAuthToken(data?.data?.token, data?.data?.refreshToken);
         // verify-signup just created the account and logged it in — seed
         // the auth cache directly instead of waiting on a refetch.
         queryClient.setQueryData(["authUser"], {
