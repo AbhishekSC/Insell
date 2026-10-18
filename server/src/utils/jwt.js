@@ -11,13 +11,17 @@ function getJwtSecret() {
   return secret;
 }
 
+export function hashToken(token) {
+  return crypto.createHash("sha256").update(String(token)).digest("hex");
+}
+
 function getTokenExpiry() {
-  const value = process.env.JWT_EXPIRES_IN || "4h";
-  if (!value || typeof value !== "string") return "4h";
+  const value = process.env.JWT_ACCESS_EXPIRES_IN || process.env.JWT_EXPIRES_IN || "15m";
+  if (!value || typeof value !== "string") return "15m";
   const normalized = value.trim();
   if (/^\d+$/.test(normalized)) return Number(normalized);
   if (/^\d+\s*(ms|s|m|h|d|w|y)$/i.test(normalized)) return normalized.replace(/\s+/g, "");
-  return "4h";
+  return "15m";
 }
 
 const NODE_ENV = process.env.NODE_ENV || "development";
@@ -28,6 +32,7 @@ export function issueAccessToken(user, res) {
     id: user._id,
     fullName: user.fullName,
     profilePic: user.profilePic,
+    jti: crypto.randomBytes(16).toString("hex"),
   };
 
   const accessToken = jwt.sign(payload, getJwtSecret(), {

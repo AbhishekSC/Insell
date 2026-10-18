@@ -32,10 +32,11 @@ const SignupPage = () => {
   useEffect(() => {
     const success = searchParams.get('success');
     const token = searchParams.get('token');
+    const refreshToken = searchParams.get('refreshToken');
     const error = searchParams.get('error');
 
     if (success === 'true' && token) {
-      setAuthToken(token);
+      setAuthToken(token, refreshToken);
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
       navigate('/');
       toast.success('Successfully signed up with Google');

@@ -2,6 +2,8 @@ import express from "express";
 import {
   login,
   logout,
+  logoutAll,
+  refresh,
   onboarding,
   signup,
   verifySignup,
@@ -34,7 +36,9 @@ router.post("/signup", signupValidation, signup);
 router.post("/verify-signup", otpVerifyRateLimiter, verifySignup);
 router.post("/resend-signup-code", signupCodeRateLimiter, resendSignupCode);
 router.post("/login", loginRateLimiter, loginValidation, login);
+router.post("/refresh", refresh);
 router.post("/logout", logout);
+router.post("/logout-all", verifyUser, logoutAll);
 
 // Passwordless OTP Login routes
 router.post("/otp-login/request", loginOtpRequestRateLimiter, requestLoginOTP);

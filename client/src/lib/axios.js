@@ -1,19 +1,19 @@
 import axios from "axios";
-import { getAuthToken } from "./authToken";
+import {
+  getAuthToken,
+  getRefreshToken,
+  setAuthTokens,
+  clearAuthTokens,
+} from "./authToken";
 import { showError } from "./errorService.jsx";
 
-// In dev, VITE_API_URL is unset so this resolves to the relative "/api",
-// which vite.config.js proxies to localhost:5001. In production, set
-// VITE_API_URL to the deployed backend's origin (e.g. https://nearmyspace-api.onrender.com).
+const API_BASE = `${import.meta.env.VITE_API_URL || ""}/api`;
+
 const axiosInstance = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL || ""}/api`,
+  baseURL: API_BASE,
   withCredentials: true,
 });
 
-// Request interceptor — also send the token as a header, not just the
-// cookie. Safari blocks third-party cookies from the backend's own domain
-// by default, which otherwise silently breaks auth for every Safari/iOS
-// user (frontend and backend are on different domains here).
 axiosInstance.interceptors.request.use(
   (config) => {
     const token = getAuthToken();
@@ -27,25 +27,92 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-// Response interceptor
+// Concurrency queue to prevent thundering herd on token refresh
+let isRefreshing = false;
+let failedQueue = [];
+
+function processQueue(error, token = null) {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else if (token) {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+}
+
 axiosInstance.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    // Blocked-account errors get a dedicated modal (see AccountBlockedModal /
-    // App.jsx and LoginPage.jsx) — skip the generic toast so it doesn't fire
-    // alongside that more informative UI.
-    const isAccountBlocked = error.response?.data?.missingFields?.code === "ACCOUNT_BLOCKED";
-    // Requests that opt out (e.g. the on-load "am I logged in?" check in
-    // App.jsx) expect a routine 401 for anyone not yet signed in — that's
-    // not an error worth alarming a fresh, logged-out visitor with.
-    const isSilenced = error.config?.skipErrorToast;
-    // 400/422 (form validation) and 409 (conflict) are almost always shown
-    // by the calling component right next to the field/action. Letting the
-    // global card also fire produces two toasts for one error. Components
-    // that DON'T handle these can still opt in with `forceErrorToast: true`.
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
     const status = error.response?.status;
+    const url = originalRequest?.url || "";
+
+    const isAuthRoute =
+      url.includes("/auth/refresh") ||
+      url.includes("/auth/login") ||
+      url.includes("/auth/signup") ||
+      url.includes("/auth/verify-signup") ||
+      url.includes("/auth/otp-login");
+
+    // If 401 and eligible for refresh
+    if (status === 401 && !originalRequest?._retry && !isAuthRoute) {
+      originalRequest._retry = true;
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((newToken) => {
+            if (originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            }
+            return axiosInstance(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      isRefreshing = true;
+
+      try {
+        const storedRefreshToken = getRefreshToken();
+        // The endpoint accepts refresh token in body or in httpOnly cookie
+        const res = await axios.post(
+          `${API_BASE}/auth/refresh`,
+          { refreshToken: storedRefreshToken },
+          { withCredentials: true }
+        );
+
+        const data = res.data?.data;
+        const newAccessToken = data?.accessToken || data?.token;
+        const newRefreshToken = data?.refreshToken;
+
+        if (newAccessToken) {
+          setAuthTokens({
+            accessToken: newAccessToken,
+            refreshToken: newRefreshToken,
+          });
+
+          processQueue(null, newAccessToken);
+
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          }
+          return axiosInstance(originalRequest);
+        }
+      } catch (refreshErr) {
+        processQueue(refreshErr, null);
+        clearAuthTokens();
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    // Blocked-account errors get a dedicated modal
+    const isAccountBlocked = error.response?.data?.missingFields?.code === "ACCOUNT_BLOCKED";
+    const isSilenced = error.config?.skipErrorToast;
     const componentOwns = [400, 409, 422].includes(status) && !error.config?.forceErrorToast;
     if (!isAccountBlocked && !isSilenced && !componentOwns) {
       showError(error);

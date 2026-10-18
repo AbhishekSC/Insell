@@ -26,7 +26,8 @@ initSentry();
 const oauthParams = new URLSearchParams(window.location.search);
 if (oauthParams.get("success") === "true") {
   const oauthToken = oauthParams.get("token");
-  if (oauthToken) setAuthToken(oauthToken);
+  const oauthRefreshToken = oauthParams.get("refreshToken");
+  if (oauthToken) setAuthToken(oauthToken, oauthRefreshToken);
 }
 
 // Create a client with optimized caching settings

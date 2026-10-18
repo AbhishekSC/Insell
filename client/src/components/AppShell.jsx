@@ -25,6 +25,7 @@ import {
   Phone,
   Plus,
   Search,
+  ShieldAlert,
   ShieldCheck,
   Sparkles,
   Sun,
@@ -361,6 +362,8 @@ function UserMenu({
   userRoleLabel,
   isPending,
   logout,
+  onLogoutAll,
+  isLoggingOutAll,
   onEnableNotifications,
   isEnablingNotifications,
   onDisableNotifications,
@@ -389,7 +392,7 @@ function UserMenu({
         </button>
 
         {isDropdownOpen && (
-          <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-base-300 bg-base-100 shadow-lg">
+          <div className="absolute right-0 top-full z-50 mt-2 w-52 rounded-xl border border-base-300 bg-base-100 shadow-lg">
             <button
               type="button"
               className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
@@ -449,10 +452,22 @@ function UserMenu({
                 setIsDropdownOpen(false);
                 logout();
               }}
-              disabled={isPending}
+              disabled={isPending || isLoggingOutAll}
             >
               <LogOut className="size-4 text-base-content/60" />
               {isPending ? "Logging out..." : "Logout"}
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 border-t border-base-300 px-4 py-2.5 text-left text-xs font-medium text-error hover:bg-error/10"
+              onClick={() => {
+                setIsDropdownOpen(false);
+                onLogoutAll?.();
+              }}
+              disabled={isPending || isLoggingOutAll}
+            >
+              <ShieldAlert className="size-4 text-error" />
+              {isLoggingOutAll ? "Logging out all..." : "Log out all devices"}
             </button>
           </div>
         )}
@@ -624,6 +639,7 @@ export default function AppShell({
   const [activeFilters, setActiveFilters] = useState(null);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const [showReportIssueModal, setShowReportIssueModal] = useState(false);
+  const [showLogoutAllModal, setShowLogoutAllModal] = useState(false);
   const searchInputRef = useRef(null);
   const searchDebounceRef = useRef(null);
 
@@ -871,6 +887,21 @@ export default function AppShell({
     },
   });
 
+  const { mutate: logoutAll, isPending: isLoggingOutAll } = useMutation({
+    mutationFn: async () => {
+      const response = await axiosInstance.post("/auth/logout-all");
+      return response.data;
+    },
+    onSuccess: () => {
+      clearAuthToken();
+      toast.success("Logged out from all devices successfully");
+      queryClient.setQueryData(["authUser"], null);
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Failed to log out from all devices");
+    },
+  });
+
   const { mutate: submitFeedback, isPending: isSubmittingFeedback } = useMutation({
     mutationFn: async ({ message, screenshot }) => {
       const payload = new FormData();
@@ -953,6 +984,8 @@ export default function AppShell({
                   userRoleLabel={userRoleLabel}
                   isPending={isPending}
                   logout={logout}
+                  onLogoutAll={() => setShowLogoutAllModal(true)}
+                  isLoggingOutAll={isLoggingOutAll}
                   onEnableNotifications={enableNotifications}
                   isEnablingNotifications={isEnablingNotifications}
                   onDisableNotifications={disableNotifications}
@@ -1053,10 +1086,22 @@ export default function AppShell({
                             setMobileUserMenuOpen(false);
                             logout();
                           }}
-                          disabled={isPending}
+                          disabled={isPending || isLoggingOutAll}
                         >
                           <LogOut className="size-4 text-base-content/60" />
                           {isPending ? "Logging out..." : "Logout"}
+                        </button>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 border-t border-base-300 px-4 py-2.5 text-left text-xs font-medium text-error hover:bg-error/10"
+                          onClick={() => {
+                            setMobileUserMenuOpen(false);
+                            setShowLogoutAllModal(true);
+                          }}
+                          disabled={isPending || isLoggingOutAll}
+                        >
+                          <ShieldAlert className="size-4 text-error" />
+                          {isLoggingOutAll ? "Logging out all..." : "Log out all devices"}
                         </button>
                       </div>
                     )}
@@ -1374,6 +1419,55 @@ export default function AppShell({
         onCancel={() => setShowReportIssueModal(false)}
         onSubmit={(data) => submitFeedback(data)}
       />
+
+      {/* Logout All Devices Confirmation Modal */}
+      {showLogoutAllModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => !isLoggingOutAll && setShowLogoutAllModal(false)}
+          />
+          <div className="relative w-full max-w-sm rounded-2xl border border-base-300 bg-base-100 p-6 shadow-2xl">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-full bg-error/10">
+                <ShieldAlert className="size-5 text-error" />
+              </div>
+              <h3 className="text-lg font-semibold text-base-content">Log Out All Devices</h3>
+            </div>
+            <p className="mb-6 text-sm text-base-content/70">
+              Are you sure you want to log out from all devices? This will sign you out of all mobile apps, tablets, and other browsers.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                className="btn btn-ghost flex-1 rounded-xl"
+                onClick={() => setShowLogoutAllModal(false)}
+                disabled={isLoggingOutAll}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-error flex-1 rounded-xl"
+                onClick={() => {
+                  logoutAll();
+                  setShowLogoutAllModal(false);
+                }}
+                disabled={isLoggingOutAll}
+              >
+                {isLoggingOutAll ? (
+                  <>
+                    <span className="loading loading-spinner loading-xs" />
+                    Logging out...
+                  </>
+                ) : (
+                  "Log Out All"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Search Modal */}
       {searchFocused && (
