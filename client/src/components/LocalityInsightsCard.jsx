@@ -133,6 +133,12 @@ export default function LocalityInsightsCard({ city, locality, price, areaSqft, 
     ? Number((((propertyPsf - currentAvgPsf) / currentAvgPsf) * 100).toFixed(1))
     : null;
 
+  // Fallback: compare total price if per-sqft not available
+  const latestAvgPrice = data.monthlyData[data.monthlyData.length - 1]?.avgPrice;
+  const pricePct = !comparisonPct && price > 0 && latestAvgPrice > 0
+    ? Number((((price - latestAvgPrice) / latestAvgPrice) * 100).toFixed(1))
+    : null;
+
   // Latest monthly data for avg price
   const latestMonth = data.monthlyData[data.monthlyData.length - 1];
 
@@ -142,11 +148,12 @@ export default function LocalityInsightsCard({ city, locality, price, areaSqft, 
     const direction = data.changePercent > 0 ? "increased" : data.changePercent < 0 ? "decreased" : "remained stable";
     const pctText = data.changePercent !== 0 ? ` by ${Math.abs(data.changePercent)}%` : "";
     insightText = `Property prices in ${locality} have ${direction}${pctText} over the past ${data.monthlyData.length} months.`;
-    if (comparisonPct !== null) {
-      if (comparisonPct < -5) {
-        insightText += ` This property is priced ${Math.abs(comparisonPct)}% below the locality average — a potential deal.`;
-      } else if (comparisonPct > 10) {
-        insightText += ` This property is priced ${comparisonPct}% above the locality average.`;
+    const cmp = comparisonPct ?? pricePct;
+    if (cmp !== null) {
+      if (cmp < -5) {
+        insightText += ` This property is priced ${Math.abs(cmp)}% below the locality average — a potential deal.`;
+      } else if (cmp > 10) {
+        insightText += ` This property is priced ${cmp}% above the locality average.`;
       } else {
         insightText += ` This property is priced close to the locality average.`;
       }
@@ -198,24 +205,34 @@ export default function LocalityInsightsCard({ city, locality, price, areaSqft, 
           tone={data.changePercent > 0 ? "success" : data.changePercent < 0 ? "error" : "neutral"}
         />
 
-        {comparisonPct !== null && (
-          <StatCard
-            icon={Home}
-            label="This Property"
-            value={
-              <span
-                className={`flex items-center gap-1 ${
-                  comparisonPct > 5 ? "text-error" : comparisonPct < -5 ? "text-success" : ""
-                }`}
-              >
-                {comparisonPct > 0 ? <ArrowUp className="size-5" /> : comparisonPct < 0 ? <ArrowDown className="size-5" /> : null}
-                {comparisonPct > 0 ? "+" : ""}{comparisonPct}%
-              </span>
-            }
-            subtext={`₹${propertyPsf.toLocaleString("en-IN")}/sqft vs avg`}
-            tone={comparisonPct > 5 ? "error" : comparisonPct < -5 ? "success" : "neutral"}
-          />
-        )}
+        {(() => {
+          const cmp = comparisonPct ?? pricePct;
+          const subLabel = comparisonPct !== null
+            ? `₹${propertyPsf.toLocaleString("en-IN")}/sqft vs avg`
+            : pricePct !== null
+              ? `${formatMoney(price)} vs avg ${formatMoney(latestAvgPrice)}`
+              : "Not enough data";
+          return (
+            <StatCard
+              icon={Home}
+              label="This Property"
+              value={
+                cmp !== null ? (
+                  <span
+                    className={`flex items-center gap-1 ${
+                      cmp > 5 ? "text-error" : cmp < -5 ? "text-success" : ""
+                    }`}
+                  >
+                    {cmp > 0 ? <ArrowUp className="size-5" /> : cmp < 0 ? <ArrowDown className="size-5" /> : null}
+                    {cmp > 0 ? "+" : ""}{cmp}%
+                  </span>
+                ) : "—"
+              }
+              subtext={subLabel}
+              tone={cmp > 5 ? "error" : cmp < -5 ? "success" : "neutral"}
+            />
+          );
+        })()}
 
         <StatCard
           icon={Building2}
