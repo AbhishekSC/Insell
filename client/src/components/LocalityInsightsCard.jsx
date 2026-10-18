@@ -14,7 +14,17 @@ const CHART_H = 160;
 const PAD = 28;
 
 function MiniTrendChart({ data }) {
-  if (!data || data.length < 2) return null;
+  if (!data || data.length < 2) {
+    return data?.length === 1 ? (
+      <div className="flex items-center justify-center rounded-xl border border-base-200 bg-base-200/30 px-4 py-6 text-center">
+        <div>
+          <p className="text-sm font-semibold text-base-content">₹{data[0].avgPsf.toLocaleString("en-IN")}/sqft</p>
+          <p className="mt-1 text-xs text-base-content/50">{data[0].month} · {data[0].listings} listing{data[0].listings > 1 ? "s" : ""}</p>
+          <p className="mt-2 text-[11px] text-base-content/40">More data needed to show a trend chart</p>
+        </div>
+      </div>
+    ) : null;
+  }
 
   const values = data.map((d) => d.avgPsf);
   const min = Math.min(...values);
@@ -144,19 +154,21 @@ export default function LocalityInsightsCard({ city, locality, price, areaSqft, 
 
   // Human-readable insight sentence
   let insightText = "";
-  if (data.changePercent !== null) {
+  const cmp = comparisonPct ?? pricePct;
+  if (data.changePercent !== null && data.monthlyData.length >= 2) {
     const direction = data.changePercent > 0 ? "increased" : data.changePercent < 0 ? "decreased" : "remained stable";
     const pctText = data.changePercent !== 0 ? ` by ${Math.abs(data.changePercent)}%` : "";
     insightText = `Property prices in ${locality} have ${direction}${pctText} over the past ${data.monthlyData.length} months.`;
-    const cmp = comparisonPct ?? pricePct;
-    if (cmp !== null) {
-      if (cmp < -5) {
-        insightText += ` This property is priced ${Math.abs(cmp)}% below the locality average — a potential deal.`;
-      } else if (cmp > 10) {
-        insightText += ` This property is priced ${cmp}% above the locality average.`;
-      } else {
-        insightText += ` This property is priced close to the locality average.`;
-      }
+  } else if (currentAvgPsf) {
+    insightText = `The average price in ${locality} is ₹${currentAvgPsf.toLocaleString("en-IN")}/sqft based on ${data.totalListings} listing${data.totalListings > 1 ? "s" : ""}.`;
+  }
+  if (cmp !== null) {
+    if (cmp < -5) {
+      insightText += ` This property is priced ${Math.abs(cmp)}% below the locality average — a potential deal.`;
+    } else if (cmp > 10) {
+      insightText += ` This property is priced ${cmp}% above the locality average.`;
+    } else {
+      insightText += ` This property is priced close to the locality average.`;
     }
   }
 
