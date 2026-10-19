@@ -810,9 +810,14 @@ export default function MarketplacePage() {
       queryListingType || "all", queryPropertyType || "all",
       nearMeCoords ? `${nearMeCoords.lat.toFixed(3)},${nearMeCoords.lon.toFixed(3)}` : "no-geo",
     ],
-    queryFn: async ({ pageParam = 1 }) => {
+    queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams();
-      params.set("page", String(pageParam));
+      if (typeof pageParam === "object" && pageParam !== null) {
+        if (pageParam.cursor) params.set("cursor", pageParam.cursor);
+        params.set("page", String(pageParam.page || 1));
+      } else {
+        params.set("page", String(pageParam || 1));
+      }
       params.set("limit", "12");
 
       // Handle author-specific search
@@ -844,9 +849,12 @@ export default function MarketplacePage() {
     getNextPageParam: (lastPage) => {
       const current = Number(lastPage?.pagination?.page || 1);
       const total = Number(lastPage?.pagination?.totalPages || 1);
-      return current < total ? current + 1 : undefined;
+      const nextCursor = lastPage?.pagination?.nextCursor;
+      const hasMore = lastPage?.pagination?.hasMore ?? (current < total);
+      if (!hasMore) return undefined;
+      return { page: current + 1, cursor: nextCursor || undefined };
     },
-    initialPageParam: 1,
+    initialPageParam: { page: 1, cursor: undefined },
     // Only hold the first Near Me fetch if we have NO location at all and one
     // is being captured. With a saved location we query straight away and
     // just re-query when a fresher fix lands (the queryKey carries coords).

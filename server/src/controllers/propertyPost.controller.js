@@ -442,7 +442,9 @@ export async function getPropertyFeed(req, res) {
   try {
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
     const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 12));
-    const skip = (page - 1) * limit;
+    const cursor = String(req.query.cursor || req.query.lastSeenId || "").trim();
+    const hasCursor = Boolean(cursor && mongoose.Types.ObjectId.isValid(cursor));
+    const skip = hasCursor ? 0 : (page - 1) * limit;
     const query = String(req.query.q || "").trim();
     const city = String(req.query.city || "").trim();
     const listingType = String(req.query.listingType || "").trim();
@@ -468,6 +470,7 @@ export async function getPropertyFeed(req, res) {
     // Shared cache key for generic public feeds (independent of currentUserId)
     const isStandardPublicFeed = (
       page === 1 &&
+      !hasCursor &&
       !query &&
       !authorId &&
       !savedBy &&
@@ -510,6 +513,8 @@ export async function getPropertyFeed(req, res) {
               limit,
               total,
               totalPages: Math.max(1, Math.ceil(total / limit)),
+              nextCursor: visiblePosts.length === limit ? String(visiblePosts[visiblePosts.length - 1]._id) : null,
+              hasMore: visiblePosts.length === limit,
             },
           });
         }
@@ -721,14 +726,23 @@ export async function getPropertyFeed(req, res) {
       return await getNearMeFeed(req, res, { filter, page, limit, skip, currentUserId });
     }
 
-    const nowMs = Date.now();
+    // Apply cursor-based filter if cursor is provided
+    const queryFilter = { ...filter };
+    if (hasCursor) {
+      queryFilter._id = { $lt: new mongoose.Types.ObjectId(cursor) };
+    }
+
+    const feedQuery = PropertyPost.find(queryFilter)
+      .sort({ isBoosted: -1, createdAt: -1 })
+      .limit(limit)
+      .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate");
+
+    if (!hasCursor && skip > 0) {
+      feedQuery.skip(skip);
+    }
+
     const [posts, total] = await Promise.all([
-      PropertyPost.find(filter)
-        .sort({ isBoosted: -1, createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate")
-        .lean(),
+      feedQuery.lean(),
       PropertyPost.countDocuments(filter),
     ]);
 
@@ -815,6 +829,9 @@ export async function getPropertyFeed(req, res) {
       return sendSuccessResponse(res, responseData);
     }
 
+    const nextCursor = posts.length === limit ? String(posts[posts.length - 1]._id) : null;
+    const hasMore = posts.length === limit;
+
     const responseData = {
       posts: decoratedPosts,
       pagination: {
@@ -822,6 +839,8 @@ export async function getPropertyFeed(req, res) {
         limit,
         total,
         totalPages: Math.max(1, Math.ceil(total / limit)),
+        nextCursor,
+        hasMore,
       },
     };
 

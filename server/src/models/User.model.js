@@ -529,6 +529,7 @@ const userSchema = new mongoose.Schema(
 
 // **Indexes**: Create indexes for email and fullName for faster queries
 userSchema.index({ fullName: 1 });
+userSchema.index({ activeRole: 1, primaryRole: 1 });
 
 // **Pre Hooks(Middlewares)**: Normalize fcmTokens defensively
 userSchema.pre("validate", function (next) {

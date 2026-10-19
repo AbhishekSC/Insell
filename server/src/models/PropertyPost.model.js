@@ -340,6 +340,8 @@ propertyPostSchema.index({ city: 1, listingType: 1, isDeleted: 1, isBlocked: 1, 
 propertyPostSchema.index({ listingType: 1, isDeleted: 1, isBlocked: 1, createdAt: -1 });
 // Compound index for published, public feeds
 propertyPostSchema.index({ status: 1, visibility: 1, isDeleted: 1, isBlocked: 1, createdAt: -1 });
+// Compound index for cursor-based pagination
+propertyPostSchema.index({ isDeleted: 1, isBlocked: 1, _id: -1 });
 // Compound index for valuation benchmarks and card-signals queries
 propertyPostSchema.index({ status: 1, visibility: 1, isDeleted: 1, isBlocked: 1, city: 1, propertyType: 1, price: 1 });
 // Matches "my posts" / author-filtered feeds (profile pages, authorId
