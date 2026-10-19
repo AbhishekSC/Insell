@@ -218,11 +218,10 @@ export default class AuthService extends BaseService {
       });
       await Notification.create({
         recipient: newUser._id,
-        type: "coin_bonus",
-        title: "Welcome bonus! 🎉",
-        message: "You've received 250 coins as a welcome bonus. Use them to boost your listings!",
+        type: "admin_announcement",
+        message: "🎉 Welcome bonus! You've received 250 coins. Use them to boost your listings!",
       }).catch(() => {});
-      pushRealtimeNotification(newUser._id.toString(), "coin_bonus").catch(() => {});
+      pushRealtimeNotification(newUser._id.toString(), "admin_announcement").catch(() => {});
     } catch (err) {
       logger.error("Failed to credit signup bonus:", err?.message);
     }

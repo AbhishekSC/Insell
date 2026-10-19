@@ -3711,6 +3711,115 @@ function AdvertisementsPanel() {
   );
 }
 
+function CoinHistoryPanel() {
+  const [page, setPage] = useState(1);
+
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ["adminCoinHistory", page],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/admin/coin-history", { params: { page, limit: 20 } });
+      return response.data?.data;
+    },
+    placeholderData: keepPreviousData,
+  });
+
+  const transactions = data?.transactions || [];
+  const pagination = data?.pagination || { page: 1, totalPages: 1, total: 0 };
+  const totalCoinsGranted = data?.totalCoinsGranted || 0;
+
+  return (
+    <div className="rounded-2xl border border-base-300 bg-base-100 shadow-sm">
+      <div className="flex items-center justify-between border-b border-base-300 p-4 sm:p-5">
+        <div className="flex items-center gap-2">
+          <div className="grid size-9 place-items-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+            <Sparkles className="size-4" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-base-content">Coin Grant History</h2>
+            <p className="text-xs text-base-content/60">{pagination.total} grants · {totalCoinsGranted.toLocaleString("en-IN")} total coins</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-base-200 bg-base-200/40 text-xs uppercase tracking-wider text-base-content/60">
+              <th className="px-4 py-3 sm:px-5">USER</th>
+              <th className="px-4 py-3">COINS</th>
+              <th className="px-4 py-3">REASON</th>
+              <th className="px-4 py-3">BALANCE AFTER</th>
+              <th className="px-4 py-3">DATE</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-base-200">
+            {isLoading ? (
+              <tr>
+                <td colSpan={5} className="px-5 py-10 text-center">
+                  <Loader2 className="mx-auto size-6 animate-spin text-primary" />
+                </td>
+              </tr>
+            ) : transactions.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-5 py-10 text-center text-sm text-base-content/60">
+                  No coin grants yet.
+                </td>
+              </tr>
+            ) : (
+              transactions.map((tx) => (
+                <tr key={tx._id} className="hover:bg-base-200/70">
+                  <td className="px-4 py-3 sm:px-5">
+                    <div className="flex items-center gap-3">
+                      <UserAvatar src={tx.user?.profilePic} name={tx.user?.fullName} sizeClass="size-8" userId={tx.user?._id} />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-base-content">{tx.user?.fullName || "Unknown"}</p>
+                        <p className="truncate text-xs text-base-content/60">{tx.user?.email || "—"}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+                      +{tx.amount}
+                    </span>
+                  </td>
+                  <td className="max-w-[240px] truncate px-4 py-3 text-base-content/70">{tx.description || "—"}</td>
+                  <td className="px-4 py-3 text-base-content/70">{tx.balanceAfter} coins</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-base-content/70">{formatDate(tx.createdAt)}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex items-center justify-between border-t border-base-300 px-4 py-3 sm:px-5">
+        <p className="text-xs text-base-content/60">
+          Page {pagination.page} of {pagination.totalPages}
+          {isFetching ? " · updating..." : ""}
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="rounded-lg border border-base-300 p-1.5 text-base-content/60 transition-colors hover:bg-base-200 disabled:opacity-40"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+            disabled={page >= pagination.totalPages}
+            className="rounded-lg border border-base-300 p-1.5 text-base-content/60 transition-colors hover:bg-base-200 disabled:opacity-40"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("users");
 
@@ -3798,6 +3907,15 @@ export default function AdminPage() {
         >
           <Sparkles className="size-4" /> Advertisements
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("coins")}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+            activeTab === "coins" ? "bg-amber-500 text-white" : "bg-base-200 text-base-content/70 hover:bg-base-300"
+          }`}
+        >
+          <Sparkles className="size-4" /> Coins
+        </button>
       </div>
 
       {activeTab === "users" ? (
@@ -3816,6 +3934,8 @@ export default function AdminPage() {
         <FeatureFlagsPanel />
       ) : activeTab === "advertisements" ? (
         <AdvertisementsPanel />
+      ) : activeTab === "coins" ? (
+        <CoinHistoryPanel />
       ) : (
         <AnnouncementsPanel />
       )}

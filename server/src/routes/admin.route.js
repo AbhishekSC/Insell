@@ -7,6 +7,7 @@ import {
   toggleUserBlock,
   adminCreditCoins,
   adminGetUserWallet,
+  adminGetCoinHistory,
   getAdminPosts,
   blockPost,
   unblockPost,
@@ -45,6 +46,7 @@ router.get("/users", getAdminUsers);
 router.post("/users/:id/block", toggleUserBlock);
 router.get("/users/:id/wallet", adminGetUserWallet);
 router.post("/users/:id/credit-coins", adminCreditCoins);
+router.get("/coin-history", adminGetCoinHistory);
 
 router.get("/posts", getAdminPosts);
 router.post("/posts/:id/block", blockPost);
