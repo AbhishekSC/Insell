@@ -698,6 +698,19 @@ export const adminCreditCoins = async (req, res) => {
 
     logger.info(`Admin ${req.user.email} credited ${coinAmount} coins to ${targetUser.email} (${id})`);
 
+    await NotificationService.send({
+      recipientId: id,
+      actorId: req.user._id,
+      type: "coin_bonus",
+      title: "You received bonus coins! 🎉",
+      message: reason
+        ? `${coinAmount} coins credited to your wallet — ${reason}`
+        : `${coinAmount} bonus coins have been credited to your wallet!`,
+      channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
+    }).catch((err) => {
+      logger.warn("Failed to send coin bonus notification:", err?.message);
+    });
+
     return sendSuccessResponse(res, 200, `${coinAmount} coins credited to ${targetUser.fullName}`, {
       userId: id,
       coinsGranted: coinAmount,

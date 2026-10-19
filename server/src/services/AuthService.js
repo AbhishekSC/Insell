@@ -214,8 +214,15 @@ export default class AuthService extends BaseService {
         userId: newUser._id,
         amount: 250,
         category: "SIGNUP_BONUS",
-        description: "Welcome bonus for joining Insell",
+        description: "Welcome bonus for joining NearMySpace!",
       });
+      await Notification.create({
+        recipient: newUser._id,
+        type: "coin_bonus",
+        title: "Welcome bonus! 🎉",
+        message: "You've received 250 coins as a welcome bonus. Use them to boost your listings!",
+      }).catch(() => {});
+      pushRealtimeNotification(newUser._id.toString(), "coin_bonus").catch(() => {});
     } catch (err) {
       logger.error("Failed to credit signup bonus:", err?.message);
     }
