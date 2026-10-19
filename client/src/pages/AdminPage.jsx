@@ -257,6 +257,9 @@ function UsersPanel() {
   const [page, setPage] = useState(1);
   const [pendingBlockId, setPendingBlockId] = useState(null);
   const [confirmTarget, setConfirmTarget] = useState(null);
+  const [coinTarget, setCoinTarget] = useState(null);
+  const [coinAmount, setCoinAmount] = useState("");
+  const [coinReason, setCoinReason] = useState("");
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -301,9 +304,30 @@ function UsersPanel() {
     onSettled: () => setPendingBlockId(null),
   });
 
+  const { mutate: creditCoins, isPending: isCreditPending } = useMutation({
+    mutationFn: async ({ userId, amount, reason }) => {
+      const response = await axiosInstance.post(`/admin/users/${userId}/credit-coins`, { amount, reason });
+      return response.data?.data;
+    },
+    onSuccess: (result) => {
+      toast.success(`${result.coinsGranted} coins credited! New balance: ${result.newBalance}`);
+      setCoinTarget(null);
+      setCoinAmount("");
+      setCoinReason("");
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to credit coins");
+    },
+  });
+
   const handleConfirmToggleBlock = () => {
     if (!confirmTarget) return;
     toggleBlock(confirmTarget._id);
+  };
+
+  const handleCreditCoins = () => {
+    if (!coinTarget || !coinAmount) return;
+    creditCoins({ userId: coinTarget._id, amount: Number(coinAmount), reason: coinReason });
   };
 
   return (
@@ -410,25 +434,35 @@ function UsersPanel() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-right sm:pr-5">
-                    <button
-                      type="button"
-                      onClick={() => setConfirmTarget(user)}
-                      disabled={pendingBlockId === user._id}
-                      className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60 ${
-                        user.isBlocked
-                          ? "border-success/30 text-success hover:bg-success/10"
-                          : "border-error/30 text-error hover:bg-error/10"
-                      }`}
-                    >
-                      {pendingBlockId === user._id ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : user.isBlocked ? (
-                        <ShieldCheck className="size-3.5" />
-                      ) : (
-                        <ShieldOff className="size-3.5" />
-                      )}
-                      {user.isBlocked ? "Unblock" : "Block"}
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setCoinTarget(user); setCoinAmount(""); setCoinReason(""); }}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/30 px-3 py-1.5 text-xs font-semibold text-amber-600 transition-colors hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/20"
+                      >
+                        <Sparkles className="size-3.5" />
+                        Grant Coins
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmTarget(user)}
+                        disabled={pendingBlockId === user._id}
+                        className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60 ${
+                          user.isBlocked
+                            ? "border-success/30 text-success hover:bg-success/10"
+                            : "border-error/30 text-error hover:bg-error/10"
+                        }`}
+                      >
+                        {pendingBlockId === user._id ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : user.isBlocked ? (
+                          <ShieldCheck className="size-3.5" />
+                        ) : (
+                          <ShieldOff className="size-3.5" />
+                        )}
+                        {user.isBlocked ? "Unblock" : "Block"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -468,6 +502,67 @@ function UsersPanel() {
         onCancel={() => setConfirmTarget(null)}
         onConfirm={handleConfirmToggleBlock}
       />
+
+      {coinTarget
+        ? createPortal(
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+              <div className="w-full max-w-sm rounded-2xl bg-base-100 p-6 shadow-xl">
+                <div className="mx-auto grid size-12 place-items-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+                  <Sparkles className="size-6" />
+                </div>
+                <h3 className="mt-4 text-center text-lg font-semibold text-base-content">Grant Coins</h3>
+                <p className="mt-1 text-center text-sm text-base-content/60">
+                  Credit bonus coins to <span className="font-semibold">{coinTarget.fullName}</span>
+                </p>
+
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-base-content">Amount *</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10000}
+                      value={coinAmount}
+                      onChange={(e) => setCoinAmount(e.target.value)}
+                      placeholder="e.g. 250"
+                      className="w-full rounded-lg border border-base-300 bg-base-100 px-3 py-2 text-sm text-base-content placeholder:text-base-content/40 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-base-content">Reason (optional)</label>
+                    <input
+                      type="text"
+                      value={coinReason}
+                      onChange={(e) => setCoinReason(e.target.value)}
+                      placeholder="e.g. Promotional bonus, contest winner"
+                      maxLength={200}
+                      className="w-full rounded-lg border border-base-300 bg-base-100 px-3 py-2 text-sm text-base-content placeholder:text-base-content/40 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-5 flex gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setCoinTarget(null)}
+                    className="flex-1 rounded-lg border border-base-300 px-3 py-2 text-sm font-semibold text-base-content transition-colors hover:bg-base-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCreditCoins}
+                    disabled={!coinAmount || Number(coinAmount) <= 0 || isCreditPending}
+                    className="flex-1 rounded-lg bg-amber-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-600 disabled:opacity-60"
+                  >
+                    {isCreditPending ? <Loader2 className="mx-auto size-4 animate-spin" /> : `Grant ${coinAmount || 0} Coins`}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

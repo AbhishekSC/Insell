@@ -5,6 +5,8 @@ import { getDealStats, adminListDeals, adminResolveDealReports, adminForceCancel
 import {
   getAdminUsers,
   toggleUserBlock,
+  adminCreditCoins,
+  adminGetUserWallet,
   getAdminPosts,
   blockPost,
   unblockPost,
@@ -41,6 +43,8 @@ router.use(requireAdmin);
 
 router.get("/users", getAdminUsers);
 router.post("/users/:id/block", toggleUserBlock);
+router.get("/users/:id/wallet", adminGetUserWallet);
+router.post("/users/:id/credit-coins", adminCreditCoins);
 
 router.get("/posts", getAdminPosts);
 router.post("/posts/:id/block", blockPost);
