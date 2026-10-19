@@ -6,6 +6,7 @@ import { sendPushNotification } from "./firebase.service.js";
 import { sendGenericEmail } from "../utils/emailClient.js";
 import { deriveWebPath } from "./notificationRouting.js";
 import { enqueueNotification } from "../queues/notification.queue.js";
+import { incrementUnreadNotificationCount } from "./notificationCache.service.js";
 
 export const NotificationChannel = {
   IN_APP: "IN_APP",       // persistent record in Mongo, shown in the /activity feed
@@ -69,6 +70,7 @@ export async function send({
   const tasks = uniqueChannels.map((channel) => {
     switch (channel) {
       case NotificationChannel.IN_APP:
+        incrementUnreadNotificationCount(recipientId);
         return Notification.create({ recipient: recipientId, actor: actorId, type, message, ...data });
 
       case NotificationChannel.REALTIME:

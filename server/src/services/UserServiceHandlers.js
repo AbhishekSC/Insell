@@ -4,6 +4,7 @@ import User from "../models/User.model.js";
 import Comment from "../models/Comment.model.js";
 import MobileDetail from "../models/MobileDetail.model.js";
 import { getDiscoverRecommendations, invalidateDiscoverCache } from "./DiscoverRecommendationService.js";
+import { invalidateUserProfileCache } from "./likeCache.service.js";
 import { redisClient } from "../config/redis.js";
 import { logger } from "../utils/logger.js";
 import { sanitizeUserData } from "../utils/sanitizeUser.js";
@@ -239,6 +240,7 @@ export async function updateMyProfile(req, res) {
 
     await invalidateDiscoverCache(currentUserId);
     await invalidateActivityCache(currentUserId);
+    await invalidateUserProfileCache(currentUserId);
 
     return sendSuccessResponse(res, 200, "Profile updated successfully", {
       user: sanitizeUserData(updatedUser),

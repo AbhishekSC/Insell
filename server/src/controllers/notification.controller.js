@@ -1,6 +1,11 @@
 import Notification from "../models/Notification.model.js";
 import Review from "../models/Review.model.js";
 import { logger } from "../utils/logger.js";
+import {
+  getUnreadNotificationCount,
+  decrementUnreadNotificationCount,
+  clearUnreadNotificationCount,
+} from "../services/notificationCache.service.js";
 
 // Create a notification
 export const createNotification = async (req, res) => {
@@ -99,12 +104,10 @@ export const getNotifications = async (req, res) => {
       }
     });
 
-    // Count unread notifications based on the filter
-    const unreadCount = await Notification.countDocuments({
-      recipient: userId,
-      read: false,
-      ...typeCondition,
-    });
+    // Count unread notifications using high-speed Redis counter (~1ms)
+    const unreadCount = Object.keys(typeCondition).length > 0
+      ? await Notification.countDocuments({ recipient: userId, read: false, ...typeCondition })
+      : await getUnreadNotificationCount(userId);
 
     console.log("Notifications found:", notifications.length, "Unread count:", unreadCount);
     if (notifications.length > 0) {
@@ -149,6 +152,8 @@ export const markAsRead = async (req, res) => {
       });
     }
 
+    decrementUnreadNotificationCount(userId);
+
     logger.info(`Notification marked as read: ${notificationId}`);
 
     res.status(200).json({
@@ -183,6 +188,8 @@ export const markAllAsRead = async (req, res) => {
       { recipient: userId, read: false, type: { $ne: "circle_invite" } },
       { read: true }
     );
+
+    clearUnreadNotificationCount(userId);
 
     logger.info(`All notifications marked as read for user ${userId}`);
 

@@ -6,6 +6,7 @@ import { connectQueue } from "./config/queue.config.js";
 import { testCloudinaryConnection } from "./config/cloudinary.js";
 import { connectToRedis, closeRedisConnection } from "./config/redisClient.config.js";
 import { initNotificationWorker, closeNotificationQueue } from "./queues/notification.queue.js";
+import { initEngagementSyncWorker, closeEngagementSyncQueue } from "./queues/engagementSync.queue.js";
 
 let httpServer = null;
 let shuttingDown = false;
@@ -33,6 +34,7 @@ async function shutdown(signal) {
       closeMongoConnection(),
       closeRedisConnection(),
       closeNotificationQueue(),
+      closeEngagementSyncQueue(),
     ]);
   } catch (error) {
     logger.error(`Error during shutdown: ${error.message}`, { stack: error.stack });
@@ -73,6 +75,7 @@ async function startServer() {
 
     httpServer = app.listen(PORT, async () => {
       initNotificationWorker();
+      await initEngagementSyncWorker();
       await connectQueue();
       logger.info(`Server is running on port ${PORT}`);
     }).on("error", (err) => {
