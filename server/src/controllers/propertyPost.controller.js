@@ -749,8 +749,9 @@ export async function getPropertyFeed(req, res) {
       PropertyPost.countDocuments(filter),
     ]);
 
-    const decoratedPosts = await attachSocialProof(
-      posts.map((post) => {
+    // Read live engagement from Redis for each post (falls back to MongoDB arrays)
+    const postsWithEngagement = await Promise.all(
+      posts.map(async (post) => {
         const likedBy = Array.isArray(post.likedBy) ? post.likedBy.map((item) => String(item)) : [];
         const savedBy = Array.isArray(post.savedBy) ? post.savedBy.map((item) => String(item)) : [];
         const isBoostActive = Boolean(
@@ -758,17 +759,42 @@ export async function getPropertyFeed(req, res) {
           post.boostExpiresAt &&
           new Date(post.boostExpiresAt).getTime() > nowMs
         );
+
+        let likesCount = likedBy.length;
+        let isLikedByMe = currentUserId ? likedBy.includes(currentUserId) : false;
+        let savesCount = savedBy.length;
+        let isSavedByMe = currentUserId ? savedBy.includes(currentUserId) : false;
+
+        try {
+          const [likeEng, saveEng] = await Promise.all([
+            getPostEngagement(post._id, currentUserId, "like"),
+            getPostEngagement(post._id, currentUserId, "save"),
+          ]);
+          if (likeEng !== null) {
+            likesCount = likeEng.count;
+            isLikedByMe = Boolean(likeEng.isEngaged);
+          }
+          if (saveEng !== null) {
+            savesCount = saveEng.count;
+            isSavedByMe = Boolean(saveEng.isEngaged);
+          }
+        } catch {}
+
         return {
           ...post,
           isBoosted: isBoostActive,
           boostExpiresAt: post.boostExpiresAt,
           boostCount: post.boostCount || 0,
-          likesCount: likedBy.length,
-          isLikedByMe: currentUserId ? likedBy.includes(currentUserId) : false,
-          savesCount: savedBy.length,
-          isSavedByMe: currentUserId ? savedBy.includes(currentUserId) : false,
+          likesCount,
+          isLikedByMe,
+          savesCount,
+          isSavedByMe,
         };
-      }),
+      })
+    );
+
+    const decoratedPosts = await attachSocialProof(
+      postsWithEngagement,
       currentUserId
     );
 
