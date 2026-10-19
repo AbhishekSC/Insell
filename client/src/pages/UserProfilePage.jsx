@@ -299,9 +299,14 @@ export default function UserProfilePage() {
   const { data: postsData, isLoading: isPostsLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ["userPosts", userId],
     enabled: Boolean(userId),
-    queryFn: async ({ pageParam = 1 }) => {
+    queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams();
-      params.set("page", String(pageParam));
+      if (typeof pageParam === "object" && pageParam !== null) {
+        if (pageParam.cursor) params.set("cursor", pageParam.cursor);
+        params.set("page", String(pageParam.page || 1));
+      } else {
+        params.set("page", String(pageParam || 1));
+      }
       params.set("limit", "12");
       params.set("authorId", userId);
       // Explicit, so this tab keeps showing only published posts even on
@@ -315,8 +320,12 @@ export default function UserProfilePage() {
     getNextPageParam: (lastPage) => {
       const current = Number(lastPage?.pagination?.page || 1);
       const total = Number(lastPage?.pagination?.totalPages || 1);
-      return current < total ? current + 1 : undefined;
+      const nextCursor = lastPage?.pagination?.nextCursor;
+      const hasMore = lastPage?.pagination?.hasMore ?? (current < total);
+      if (!hasMore) return undefined;
+      return { page: current + 1, cursor: nextCursor || undefined };
     },
+    initialPageParam: { page: 1, cursor: undefined },
   });
 
   const posts = useMemo(
@@ -327,9 +336,14 @@ export default function UserProfilePage() {
   const { data: bookmarksData, isLoading: isBookmarksLoading, hasNextPage: hasNextBookmarkPage, fetchNextPage: fetchNextBookmarkPage, isFetchingNextPage: isFetchingNextBookmarkPage } = useInfiniteQuery({
     queryKey: ["userBookmarks", userId],
     enabled: Boolean(userId),
-    queryFn: async ({ pageParam = 1 }) => {
+    queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams();
-      params.set("page", String(pageParam));
+      if (typeof pageParam === "object" && pageParam !== null) {
+        if (pageParam.cursor) params.set("cursor", pageParam.cursor);
+        params.set("page", String(pageParam.page || 1));
+      } else {
+        params.set("page", String(pageParam || 1));
+      }
       params.set("limit", "12");
       params.set("savedBy", userId);
 
@@ -339,8 +353,12 @@ export default function UserProfilePage() {
     getNextPageParam: (lastPage) => {
       const current = Number(lastPage?.pagination?.page || 1);
       const total = Number(lastPage?.pagination?.totalPages || 1);
-      return current < total ? current + 1 : undefined;
+      const nextCursor = lastPage?.pagination?.nextCursor;
+      const hasMore = lastPage?.pagination?.hasMore ?? (current < total);
+      if (!hasMore) return undefined;
+      return { page: current + 1, cursor: nextCursor || undefined };
     },
+    initialPageParam: { page: 1, cursor: undefined },
   });
 
   // Recently Viewed lives in localStorage (per-browser, not per-account —

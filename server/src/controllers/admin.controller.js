@@ -10,6 +10,7 @@ import { pushRealtimeNotification } from "../services/stream.service.js";
 import * as NotificationService from "../services/NotificationService.js";
 import { NotificationChannel } from "../services/NotificationService.js";
 import redisClient from "../config/redisClient.config.js";
+import { getLiveUsersCountRedis } from "../services/likeCache.service.js";
 
 // Roles treated as "verified" — same rule the marketplace's Verified filter
 // already uses (there's no dedicated verified-broker flag yet, just role).
@@ -653,6 +654,11 @@ const LIVE_USERS_WINDOW_MINUTES = 5;
 // Admin-only navbar badge, not exposed to regular users.
 export const getLiveUsersCount = async (req, res) => {
   try {
+    const redisCount = await getLiveUsersCountRedis(LIVE_USERS_WINDOW_MINUTES);
+    if (typeof redisCount === "number" && redisCount > 0) {
+      return sendSuccessResponse(res, 200, "Live users count fetched successfully", { count: redisCount });
+    }
+
     const cutoff = new Date(Date.now() - LIVE_USERS_WINDOW_MINUTES * 60 * 1000);
     const count = await User.countDocuments({ lastActiveAt: { $gte: cutoff } });
     return sendSuccessResponse(res, 200, "Live users count fetched successfully", { count });

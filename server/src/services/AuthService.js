@@ -13,6 +13,7 @@ import Notification from "../models/Notification.model.js";
 import { pushRealtimeNotification } from "./stream.service.js";
 import { attachReferrerFromCode, rewardIfEligible } from "../modules/referral/referral.service.js";
 import { createRefreshToken, revokeRefreshToken } from "./refreshToken.service.js";
+import { invalidateUserProfileCache } from "./likeCache.service.js";
 
 const { BCRYPT_SALT_ROUNDS, PASSWORD_MIN_LENGTH } = SCHEMA_CONSTANTS;
 
@@ -384,6 +385,7 @@ export default class AuthService extends BaseService {
         const decoded = jwt.verify(token, jwtSecret);
         if (decoded?.id) {
           await User.updateOne({ _id: decoded.id }, { $set: { lastActiveAt: null } });
+          await invalidateUserProfileCache(decoded.id);
         }
       } catch (error) {
         logger.warn("Failed to clear lastActiveAt on logout (non-fatal):", { message: error.message });

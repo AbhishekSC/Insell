@@ -117,3 +117,66 @@ export async function invalidateHotCityCache(city = "") {
     logger.warn("Error invalidating hot feed cache:", err);
   }
 }
+
+/**
+ * Background worker task: pre-computes engagement & time-decay rankings
+ * for all top active cities and the global feed.
+ * Runs every 2 minutes via BullMQ, keeping the feed 100% warm in Redis.
+ */
+export async function rebuildHotFeeds() {
+  try {
+    logger.info("🔥 [FeedRankingWorker] Pre-computing hot feeds...");
+
+    const activeCities = await PropertyPost.distinct("city", {
+      isDeleted: { $ne: true },
+      isBlocked: { $ne: true },
+      status: "PUBLISHED",
+    });
+
+    const citiesToPrecompute = ["", ...(activeCities || []).filter(Boolean).slice(0, 15)];
+
+    for (const city of citiesToPrecompute) {
+      const normalizedCity = String(city || "").trim().toLowerCase();
+      const cacheKey = `feed:hot:city:${normalizedCity || "all"}:20`;
+
+      const query = {
+        isDeleted: { $ne: true },
+        isBlocked: { $ne: true },
+        status: "PUBLISHED",
+      };
+
+      if (normalizedCity) {
+        query.city = new RegExp(`^${normalizedCity}$`, "i");
+      }
+
+      const candidatePosts = await PropertyPost.find(query)
+        .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate")
+        .limit(100)
+        .lean();
+
+      if (!candidatePosts || candidatePosts.length === 0) continue;
+
+      const scoredPosts = candidatePosts.map((post) => {
+        const hotnessScore = calculateHotnessScore(post);
+        const likedBy = Array.isArray(post.likedBy) ? post.likedBy.map((item) => String(item)) : [];
+        const savedBy = Array.isArray(post.savedBy) ? post.savedBy.map((item) => String(item)) : [];
+
+        return {
+          ...post,
+          hotnessScore,
+          likesCount: likedBy.length,
+          savesCount: savedBy.length,
+        };
+      });
+
+      scoredPosts.sort((a, b) => b.hotnessScore - a.hotnessScore);
+      const topHotPosts = scoredPosts.slice(0, 20);
+
+      await redisClient.setEx(cacheKey, HOT_FEED_CACHE_TTL_SECONDS, JSON.stringify(topHotPosts));
+    }
+
+    logger.info(`🔥 [FeedRankingWorker] Pre-computed hot feeds for ${citiesToPrecompute.length} cities.`);
+  } catch (error) {
+    logger.warn("🔥 [FeedRankingWorker] Error pre-computing hot feeds:", error?.message);
+  }
+}

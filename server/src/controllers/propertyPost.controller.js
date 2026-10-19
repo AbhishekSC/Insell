@@ -7,6 +7,13 @@ import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler
 import { logger } from "../utils/logger.js";
 import redisClient from "../config/redisClient.config.js";
 import {
+  toggleEngagementRedis,
+  getLikersFromCache,
+  incrementViewCountRedis,
+  invalidatePostDetailCache,
+  getPostEngagement,
+} from "../services/likeCache.service.js";
+import {
   canRoleCreatePostType,
   getAllowedPostTypesForRole,
   getPostTypeDefaults,
@@ -435,7 +442,9 @@ export async function getPropertyFeed(req, res) {
   try {
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
     const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 12));
-    const skip = (page - 1) * limit;
+    const cursor = String(req.query.cursor || req.query.lastSeenId || "").trim();
+    const hasCursor = Boolean(cursor && mongoose.Types.ObjectId.isValid(cursor));
+    const skip = hasCursor ? 0 : (page - 1) * limit;
     const query = String(req.query.q || "").trim();
     const city = String(req.query.city || "").trim();
     const listingType = String(req.query.listingType || "").trim();
@@ -461,6 +470,7 @@ export async function getPropertyFeed(req, res) {
     // Shared cache key for generic public feeds (independent of currentUserId)
     const isStandardPublicFeed = (
       page === 1 &&
+      !hasCursor &&
       !query &&
       !authorId &&
       !savedBy &&
@@ -503,6 +513,8 @@ export async function getPropertyFeed(req, res) {
               limit,
               total,
               totalPages: Math.max(1, Math.ceil(total / limit)),
+              nextCursor: visiblePosts.length === limit ? String(visiblePosts[visiblePosts.length - 1]._id) : null,
+              hasMore: visiblePosts.length === limit,
             },
           });
         }
@@ -714,14 +726,23 @@ export async function getPropertyFeed(req, res) {
       return await getNearMeFeed(req, res, { filter, page, limit, skip, currentUserId });
     }
 
-    const nowMs = Date.now();
+    // Apply cursor-based filter if cursor is provided
+    const queryFilter = { ...filter };
+    if (hasCursor) {
+      queryFilter._id = { $lt: new mongoose.Types.ObjectId(cursor) };
+    }
+
+    const feedQuery = PropertyPost.find(queryFilter)
+      .sort({ isBoosted: -1, createdAt: -1 })
+      .limit(limit)
+      .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate");
+
+    if (!hasCursor && skip > 0) {
+      feedQuery.skip(skip);
+    }
+
     const [posts, total] = await Promise.all([
-      PropertyPost.find(filter)
-        .sort({ isBoosted: -1, createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate")
-        .lean(),
+      feedQuery.lean(),
       PropertyPost.countDocuments(filter),
     ]);
 
@@ -808,6 +829,9 @@ export async function getPropertyFeed(req, res) {
       return sendSuccessResponse(res, responseData);
     }
 
+    const nextCursor = posts.length === limit ? String(posts[posts.length - 1]._id) : null;
+    const hasMore = posts.length === limit;
+
     const responseData = {
       posts: decoratedPosts,
       pagination: {
@@ -815,6 +839,8 @@ export async function getPropertyFeed(req, res) {
         limit,
         total,
         totalPages: Math.max(1, Math.ceil(total / limit)),
+        nextCursor,
+        hasMore,
       },
     };
 
@@ -1392,6 +1418,7 @@ export async function updatePropertyPost(req, res) {
 
     await invalidateDiscoverCache(userId);
     await invalidateActivityCache(userId);
+    await invalidatePostDetailCache(post._id);
 
     // Invalidate property feed cache
     try {
@@ -1428,59 +1455,57 @@ export async function togglePropertyPostLike(req, res) {
       return sendErrorResponse(res, 401, "Unauthorized");
     }
 
-    const post = await PropertyPost.findById(postId).populate("author", "fullName");
+    // Quick existence check (lean, only author, deletion, and blocking flags)
+    const post = await PropertyPost.findById(postId)
+      .select("author isDeleted isBlocked title city")
+      .populate("author", "fullName")
+      .lean();
+
     if (!post || post.isDeleted || post.isBlocked) {
       return sendErrorResponse(res, 404, "Post not found");
     }
 
-    const userIdString = String(userId);
-    const hasLiked = post.likedBy.some((id) => String(id) === userIdString);
+    // High-speed atomic toggle in Redis (~2ms)
+    const { active: liked, count: likesCount } = await toggleEngagementRedis(postId, userId, "like");
 
-    if (hasLiked) {
-      post.likedBy = post.likedBy.filter((id) => String(id) !== userIdString);
-      post.likedByTimestamps = post.likedByTimestamps.filter((item) => String(item.userId) !== userIdString);
-    } else {
-      post.likedBy.push(userId);
-      post.likedByTimestamps.push({ userId: userId, timestamp: new Date() });
-      
-      // Create notification for post author (if not self-like)
-      if (String(post.author._id) !== userIdString) {
-        await NotificationService.send({
-          recipientId: post.author._id,
-          actorId: userId,
-          type: "property_like",
-          title: "New like",
-          message: `${req.user.fullName} liked your property: ${post.title}`,
-          data: { propertyPost: post._id },
-          channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
-        });
-        logger.info("Like notification sent for post:", post._id);
-      }
+    // Asynchronously dispatch notification if liked (zero latency on response)
+    const authorId = post.author?._id || post.author;
+    if (liked && authorId && String(authorId) !== String(userId)) {
+      setImmediate(async () => {
+        try {
+          await NotificationService.send({
+            recipientId: authorId,
+            actorId: userId,
+            type: "property_like",
+            title: "New like",
+            message: `${req.user.fullName || "Someone"} liked your property: ${post.title}`,
+            data: { propertyPost: post._id },
+            channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
+          });
+          logger.info(`Like notification dispatched for post: ${post._id}`);
+        } catch (notifErr) {
+          logger.warn(`Async like notification failed for post ${post._id}:`, notifErr?.message);
+        }
+      });
     }
 
-    await post.save();
-
-    await invalidateDiscoverCache(userId);
-    await invalidateActivityCache(userId);
-    await PersonalizationService.invalidatePersonalizationCache(userId);
-
-    // Invalidate property feed cache
-    try {
-      const keys = await redisClient.keys("property:feed:*");
-      if (keys.length > 0) {
-        await redisClient.del(keys);
-        logger.info(`Invalidated ${keys.length} property feed cache entries on like`);
+    // Asynchronously invalidate personalization caches (non-blocking)
+    setImmediate(async () => {
+      try {
+        await invalidateDiscoverCache(userId);
+        await invalidateActivityCache(userId);
+        await PersonalizationService.invalidatePersonalizationCache(userId);
+        if (post.city) {
+          await invalidateHotCityCache(post.city);
+        }
+      } catch (cacheErr) {
+        logger.warn("Async cache invalidation error on like:", cacheErr?.message);
       }
-      if (post.city) {
-        await invalidateHotCityCache(post.city);
-      }
-    } catch (cacheError) {
-      logger.warn("Redis cache invalidation error:", cacheError);
-    }
+    });
 
     return sendSuccessResponse(res, 200, "Post like status updated", {
-      liked: !hasLiked,
-      likesCount: post.likedBy.length,
+      liked,
+      likesCount,
     });
   } catch (error) {
     logger.error("Error toggling property post like:", error);
@@ -1497,59 +1522,57 @@ export async function togglePropertyPostSave(req, res) {
       return sendErrorResponse(res, 401, "Unauthorized");
     }
 
-    const post = await PropertyPost.findById(postId).populate("author", "fullName");
+    // Quick existence check
+    const post = await PropertyPost.findById(postId)
+      .select("author isDeleted isBlocked title city")
+      .populate("author", "fullName")
+      .lean();
+
     if (!post || post.isDeleted || post.isBlocked) {
       return sendErrorResponse(res, 404, "Post not found");
     }
 
-    const userIdString = String(userId);
-    const hasSaved = post.savedBy.some((id) => String(id) === userIdString);
+    // High-speed atomic toggle in Redis (~2ms)
+    const { active: saved, count: savesCount } = await toggleEngagementRedis(postId, userId, "save");
 
-    if (hasSaved) {
-      post.savedBy = post.savedBy.filter((id) => String(id) !== userIdString);
-      post.savedByTimestamps = post.savedByTimestamps.filter((item) => String(item.userId) !== userIdString);
-    } else {
-      post.savedBy.push(userId);
-      post.savedByTimestamps.push({ userId: userId, timestamp: new Date() });
-      
-      // Create notification for post author (if not self-save)
-      if (String(post.author._id) !== userIdString) {
-        await NotificationService.send({
-          recipientId: post.author._id,
-          actorId: userId,
-          type: "property_save",
-          title: "New save",
-          message: `${req.user.fullName} saved your property: ${post.title}`,
-          data: { propertyPost: post._id },
-          channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
-        });
-        logger.info("Save notification sent for post:", post._id);
-      }
+    // Asynchronously dispatch notification if saved
+    const authorId = post.author?._id || post.author;
+    if (saved && authorId && String(authorId) !== String(userId)) {
+      setImmediate(async () => {
+        try {
+          await NotificationService.send({
+            recipientId: authorId,
+            actorId: userId,
+            type: "property_save",
+            title: "New save",
+            message: `${req.user.fullName || "Someone"} saved your property: ${post.title}`,
+            data: { propertyPost: post._id },
+            channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
+          });
+          logger.info(`Save notification dispatched for post: ${post._id}`);
+        } catch (notifErr) {
+          logger.warn(`Async save notification failed for post ${post._id}:`, notifErr?.message);
+        }
+      });
     }
 
-    await post.save();
-
-    await invalidateDiscoverCache(userId);
-    await invalidateActivityCache(userId);
-    await PersonalizationService.invalidatePersonalizationCache(userId);
-
-    // Invalidate property feed cache
-    try {
-      const keys = await redisClient.keys("property:feed:*");
-      if (keys.length > 0) {
-        await redisClient.del(keys);
-        logger.info(`Invalidated ${keys.length} property feed cache entries on save`);
+    // Asynchronously invalidate personalization caches
+    setImmediate(async () => {
+      try {
+        await invalidateDiscoverCache(userId);
+        await invalidateActivityCache(userId);
+        await PersonalizationService.invalidatePersonalizationCache(userId);
+        if (post.city) {
+          await invalidateHotCityCache(post.city);
+        }
+      } catch (cacheErr) {
+        logger.warn("Async cache invalidation error on save:", cacheErr?.message);
       }
-      if (post.city) {
-        await invalidateHotCityCache(post.city);
-      }
-    } catch (cacheError) {
-      logger.warn("Redis cache invalidation error:", cacheError);
-    }
+    });
 
     return sendSuccessResponse(res, 200, "Post save status updated", {
-      saved: !hasSaved,
-      savesCount: post.savedBy.length,
+      saved,
+      savesCount,
     });
   } catch (error) {
     logger.error("Error toggling property post save:", error);
@@ -1639,6 +1662,7 @@ export async function boostPropertyPost(req, res) {
     try {
       await invalidateDiscoverCache(userId);
       await invalidateActivityCache(userId);
+      await invalidatePostDetailCache(postId);
       await PersonalizationService.invalidatePersonalizationCache(userId);
 
       const keys = await redisClient.keys("property:feed:*");
@@ -1793,12 +1817,39 @@ export async function getPropertyPostById(req, res) {
       return sendErrorResponse(res, 404, "Post not found");
     }
 
-    const post = await PropertyPost.findById(postId)
-      .populate(
-        "author",
-        "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified mobileNumber friends lastActiveAt responseRate ratingAvg ratingCount"
-      )
-      .lean();
+    let post = null;
+    const cacheKey = `post:${postId}:detail`;
+
+    // 1. Try reading base post from Redis cache
+    try {
+      const cached = await redisClient.get(cacheKey);
+      if (cached) {
+        post = JSON.parse(cached);
+      }
+    } catch (cacheErr) {
+      logger.warn(`Redis post detail cache read failed for ${postId}:`, cacheErr?.message);
+    }
+
+    // 2. Cold-start fallback to MongoDB
+    if (!post) {
+      post = await PropertyPost.findById(postId)
+        .populate(
+          "author",
+          "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified mobileNumber friends lastActiveAt responseRate ratingAvg ratingCount"
+        )
+        .lean();
+
+      if (!post || post.isDeleted) {
+        return sendErrorResponse(res, 404, "Post not found");
+      }
+
+      // Store in Redis (5 min TTL)
+      try {
+        await redisClient.setEx(cacheKey, 300, JSON.stringify(post));
+      } catch (cacheSetErr) {
+        logger.warn(`Redis post detail cache write failed for ${postId}:`, cacheSetErr?.message);
+      }
+    }
 
     if (!post || post.isDeleted) {
       return sendErrorResponse(res, 404, "Post not found");
@@ -1809,25 +1860,26 @@ export async function getPropertyPostById(req, res) {
       return sendErrorResponse(res, 404, "Post not found");
     }
 
-    // Only the owner and their friends can see the contact number — not every logged-in viewer.
-    if (post.author) {
-      const isOwner = currentUserId && String(post.author._id) === currentUserId;
-      const isFriend = currentUserId && (post.author.friends || []).some((friendId) => String(friendId) === currentUserId);
+    // Deep clone author for per-request privacy stripping (owner/friends only see phone)
+    const authorCopy = post.author ? { ...post.author } : null;
+    if (authorCopy) {
+      const isOwner = currentUserId && String(authorCopy._id) === currentUserId;
+      const isFriend = currentUserId && (authorCopy.friends || []).some((friendId) => String(friendId) === currentUserId);
       if (!isOwner && !isFriend) {
-        delete post.author.mobileNumber;
+        delete authorCopy.mobileNumber;
       }
-      delete post.author.friends;
+      delete authorCopy.friends;
     }
 
-    const likedBy = Array.isArray(post.likedBy) ? post.likedBy.map((item) => String(item)) : [];
-    const savedBy = Array.isArray(post.savedBy) ? post.savedBy.map((item) => String(item)) : [];
-
-    // Card/demand signals — live counts, not denormalized (no drift).
-    const [activeOfferCount, sellerListingCount] = await Promise.all([
+    // Read live engagement (likes, saves, views) and card signals concurrently
+    const [likeEngagement, saveEngagement, cachedViews, activeOfferCount, sellerListingCount] = await Promise.all([
+      getPostEngagement(postId, currentUserId, "like"),
+      getPostEngagement(postId, currentUserId, "save"),
+      redisClient.get(`post:${postId}:views`).catch(() => null),
       Offer.countDocuments({ post: post._id, status: { $in: ["pending", "countered"] } }),
-      post.author?._id
+      authorCopy?._id
         ? PropertyPost.countDocuments({
-            author: post.author._id,
+            author: authorCopy._id,
             status: "PUBLISHED",
             visibility: "PUBLIC",
             isDeleted: { $ne: true },
@@ -1836,13 +1888,27 @@ export async function getPropertyPostById(req, res) {
         : Promise.resolve(0),
     ]);
 
+    const likesCount = likeEngagement !== null ? likeEngagement.count : (post.likedBy?.length || 0);
+    const isLikedByMe = likeEngagement !== null
+      ? Boolean(likeEngagement.isEngaged)
+      : (currentUserId && Array.isArray(post.likedBy) && post.likedBy.some(id => String(id) === currentUserId));
+
+    const savesCount = saveEngagement !== null ? saveEngagement.count : (post.savedBy?.length || 0);
+    const isSavedByMe = saveEngagement !== null
+      ? Boolean(saveEngagement.isEngaged)
+      : (currentUserId && Array.isArray(post.savedBy) && post.savedBy.some(id => String(id) === currentUserId));
+
+    const viewCount = cachedViews !== null ? parseInt(cachedViews, 10) : (post.viewCount || 0);
+
     return sendSuccessResponse(res, 200, "Property post fetched successfully", {
       post: {
         ...post,
-        likesCount: likedBy.length,
-        isLikedByMe: currentUserId ? likedBy.includes(currentUserId) : false,
-        savesCount: savedBy.length,
-        isSavedByMe: currentUserId ? savedBy.includes(currentUserId) : false,
+        author: authorCopy,
+        viewCount,
+        likesCount,
+        isLikedByMe: Boolean(isLikedByMe),
+        savesCount,
+        isSavedByMe: Boolean(isSavedByMe),
         activeOfferCount,
         sellerListingCount,
       },
@@ -1862,20 +1928,29 @@ export async function getPostLikers(req, res) {
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = 30;
 
-    const post = await PropertyPost.findById(id).select("likedBy likedByTimestamps isDeleted").lean();
-    if (!post || post.isDeleted) return sendErrorResponse(res, 404, "Post not found");
+    let pageIds = [];
+    let total = 0;
 
-    let ordered;
-    if (Array.isArray(post.likedByTimestamps) && post.likedByTimestamps.length) {
-      ordered = [...post.likedByTimestamps]
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-        .map((x) => String(x.userId));
+    const cached = await getLikersFromCache(id, (page - 1) * limit, limit);
+    if (cached && typeof cached.total === "number" && (cached.total > 0 || page === 1)) {
+      pageIds = cached.items.map((i) => String(i.userId));
+      total = cached.total;
     } else {
-      ordered = (post.likedBy || []).map(String).reverse();
+      const post = await PropertyPost.findById(id).select("likedBy likedByTimestamps isDeleted").lean();
+      if (!post || post.isDeleted) return sendErrorResponse(res, 404, "Post not found");
+
+      let ordered;
+      if (Array.isArray(post.likedByTimestamps) && post.likedByTimestamps.length) {
+        ordered = [...post.likedByTimestamps]
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+          .map((x) => String(x.userId));
+      } else {
+        ordered = (post.likedBy || []).map(String).reverse();
+      }
+      ordered = [...new Set(ordered)];
+      total = ordered.length;
+      pageIds = ordered.slice((page - 1) * limit, page * limit);
     }
-    ordered = [...new Set(ordered)];
-    const total = ordered.length;
-    const pageIds = ordered.slice((page - 1) * limit, page * limit);
 
     const User = (await import("../models/User.model.js")).default;
     const FriendRequest = (await import("../models/FriendRequest.model.js")).default;
@@ -2253,7 +2328,11 @@ export async function incrementViewCount(req, res) {
       return sendErrorResponse(res, 400, "Post ID is required");
     }
 
-    const post = await PropertyPost.findById(postId);
+    // Quick lean existence & permission check
+    const post = await PropertyPost.findById(postId)
+      .select("author isDeleted isBlocked viewCount")
+      .lean();
+
     if (!post || post.isDeleted || (post.isBlocked && String(post.author) !== String(userId))) {
       return sendErrorResponse(res, 404, "Post not found");
     }
@@ -2261,26 +2340,15 @@ export async function incrementViewCount(req, res) {
     // Don't count views from the post author
     if (String(post.author) === String(userId)) {
       return sendSuccessResponse(res, 200, "View count not incremented (own post)", {
-        viewCount: post.viewCount,
+        viewCount: post.viewCount || 0,
       });
     }
 
-    post.viewCount = (post.viewCount || 0) + 1;
-    await post.save();
-
-    // Invalidate property feed cache
-    try {
-      const keys = await redisClient.keys("property:feed:*");
-      if (keys.length > 0) {
-        await redisClient.del(keys);
-        logger.info(`Invalidated ${keys.length} property feed cache entries on view`);
-      }
-    } catch (cacheError) {
-      logger.warn("Redis cache invalidation error:", cacheError);
-    }
+    // High-speed in-memory increment via Redis INCR (~1ms, zero MongoDB writes on hot path)
+    const viewCount = await incrementViewCountRedis(postId, post.viewCount || 0);
 
     return sendSuccessResponse(res, 200, "View count incremented", {
-      viewCount: post.viewCount,
+      viewCount,
     });
   } catch (error) {
     logger.error("Error incrementing view count:", error);
@@ -2389,6 +2457,7 @@ export async function deletePropertyPost(req, res) {
     // Invalidate caches
     await invalidateDiscoverCache();
     await invalidateActivityCache(userId);
+    await invalidatePostDetailCache(postId);
     if (post.city) {
       await invalidateHotCityCache(post.city);
     }

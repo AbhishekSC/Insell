@@ -84,6 +84,7 @@ const offerSchema = new mongoose.Schema(
 );
 
 offerSchema.index({ post: 1, buyer: 1 });
+offerSchema.index({ post: 1, status: 1 });
 offerSchema.index({ owner: 1, status: 1, createdAt: -1 });
 offerSchema.index({ buyer: 1, status: 1, createdAt: -1 });
 // Enforces true concurrency safety for idempotency keys: two requests

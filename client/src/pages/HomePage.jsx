@@ -86,9 +86,14 @@ export default function HomePage() {
 
   const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ["propertyFeed", search, appliedFilters.transactionType, appliedFilters.propertyType],
-    queryFn: async ({ pageParam = 1 }) => {
+    queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams();
-      params.set("page", String(pageParam));
+      if (typeof pageParam === "object" && pageParam !== null) {
+        if (pageParam.cursor) params.set("cursor", pageParam.cursor);
+        params.set("page", String(pageParam.page || 1));
+      } else {
+        params.set("page", String(pageParam || 1));
+      }
       params.set("limit", "12");
       if (search.trim()) params.set("q", search.trim());
       if (appliedFilters.transactionType !== "All") params.set("listingType", appliedFilters.transactionType);
@@ -99,9 +104,12 @@ export default function HomePage() {
     getNextPageParam: (lastPage) => {
       const current = Number(lastPage?.pagination?.page || 1);
       const total = Number(lastPage?.pagination?.totalPages || 1);
-      return current < total ? current + 1 : undefined;
+      const nextCursor = lastPage?.pagination?.nextCursor;
+      const hasMore = lastPage?.pagination?.hasMore ?? (current < total);
+      if (!hasMore) return undefined;
+      return { page: current + 1, cursor: nextCursor || undefined };
     },
-    initialPageParam: 1,
+    initialPageParam: { page: 1, cursor: undefined },
     enabled: Boolean(authUser?._id),
   });
 

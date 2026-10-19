@@ -5,6 +5,8 @@ import jwt from "jsonwebtoken";
 import "dotenv/config.js";
 import { sanitizeUserData } from "../utils/sanitizeUser.js";
 import { isTokenBlacklisted } from "../services/tokenBlacklist.service.js";
+import { recordUserActiveRedis } from "../services/likeCache.service.js";
+import redisClient from "../config/redisClient.config.js";
 
 export const verifyUser = async (req, res, next) => {
   const token =
@@ -39,7 +41,26 @@ export const verifyUser = async (req, res, next) => {
       return blacklistResponse;
     }
 
-    const user = await User.findById(decoded.id);
+    let user = null;
+    const cacheKey = `user:${decoded.id}:profile`;
+
+    try {
+      const cached = await redisClient.get(cacheKey);
+      if (cached) {
+        user = JSON.parse(cached);
+      }
+    } catch (cacheErr) {
+      logger.warn("Redis user profile cache read error:", cacheErr?.message);
+    }
+
+    if (!user) {
+      user = await User.findById(decoded.id).lean();
+      if (user) {
+        try {
+          await redisClient.setEx(cacheKey, 300, JSON.stringify(user));
+        } catch (_) {}
+      }
+    }
     logger.debug("User lookup completed", { requestId: req.id, userId: decoded.id, userFound: !!user });
 
     if (!user) {
@@ -61,13 +82,9 @@ export const verifyUser = async (req, res, next) => {
 
     req.user = sanitizedUser;
 
-    // Throttled, fire-and-forget — powers the admin "live users" count.
-    // Only writes once a minute per user regardless of request volume, and
-    // never blocks/fails the actual request if it errors.
-    const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
-    if (!user.lastActiveAt || user.lastActiveAt < oneMinuteAgo) {
-      User.updateOne({ _id: user._id }, { $set: { lastActiveAt: new Date() } }).catch(() => {});
-    }
+    // Throttled, write-behind activity tracking via Redis (flushed in bulk every 5min).
+    // Completely eliminates 1 MongoDB write per authenticated request.
+    recordUserActiveRedis(user._id);
 
     next();
   } catch (error) {

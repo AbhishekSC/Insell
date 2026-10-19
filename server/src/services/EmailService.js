@@ -1,5 +1,6 @@
 import axios from "axios";
 import { logger } from "../utils/logger.js";
+import { enqueueNotification } from "../queues/notification.queue.js";
 
 const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
@@ -64,16 +65,21 @@ export async function sendVerificationEmail(email, code, userName) {
       htmlContent: html,
     };
 
-    logger.info(`📤 Sending to Brevo API: ${BREVO_API_URL}`);
-    const response = await axios.post(BREVO_API_URL, sendSmtpEmail, {
-      headers: {
-        'api-key': process.env.BREVO_API_KEY,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    logger.info(`✅ Verification email sent to ${email}`, { messageId: response.data?.messageId, response: response.data });
-    return { success: true, messageId: response.data?.messageId };
+    try {
+      await enqueueNotification("EMAIL", { email, subject, htmlContent: html });
+      logger.info(`✅ Verification email enqueued to BullMQ for ${email}`);
+      return { success: true };
+    } catch (queueError) {
+      logger.warn("Failed to enqueue verification email, sending directly:", queueError?.message);
+      const response = await axios.post(BREVO_API_URL, sendSmtpEmail, {
+        headers: {
+          'api-key': process.env.BREVO_API_KEY,
+          'Content-Type': 'application/json',
+        },
+      });
+      logger.info(`✅ Verification email sent directly to ${email}`, { messageId: response.data?.messageId });
+      return { success: true, messageId: response.data?.messageId };
+    }
   } catch (error) {
     logger.error(`❌ Failed to send verification email to ${email}`, { 
       error: error.message, 
@@ -138,15 +144,21 @@ export async function sendWelcomeEmail(email, userName) {
       htmlContent: html,
     };
 
-    const response = await axios.post(BREVO_API_URL, sendSmtpEmail, {
-      headers: {
-        'api-key': process.env.BREVO_API_KEY,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    logger.info(`✅ Welcome email sent to ${email}`, { messageId: response.data?.messageId });
-    return { success: true, messageId: response.data?.messageId };
+    try {
+      await enqueueNotification("EMAIL", { email, subject, htmlContent: html });
+      logger.info(`✅ Welcome email enqueued to BullMQ for ${email}`);
+      return { success: true };
+    } catch (queueError) {
+      logger.warn("Failed to enqueue welcome email, sending directly:", queueError?.message);
+      const response = await axios.post(BREVO_API_URL, sendSmtpEmail, {
+        headers: {
+          'api-key': process.env.BREVO_API_KEY,
+          'Content-Type': 'application/json',
+        },
+      });
+      logger.info(`✅ Welcome email sent directly to ${email}`, { messageId: response.data?.messageId });
+      return { success: true, messageId: response.data?.messageId };
+    }
   } catch (error) {
     logger.error(`❌ Failed to send welcome email to ${email}`, { error: error.message });
     throw new Error(`Failed to send email: ${error.message}`);
