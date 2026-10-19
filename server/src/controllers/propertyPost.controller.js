@@ -502,7 +502,7 @@ export async function getPropertyFeed(req, res) {
             ? rawPosts.filter((p) => !userReportedIds.has(String(p._id)))
             : rawPosts;
           const decoratedPosts = await attachSocialProof(
-            visiblePosts.map((p) => decorateForUser(p, currentUserId)),
+            await Promise.all(visiblePosts.map((p) => decorateForUser(p, currentUserId))),
             currentUserId
           );
           logger.info("Shared cache hit for property feed");
@@ -530,8 +530,12 @@ export async function getPropertyFeed(req, res) {
       ) {
         const cachedData = await redisClient.get(userCacheKey);
         if (cachedData) {
+          const parsed = JSON.parse(cachedData);
+          if (parsed.posts) {
+            parsed.posts = await Promise.all(parsed.posts.map((p) => decorateForUser(p, currentUserId)));
+          }
           logger.info("User cache hit for property feed");
-          return sendSuccessResponse(res, 200, "Property feed retrieved (cached)", JSON.parse(cachedData));
+          return sendSuccessResponse(res, 200, "Property feed retrieved (cached)", parsed);
         }
       }
     } catch (cacheError) {
@@ -668,19 +672,8 @@ export async function getPropertyFeed(req, res) {
     if (category === "for you" && currentUserId && page === 1) {
       try {
         personalizedPosts = await PersonalizationService.getPersonalizedRecommendations(currentUserId, limit);
-        // Decorate personalized posts
-        personalizedPosts = personalizedPosts.map((post) => {
-          const likedBy = Array.isArray(post.likedBy) ? post.likedBy.map((item) => String(item)) : [];
-          const savedBy = Array.isArray(post.savedBy) ? post.savedBy.map((item) => String(item)) : [];
-          return {
-            ...post,
-            likesCount: likedBy.length,
-            isLikedByMe: currentUserId ? likedBy.includes(currentUserId) : false,
-            savesCount: savedBy.length,
-            isSavedByMe: currentUserId ? savedBy.includes(currentUserId) : false,
-            personalizationScore: post.personalizationScore
-          };
-        });
+        personalizedPosts = await Promise.all(personalizedPosts.map((post) => decorateForUser(post, currentUserId)));
+        personalizedPosts = personalizedPosts.map((p) => ({ ...p, personalizationScore: p.personalizationScore }));
         personalizedPosts = await attachSocialProof(personalizedPosts, currentUserId);
       } catch (error) {
         logger.error("Personalization error, falling back to standard feed:", error);
@@ -935,7 +928,7 @@ function nearMeWithinBandScore(post) {
   return recency + quality;
 }
 
-function decorateForUser(post, currentUserId) {
+async function decorateForUser(post, currentUserId) {
   const likedBy = Array.isArray(post.likedBy) ? post.likedBy.map(String) : [];
   const savedBy = Array.isArray(post.savedBy) ? post.savedBy.map(String) : [];
   const isBoostActive = Boolean(
@@ -943,15 +936,36 @@ function decorateForUser(post, currentUserId) {
     post.boostExpiresAt &&
     new Date(post.boostExpiresAt).getTime() > Date.now()
   );
+
+  let likesCount = likedBy.length;
+  let isLikedByMe = currentUserId ? likedBy.includes(currentUserId) : false;
+  let savesCount = savedBy.length;
+  let isSavedByMe = currentUserId ? savedBy.includes(currentUserId) : false;
+
+  try {
+    const [likeEng, saveEng] = await Promise.all([
+      getPostEngagement(post._id, currentUserId, "like"),
+      getPostEngagement(post._id, currentUserId, "save"),
+    ]);
+    if (likeEng !== null) {
+      likesCount = likeEng.count;
+      isLikedByMe = Boolean(likeEng.isEngaged);
+    }
+    if (saveEng !== null) {
+      savesCount = saveEng.count;
+      isSavedByMe = Boolean(saveEng.isEngaged);
+    }
+  } catch {}
+
   return {
     ...post,
     isBoosted: isBoostActive,
     boostExpiresAt: post.boostExpiresAt,
     boostCount: post.boostCount || 0,
-    likesCount: likedBy.length,
-    savesCount: savedBy.length,
-    isLikedByMe: currentUserId ? likedBy.includes(currentUserId) : false,
-    isSavedByMe: currentUserId ? savedBy.includes(currentUserId) : false,
+    likesCount,
+    savesCount,
+    isLikedByMe,
+    isSavedByMe,
   };
 }
 
@@ -1055,11 +1069,12 @@ async function getNearMeFeed(req, res, { filter, page, limit, skip, currentUserI
         { $limit: 300 },
       ]);
 
-      const scored = rows
-        .map((post) => {
-          const distanceKm = post.distanceMeters / 1000;
+      const decoratedRows = await Promise.all(rows.map((post) => decorateForUser(post, currentUserId)));
+      const scored = decoratedRows
+        .map((post, i) => {
+          const distanceKm = rows[i].distanceMeters / 1000;
           return {
-            ...decorateForUser(post, currentUserId),
+            ...post,
             distanceKm: Math.round(distanceKm * 10) / 10,
             _band: nearMeBand(distanceKm),
             _score: nearMeWithinBandScore(post),
@@ -1115,7 +1130,7 @@ async function getNearMeFeed(req, res, { filter, page, limit, skip, currentUserI
     }
 
     return sendSuccessResponse(res, 200, "Property feed fetched successfully", {
-      posts: await attachSocialProof(posts.map((p) => decorateForUser(p, currentUserId)), currentUserId),
+      posts: await attachSocialProof(await Promise.all(posts.map((p) => decorateForUser(p, currentUserId))), currentUserId),
       pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
       meta: { nearMe: { mode, city: mode === "city" ? profileCity : undefined } },
     });
