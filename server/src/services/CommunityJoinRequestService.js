@@ -32,8 +32,7 @@ export default class CommunityJoinRequestService {
       throw new AppError("Join request is already pending", 400);
     }
 
-    circle.pendingJoinRequests = [...(circle.pendingJoinRequests || []), currentUserId];
-    await circle.save();
+    await StudyCircle.updateOne({ _id: circle._id }, { $addToSet: { pendingJoinRequests: currentUserId } });
 
     const requester = await User.findById(currentUserId).select("fullName").lean();
     await NotificationService.send({
@@ -60,10 +59,7 @@ export default class CommunityJoinRequestService {
       throw new AppError("You don't have a pending join request for this community", 404);
     }
 
-    circle.pendingJoinRequests = (circle.pendingJoinRequests || []).filter(
-      (entry) => String(entry) !== String(currentUserId)
-    );
-    await circle.save();
+    await StudyCircle.updateOne({ _id: circle._id }, { $pull: { pendingJoinRequests: currentUserId } });
 
     return { circleId: circle._id };
   }
@@ -89,19 +85,18 @@ export default class CommunityJoinRequestService {
       throw new AppError("Join request not found", 404);
     }
 
-    circle.pendingJoinRequests = (circle.pendingJoinRequests || []).filter((entry) => String(entry) !== String(targetUserId));
-
+    const updateOps = { $pull: { pendingJoinRequests: targetUserId } };
     if (String(action) === "accept") {
-      circle.members = [...new Set([...(circle.members || []).map((entry) => String(entry)), String(targetUserId)])];
+      updateOps.$addToSet = { members: targetUserId };
     }
+    await StudyCircle.updateOne({ _id: circle._id }, updateOps);
 
-    await circle.save();
-
+    const updatedCircle = await StudyCircle.findById(circle._id).select("members name").lean();
     try {
       await syncCommunityChannelMembers(
         circle._id,
         circle.name,
-        (circle.members || []).map((entry) => String(entry))
+        (updatedCircle?.members || []).map((entry) => String(entry))
       );
     } catch (error) {
       logger.error("Failed to sync Stream members after join request response:", { message: error.message, stack: error.stack });

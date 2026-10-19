@@ -69,7 +69,6 @@ export async function getCommunityData(req, res) {
         .populate("memberAddRequests.targetUser", "fullName profilePic")
         .populate("memberAddRequests.requestedBy", "fullName profilePic")
         .sort({ createdAt: -1 })
-        .limit(12)
         .lean(),
       SessionRecap.find({ author: { $in: visibleUserIds } })
         .populate("author", "fullName profilePic")
@@ -521,19 +520,19 @@ export async function respondToCommunityInvite(req, res) {
       return sendErrorResponse(res, 404, "Community not found");
     }
 
-    circle.pendingInvites = (circle.pendingInvites || []).filter((id) => String(id) !== String(currentUserId));
-
+    const updateOps = { $pull: { pendingInvites: currentUserId } };
     if (action === "accept") {
-      circle.members = [...new Set([...(circle.members || []).map((id) => String(id)), String(currentUserId)])];
+      updateOps.$addToSet = { members: currentUserId };
     }
+    await StudyCircle.updateOne({ _id: circle._id }, updateOps);
 
-    await circle.save();
+    const updatedCircle = await StudyCircle.findById(circle._id).lean();
 
     try {
       await syncCommunityChannelMembers(
-        circle._id,
-        circle.name,
-        (circle.members || []).map((memberId) => String(memberId))
+        updatedCircle._id,
+        updatedCircle.name,
+        (updatedCircle.members || []).map((memberId) => String(memberId))
       );
     } catch (error) {
       logger.error("Failed to sync Stream members after invite response:", { message: error.message, stack: error.stack });
@@ -721,19 +720,26 @@ export async function leaveCommunity(req, res) {
       return sendErrorResponse(res, 400, "Admin cannot leave the community. Transfer or remove members instead.");
     }
 
-    circle.members = (circle.members || []).filter((memberId) => String(memberId) !== String(currentUserId));
-    circle.pendingInvites = (circle.pendingInvites || []).filter((memberId) => String(memberId) !== String(currentUserId));
-    circle.pendingJoinRequests = (circle.pendingJoinRequests || []).filter((memberId) => String(memberId) !== String(currentUserId));
-    circle.memberAddRequests = (circle.memberAddRequests || []).filter(
-      (entry) => String(entry.targetUser) !== String(currentUserId) && String(entry.requestedBy) !== String(currentUserId)
+    await StudyCircle.updateOne(
+      { _id: circle._id },
+      {
+        $pull: {
+          members: currentUserId,
+          pendingInvites: currentUserId,
+          pendingJoinRequests: currentUserId,
+          memberAddRequests: {
+            $or: [{ targetUser: currentUserId }, { requestedBy: currentUserId }],
+          },
+        },
+      }
     );
-    await circle.save();
 
+    const updatedCircle = await StudyCircle.findById(circle._id).select("members name").lean();
     try {
       await syncCommunityChannelMembers(
         circle._id,
         circle.name,
-        (circle.members || []).map((memberId) => String(memberId))
+        (updatedCircle?.members || []).map((memberId) => String(memberId))
       );
     } catch (error) {
       logger.error("Failed to sync Stream members after leaving community:", { message: error.message, stack: error.stack });
@@ -783,19 +789,26 @@ export async function removeMemberFromCommunity(req, res) {
       return sendErrorResponse(res, 400, "Admin cannot remove themselves");
     }
 
-    circle.members = (circle.members || []).filter((entry) => String(entry) !== String(memberId));
-    circle.pendingInvites = (circle.pendingInvites || []).filter((entry) => String(entry) !== String(memberId));
-    circle.pendingJoinRequests = (circle.pendingJoinRequests || []).filter((entry) => String(entry) !== String(memberId));
-    circle.memberAddRequests = (circle.memberAddRequests || []).filter(
-      (entry) => String(entry.targetUser) !== String(memberId) && String(entry.requestedBy) !== String(memberId)
+    await StudyCircle.updateOne(
+      { _id: circle._id },
+      {
+        $pull: {
+          members: memberId,
+          pendingInvites: memberId,
+          pendingJoinRequests: memberId,
+          memberAddRequests: {
+            $or: [{ targetUser: memberId }, { requestedBy: memberId }],
+          },
+        },
+      }
     );
-    await circle.save();
 
+    const updatedCircle = await StudyCircle.findById(circle._id).select("members name").lean();
     try {
       await syncCommunityChannelMembers(
         circle._id,
         circle.name,
-        (circle.members || []).map((entry) => String(entry))
+        (updatedCircle?.members || []).map((entry) => String(entry))
       );
     } catch (error) {
       logger.error("Failed to sync Stream members after removing member:", { message: error.message, stack: error.stack });
