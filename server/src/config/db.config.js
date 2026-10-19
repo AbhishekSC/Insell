@@ -48,7 +48,20 @@ const connectToMongoDB = async () => {
 
   try {
     mongoose.set("strictQuery", false);
-    mongoose.set("debug", process.env.NODE_ENV !== "production");
+    if (process.env.MONGOOSE_DEBUG === "true") {
+      mongoose.set("debug", (collectionName, methodName, ...methodArgs) => {
+        try {
+          const query = methodArgs[0] ? JSON.stringify(methodArgs[0]) : "";
+          const options = methodArgs[1] ? JSON.stringify(methodArgs[1]) : "";
+          const extra = options && options !== "{}" ? ` ${options}` : "";
+          logger.debug(`[Mongoose] ${collectionName}.${methodName}(${query})${extra}`);
+        } catch (_) {
+          logger.debug(`[Mongoose] ${collectionName}.${methodName}`);
+        }
+      });
+    } else {
+      mongoose.set("debug", false);
+    }
 
     // Connect to MongoDB
     const connectionInstance = await mongoose.connect(MONGODB_URI, options);

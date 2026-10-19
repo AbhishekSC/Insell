@@ -1,5 +1,4 @@
 import express from "express";
-import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import helmet from "helmet";
@@ -107,11 +106,6 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
-app.use(
-  morgan("combined", {
-    stream: logger.stream,
-  })
-);
 
 // Lightweight liveness probe — no DB, no auth. Used by the external
 // keep-alive ping (see .github/workflows/keep-alive.yml) and any uptime

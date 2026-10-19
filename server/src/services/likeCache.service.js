@@ -80,42 +80,64 @@ export async function toggleEngagementRedis(postId, userId, type = "like") {
   const key = `post:${postId}:${type}d_by`;
   const dirtyKey = `dirty:${type}s`;
   const userIdStr = String(userId);
+  const lockKey = `lock:toggle:${type}:${postId}:${userIdStr}`;
 
-  await ensureCacheReady(postId, type);
-
-  // Check if user already engaged (O(1) dictionary score lookup)
-  const existingScore = await redisClient.zScore(key, userIdStr);
-  const alreadyActive = existingScore !== null && existingScore !== undefined;
-
-  if (alreadyActive) {
-    // Remove from ZSet
-    await redisClient.zRem(key, userIdStr);
-    if (type === "save") {
-      await redisClient.zRem(`user:${userIdStr}:saved_posts`, String(postId));
-    }
-  } else {
-    // Add to ZSet with current timestamp
-    await redisClient.zAdd(key, [{ score: Date.now(), value: userIdStr }]);
-    if (type === "save") {
-      await redisClient.zAdd(`user:${userIdStr}:saved_posts`, [{ score: Date.now(), value: String(postId) }]);
-      await redisClient.expire(`user:${userIdStr}:saved_posts`, CACHE_TTL_SECONDS);
-    }
+  // Acquire a short NX lock to prevent concurrent double-toggle race conditions
+  let acquired = true;
+  try {
+    const lockRes = await redisClient.set(lockKey, "1", { EX: 2, NX: true });
+    acquired = lockRes !== null;
+  } catch {
+    acquired = true;
   }
 
-  // Ensure any empty sentinel is purged
-  await redisClient.zRem(key, "__empty__");
+  if (!acquired) {
+    // Concurrent tap in flight from same user — return current state
+    const current = await getPostEngagement(postId, userIdStr, type);
+    return { active: current?.isEngaged ?? false, count: current?.count ?? 0 };
+  }
 
-  // Mark post as dirty for BullMQ background MongoDB flush
-  await redisClient.sAdd(dirtyKey, String(postId));
+  try {
+    await ensureCacheReady(postId, type);
 
-  // Reset TTL so active posts stay cached
-  await redisClient.expire(key, CACHE_TTL_SECONDS);
+    // Check if user already engaged (O(1) dictionary score lookup)
+    const existingScore = await redisClient.zScore(key, userIdStr);
+    const alreadyActive = existingScore !== null && existingScore !== undefined;
 
-  // Get accurate active count
-  const count = await redisClient.zCard(key);
-  const active = !alreadyActive;
+    if (alreadyActive) {
+      // Remove from ZSet
+      await redisClient.zRem(key, userIdStr);
+      if (type === "save") {
+        await redisClient.zRem(`user:${userIdStr}:saved_posts`, String(postId));
+      }
+    } else {
+      // Add to ZSet with current timestamp
+      await redisClient.zAdd(key, [{ score: Date.now(), value: userIdStr }]);
+      if (type === "save") {
+        await redisClient.zAdd(`user:${userIdStr}:saved_posts`, [{ score: Date.now(), value: String(postId) }]);
+        await redisClient.expire(`user:${userIdStr}:saved_posts`, CACHE_TTL_SECONDS);
+      }
+    }
 
-  return { active, count };
+    // Ensure any empty sentinel is purged
+    await redisClient.zRem(key, "__empty__");
+
+    // Mark post as dirty for BullMQ background MongoDB flush
+    await redisClient.sAdd(dirtyKey, String(postId));
+
+    // Reset TTL so active posts stay cached
+    await redisClient.expire(key, CACHE_TTL_SECONDS);
+
+    // Get accurate active count
+    const count = await redisClient.zCard(key);
+    const active = !alreadyActive;
+
+    return { active, count };
+  } finally {
+    try {
+      await redisClient.del(lockKey);
+    } catch {}
+  }
 }
 
 /**
@@ -176,7 +198,7 @@ export async function getLikersFromCache(postId, skip = 0, limit = 30) {
 
 /**
  * High-speed view count increment using Redis INCR (~1ms).
- * Seeds from MongoDB if not currently cached in Redis.
+ * Seeds atomically from MongoDB with NX to prevent seed-overwrite race conditions.
  */
 export async function incrementViewCountRedis(postId, currentDbViews = 0) {
   const key = `post:${postId}:views`;
@@ -184,12 +206,8 @@ export async function incrementViewCountRedis(postId, currentDbViews = 0) {
   const postIdStr = String(postId);
 
   try {
-    const exists = await redisClient.exists(key);
-    if (!exists) {
-      // Seed initial value from MongoDB
-      await redisClient.set(key, String(currentDbViews || 0));
-      await redisClient.expire(key, CACHE_TTL_SECONDS);
-    }
+    // Atomically seed only if key does not exist yet (NX: true avoids concurrent overwrite)
+    await redisClient.set(key, String(currentDbViews || 0), { EX: CACHE_TTL_SECONDS, NX: true });
 
     const newCount = await redisClient.incr(key);
     await redisClient.sAdd(dirtyKey, postIdStr);

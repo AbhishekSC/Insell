@@ -45,13 +45,23 @@ export function calculateHotnessScore(post) {
 export async function getHotPostsByCity(city = "", limit = 20) {
   const normalizedCity = String(city || "").trim().toLowerCase();
   const cacheKey = `feed:hot:city:${normalizedCity || "all"}:${limit}`;
+  const masterKey = `feed:hot:city:${normalizedCity || "all"}:20`;
 
-  // 1. Try reading from Redis cache
+  // 1. Try reading from Redis cache (exact limit match or pre-warmed top-20 master key)
   try {
     const cached = await redisClient.get(cacheKey);
     if (cached) {
       logger.info(`⚡ Redis Cache HIT for hot feed (${normalizedCity || "all"})`);
       return JSON.parse(cached);
+    }
+
+    if (limit < 20) {
+      const masterCached = await redisClient.get(masterKey);
+      if (masterCached) {
+        logger.info(`⚡ Redis Master Cache HIT for hot feed (${normalizedCity || "all"})`);
+        const allPosts = JSON.parse(masterCached);
+        return allPosts.slice(0, limit);
+      }
     }
   } catch (err) {
     logger.warn("Redis read error in HotFeedCacheService:", err);
@@ -65,7 +75,8 @@ export async function getHotPostsByCity(city = "", limit = 20) {
   };
 
   if (normalizedCity) {
-    query.city = new RegExp(`^${normalizedCity}$`, "i");
+    const escaped = normalizedCity.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    query.city = new RegExp(`^${escaped}$`, "i");
   }
 
   const candidatePosts = await PropertyPost.find(query)
@@ -146,7 +157,8 @@ export async function rebuildHotFeeds() {
       };
 
       if (normalizedCity) {
-        query.city = new RegExp(`^${normalizedCity}$`, "i");
+        const escaped = normalizedCity.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        query.city = new RegExp(`^${escaped}$`, "i");
       }
 
       const candidatePosts = await PropertyPost.find(query)

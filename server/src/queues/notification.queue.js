@@ -29,7 +29,7 @@ export function getNotificationQueue() {
     });
 
     _queue.on("error", (err) => {
-      logger.warn("Notification Queue error (non-fatal):", err?.message);
+      logger.warn(`Notification Queue error (non-fatal): ${err?.message || err}`);
     });
   }
   return _queue;
@@ -83,7 +83,7 @@ export function initNotificationWorker() {
   });
 
   _worker.on("error", (err) => {
-    logger.warn("Notification Worker error (non-fatal):", err?.message);
+    logger.warn(`Notification Worker error (non-fatal): ${err?.message || err}`);
   });
 
   return _worker;

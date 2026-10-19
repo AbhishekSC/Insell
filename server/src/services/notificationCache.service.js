@@ -51,11 +51,11 @@ export async function incrementUnreadNotificationCount(userId) {
   try {
     const exists = await redisClient.exists(key);
     if (!exists) {
-      // Lazy seed from Mongo
+      // Lazy seed from Mongo (sets key with current count)
       await getUnreadNotificationCount(userId);
-      return;
     }
 
+    // Always increment so newly arriving notification is accounted for
     await redisClient.incr(key);
     await redisClient.expire(key, NOTIF_COUNT_TTL);
   } catch (error) {

@@ -22,10 +22,12 @@ export function getBullRedisConnection() {
       });
 
       _redisConnection.on("error", (err) => {
-        logger.warn("BullMQ Redis connection warning:", err?.message || err);
+        logger.warn(`BullMQ Redis connection warning: ${err?.message || err}`);
       });
     } catch (err) {
-      logger.error("Failed to initialize BullMQ Redis connection:", err);
+      logger.error(`Failed to initialize BullMQ Redis connection: ${err?.message || err}`, {
+        stack: err?.stack,
+      });
       return null;
     }
   }
@@ -38,7 +40,7 @@ export async function closeBullConnection() {
       await _redisConnection.quit();
       logger.info("BullMQ Redis connection closed");
     } catch (err) {
-      logger.warn("Error closing BullMQ Redis connection:", err?.message);
+      logger.warn(`Error closing BullMQ Redis connection: ${err?.message || err}`);
     } finally {
       _redisConnection = null;
     }

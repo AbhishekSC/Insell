@@ -1,7 +1,8 @@
 import winston from "winston";
-import dailyRotateFile from "winston-daily-rotate-file";
-import "dotenv/config";
 import DailyRotateFile from "winston-daily-rotate-file";
+import "dotenv/config";
+
+const SPLAT = Symbol.for("splat");
 
 // JSON.stringify throws on circular references (e.g. Axios/HTTP errors that
 // carry raw ClientRequest/IncomingMessage objects). Replace repeats with a marker instead.
@@ -16,42 +17,73 @@ function safeStringify(value) {
   });
 }
 
-// Custom format to include request ID if available
-const requestIdFormat = winston.format.printf(({ timestamp, level, message, requestId, ...meta }) => {
-  const logObj = {
-    timestamp,
-    level,
-    message,
-    ...meta
-  };
-  
-  if (requestId) {
-    logObj.requestId = requestId;
+// Clean and human-readable formatter for terminal / console logs
+const consoleFormat = winston.format.printf((info) => {
+  const { timestamp, level, message, requestId, stack, service, ...meta } = info;
+  const splat = info[SPLAT] || [];
+
+  let finalMessage = typeof message === "object" ? safeStringify(message) : String(message || "");
+
+  // If there are un-interpolated trailing arguments (e.g. logger.warn("worker error:", err.message))
+  const unhandledArgs = splat.filter((arg) => typeof arg !== "object" || arg instanceof Error);
+  if (unhandledArgs.length > 0) {
+    const extra = unhandledArgs.map((s) => (s instanceof Error ? s.message || s.stack : String(s))).join(" ");
+    finalMessage = `${finalMessage} ${extra}`;
   }
-  
-  return JSON.stringify(logObj);
+
+  // Filter out redundant HTTP keys, service name, and numeric keys from console output
+  const CONSOLE_OMIT_KEYS = new Set([
+    "service",
+    "requestId",
+    "method",
+    "url",
+    "statusCode",
+    "responseTime",
+  ]);
+
+  const cleanMeta = {};
+  for (const [k, v] of Object.entries(meta)) {
+    if (!CONSOLE_OMIT_KEYS.has(k) && !/^\d+$/.test(k) && v !== undefined && v !== null) {
+      cleanMeta[k] = v;
+    }
+  }
+
+  const entries = Object.entries(cleanMeta);
+  let metaStr = "";
+  if (entries.length > 0) {
+    const isSimple = entries.every(([, v]) => typeof v !== "object" || v === null);
+    if (isSimple && entries.length <= 4) {
+      metaStr = " \x1b[90m(" + entries.map(([k, v]) => `${k}: ${v}`).join(", ") + ")\x1b[0m";
+    } else {
+      metaStr = " \x1b[90m" + safeStringify(cleanMeta) + "\x1b[0m";
+    }
+  }
+
+  const reqIdStr = requestId ? `\x1b[90m[${String(requestId).substring(0, 8)}]\x1b[0m ` : "";
+  let line = `\x1b[90m${timestamp}\x1b[0m ${level}: ${reqIdStr}${finalMessage}${metaStr}`;
+  if (stack && !finalMessage.includes(stack)) {
+    line += `\n\x1b[90m${stack}\x1b[0m`;
+  }
+  return line;
 });
 
 const logger = winston.createLogger({
   level: process.env.NODE_ENV === "production" ? "error" : "debug",
   format: winston.format.combine(
     winston.format.timestamp(),
-    winston.format.json()
+    winston.format.errors({ stack: true }),
+    winston.format.splat()
   ),
   defaultMeta: { service: "syncspace-backend" },
   transports: [
     new winston.transports.Console({
       format: winston.format.combine(
         winston.format.colorize(),
-        winston.format.timestamp({ format: 'HH:mm:ss' }),
-        winston.format.printf(({ timestamp, level, message, requestId, ...meta }) => {
-          const requestIdStr = requestId ? `[${requestId.substring(0, 8)}] ` : '';
-          const metaStr = Object.keys(meta).length ? safeStringify(meta) : '';
-          return `${timestamp} ${level}: ${requestIdStr}${message} ${metaStr}`.trim();
-        })
-      )
+        winston.format.timestamp({ format: "HH:mm:ss" }),
+        consoleFormat
+      ),
     }),
-    new dailyRotateFile({
+    new DailyRotateFile({
       filename: "logs/error-%DATE%.log",
       datePattern: "YYYY-MM-DD",
       level: "error",
@@ -60,7 +92,7 @@ const logger = winston.createLogger({
       format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.json()
-      )
+      ),
     }),
     new DailyRotateFile({
       filename: "logs/combined-%DATE%.log",
@@ -70,7 +102,7 @@ const logger = winston.createLogger({
       format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.json()
-      )
+      ),
     }),
   ],
 });
@@ -82,3 +114,4 @@ logger.stream = {
 };
 
 export { logger };
+

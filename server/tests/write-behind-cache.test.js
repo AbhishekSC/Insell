@@ -47,6 +47,7 @@ import {
   invalidatePostDetailCache,
   invalidateUserProfileCache,
   getPostEngagement,
+  getLikersFromCache,
 } from "../src/services/likeCache.service.js";
 
 import {
@@ -100,8 +101,7 @@ describe("Write-Behind Caching Architecture", () => {
       expect(mockRedis.sAdd).toHaveBeenCalledWith("dirty:likes", String(postId));
     });
 
-    it("incrementViewCountRedis: seeds from DB count if key does not exist and increments", async () => {
-      mockRedis.exists.mockResolvedValue(0);
+    it("incrementViewCountRedis: seeds atomically with NX and increments", async () => {
       mockRedis.set.mockResolvedValue("OK");
       mockRedis.incr.mockResolvedValue(11);
       mockRedis.sAdd.mockResolvedValue(1);
@@ -110,9 +110,52 @@ describe("Write-Behind Caching Architecture", () => {
       const newViews = await incrementViewCountRedis(postId, 10);
 
       expect(newViews).toBe(11);
-      expect(mockRedis.set).toHaveBeenCalledWith(`post:${postId}:views`, "10");
+      expect(mockRedis.set).toHaveBeenCalledWith(`post:${postId}:views`, "10", {
+        EX: expect.any(Number),
+        NX: true,
+      });
       expect(mockRedis.incr).toHaveBeenCalledWith(`post:${postId}:views`);
       expect(mockRedis.sAdd).toHaveBeenCalledWith("dirty:views", String(postId));
+    });
+
+    it("toggleEngagementRedis: prevents concurrent double-toggle with lockKey", async () => {
+      // First call acquires lock
+      mockRedis.set.mockResolvedValueOnce("OK");
+      mockRedis.exists.mockResolvedValue(1);
+      mockRedis.zScore.mockResolvedValue(null);
+      mockRedis.zAdd.mockResolvedValue(1);
+      mockRedis.sAdd.mockResolvedValue(1);
+      mockRedis.expire.mockResolvedValue(1);
+      mockRedis.zCard.mockResolvedValue(1);
+      mockRedis.del.mockResolvedValue(1);
+
+      const res1 = await toggleEngagementRedis(postId, userId, "like");
+      expect(res1.active).toBe(true);
+
+      // Concurrent second call fails to acquire lock
+      mockRedis.set.mockResolvedValueOnce(null);
+      mockRedis.zScore.mockResolvedValue(1700000000000);
+      mockRedis.zCard.mockResolvedValue(1);
+
+      const res2 = await toggleEngagementRedis(postId, userId, "like");
+      expect(res2.active).toBe(true);
+      expect(res2.count).toBe(1);
+    });
+
+    it("getLikersFromCache: returns reverse-chronological likers from Redis ZSet", async () => {
+      mockRedis.exists.mockResolvedValue(1);
+      mockRedis.zRem.mockResolvedValue(0);
+      mockRedis.zCard.mockResolvedValue(2);
+      mockRedis.zRangeWithScores.mockResolvedValue([
+        { value: "user2", score: 2000 },
+        { value: "user1", score: 1000 },
+      ]);
+
+      const likers = await getLikersFromCache(postId, 0, 10);
+      expect(likers.total).toBe(2);
+      expect(likers.items).toHaveLength(2);
+      expect(likers.items[0].userId).toBe("user2");
+      expect(likers.items[1].userId).toBe("user1");
     });
 
     it("recordUserActiveRedis: deduplicates active recording with 60s throttle", async () => {
@@ -162,14 +205,16 @@ describe("Write-Behind Caching Architecture", () => {
   describe("notificationCache.service", () => {
     const userId = "64b8f0f1a1b2c3d4e5f6a799";
 
-    it("incrementUnreadNotificationCount: increments if key exists", async () => {
-      mockRedis.exists.mockResolvedValue(1);
-      mockRedis.incr.mockResolvedValue(3);
+    it("incrementUnreadNotificationCount: seeds from Mongo on cold start and increments", async () => {
+      mockRedis.exists.mockResolvedValue(0); // cold start
+      mockRedis.set.mockResolvedValue("OK");
+      mockRedis.incr.mockResolvedValue(1);
       mockRedis.expire.mockResolvedValue(1);
 
       await incrementUnreadNotificationCount(userId);
 
       expect(mockRedis.incr).toHaveBeenCalledWith(`user:${userId}:unread_notifs`);
+      expect(mockRedis.expire).toHaveBeenCalledWith(`user:${userId}:unread_notifs`, expect.any(Number));
     });
 
     it("decrementUnreadNotificationCount: decrements counter and floors at 0", async () => {
@@ -193,6 +238,54 @@ describe("Write-Behind Caching Architecture", () => {
       expect(mockRedis.set).toHaveBeenCalledWith(`user:${userId}:unread_notifs`, "0", {
         EX: expect.any(Number),
       });
+    });
+  });
+
+  describe("HotFeedCacheService", () => {
+    it("getHotPostsByCity: serves from pre-warmed master key when limit <= 20", async () => {
+      const { getHotPostsByCity } = await import("../src/services/HotFeedCacheService.js");
+      const prewarmed = Array.from({ length: 20 }, (_, i) => ({ _id: `post_${i}`, title: `Post ${i}` }));
+      
+      mockRedis.get.mockImplementation((key) => {
+        if (key.endsWith(":20")) {
+          return Promise.resolve(JSON.stringify(prewarmed));
+        }
+        return Promise.resolve(null);
+      });
+
+      const results = await getHotPostsByCity("Mumbai", 12);
+      expect(results).toHaveLength(12);
+      expect(results[0]._id).toBe("post_0");
+      expect(results[11]._id).toBe("post_11");
+    });
+  });
+
+  describe("engagementSync.queue", () => {
+    it("flushEngagementToMongo: drains dirty sets and invokes PropertyPost.bulkWrite", async () => {
+      const { flushEngagementToMongo } = await import("../src/queues/engagementSync.queue.js");
+      const PropertyPost = (await import("../src/models/PropertyPost.model.js")).default;
+
+      mockRedis.sMembers.mockImplementation((key) => {
+        if (key === "dirty:likes") return Promise.resolve(["post1"]);
+        if (key === "dirty:saves") return Promise.resolve([]);
+        if (key === "dirty:views") return Promise.resolve(["post1"]);
+        if (key === "dirty:users_active") return Promise.resolve([]);
+        return Promise.resolve([]);
+      });
+
+      mockRedis.zRangeWithScores.mockResolvedValue([
+        { value: "userA", score: 1700000000000 },
+      ]);
+      mockRedis.get.mockImplementation((key) => {
+        if (key === "post:post1:views") return Promise.resolve("42");
+        return Promise.resolve(null);
+      });
+      mockRedis.sRem.mockResolvedValue(1);
+      PropertyPost.bulkWrite.mockResolvedValue({ modifiedCount: 1 });
+
+      await flushEngagementToMongo();
+
+      expect(PropertyPost.bulkWrite).toHaveBeenCalled();
     });
   });
 });
