@@ -698,18 +698,18 @@ export const adminCreditCoins = async (req, res) => {
 
     logger.info(`Admin ${req.user.email} credited ${coinAmount} coins to ${targetUser.email} (${id})`);
 
-    await NotificationService.send({
-      recipientId: id,
-      actorId: req.user._id,
-      type: "coin_bonus",
-      title: "You received bonus coins! 🎉",
-      message: reason
-        ? `${coinAmount} coins credited to your wallet — ${reason}`
-        : `${coinAmount} bonus coins have been credited to your wallet!`,
-      channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
-    }).catch((err) => {
-      logger.warn("Failed to send coin bonus notification:", err?.message);
-    });
+    const notifMessage = reason
+      ? `🎉 You received ${coinAmount} bonus coins — ${reason}`
+      : `🎉 ${coinAmount} bonus coins have been credited to your wallet!`;
+
+    await Notification.create({
+      recipient: id,
+      actor: req.user._id,
+      type: "admin_announcement",
+      message: notifMessage,
+    }).catch(() => {});
+
+    pushRealtimeNotification(id, "admin_announcement").catch(() => {});
 
     return sendSuccessResponse(res, 200, `${coinAmount} coins credited to ${targetUser.fullName}`, {
       userId: id,
@@ -739,5 +739,40 @@ export const adminGetUserWallet = async (req, res) => {
   } catch (error) {
     logger.error("Error fetching user wallet:", error);
     return sendErrorResponse(res, 500, "Failed to fetch wallet");
+  }
+};
+
+export const adminGetCoinHistory = async (req, res) => {
+  try {
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
+    const skip = (page - 1) * limit;
+
+    const CoinTransaction = (await import("../models/CoinTransaction.model.js")).default;
+
+    const filter = { category: "ADMIN_ADJUSTMENT" };
+    const [transactions, total] = await Promise.all([
+      CoinTransaction.find(filter)
+        .populate("user", "fullName email profilePic")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      CoinTransaction.countDocuments(filter),
+    ]);
+
+    const totalCoinsGranted = await CoinTransaction.aggregate([
+      { $match: filter },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+
+    return sendSuccessResponse(res, 200, "Coin grant history fetched", {
+      transactions,
+      totalCoinsGranted: totalCoinsGranted[0]?.total || 0,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
+  } catch (error) {
+    logger.error("Error fetching coin history:", error);
+    return sendErrorResponse(res, 500, "Failed to fetch coin history");
   }
 };
