@@ -62,6 +62,7 @@ const notificationSchema = new mongoose.Schema(
         "post_boosted",
         "circle_call_scheduled",
         "circle_call_reminder",
+        "coin_bonus",
       ],
     },
     message: {
