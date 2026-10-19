@@ -13,6 +13,7 @@ import Notification from "../models/Notification.model.js";
 import { pushRealtimeNotification } from "./stream.service.js";
 import { attachReferrerFromCode, rewardIfEligible } from "../modules/referral/referral.service.js";
 import { createRefreshToken, revokeRefreshToken } from "./refreshToken.service.js";
+import { creditCoins } from "./wallet.service.js";
 import { invalidateUserProfileCache } from "./likeCache.service.js";
 
 const { BCRYPT_SALT_ROUNDS, PASSWORD_MIN_LENGTH } = SCHEMA_CONSTANTS;
@@ -206,6 +207,18 @@ export default class AuthService extends BaseService {
     });
 
     await PendingSignup.deleteOne({ _id: pendingSignup._id });
+
+    // Welcome bonus: every new user starts with 250 coins.
+    try {
+      await creditCoins({
+        userId: newUser._id,
+        amount: 250,
+        category: "SIGNUP_BONUS",
+        description: "Welcome bonus for joining Insell",
+      });
+    } catch (err) {
+      logger.error("Failed to credit signup bonus:", err?.message);
+    }
 
     // Referral: attach the referrer (if this signup came in via ?ref=CODE),
     // then reward both sides immediately — this whole flow only creates the

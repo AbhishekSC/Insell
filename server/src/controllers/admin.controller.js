@@ -11,6 +11,7 @@ import * as NotificationService from "../services/NotificationService.js";
 import { NotificationChannel } from "../services/NotificationService.js";
 import redisClient from "../config/redisClient.config.js";
 import { getLiveUsersCountRedis } from "../services/likeCache.service.js";
+import { creditCoins, getOrCreateWallet } from "../services/wallet.service.js";
 
 // Roles treated as "verified" — same rule the marketplace's Verified filter
 // already uses (there's no dedicated verified-broker flag yet, just role).
@@ -665,5 +666,65 @@ export const getLiveUsersCount = async (req, res) => {
   } catch (error) {
     logger.error("Error fetching live users count:", error);
     return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+};
+
+export const adminCreditCoins = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, reason } = req.body;
+
+    const coinAmount = Math.floor(Number(amount) || 0);
+    if (coinAmount <= 0 || coinAmount > 10000) {
+      return sendErrorResponse(res, 400, "Amount must be between 1 and 10,000 coins");
+    }
+
+    const targetUser = await User.findById(id).select("fullName email");
+    if (!targetUser) {
+      return sendErrorResponse(res, 404, "User not found");
+    }
+
+    const description = reason
+      ? `Admin bonus: ${reason}`
+      : `Bonus coins from admin`;
+
+    const result = await creditCoins({
+      userId: id,
+      amount: coinAmount,
+      category: "ADMIN_ADJUSTMENT",
+      description,
+      metadata: { grantedBy: req.user._id, reason: reason || "" },
+    });
+
+    logger.info(`Admin ${req.user.email} credited ${coinAmount} coins to ${targetUser.email} (${id})`);
+
+    return sendSuccessResponse(res, 200, `${coinAmount} coins credited to ${targetUser.fullName}`, {
+      userId: id,
+      coinsGranted: coinAmount,
+      newBalance: result.wallet.balance,
+    });
+  } catch (error) {
+    logger.error("Error crediting coins:", error);
+    return sendErrorResponse(res, 500, "Failed to credit coins");
+  }
+};
+
+export const adminGetUserWallet = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const targetUser = await User.findById(id).select("fullName email");
+    if (!targetUser) {
+      return sendErrorResponse(res, 404, "User not found");
+    }
+
+    const wallet = await getOrCreateWallet(id);
+    return sendSuccessResponse(res, 200, "Wallet fetched", {
+      balance: wallet.balance,
+      lifetimeEarned: wallet.lifetimeEarned,
+      lifetimeSpent: wallet.lifetimeSpent,
+    });
+  } catch (error) {
+    logger.error("Error fetching user wallet:", error);
+    return sendErrorResponse(res, 500, "Failed to fetch wallet");
   }
 };

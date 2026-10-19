@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 export const COIN_TRANSACTION_CATEGORIES = [
+  "SIGNUP_BONUS",
   "REFERRAL_BONUS",
   "AD_CAMPAIGN_SPEND",
   "POST_BOOST_SPEND",
