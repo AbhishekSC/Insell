@@ -26,7 +26,9 @@ export const verifyUser = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, jwtSecret);
-    logger.debug("Token decoded successfully", { requestId: req.id, userId: decoded.id });
+    if (process.env.DEBUG_AUTH === "true") {
+      logger.debug("Auth: token decoded", { requestId: req.id, userId: decoded.id });
+    }
 
     if (!decoded || !decoded.id) {
       logger.warn("Unauthorized access attempt: Invalid token structure", { requestId: req.id });
@@ -50,7 +52,7 @@ export const verifyUser = async (req, res, next) => {
         user = JSON.parse(cached);
       }
     } catch (cacheErr) {
-      logger.warn("Redis user profile cache read error:", cacheErr?.message);
+      logger.warn(`Redis user profile cache read error: ${cacheErr?.message || cacheErr}`);
     }
 
     if (!user) {
@@ -61,7 +63,9 @@ export const verifyUser = async (req, res, next) => {
         } catch (_) {}
       }
     }
-    logger.debug("User lookup completed", { requestId: req.id, userId: decoded.id, userFound: !!user });
+    if (process.env.DEBUG_AUTH === "true") {
+      logger.debug("Auth: user lookup completed", { requestId: req.id, userId: decoded.id, userFound: !!user });
+    }
 
     if (!user) {
       logger.warn(

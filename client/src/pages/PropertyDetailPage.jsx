@@ -296,12 +296,14 @@ export default function PropertyDetailPage() {
 
       return { previousPost };
     },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["propertyPost", id], (old) => {
+        if (!old) return old;
+        return { ...old, isSavedByMe: data.saved, savesCount: data.savesCount };
+      });
+    },
     onError: (err, postId, context) => {
       queryClient.setQueryData(["propertyPost", id], context.previousPost);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["propertyPost", id] });
-      queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
     },
   });
 
@@ -326,12 +328,14 @@ export default function PropertyDetailPage() {
 
       return { previousPost };
     },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["propertyPost", id], (old) => {
+        if (!old) return old;
+        return { ...old, isLikedByMe: data.liked, likesCount: data.likesCount };
+      });
+    },
     onError: (err, postId, context) => {
       queryClient.setQueryData(["propertyPost", id], context.previousPost);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["propertyPost", id] });
-      queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
     },
   });
 

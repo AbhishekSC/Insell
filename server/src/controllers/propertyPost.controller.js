@@ -729,11 +729,14 @@ export async function getPropertyFeed(req, res) {
     // Apply cursor-based filter if cursor is provided
     const queryFilter = { ...filter };
     if (hasCursor) {
+      // Boosted posts are promoted at the top of the feed (page 1).
+      // On subsequent cursor pages, serve remaining listings chronologically without duplicating boosted posts.
+      queryFilter.isBoosted = { $ne: true };
       queryFilter._id = { $lt: new mongoose.Types.ObjectId(cursor) };
     }
 
     const feedQuery = PropertyPost.find(queryFilter)
-      .sort({ isBoosted: -1, createdAt: -1 })
+      .sort(hasCursor ? { createdAt: -1, _id: -1 } : { isBoosted: -1, createdAt: -1 })
       .limit(limit)
       .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate");
 

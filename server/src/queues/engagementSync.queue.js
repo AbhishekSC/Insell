@@ -28,7 +28,7 @@ export function getEngagementSyncQueue() {
     });
 
     _queue.on("error", (err) => {
-      logger.warn("EngagementSync Queue warning (non-fatal):", err?.message);
+      logger.warn(`EngagementSync Queue warning (non-fatal): ${err?.message || err}`);
     });
   }
   return _queue;
@@ -207,11 +207,11 @@ export async function initEngagementSyncWorker() {
   );
 
   _worker.on("failed", (job, err) => {
-    logger.warn(`Engagement sync job failed:`, err?.message);
+    logger.warn(`Engagement sync job failed: ${err?.message || err}`);
   });
 
   _worker.on("error", (err) => {
-    logger.warn("Engagement sync worker warning (non-fatal):", err?.message);
+    logger.warn(`Engagement sync worker warning (non-fatal): ${err?.message || err}`);
   });
 
   logger.info(`[EngagementSync] Worker started (every ${REPEAT_INTERVAL_MS / 1000}s flush)`);
