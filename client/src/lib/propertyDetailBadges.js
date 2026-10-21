@@ -368,7 +368,6 @@ export function getCuratedCardBadges(post, options = {}) {
 
   // 3. Trust Signal — Address Verification Status (VERIFIED, PENDING, REJECTED, NONE)
   const verificationStatus = getAddressVerificationStatus(post);
-  const isAddressVerified = verificationStatus === "VERIFIED";
 
   if (verificationStatus === "VERIFIED") {
     candidates.push({
@@ -413,17 +412,31 @@ export function getCuratedCardBadges(post, options = {}) {
     }
   }
 
-  // 4. Direct Owner (Zero Brokerage)
-  const authorRole = String(post.authorRole || post.author?.activeRole || post.author?.primaryRole || "").toLowerCase();
-  const isDirectOwner = ["owner", "landlord", "seller"].includes(authorRole);
-  if (isDirectOwner) {
+  // 4. Ready to Move (High-demand possession status)
+  const possession = res.possessionStatus || meta.possessionStatus || meta.projectStatus;
+  if (possession && /ready/i.test(possession)) {
     candidates.push({
-      key: "directOwner",
-      label: "Direct Owner",
-      filterValue: "owner",
-      type: "trust",
+      key: "possession",
+      label: "Ready to Move",
+      filterValue: "ready to move",
+      type: "possession",
+      className: "bg-teal-500/10 text-teal-700 dark:text-teal-400 border border-teal-500/30 font-semibold hover:bg-teal-500/20 hover:border-teal-500/50",
+      priority: 4,
+    });
+  }
+
+  // 5. Parking (Covered / Dedicated)
+  const amenitiesList = Array.isArray(meta.amenities) ? meta.amenities : (Array.isArray(res.amenities) ? res.amenities : []);
+  const hasCoveredParking = amenitiesList.some((a) => /covered\s*parking/i.test(a));
+  const hasParking = hasCoveredParking || amenitiesList.some((a) => /parking/i.test(a)) || meta.parkingRequired || res.parkingRequired;
+  if (hasParking) {
+    candidates.push({
+      key: "parking",
+      label: hasCoveredParking ? "Covered Parking" : "Parking",
+      filterValue: "parking",
+      type: "amenity",
       className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-semibold hover:bg-emerald-500/20 hover:border-emerald-500/50",
-      priority: isAddressVerified ? 6 : 3, // High priority if unverified
+      priority: 4,
     });
   }
 
@@ -510,16 +523,42 @@ export function getCuratedCardBadges(post, options = {}) {
     });
   }
 
-  // 10. Ready to Move
-  const possession = res.possessionStatus || meta.possessionStatus;
-  if (possession && /ready/i.test(possession)) {
+  // 10. Gated Society / Security / CCTV
+  const hasSecurity = amenitiesList.some((a) => /security|cctv/i.test(a));
+  if (hasSecurity) {
     candidates.push({
-      key: "possession",
-      label: "Ready to Move",
-      filterValue: "ready to move",
-      type: "possession",
-      className: "bg-base-100 dark:bg-base-200/90 text-base-content/85 font-semibold border border-base-300 dark:border-base-content/20 hover:border-primary/60 hover:text-primary",
-      priority: 8,
+      key: "security",
+      label: "Gated / CCTV",
+      filterValue: "security",
+      type: "amenity",
+      className: "bg-slate-500/10 text-slate-700 dark:text-slate-300 border border-slate-500/30 font-semibold hover:bg-slate-500/20 hover:border-slate-500/50",
+      priority: 6,
+    });
+  }
+
+  // 11. Family Preferred
+  const prefersFamily = tenants.some((t) => /family/i.test(t));
+  if (prefersFamily) {
+    candidates.push({
+      key: "family",
+      label: "Family Preferred",
+      filterValue: "family",
+      type: "lifestyle",
+      className: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-500/30 font-semibold hover:bg-indigo-500/20 hover:border-indigo-500/50",
+      priority: 6,
+    });
+  }
+
+  // 12. Lift Available
+  const hasLift = amenitiesList.some((a) => /lift|elevator/i.test(a));
+  if (hasLift) {
+    candidates.push({
+      key: "lift",
+      label: "Lift Available",
+      filterValue: "lift",
+      type: "amenity",
+      className: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border border-cyan-500/30 font-semibold hover:bg-cyan-500/20 hover:border-cyan-500/50",
+      priority: 7,
     });
   }
 
