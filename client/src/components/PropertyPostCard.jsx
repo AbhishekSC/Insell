@@ -331,8 +331,8 @@ export default function PropertyPostCard({
               </button>
             )}
 
-            {/* Friends viewed context */}
-            {post.socialProof?.friendsViewed?.length > 0 && (
+            {/* Friends viewed context — only if no connection liked it to keep card clean */}
+            {!post.socialProof?.fullName && post.socialProof?.friendsViewed?.length > 0 && (
               <div className="flex items-center gap-1.5 text-xs text-base-content/70">
                 <div className="flex -space-x-1.5 overflow-hidden">
                   {post.socialProof.friendsViewed.map((f, i) => (
