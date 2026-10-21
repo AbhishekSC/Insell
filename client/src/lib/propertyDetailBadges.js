@@ -655,7 +655,7 @@ export function getPropertyInfoBadges(post, options = {}) {
   }
 
   // 2c. High Deal Probability Badge
-  if (post.dealProbability && post.dealProbability.level === "HIGH") {
+  if (post.dealProbability && (post.dealProbability.level === "HIGH" || post.dealProbability.score >= 65)) {
     addBadge({
       key: "deal_prob",
       label: `🎯 ${post.dealProbability.label || "High Deal Likelihood"}`,

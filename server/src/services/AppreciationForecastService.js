@@ -48,6 +48,19 @@ import PropertyPost from "../models/PropertyPost.model.js";
 const FORECAST_CACHE_TTL = 24 * 60 * 60; // 24 hours
 const FORECAST_CACHE_PREFIX = "appreciation:forecast";
 
+// Baseline annual appreciation rates & PSF for major metros when historical catalog is < 3 months
+const METRO_APPRECIATION_BASELINES = {
+  pune: { rate: 8.5, psf: 6800 },
+  mumbai: { rate: 7.4, psf: 18500 },
+  bangalore: { rate: 9.1, psf: 7500 },
+  bengaluru: { rate: 9.1, psf: 7500 },
+  hyderabad: { rate: 10.2, psf: 6200 },
+  delhi: { rate: 6.8, psf: 12000 },
+  gurgaon: { rate: 8.8, psf: 9500 },
+  gurugram: { rate: 8.8, psf: 9500 },
+  noida: { rate: 7.8, psf: 5800 },
+};
+
 function cacheKey(city, locality) {
   const c = String(city || "").toLowerCase().trim();
   const l = String(locality || "").toLowerCase().trim();
@@ -147,6 +160,20 @@ export async function getAppreciationForecast(city, locality = null) {
   ]);
 
   if (monthlyData.length < 3) {
+    const cLower = String(city || "").toLowerCase().trim();
+    const base = METRO_APPRECIATION_BASELINES[cLower];
+    if (base) {
+      const currentPsf = monthlyData.length > 0 ? Math.round(monthlyData[monthlyData.length - 1].avgPsf) : base.psf;
+      return {
+        annualizedRate: base.rate,
+        monthlySlope: Math.round((base.psf * (base.rate / 100)) / 12),
+        currentPsf,
+        projectedPsf12m: Math.round(currentPsf * (1 + base.rate / 100)),
+        confidence: "medium",
+        dataPoints: monthlyData.length,
+      };
+    }
+
     // Not enough data for a meaningful trend — return a neutral forecast
     const result = {
       annualizedRate: 0,
