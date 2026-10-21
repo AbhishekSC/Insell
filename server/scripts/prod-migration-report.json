@@ -1,0 +1,617 @@
+{
+  "copyReport": {
+    "copied": [
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788936956/deal-documents/dzeeif1lislyc3ybenir.jpg",
+        "publicId": "deal-documents/dzeeif1lislyc3ybenir",
+        "newUrl": "https://res.cloudinary.com/glvtafat/image/upload/v1791981793/deal-documents/dzeeif1lislyc3ybenir.jpg"
+      }
+    ],
+    "skipped": [
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787480702/stories/rpgtsrciiyv4jx2kzicd.jpg",
+        "publicId": "stories/rpgtsrciiyv4jx2kzicd",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787482034/stories/ineiojt15upuol3inmhr.jpg",
+        "publicId": "stories/ineiojt15upuol3inmhr",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787482642/stories/f3iopajeqdaaqyj7andq.jpg",
+        "publicId": "stories/f3iopajeqdaaqyj7andq",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787482744/stories/m1huhucnxig5fkbxmiyo.jpg",
+        "publicId": "stories/m1huhucnxig5fkbxmiyo",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786707223/stories/lbmlb206aixif1yzburl.jpg",
+        "publicId": "stories/lbmlb206aixif1yzburl",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787484300/stories/syiqac3hx17p8cavbh39.jpg",
+        "publicId": "stories/syiqac3hx17p8cavbh39",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786644772/stories/uqptow2zbmzyvtm8kc9w.jpg",
+        "publicId": "stories/uqptow2zbmzyvtm8kc9w",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787846545/stories/tegb6vgbolms3en5wmco.jpg",
+        "publicId": "stories/tegb6vgbolms3en5wmco",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788369627/stories/uq2fkyshsyuyt9mawbzf.jpg",
+        "publicId": "stories/uq2fkyshsyuyt9mawbzf",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786886509/community-photos/zimd4hvzu62oemhkp0ti.jpg",
+        "publicId": "community-photos/zimd4hvzu62oemhkp0ti",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787309039/community-photos/oe9ngginjawmhefq8jpe.jpg",
+        "publicId": "community-photos/oe9ngginjawmhefq8jpe",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787897609/feedback-screenshots/nkc7vpqpa78itq9kykja.jpg",
+        "publicId": "feedback-screenshots/nkc7vpqpa78itq9kykja",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787897842/feedback-screenshots/puqe6g6vxxf7qunvfrsz.jpg",
+        "publicId": "feedback-screenshots/puqe6g6vxxf7qunvfrsz",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787897913/feedback-screenshots/k4x9ehjbxjxydhsnusr6.jpg",
+        "publicId": "feedback-screenshots/k4x9ehjbxjxydhsnusr6",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787899453/feedback-screenshots/s5twjeasvarfihluzrui.jpg",
+        "publicId": "feedback-screenshots/s5twjeasvarfihluzrui",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787989568/feedback-screenshots/h3kjzn263qvm2vnfc2zb.jpg",
+        "publicId": "feedback-screenshots/h3kjzn263qvm2vnfc2zb",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788150046/feedback-screenshots/rfevuy6h9zw5lpuka01m.jpg",
+        "publicId": "feedback-screenshots/rfevuy6h9zw5lpuka01m",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788935925/feedback-screenshots/zbit8y3v7q3v6yejcsnc.jpg",
+        "publicId": "feedback-screenshots/zbit8y3v7q3v6yejcsnc",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1789146597/feedback-screenshots/rvi3nw7lnq7k1xv53twd.jpg",
+        "publicId": "feedback-screenshots/rvi3nw7lnq7k1xv53twd",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1785412565/property-media/q9za3y20dpgnulnzqxx0.jpg",
+        "publicId": "property-media/q9za3y20dpgnulnzqxx0",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/video/upload/v1786634018/property-media/detccqhyhcjksjbgu52i.mp4",
+        "publicId": "property-media/detccqhyhcjksjbgu52i",
+        "resourceType": "video"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786634023/property-media/ht7jnwagyo7lsxugw7jq.webp",
+        "publicId": "property-media/ht7jnwagyo7lsxugw7jq",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786634024/property-media/gqe0l7wuibxg42ge4oc4.png",
+        "publicId": "property-media/gqe0l7wuibxg42ge4oc4",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786634025/property-media/kek8kzatjjtjeog76g3p.webp",
+        "publicId": "property-media/kek8kzatjjtjeog76g3p",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786634026/property-media/edzdlxp0n1tu6tu18hfh.webp",
+        "publicId": "property-media/edzdlxp0n1tu6tu18hfh",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786634027/property-media/mx2shlyjrn2ylw4zxwy3.webp",
+        "publicId": "property-media/mx2shlyjrn2ylw4zxwy3",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786634028/property-media/qd6e83dfbxi2fzh2eexg.webp",
+        "publicId": "property-media/qd6e83dfbxi2fzh2eexg",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1785397345/property-media/puefbvm8wkevkqvatokx.jpg",
+        "publicId": "property-media/puefbvm8wkevkqvatokx",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786647033/property-media/cfcaog3g3o8jbrmybvkv.jpg",
+        "publicId": "property-media/cfcaog3g3o8jbrmybvkv",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786681161/property-media/knjiica1rwlcyelpuzeg.jpg",
+        "publicId": "property-media/knjiica1rwlcyelpuzeg",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786688529/property-media/ptg4wqc2axbcd5fsgv52.jpg",
+        "publicId": "property-media/ptg4wqc2axbcd5fsgv52",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786701185/property-media/fxw1fg0xw3hzt30j0m5d.jpg",
+        "publicId": "property-media/fxw1fg0xw3hzt30j0m5d",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786819572/property-media/jbvfxscekxmohzvo13fs.jpg",
+        "publicId": "property-media/jbvfxscekxmohzvo13fs",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786862911/property-media/s8h2bl931ykrv2aojw0f.jpg",
+        "publicId": "property-media/s8h2bl931ykrv2aojw0f",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786863144/property-media/tqin5t55ihhkukaz54dv.jpg",
+        "publicId": "property-media/tqin5t55ihhkukaz54dv",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786863145/property-media/qxjyppf90vxhojfkth2p.jpg",
+        "publicId": "property-media/qxjyppf90vxhojfkth2p",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786863146/property-media/tarb5hyw7yi3gdfhbovl.jpg",
+        "publicId": "property-media/tarb5hyw7yi3gdfhbovl",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787051108/property-media/ispcfzdrmkbgp9lkoaer.jpg",
+        "publicId": "property-media/ispcfzdrmkbgp9lkoaer",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787376644/property-media/df8cydaizurvljziltjz.jpg",
+        "publicId": "property-media/df8cydaizurvljziltjz",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787378731/property-media/thqdrx6rtqdws09gglov.jpg",
+        "publicId": "property-media/thqdrx6rtqdws09gglov",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787461392/property-media/gshruhw1usfjeintzuku.jpg",
+        "publicId": "property-media/gshruhw1usfjeintzuku",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/video/upload/v1787554595/property-media/xq9sbfojm5rr2q3s2waj.mp4",
+        "publicId": "property-media/xq9sbfojm5rr2q3s2waj",
+        "resourceType": "video"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/video/upload/v1787578408/property-media/uxi4esbx27tegksxxggp.mov",
+        "publicId": "property-media/uxi4esbx27tegksxxggp",
+        "resourceType": "video"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/video/upload/v1787578425/property-media/gpsmsg8mqkr5qanlh9gc.mov",
+        "publicId": "property-media/gpsmsg8mqkr5qanlh9gc",
+        "resourceType": "video"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787669607/property-media/g87keihp6r5nazkmixms.jpg",
+        "publicId": "property-media/g87keihp6r5nazkmixms",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787989678/property-media/qexjdsaulohxn3iew3t6.jpg",
+        "publicId": "property-media/qexjdsaulohxn3iew3t6",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787990769/property-media/c4vrbyniygmbdbq8j3ls.jpg",
+        "publicId": "property-media/c4vrbyniygmbdbq8j3ls",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788005197/property-media/lalwmeofpdauhexifvd0.jpg",
+        "publicId": "property-media/lalwmeofpdauhexifvd0",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788006081/property-media/yzcetjms6jrr02ec59zi.jpg",
+        "publicId": "property-media/yzcetjms6jrr02ec59zi",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788006083/property-media/zs0ewbnxbvxr9ahac5ff.jpg",
+        "publicId": "property-media/zs0ewbnxbvxr9ahac5ff",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788006084/property-media/i010dqsozoxts0cvzvje.jpg",
+        "publicId": "property-media/i010dqsozoxts0cvzvje",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788006696/property-media/d7putesu70oyt43rv3wv.jpg",
+        "publicId": "property-media/d7putesu70oyt43rv3wv",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788006703/property-media/jkaiof506eckwrld8nu3.jpg",
+        "publicId": "property-media/jkaiof506eckwrld8nu3",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788006715/property-media/oipcnxz8g6pjuuena2si.jpg",
+        "publicId": "property-media/oipcnxz8g6pjuuena2si",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788006724/property-media/g2sqltq8xtbogts9svlv.jpg",
+        "publicId": "property-media/g2sqltq8xtbogts9svlv",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788008191/property-media/mfb3c6tawtqi76iujtcm.jpg",
+        "publicId": "property-media/mfb3c6tawtqi76iujtcm",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788008192/property-media/mvtgnldb5f8bnefsdynh.jpg",
+        "publicId": "property-media/mvtgnldb5f8bnefsdynh",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788008193/property-media/t7npdgowi5iexhrzbnsw.jpg",
+        "publicId": "property-media/t7npdgowi5iexhrzbnsw",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788008195/property-media/hstcuczokyebazzazusv.jpg",
+        "publicId": "property-media/hstcuczokyebazzazusv",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788008195/property-media/riedzstora3k3ianfpvs.jpg",
+        "publicId": "property-media/riedzstora3k3ianfpvs",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788012659/property-media/tk86wh9nhlxt2orjenhk.jpg",
+        "publicId": "property-media/tk86wh9nhlxt2orjenhk",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788012659/property-media/emetsqj9tckuno775k5k.jpg",
+        "publicId": "property-media/emetsqj9tckuno775k5k",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788012659/property-media/spvyf98s3j2hj6vezt39.jpg",
+        "publicId": "property-media/spvyf98s3j2hj6vezt39",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788012659/property-media/f7cyome19oiemnrielux.jpg",
+        "publicId": "property-media/f7cyome19oiemnrielux",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788012659/property-media/f2jznv6y3vii4kjmjdnl.jpg",
+        "publicId": "property-media/f2jznv6y3vii4kjmjdnl",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788026229/property-media/juhafxducwudtslqobud.jpg",
+        "publicId": "property-media/juhafxducwudtslqobud",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788026230/property-media/bfegwsma7yaojgh4b9te.jpg",
+        "publicId": "property-media/bfegwsma7yaojgh4b9te",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/video/upload/v1788028589/property-media/ghdmy2s8mxkqt2e0rjnu.mov",
+        "publicId": "property-media/ghdmy2s8mxkqt2e0rjnu",
+        "resourceType": "video"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788240447/property-media/r20fv3jpemxw6qaxlsb8.jpg",
+        "publicId": "property-media/r20fv3jpemxw6qaxlsb8",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788259629/property-media/asm18pngz3qypopthnno.webp",
+        "publicId": "property-media/asm18pngz3qypopthnno",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788428666/property-media/xpbvfdeshw6awmkrbciz.png",
+        "publicId": "property-media/xpbvfdeshw6awmkrbciz",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788429595/property-media/stughglmhmistnhv3jaw.png",
+        "publicId": "property-media/stughglmhmistnhv3jaw",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788445812/property-media/rxfqbfcxpickxmbosish.png",
+        "publicId": "property-media/rxfqbfcxpickxmbosish",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788621349/property-media/qlyoristj0hxdshgf5l7.png",
+        "publicId": "property-media/qlyoristj0hxdshgf5l7",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788623626/property-media/mmdz6vnbmk7jyfg34zmg.png",
+        "publicId": "property-media/mmdz6vnbmk7jyfg34zmg",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788625036/property-media/jvlm0nbogkjoagritx3h.png",
+        "publicId": "property-media/jvlm0nbogkjoagritx3h",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788870712/property-media/cmrzqjlgduoouhtykljh.webp",
+        "publicId": "property-media/cmrzqjlgduoouhtykljh",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786688467/profile-pics/j5zkkwtro315qxjabi5a.jpg",
+        "publicId": "profile-pics/j5zkkwtro315qxjabi5a",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786862766/profile-pics/f9dl7zqqfmkt4z4kq2ra.jpg",
+        "publicId": "profile-pics/f9dl7zqqfmkt4z4kq2ra",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787555273/profile-pics/tayexpi9zxuax5waf5ah.jpg",
+        "publicId": "profile-pics/tayexpi9zxuax5waf5ah",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1789138496/owner-verification/ysdg5rfamg7snb1kufvq.png",
+        "publicId": "owner-verification/ysdg5rfamg7snb1kufvq",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1789140392/owner-verification/umftgl17ghesp3syqunr.png",
+        "publicId": "owner-verification/umftgl17ghesp3syqunr",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1789145914/owner-verification/lpiwnnubewthzx4ipjez.jpg",
+        "publicId": "owner-verification/lpiwnnubewthzx4ipjez",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1789147592/owner-verification/oxkvkkl7asjssk7wxg2a.png",
+        "publicId": "owner-verification/oxkvkkl7asjssk7wxg2a",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787305973/announcements/kv5i5rg37nffvl67oxv6.jpg",
+        "publicId": "announcements/kv5i5rg37nffvl67oxv6",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787306032/announcements/zr2xphvpmurep3z9z4ys.jpg",
+        "publicId": "announcements/zr2xphvpmurep3z9z4ys",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787369867/announcements/ipotu0mkhbmaecqjdwqu.jpg",
+        "publicId": "announcements/ipotu0mkhbmaecqjdwqu",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787484261/announcements/nemivtgdrqcf5mrlnncd.jpg",
+        "publicId": "announcements/nemivtgdrqcf5mrlnncd",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1785513637/stories/r2o3ze7vquui40mjd9vt.jpg",
+        "publicId": "stories/r2o3ze7vquui40mjd9vt",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786367272/stories/m31oo6fbhvwjohb0pkmy.jpg",
+        "publicId": "stories/m31oo6fbhvwjohb0pkmy",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786641965/stories/tpbrmxxs9edn9fgpwwpp.jpg",
+        "publicId": "stories/tpbrmxxs9edn9fgpwwpp",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786701376/stories/zpxkri2iyf3vggcpgnc9.jpg",
+        "publicId": "stories/zpxkri2iyf3vggcpgnc9",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786701448/stories/s9yr8jed7rskx7c7kdnj.jpg",
+        "publicId": "stories/s9yr8jed7rskx7c7kdnj",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786852703/stories/la9t8gpbvg27vh9hxj8w.jpg",
+        "publicId": "stories/la9t8gpbvg27vh9hxj8w",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786859775/stories/iiwjawipmryurj3ytesv.jpg",
+        "publicId": "stories/iiwjawipmryurj3ytesv",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786860716/stories/yut431adow14lddx5idc.jpg",
+        "publicId": "stories/yut431adow14lddx5idc",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786860921/stories/ccwixsxnifec9gl0v7cu.jpg",
+        "publicId": "stories/ccwixsxnifec9gl0v7cu",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1786982756/stories/hzwqlho0vhmdyksgmong.jpg",
+        "publicId": "stories/hzwqlho0vhmdyksgmong",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787200950/stories/gpkgypmbdk4qab2wawh6.jpg",
+        "publicId": "stories/gpkgypmbdk4qab2wawh6",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787234298/stories/uajawbhlslmytcnojvaq.png",
+        "publicId": "stories/uajawbhlslmytcnojvaq",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787555570/stories/mql9xkxxp3stafowhx5s.jpg",
+        "publicId": "stories/mql9xkxxp3stafowhx5s",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787565553/stories/n41wloqn1ygz09najonq.jpg",
+        "publicId": "stories/n41wloqn1ygz09najonq",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1787842742/stories/pidjzlqpvvdn5fekiw4x.png",
+        "publicId": "stories/pidjzlqpvvdn5fekiw4x",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788021679/stories/tq7i1bztrjois9kwxbiv.jpg",
+        "publicId": "stories/tq7i1bztrjois9kwxbiv",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1789287118/stories/qrrxeoocxopezqqqnv55.jpg",
+        "publicId": "stories/qrrxeoocxopezqqqnv55",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1789440781/stories/eg1sg8thnvcpcf4ohqqj.jpg",
+        "publicId": "stories/eg1sg8thnvcpcf4ohqqj",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1789527865/stories/ta2k7p2u22xcsa4wau4h.jpg",
+        "publicId": "stories/ta2k7p2u22xcsa4wau4h",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1789542120/stories/ettlihfgegfz8ykcbbxt.jpg",
+        "publicId": "stories/ettlihfgegfz8ykcbbxt",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1789618793/stories/ziycpuinbhc41hnqjj6f.jpg",
+        "publicId": "stories/ziycpuinbhc41hnqjj6f",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788621847/deal-documents/kik3k4bm7xvccvwvthmh.png",
+        "publicId": "deal-documents/kik3k4bm7xvccvwvthmh",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788621905/deal-documents/hxvy7l0jvrpvucu57rcc.png",
+        "publicId": "deal-documents/hxvy7l0jvrpvucu57rcc",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788621938/deal-documents/oupbhhygu4zxocdpocts.png",
+        "publicId": "deal-documents/oupbhhygu4zxocdpocts",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788623699/deal-documents/h1zogqzpcusbdenspxfp.png",
+        "publicId": "deal-documents/h1zogqzpcusbdenspxfp",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788623704/deal-documents/k7uiqo9hqa4icz6wg4f2.png",
+        "publicId": "deal-documents/k7uiqo9hqa4icz6wg4f2",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788623713/deal-documents/uwmavgmqdjjljfwk2axy.png",
+        "publicId": "deal-documents/uwmavgmqdjjljfwk2axy",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788623716/deal-documents/hksvb9l1qpasp8q1zmkn.png",
+        "publicId": "deal-documents/hksvb9l1qpasp8q1zmkn",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788625080/deal-documents/xoq2aymfzkenubzit58d.png",
+        "publicId": "deal-documents/xoq2aymfzkenubzit58d",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788625083/deal-documents/bc7lcelzjptrrndsy4og.png",
+        "publicId": "deal-documents/bc7lcelzjptrrndsy4og",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788782797/deal-documents/zfo5b0b5bw9fmjaezf9h.png",
+        "publicId": "deal-documents/zfo5b0b5bw9fmjaezf9h",
+        "resourceType": "image"
+      },
+      {
+        "url": "https://res.cloudinary.com/dbymx3fgv/image/upload/v1788937006/deal-documents/clmnn0jc5rzp2twvw99m.jpg",
+        "publicId": "deal-documents/clmnn0jc5rzp2twvw99m",
+        "resourceType": "image"
+      }
+    ],
+    "failed": []
+  },
+  "docsUpdated": 205,
+  "fieldsReplaced": 229,
+  "verificationsPassed": 5
+}

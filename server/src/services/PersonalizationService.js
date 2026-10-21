@@ -3,6 +3,17 @@ import User from "../models/User.model.js";
 import { redisClient } from "../config/redis.js";
 import { logger } from "../utils/logger.js";
 import { centroidForCity } from "../utils/cityCentroids.js";
+import {
+  getCFScore,
+  getCurrentCFWeight,
+  getEmbeddingVersion,
+} from "./CollaborativeFilteringService.js";
+import { getCommuteScore } from "./CommuteScoringService.js";
+import {
+  getAppreciationForecast,
+  getInvestorScore,
+  batchGetForecasts,
+} from "./AppreciationForecastService.js";
 
 // Real estate demand is geographically bound — a buyer in Pune will not take a
 // Chennai listing however well it matches on price/type. So recommendations
@@ -112,9 +123,9 @@ class PersonalizationService {
    * @param {Object} property - The property to score
    * @param {Object} user - The user to personalize for
    * @param {Object} userBehavior - User's historical behavior data
-   * @returns {Number} - Score between 0 and 100
+   * @returns {Promise<Number>} - Score between 0 and 100
    */
-  static calculatePropertyScore(property, user, userBehavior = {}) {
+  static async calculatePropertyScore(property, user, userBehavior = {}) {
     let score = 0;
     const weights = {
       location: 22,
@@ -126,8 +137,8 @@ class PersonalizationService {
       contentFeatures: 5, // content-based filtering
     };
 
-    // Location-based scoring
-    score += this.getLocationScore(property, user) * (weights.location / 100);
+    // Location-based scoring (now async — may fetch commute time)
+    score += (await this.getLocationScore(property, user)) * (weights.location / 100);
 
     // Budget-based scoring
     score += this.getBudgetScore(property, userBehavior) * (weights.budget / 100);
@@ -158,7 +169,94 @@ class PersonalizationService {
       score += 15;
     }
 
+    // Listing Quality Multiplier — a composite score (0–100) measuring how
+    // well-presented and trustworthy the listing is. Applied as a multiplier
+    // on the raw score so quality acts as a *modulator*, not a hard filter:
+    //
+    //   finalScore = score * (0.7 + 0.3 * quality / 100)
+    //
+    // A perfect-quality listing gets the full score; a poor-quality one keeps
+    // 70% of its score (still visible, just demoted). This naturally surfaces
+    // well-presented listings without hiding sparse ones — and gives sellers a
+    // reason to add photos, floor plans, and verification.
+    const qualityScore = this.getListingQualityScore(property, isAddressVerified);
+    const qualityMultiplier = 0.7 + 0.3 * (qualityScore / 100);
+    score *= qualityMultiplier;
+
     return Math.min(100, Math.max(0, score));
+  }
+
+  /**
+   * Composite listing-quality score (0–100) based on:
+   *
+   *   Photo count          — up to 40 pts (8+ photos = max)
+   *   Description length   — up to 10 pts
+   *   Has floor plan       — 5 pts
+   *   Has video            — 5 pts
+   *   Address verified     — 10 pts
+   *   Owner verified       — 10 pts
+   *   Author response rate — up to 10 pts
+   *   Author rating        — up to 10 pts
+   *
+   * The seller-side fields (response rate, rating) come from the populated
+   * `author` object on the property, which the feed pipeline already
+   * populates. When author is missing or unpopulated, those components
+   * contribute 0 — the listing still gets a quality score from its own
+   * media and verification status.
+   */
+  static getListingQualityScore(property, isAddressVerified = false) {
+    let quality = 0;
+
+    // Photo count — 5 pts each, max 40 (8+ photos)
+    const photoCount = Array.isArray(property.mediaUrls)
+      ? property.mediaUrls.filter(Boolean).length
+      : Number(property.mediaCount || 0);
+    quality += Math.min(40, photoCount * 5);
+
+    // Description length — 1 pt per 10 chars, max 10 (100+ chars)
+    const descLen = String(property.description || property.postMeta?.description || "").length;
+    quality += Math.min(10, Math.floor(descLen / 10));
+
+    // Floor plan
+    const hasFloorPlan = Boolean(
+      property.floorPlanUrl ||
+      property.postMeta?.floorPlanUrl ||
+      (Array.isArray(property.mediaUrls) &&
+        property.mediaUrls.some((u) => String(u).match(/floor|plan/i)))
+    );
+    quality += hasFloorPlan ? 5 : 0;
+
+    // Video
+    const hasVideo = Boolean(
+      property.videoUrl ||
+      property.postMeta?.videoUrl ||
+      (Array.isArray(property.mediaUrls) &&
+        property.mediaUrls.some((u) => String(u).match(/\.(mp4|webm|mov)/i)))
+    );
+    quality += hasVideo ? 5 : 0;
+
+    // Address verification
+    quality += isAddressVerified ? 10 : 0;
+
+    // Owner verification
+    const isOwnerVerified = Boolean(
+      property.author &&
+      (property.author.isOwnerVerified ||
+        (typeof property.author === "object" && property.author.isOwnerVerified))
+    );
+    quality += isOwnerVerified ? 10 : 0;
+
+    // Author response rate — up to 10 pts
+    const responseRate = Number(
+      property.author?.responseRate || 0
+    );
+    quality += Math.min(10, responseRate * 0.1);
+
+    // Author rating — up to 10 pts (5★ = 10 pts)
+    const rating = Number(property.author?.ratingAvg || 0);
+    quality += Math.min(10, rating * 2);
+
+    return Math.round(Math.min(100, Math.max(0, quality)));
   }
 
   /**
@@ -175,12 +273,20 @@ class PersonalizationService {
   }
 
   /**
-   * Calculate location-based score
+   * Calculate location-based score.
+   *
    * Uses real lat/lon proximity when both the user and the property have
    * coordinates; falls back to city-string matching otherwise (e.g. a user
    * who never granted geolocation, or a property with no coordinates).
+   *
+   * When the user has set a work location, the proximity score is blended
+   * with a commute-time score (60% proximity, 40% commute) — a property
+   * that's farther but faster to commute to can outscore one that's
+   * closer as the crow flies.
+   *
+   * @returns {Promise<number>} — score 0–100
    */
-  static getLocationScore(property, user) {
+  static async getLocationScore(property, user) {
     // Stated preference wins: if the user named localities (onboarding) and
     // this listing is in one of them, that's the strongest possible location
     // signal — stronger than raw distance.
@@ -197,14 +303,39 @@ class PersonalizationService {
     const propertyLat = property.latitude;
     const propertyLon = property.longitude;
 
+    // Compute the proximity score (existing logic)
+    let proximityScore = null;
+    let distanceKm = null;
+
     if (userLat != null && userLon != null && propertyLat != null && propertyLon != null) {
-      const distanceKm = this.getDistanceKm(userLat, userLon, propertyLat, propertyLon);
-      if (distanceKm <= 5) return 100;
-      if (distanceKm <= 15) return 85;
-      if (distanceKm <= 30) return 65;
-      if (distanceKm <= 60) return 40;
-      return 15;
+      distanceKm = this.getDistanceKm(userLat, userLon, propertyLat, propertyLon);
+      if (distanceKm <= 5) proximityScore = 100;
+      else if (distanceKm <= 15) proximityScore = 85;
+      else if (distanceKm <= 30) proximityScore = 65;
+      else if (distanceKm <= 60) proximityScore = 40;
+      else proximityScore = 15;
     }
+
+    // ── Commute-time blending ─────────────────────────────────────────
+    //
+    // If the user has a work location, blend proximity with commute time:
+    //   locationScore = 0.6 * proximity + 0.4 * commute
+    // This lets a property that's farther but faster to reach outscore
+    // one that's closer but has worse connectivity.
+    const workLocation = user.workLocation;
+    if (workLocation && workLocation.latitude && workLocation.longitude && proximityScore != null) {
+      try {
+        const commuteScore = await getCommuteScore(workLocation, property, distanceKm);
+        if (commuteScore != null) {
+          return Math.round(0.6 * proximityScore + 0.4 * commuteScore);
+        }
+      } catch {
+        // Commute API unavailable — fall through to proximity-only
+      }
+    }
+
+    // Proximity-only (no work location, or commute fetch failed)
+    if (proximityScore != null) return proximityScore;
 
     // No coordinates and no city on one side — we can't say anything about
     // proximity, so stay neutral rather than punishing the property with a 0.
@@ -229,27 +360,45 @@ class PersonalizationService {
   }
 
   /**
-   * Calculate budget-based score
-   * Higher score for properties within user's typical price range
+   * Calculate budget-based score using a Gaussian (normal distribution) falloff.
+   *
+   * Instead of hard bracket thresholds (100/80/50/20) that create cliff edges
+   * — a property ₹1 above the range drops to 50 — the Gaussian gives a smooth,
+   * symmetric decay centred on the midpoint of the user's typical price range.
+   *
+   *   score = 100 * exp(-0.5 * ((price - midpoint) / sigma)²)
+   *
+   * where midpoint = (min + max) / 2 and sigma = (max - min) / 2.
+   *
+   * Properties inside the range score 80–100; properties slightly outside
+   * (common — buyers frequently stretch 10–20%) still get a meaningful score
+   * instead of being buried; far-out properties asymptote to 0 but never cliff.
+   *
+   * Stated-budget users (budgetIsStated) get a slightly tighter sigma so the
+   * range they explicitly chose is respected more strictly.
    */
   static getBudgetScore(property, userBehavior) {
-    if (!userBehavior.typicalPriceRange) return 50; // Neutral score
+    const range = userBehavior.typicalPriceRange || userBehavior.budgetRange;
+    if (!range) return 50; // Neutral score
 
-    const { min, max } = userBehavior.typicalPriceRange;
+    const { min, max } = range;
     const propertyPrice = property.price || 0;
+    if (!propertyPrice) return 50;
 
-    if (propertyPrice >= min && propertyPrice <= max) {
-      return 100; // Perfect match
-    }
+    const midpoint = (min + max) / 2;
+    const halfRange = (max - min) / 2;
+    // Use a slightly tighter sigma for stated budgets — the user told us their
+    // range explicitly, so respect it more. For inferred budgets from
+    // engagement, widen by 20% so we don't over-penalise slightly-stretch
+    // properties that the user might actually consider.
+    const sigma = halfRange > 0
+      ? halfRange * (userBehavior.budgetIsStated ? 0.85 : 1.2)
+      : Math.max(midpoint * 0.15, 1); // fallback for zero-width ranges
 
-    // Calculate how far outside the range
-    const range = max - min;
-    const deviation = propertyPrice < min ? min - propertyPrice : propertyPrice - max;
-    const deviationRatio = deviation / range;
+    const z = (propertyPrice - midpoint) / sigma;
+    const score = 100 * Math.exp(-0.5 * z * z);
 
-    if (deviationRatio <= 0.2) return 80; // Close to range
-    if (deviationRatio <= 0.5) return 50; // Moderately outside
-    return 20; // Far outside range
+    return Math.round(Math.min(100, Math.max(0, score)));
   }
 
   /**
@@ -299,19 +448,46 @@ class PersonalizationService {
       return 50; // Neutral score
     }
 
-    // Find similar properties based on price, type, and location
+    // AND-of-2: require at least 2 of 4 dimensions to match.
+    //
+    // The previous OR-logic counted a property as "similar" if it matched on
+    // ANY single dimension — so a ₹5L agricultural land in Nagpur was "similar"
+    // to a ₹2Cr penthouse in Mumbai because both shared postType=SALE. This
+    // polluted the engagement signal with false positives.
+    //
+    // Now a candidate must match on at least 2 dimensions (price, property
+    // type, post type, or location) to count as similar. The score scales
+    // with the number of matching dimensions, and the engagement weight from
+    // the user's behaviour (likes weigh 3×, saves 2.5×, views are
+    // duration-weighted) is folded in so a like on a 4/4 match counts more
+    // than a brief view on a 2/4 match.
     const similarProperties = userBehavior.engagedProperties.filter(engaged => {
-      const priceSimilarity = Math.abs((engaged.price - property.price) / (engaged.price || 1)) < 0.3;
+      const priceSimilar = Math.abs((engaged.price - property.price) / (engaged.price || 1)) < 0.3;
       const typeMatch = engaged.propertyType === property.propertyType;
       const postTypeMatch = Boolean(engaged.postType) && engaged.postType === property.postType;
       const locationMatch = engaged.city === property.city;
 
-      return priceSimilarity || typeMatch || postTypeMatch || locationMatch;
+      const matchCount = [priceSimilar, typeMatch, postTypeMatch, locationMatch].filter(Boolean).length;
+      return matchCount >= 2;
     });
 
-    // Score based on number of similar engaged properties
-    const similarityScore = Math.min(100, similarProperties.length * 20);
-    return similarityScore;
+    if (similarProperties.length === 0) return 50; // Neutral — no qualifying similarity
+
+    // Base neutral score is 50. Qualifying matches (>= 2 dimensions) boost up towards 100.
+    // 2 matches -> +20, 3 matches -> +35, 4 matches -> +50, weighted by engagement strength.
+    const boost = similarProperties.reduce((sum, prop) => {
+      const matchCount = [
+        Math.abs((prop.price - property.price) / (prop.price || 1)) < 0.3,
+        prop.propertyType === property.propertyType,
+        Boolean(prop.postType) && prop.postType === property.postType,
+        prop.city === property.city,
+      ].filter(Boolean).length;
+
+      const bonus = 20 + (matchCount - 2) * 15;
+      return sum + bonus * (prop.weight || 1);
+    }, 0);
+
+    return Math.round(Math.min(100, 50 + boost));
   }
 
   /**
@@ -1492,16 +1668,22 @@ class PersonalizationService {
     const rawBehavior = await this.getUserBehavior(userId);
     const userBehavior = this.applyStatedPreferences(user, rawBehavior);
 
-    const scored = pool.map((property) => {
+    const scored = await Promise.all(pool.map(async (property) => {
       const distanceKm =
         point && Array.isArray(property.location?.coordinates)
           ? this.getDistanceKm(point[1], point[0], property.location.coordinates[1], property.location.coordinates[0])
           : null;
       const proximityScore = this.getProximityScore(distanceKm);
       const velocityScore = this.getVelocityScore(property);
-      const personalizationScore = this.calculatePropertyScore(property, user, userBehavior);
+      const personalizationScore = await this.calculatePropertyScore(property, user, userBehavior);
       const ageInDays = (Date.now() - new Date(property.createdAt).getTime()) / (1000 * 60 * 60 * 24);
-      const recencyScore = 100 * Math.pow(0.5, Math.max(0, ageInDays) / TRENDING_VELOCITY_HALF_LIFE_DAYS);
+      let recencyScore = 100 * Math.pow(0.5, Math.max(0, ageInDays) / TRENDING_VELOCITY_HALF_LIFE_DAYS);
+      // Hard staleness floor for trending: listings older than 30 days are penalized, > 60 days cannot trend
+      if (ageInDays > 60) {
+        recencyScore = 0;
+      } else if (ageInDays > 30) {
+        recencyScore *= 0.2;
+      }
 
       const trendingScore =
         proximityScore * TRENDING_NEAR_WEIGHTS.proximity +
@@ -1519,7 +1701,7 @@ class PersonalizationService {
       if (ageInDays <= 2) reasons.push("New today");
 
       return { property, distanceKm, trendingScore, reasons: reasons.slice(0, 2) };
-    });
+    }));
 
     scored.sort((a, b) => b.trendingScore - a.trendingScore);
 
@@ -1667,6 +1849,169 @@ class PersonalizationService {
     return b;
   }
 
+  // ── MMR (Maximal Marginal Relevance) helpers ─────────────────────────
+  //
+  // Computes a binary-overlap similarity between two properties across four
+  // dimensions: propertyType, city, postType, and price band (±20%). Returns
+  // a value in [0, 1] where 0 = no overlap and 1 = identical on all four.
+  static propertySimilarity(a, b) {
+    let overlap = 0;
+    let dimensions = 0;
+
+    // Property type
+    if (a.propertyType || b.propertyType) {
+      dimensions++;
+      if (a.propertyType && a.propertyType === b.propertyType) overlap++;
+    }
+
+    // City / locality
+    const aCity = String(a.city || "").toLowerCase();
+    const bCity = String(b.city || "").toLowerCase();
+    if (aCity || bCity) {
+      dimensions++;
+      if (aCity && aCity === bCity) overlap++;
+    }
+
+    // Post type (listing intent)
+    if (a.postType || b.postType) {
+      dimensions++;
+      if (a.postType && a.postType === b.postType) overlap++;
+    }
+
+    // Price band (±20% — same "neighbourhood" of price)
+    const aPrice = Number(a.price) || 0;
+    const bPrice = Number(b.price) || 0;
+    if (aPrice > 0 && bPrice > 0) {
+      dimensions++;
+      const ratio = Math.min(aPrice, bPrice) / Math.max(aPrice, bPrice);
+      if (ratio >= 0.8) overlap++; // within 20% of each other
+    }
+
+    return dimensions > 0 ? overlap / dimensions : 0;
+  }
+
+  /**
+   * Greedy MMR selection: iteratively picks the property that maximises
+   *   λ * relevance − (1 − λ) * max similarity to already-selected items.
+   *
+   * @param {Array} candidates  — scored properties sorted by finalScore desc
+   * @param {number} limit      — how many to select
+   * @param {number} lambda      — relevance vs. diversity trade-off (0.7 default)
+   * @returns {Array}            — re-ranked properties (length ≤ limit)
+   */
+  static mmrRerank(candidates, limit, lambda = 0.7) {
+    if (!candidates || candidates.length <= 1) return candidates || [];
+
+    const selected = [];
+    const remaining = [...candidates];
+
+    // First pick: pure relevance (no diversity penalty yet)
+    selected.push(remaining.shift());
+
+    while (remaining.length > 0 && selected.length < limit) {
+      let bestIdx = 0;
+      let bestMMR = -Infinity;
+
+      for (let i = 0; i < remaining.length; i++) {
+        const candidate = remaining[i];
+        const relevance = candidate.finalScore;
+
+        // Max similarity to any already-selected property
+        let maxSim = 0;
+        for (const sel of selected) {
+          const sim = this.propertySimilarity(candidate, sel);
+          if (sim > maxSim) maxSim = sim;
+        }
+
+        const mmr = lambda * relevance - (1 - lambda) * maxSim * 100;
+        if (mmr > bestMMR) {
+          bestMMR = mmr;
+          bestIdx = i;
+        }
+      }
+
+      selected.push(remaining.splice(bestIdx, 1)[0]);
+    }
+
+    return selected;
+  }
+
+  /**
+   * Epsilon-greedy exploration: with probability epsilon, inject 1–2
+   * properties from outside the user's typical patterns into the feed.
+   *
+   * Exploration candidates are properties that DON'T match the user's top
+   * preferred property types, cities, or price bands — the opposite of what
+   * exploitation would surface. They're drawn from the wider candidate pool,
+   * weighted by general popularity so we don't inject junk.
+   *
+   * @param {Array} allScored       — full scored pool (sorted by finalScore)
+   * @param {Array} alreadySelected — properties already in the feed via MMR
+   * @param {Object} userBehavior   — user's behavior blob (preferred types, etc.)
+   * @param {number} limit           — feed page size
+   * @returns {Array}                — exploration picks (0, 1, or 2 items)
+   */
+  static selectExplorationPicks(allScored, alreadySelected, userBehavior, limit) {
+    // Compute epsilon based on user's engagement volume
+    const engagementCount = (userBehavior.engagedProperties || []).length;
+    const epsilon = Math.max(0.05, 0.2 * (1 - engagementCount / 100));
+
+    // Roll the dice
+    if (Math.random() > epsilon) return [];
+
+    // How many exploration slots? 1 for small feeds, up to 2 for larger ones
+    const explorationSlots = limit >= 10 ? 2 : 1;
+
+    // Build a set of already-selected IDs to avoid duplicates
+    const selectedIds = new Set(alreadySelected.map((p) => String(p._id)));
+
+    // Build exclusion sets from user's typical patterns
+    const preferredTypes = new Set(
+      (userBehavior.preferredPropertyTypes || [])
+        .slice(0, 3)
+        .map((p) => String(p.type).toLowerCase())
+    );
+    const preferredCities = new Set(
+      (userBehavior.engagedProperties || [])
+        .map((p) => String(p.city || "").toLowerCase())
+        .filter(Boolean)
+    );
+    const priceRange = userBehavior.typicalPriceRange;
+
+    // Find candidates that are OUTSIDE the user's typical patterns
+    const explorationCandidates = allScored.filter((p) => {
+      if (selectedIds.has(String(p._id))) return false;
+
+      const type = String(p.propertyType || "").toLowerCase();
+      const city = String(p.city || "").toLowerCase();
+      const price = Number(p.price) || 0;
+
+      // Must differ on at least 2 of 3 dimensions to qualify as "exploration"
+      let diffCount = 0;
+      if (preferredTypes.size > 0 && !preferredTypes.has(type)) diffCount++;
+      if (preferredCities.size > 0 && !preferredCities.has(city)) diffCount++;
+      if (priceRange && price > 0) {
+        const outsidePrice = price < priceRange.min * 0.7 || price > priceRange.max * 1.3;
+        if (outsidePrice) diffCount++;
+      }
+
+      return diffCount >= 2;
+    });
+
+    if (explorationCandidates.length === 0) return [];
+
+    // Sort by popularity (likes + saves) so exploration picks are at least
+    // generally popular — not random junk
+    explorationCandidates.sort((a, b) => {
+      const aPop = (a.popularityScore || 0);
+      const bPop = (b.popularityScore || 0);
+      return bPop - aPop;
+    });
+
+    // Pick from the top of the popularity-sorted exploration list
+    return explorationCandidates.slice(0, explorationSlots);
+  }
+
   static async getPersonalizedRecommendations(userId, limit = 20) {
     try {
       logger.info(`🎯 [PERSONALIZED RECOMMENDATIONS] Starting personalized recommendations for user ID: ${userId}, limit: ${limit}`);
@@ -1695,26 +2040,110 @@ class PersonalizationService {
 
       logger.info(`📊 [PERSONALIZED RECOMMENDATIONS] Retrieval "${strategy}" → ${rawPool.length} candidates, ${properties.length} after suppression`);
 
+      // ── Collaborative Filtering setup ─────────────────────────────────
+      //
+      // Fetch the current CF weight (ramps from 0 → 0.3 based on total
+      // engagement volume) and embedding version. If CF weight is 0 (no
+      // data yet or Redis unavailable), the blend is pure content-based.
+      const [cfWeight, cfVersion] = await Promise.all([
+        getCurrentCFWeight(),
+        getEmbeddingVersion(),
+      ]);
+
+      // Build the user's engaged-property list for CF scoring
+      const cfUserEngagedProps = (userBehavior.engagedProperties || [])
+        .filter((p) => p && p._id)
+        .map((p) => ({ id: String(p._id), weight: p.weight || 1 }));
+
+      // ── Investor-mode: pre-fetch appreciation forecasts ──────────────
+      //
+      // If the user has investing intent, batch-fetch appreciation
+      // forecasts for all unique city:locality pairs in the candidate pool.
+      // This avoids N individual DB queries during the scoring loop.
+      const isInvestorUser =
+        userBehavior.dominantIntent === "investing" ||
+        user.primaryRole === "INVESTOR" ||
+        user.activeRole === "INVESTOR";
+      let forecastMap = new Map();
+      if (isInvestorUser && properties.length > 0) {
+        const locSet = new Set();
+        for (const p of properties) {
+          locSet.add({
+            city: p.city || "",
+            locality: p.locality || null,
+          });
+        }
+        forecastMap = await batchGetForecasts([...locSet]);
+      }
+
       // Score each property, blending preference-match (personalization +
       // comment signals) with objective quality signals (recency, popularity)
-      // so cold-start users — who get neutral 50s on every preference signal —
-      // still get a meaningfully ranked feed instead of arbitrary DB order.
-      const scoredProperties = properties.map(property => {
-        const personalizationScore = this.calculatePropertyScore(property, user, userBehavior);
+      // and collaborative filtering, so cold-start users — who get neutral
+      // 50s on every preference signal — still get a meaningfully ranked feed
+      // instead of arbitrary DB order.
+      const scoredProperties = await Promise.all(
+        properties.map(async (property) => {
+        const personalizationScore = await this.calculatePropertyScore(property, user, userBehavior);
         const commentScore = this.calculateCommentBasedScore(property, userBehavior);
 
         const ageInDays = (Date.now() - new Date(property.createdAt).getTime()) / (1000 * 60 * 60 * 24);
-        const recencyScore = 100 * Math.pow(0.5, Math.max(0, ageInDays) / RECENCY_HALF_LIFE_DAYS);
+        let recencyScore = 100 * Math.pow(0.5, Math.max(0, ageInDays) / RECENCY_HALF_LIFE_DAYS);
+        // Hard staleness floor: in Indian real estate, listings > 90 days are often stale,
+        // and listings > 180 days should not be recommended on freshness alone.
+        if (ageInDays > 180) {
+          recencyScore = 0;
+        } else if (ageInDays > 90) {
+          recencyScore *= 0.2;
+        }
 
         const likesCount = Array.isArray(property.likedBy) ? property.likedBy.length : 0;
         const savesCount = Array.isArray(property.savedBy) ? property.savedBy.length : 0;
         const popularityScore = Math.min(100, likesCount * 2 + savesCount * 3 + (property.commentCount || 0) * 1.5);
 
-        const blended =
+        // Content-based blended score (existing logic)
+        const contentBlended =
           personalizationScore * FEED_SCORE_WEIGHTS.personalization +
           commentScore * FEED_SCORE_WEIGHTS.comment +
           recencyScore * FEED_SCORE_WEIGHTS.recency +
           popularityScore * FEED_SCORE_WEIGHTS.popularity;
+
+        // Collaborative filtering score — measures how well this property
+        // aligns with what similar users engaged with. Returns 50 (neutral)
+        // when no embedding data exists.
+        let cfScore = 50;
+        if (cfWeight > 0 && cfUserEngagedProps.length > 0) {
+          cfScore = await getCFScore(String(property._id), cfUserEngagedProps, cfVersion);
+        }
+
+        // Blend content + CF: (1 - cfWeight) * content + cfWeight * CF
+        let blended = (1 - cfWeight) * contentBlended + cfWeight * cfScore;
+
+        // ── Investor-mode scoring ──────────────────────────────────────
+        //
+        // When the user's dominant intent is "investing" (detected from
+        // comment analytics or stated preferences), we blend in an
+        // investor-specific score that weights appreciation forecast,
+        // rental yield, and liquidity — instead of just budget/type match.
+        // A 30% investor blend ensures the feed surfaces high-ROI
+        // properties for investors without completely ignoring their
+        // other preferences.
+        let investorScore = null;
+        const isInvestor =
+          userBehavior.dominantIntent === "investing" ||
+          user.primaryRole === "INVESTOR" ||
+          user.activeRole === "INVESTOR";
+        if (isInvestor) {
+          try {
+            const forecast = forecastMap.get(
+              `${String(property.city || "").toLowerCase()}:${String(property.locality || "").toLowerCase()}`
+            ) || forecastMap.get(`${String(property.city || "").toLowerCase()}:all`);
+            investorScore = await getInvestorScore(property, forecast);
+            // 30% investor blend for investor-mode users
+            blended = blended * 0.7 + investorScore * 0.3;
+          } catch {
+            // Forecast unavailable — keep the content+CF blend
+          }
+        }
 
         // Demote (don't hard-exclude) candidates that hit a dismiss-reason:
         // wrong type / wrong area / above the "too expensive" ceiling.
@@ -1735,11 +2164,14 @@ class PersonalizationService {
           commentScore,
           recencyScore,
           popularityScore,
+          cfScore,
+          cfWeight,
           negMult,
           isAddressVerified,
           finalScore: blended * negMult * verifiedMultiplier,
         };
-      });
+      })
+      );
 
       // Sort by final score
       scoredProperties.sort((a, b) => b.finalScore - a.finalScore);
@@ -1755,35 +2187,68 @@ class PersonalizationService {
       const unseenScored = scoredProperties.filter(p => !recentlySeenIds.has(String(p._id)));
       const candidatePool = unseenScored.length >= limit ? unseenScored : scoredProperties;
 
-      // Add diversity: ensure we don't show too many similar properties.
-      // Counts are tracked in Maps (not Sets) since a Set can't hold repeat
-      // values — using one here previously meant these caps never triggered.
-      const diverseRecommendations = [];
-      const typeCounts = new Map();
-      const locationCounts = new Map();
-      const authorCounts = new Map();
+      // ── MMR (Maximal Marginal Relevance) diversity re-ranking ──────────
+      //
+      // The previous diversity approach used hard count-caps (max 3 per type,
+      // 3 per location, 2 per author) which was a blunt instrument — it let 3
+      // identical 2BHKs in Baner through before blocking, and if the top 10
+      // were all different types in the same city, the location cap never
+      // triggered.
+      //
+      // MMR is a principled alternative: for each slot, balance the
+      // property's relevance score against its maximum similarity to
+      // properties already selected:
+      //
+      //   MMR(p) = λ * relevance(p) − (1 − λ) * max_{s ∈ S} similarity(p, s)
+      //
+      // λ = 0.7 → 70% relevance, 30% diversity. The property with the highest
+      // MMR score is added next. This produces a feed that leads with the
+      // best match, then naturally interleaves alternatives — different
+      // localities, types, price bands — without hard caps or randomization.
+      //
+      // Similarity is computed over four binary dimensions:
+      //   same propertyType, same city, same postType, same price band (±20%)
+      // Range: 0 (no overlap) to 1 (identical on all four).
+      const MMR_LAMBDA = 0.7;
+      const diverseRecommendations = this.mmrRerank(candidatePool, limit, MMR_LAMBDA);
 
-      for (const property of candidatePool) {
-        if (diverseRecommendations.length >= limit) break;
+      // ── Epsilon-Greedy Exploration ────────────────────────────────────
+      //
+      // Pure exploitation creates a filter bubble — a user who never engaged
+      // with a villa will never see one. With probability epsilon, we replace
+      // the last slot(s) in the feed with a property from *outside* the user's
+      // typical patterns (different property type, different city, or
+      // different price band). If the user engages with an exploration pick,
+      // their preference model expands naturally; if not, the exploration
+      // budget decays as the system gets more confident.
+      //
+      //   epsilon = max(0.05, 0.2 * (1 − engagementCount / 100))
+      //
+      // Decays from 20% (new user, lots of exploration) to 5% (experienced
+      // user, minimal exploration). Never reaches zero — always a little
+      // serendipity.
+      const explorationPicks = this.selectExplorationPicks(
+        scoredProperties,
+        diverseRecommendations,
+        userBehavior,
+        limit
+      );
 
-        const propertyType = property.propertyType;
-        const location = property.city || property.location;
-        const authorId = String(property.author?._id);
+      if (explorationPicks.length > 0) {
+        // Replace the last N slots with exploration picks
+        const exploitationCount = limit - explorationPicks.length;
+        const finalFeed = [
+          ...diverseRecommendations.slice(0, exploitationCount),
+          ...explorationPicks,
+        ];
+        logger.info(`🎲 [EXPLORATION] Injected ${explorationPicks.length} exploration pick(s) (epsilon-greedy) for user ${userId}`);
+        logger.info(`✅ [PERSONALIZED RECOMMENDATIONS] Returning ${finalFeed.length} recommendations (incl. exploration) for user ID: ${userId}`);
 
-        const typeCount = typeCounts.get(propertyType) || 0;
-        const locationCount = locationCounts.get(location) || 0;
-        const authorCount = authorCounts.get(authorId) || 0;
-
-        if (typeCount < 3 && locationCount < 3 && authorCount < 2) {
-          diverseRecommendations.push(property);
-          typeCounts.set(propertyType, typeCount + 1);
-          locationCounts.set(location, locationCount + 1);
-          authorCounts.set(authorId, authorCount + 1);
-        }
+        await this.markPostsAsSeen(userId, finalFeed.map(p => p._id));
+        return finalFeed;
       }
 
       logger.info(`✅ [PERSONALIZED RECOMMENDATIONS] Returning ${diverseRecommendations.length} diverse recommendations for user ID: ${userId}`);
-      logger.info(`🎭 [PERSONALIZED RECOMMENDATIONS] Diversity breakdown - PropertyTypes: ${typeCounts.size}, Locations: ${locationCounts.size}, Authors: ${authorCounts.size}`);
 
       await this.markPostsAsSeen(userId, diverseRecommendations.map(p => p._id));
 

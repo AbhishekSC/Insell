@@ -3,11 +3,29 @@ import {
   getSearchSuggestions,
   saveSearchHistory,
   getSearchHistory,
-  clearSearchHistory
+  clearSearchHistory,
+  naturalLanguageSearch,
+  parseQueryOnly,
 } from "../controllers/search.controller.js";
-import { verifyUser, requireVerified } from "../middlewares/auth.middleware.js";
+import {
+  verifyUser,
+  requireVerified,
+  attachOptionalUser,
+} from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
+
+/**
+ * GET /search/natural
+ * Natural language property search
+ */
+router.get("/natural", attachOptionalUser, naturalLanguageSearch);
+
+/**
+ * GET /search/parse
+ * Parse-only helper for natural queries
+ */
+router.get("/parse", parseQueryOnly);
 
 /**
  * GET /search/suggestions

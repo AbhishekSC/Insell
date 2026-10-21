@@ -2,6 +2,7 @@ import express from "express";
 import PersonalizationService from "../services/PersonalizationService.js";
 import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler.js";
 import { verifyUser, requireVerified } from "../middlewares/auth.middleware.js";
+import { rebuildEmbeddings } from "../services/CollaborativeFilteringService.js";
 
 const router = express.Router();
 
@@ -178,6 +179,46 @@ router.get("/trending-near-you", verifyUser, requireVerified, async (req, res) =
   } catch (error) {
     console.error("Error in trending-near-you endpoint:", error);
     return sendErrorResponse(res, 500, "Failed to get trending properties near you");
+  }
+});
+
+/**
+ * POST /personalization/cf/rebuild
+ * Rebuild collaborative filtering embeddings from recent engagement data.
+ * Admin-only — intended to be called by a daily cron job.
+ */
+router.post("/cf/rebuild", verifyUser, requireVerified, async (req, res) => {
+  try {
+    if (!req.user?._id) return sendErrorResponse(res, 401, "User not authenticated");
+    // Only admin users can trigger a rebuild
+    if (req.user.activeRole !== "ADMIN" && req.user.primaryRole !== "ADMIN") {
+      return sendErrorResponse(res, 403, "Admin access required");
+    }
+    const result = await rebuildEmbeddings();
+    return sendSuccessResponse(res, 200, "CF embeddings rebuilt", result);
+  } catch (error) {
+    console.error("Error rebuilding CF embeddings:", error);
+    return sendErrorResponse(res, 500, "Failed to rebuild CF embeddings");
+  }
+});
+
+/**
+ * GET /personalization/forecast?city=...&locality=...
+ * Get price appreciation forecast for a locality
+ */
+router.get("/forecast", async (req, res) => {
+  try {
+    const city = String(req.query.city || "").trim();
+    const locality = String(req.query.locality || "").trim() || null;
+    if (!city) {
+      return sendErrorResponse(res, 400, "City parameter is required");
+    }
+    const { getAppreciationForecast } = await import("../services/AppreciationForecastService.js");
+    const forecast = await getAppreciationForecast(city, locality);
+    return sendSuccessResponse(res, 200, "Appreciation forecast fetched successfully", { forecast });
+  } catch (error) {
+    console.error("Error in appreciation forecast endpoint:", error);
+    return sendErrorResponse(res, 500, "Failed to get appreciation forecast");
   }
 });
 

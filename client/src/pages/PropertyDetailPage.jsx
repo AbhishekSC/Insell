@@ -970,6 +970,29 @@ export default function PropertyDetailPage() {
                         ))}
                       </div>
                     )}
+
+                    {/* Market Appreciation & Deal Insights */}
+                    {(postData.appreciationForecast || postData.dealProbability?.level === "HIGH") && (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {postData.appreciationForecast && Number(postData.appreciationForecast.annualizedRate) > 0 && (
+                          <div className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                            <span>📈</span>
+                            <span>Projected +{postData.appreciationForecast.annualizedRate}% annual appreciation</span>
+                            {postData.appreciationForecast.projectedPsf12m && (
+                              <span className="text-emerald-700/80 dark:text-emerald-400 font-normal">
+                                (Est. ₹{Number(postData.appreciationForecast.projectedPsf12m).toLocaleString("en-IN")}/sq.ft in 12m)
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {postData.dealProbability && postData.dealProbability.level === "HIGH" && (
+                          <div className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-900 dark:text-amber-300">
+                            <span>🎯</span>
+                            <span>{postData.dealProbability.label || "High Deal Likelihood"}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="text-left sm:text-right shrink-0">
                     <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary">{formatMoney(postData.price)}</p>

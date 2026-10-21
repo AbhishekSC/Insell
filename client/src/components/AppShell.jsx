@@ -136,6 +136,29 @@ function GlobalSearch({
   onOpenFilters,
   hasActiveFilters,
 }) {
+  const [parsedSmartQuery, setParsedSmartQuery] = useState(null);
+
+  useEffect(() => {
+    const q = marketSearch?.trim();
+    if (!q || q.length < 3) {
+      setParsedSmartQuery(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await axiosInstance.get(`/search/parse?q=${encodeURIComponent(q)}`);
+        if (res.data?.data?.isValid) {
+          setParsedSmartQuery(res.data.data);
+        } else {
+          setParsedSmartQuery(null);
+        }
+      } catch {
+        setParsedSmartQuery(null);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [marketSearch]);
+
   return (
     <div className="hidden min-w-0 lg:block">
       <div className="w-full min-w-0 max-w-[780px]">
@@ -145,11 +168,17 @@ function GlobalSearch({
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search city, locality, property or builder"
+              placeholder="Search naturally (e.g. '2BHK under 50 lakhs in Pune with garden')"
               className="flex-1 min-w-0 bg-transparent text-sm text-base-content placeholder:text-base-content/50 focus:outline-none"
               value={marketSearch}
               onFocus={() => setSearchFocused(true)}
-              onBlur={() => setTimeout(() => setSearchFocused(false), 120)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  onMarketplaceSearchChange?.(marketSearch);
+                  setSearchFocused(false);
+                }
+              }}
               onChange={(event) => {
                 const value = event.target.value;
                 setMarketSearch(value);
@@ -176,6 +205,50 @@ function GlobalSearch({
 
           {searchFocused ? (
             <div className="absolute top-full left-0 right-0 z-50 mt-2 rounded-2xl border border-base-300 bg-base-100 p-3 shadow-xl">
+              {parsedSmartQuery?.isValid && (
+                <div className="mb-3 p-2.5 rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-primary">
+                      <Sparkles className="size-3.5 fill-primary" />
+                      Smart Search Match
+                    </span>
+                    <span className="text-[10px] font-semibold text-primary/70">Press Enter ↵ to search</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {parsedSmartQuery.bedrooms && (
+                      <span className="rounded-lg bg-base-100 border border-primary/30 px-2 py-0.5 text-xs font-semibold text-base-content shadow-xs">
+                        🛏️ {parsedSmartQuery.bedrooms} BHK
+                      </span>
+                    )}
+                    {parsedSmartQuery.propertyType && (
+                      <span className="rounded-lg bg-base-100 border border-primary/30 px-2 py-0.5 text-xs font-medium text-base-content shadow-xs">
+                        🏠 {parsedSmartQuery.propertyType}
+                      </span>
+                    )}
+                    {parsedSmartQuery.city && (
+                      <span className="rounded-lg bg-base-100 border border-primary/30 px-2 py-0.5 text-xs font-semibold text-base-content shadow-xs">
+                        📍 {parsedSmartQuery.city}
+                      </span>
+                    )}
+                    {parsedSmartQuery.maxPrice && (
+                      <span className="rounded-lg bg-base-100 border border-primary/30 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 shadow-xs">
+                        💰 Under ₹{parsedSmartQuery.maxPrice >= 10000000 ? `${(parsedSmartQuery.maxPrice / 10000000).toFixed(1)} Cr` : `${(parsedSmartQuery.maxPrice / 100000).toFixed(1)} L`}
+                      </span>
+                    )}
+                    {parsedSmartQuery.nearTransport && (
+                      <span className="rounded-lg bg-base-100 border border-primary/30 px-2 py-0.5 text-xs font-medium text-base-content shadow-xs">
+                        🚇 Near Transit
+                      </span>
+                    )}
+                    {parsedSmartQuery.amenities?.map((a) => (
+                      <span key={a} className="rounded-lg bg-base-100 border border-primary/30 px-2 py-0.5 text-xs font-medium text-base-content capitalize shadow-xs">
+                        ✨ {a}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {searchHistory && searchHistory.length > 0 && !marketSearch ? (
                 <>
                   <div className="mb-2 flex items-center justify-between">

@@ -13,6 +13,7 @@ import {
   getUserPublicProfile,
   getUserFriendsList,
   updateUserLocation,
+  updateWorkLocation,
   updateDigestPreference,
   getPreferencePrompt,
   answerPreferencePrompt,
@@ -40,6 +41,7 @@ router.get("/:id/friends", getUserFriendsList);
 router.patch("/profile", uploadProfileImage.single("profileImage"), updateMyProfile);
 router.patch("/account", uploadProfileImage.single("profileImage"), updateMyProfile);
 router.patch("/location", updateUserLocation);
+router.patch("/work-location", updateWorkLocation);
 router.patch("/digest-preference", updateDigestPreference);
 router.get("/preference-prompt", getPreferencePrompt);
 router.post("/preference-prompt", answerPreferencePrompt);

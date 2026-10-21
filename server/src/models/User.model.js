@@ -241,6 +241,21 @@ const userSchema = new mongoose.Schema(
       },
       default: null,
     },
+    // Work / office location for commute-time-aware scoring. The user
+    // provides this during onboarding or profile settings — it powers the
+    // commute score in the personalization feed (a 15-min commute beats a
+    // 45-min one even if the raw distance is longer). `label` is the
+    // human-readable place name for display ("Hinjewadi IT Park").
+    workLocation: {
+      type: {
+        latitude: Number,
+        longitude: Number,
+        label: String,
+        address: String,
+        updatedAt: { type: Date, default: Date.now },
+      },
+      default: null,
+    },
     // FCM device tokens for push notifications — an array since one user can
     // have multiple open browser sessions/devices at once (multiple open
     // tabs, plus now the mobile app on top of that). Tagged by platform so

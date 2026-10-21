@@ -645,6 +645,33 @@ export function getPropertyInfoBadges(post, options = {}) {
     });
   }
 
+  // 2b. Price Appreciation Forecast Badge
+  if (post.appreciationForecast && Number(post.appreciationForecast.annualizedRate) > 0) {
+    addBadge({
+      key: "appreciation",
+      label: `📈 +${post.appreciationForecast.annualizedRate}%/yr projected`,
+      className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 font-semibold text-[10.5px]",
+    });
+  }
+
+  // 2c. High Deal Probability Badge
+  if (post.dealProbability && post.dealProbability.level === "HIGH") {
+    addBadge({
+      key: "deal_prob",
+      label: `🎯 ${post.dealProbability.label || "High Deal Likelihood"}`,
+      className: "bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/25 font-semibold text-[10.5px]",
+    });
+  }
+
+  // 2d. Commute Time from Work
+  if (post.commuteDurationMin && Number(post.commuteDurationMin) > 0) {
+    addBadge({
+      key: "commute_time",
+      label: `🚗 ${post.commuteDurationMin} min to work`,
+      className: "bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/25 font-medium text-[10.5px]",
+    });
+  }
+
   // 3. Floor Information
   const floor = res.floorNumber ?? comm.floorNumber ?? meta.floorNumber;
   const total = res.totalFloors ?? meta.totalFloors;

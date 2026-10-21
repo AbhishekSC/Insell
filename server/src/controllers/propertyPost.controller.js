@@ -37,6 +37,11 @@ import Offer from "../models/Offer.model.js";
 import { closeActiveOffersForPost } from "./offer.controller.js";
 import { cloudinaryInstance } from "../config/cloudinary.js";
 import { centroidForCity } from "../utils/cityCentroids.js";
+import {
+  batchGetForecasts,
+  getAppreciationForecast,
+} from "../services/AppreciationForecastService.js";
+import { calculateDealProbability } from "../services/DealProbabilityService.js";
 
 const PROPERTY_MEDIA_FOLDER = "property-media";
 const PROPERTY_MEDIA_ALLOWED_FORMATS = "jpg,jpeg,png,webp,gif,mp4,webm,mov,pdf,heic,heif,jfif";
@@ -176,7 +181,7 @@ export async function compareProperties(req, res) {
         .lean();
 
         // Score recommendations
-        recommendations = similarProperties.map(prop => ({
+        recommendations = await Promise.all(similarProperties.map(async prop => ({
           id: prop._id,
           title: prop.title,
           price: prop.price,
@@ -192,9 +197,10 @@ export async function compareProperties(req, res) {
             fullName: prop.author.fullName,
             profilePic: prop.author.profilePic,
           },
-          recommendationScore: PersonalizationService.calculatePropertyScore(prop, { city: commonCities[0] }, userBehavior),
+          recommendationScore: await PersonalizationService.calculatePropertyScore(prop, { city: commonCities[0] }, userBehavior),
           matchReason: getMatchReason(prop, properties, userBehavior),
-        })).sort((a, b) => b.recommendationScore - a.recommendationScore).slice(0, 4);
+        })));
+        recommendations = recommendations.sort((a, b) => b.recommendationScore - a.recommendationScore).slice(0, 4);
       } catch (error) {
         logger.warn("Failed to get recommendations:", error);
       }
@@ -1050,14 +1056,35 @@ async function decorateForUser(post, currentUserId) {
 // Instagram-style "Liked by <friend> and N others" — only when one of the
 // viewer's connections has liked the post (that's the interesting signal;
 // a stranger's like isn't). One users query for the whole page.
+//
+// Extended with three additional social proof signals:
+//   1. friendsViewed    — friends who recently viewed this property
+//   2. communitySaves   — how many members of the user's communities saved it
+//   3. cityVelocity     — how much faster this listing is gaining saves vs
+//                         the city average ("3× more saves than similar homes")
+//   4. authorResponseTime — seller's average response time (already on author
+//                            but surfaced here as a display-ready string)
 async function attachSocialProof(posts, currentUserId) {
-  if (!Array.isArray(posts) || posts.length === 0 || !currentUserId) return posts;
+  if (!Array.isArray(posts) || posts.length === 0) return posts;
   const User = (await import("../models/User.model.js")).default;
 
-  const me = await User.findById(currentUserId).select("friends").lean();
-  const friends = new Set((me?.friends || []).map(String));
-  if (friends.size === 0) return posts;
+  let friends = new Set();
+  let communityIds = new Set();
 
+  if (currentUserId) {
+    const me = await User.findById(currentUserId).select("friends communities").lean();
+    friends = new Set((me?.friends || []).map(String));
+    communityIds = new Set((me?.communities || []).map(String));
+  }
+
+  // Batch fetch appreciation forecasts for distinct locations
+  const locations = [];
+  for (const p of posts) {
+    if (p.city) locations.push({ city: p.city, locality: p.locality });
+  }
+  const forecastMap = await batchGetForecasts(locations);
+
+  // ── 1. Friend likes (existing logic) ────────────────────────────────
   const picks = new Map(); // postId -> friendLikerId
   const wanted = new Set();
   for (const p of posts) {
@@ -1068,24 +1095,148 @@ async function attachSocialProof(posts, currentUserId) {
     picks.set(String(p._id), friendLiker);
     wanted.add(friendLiker);
   }
-  if (wanted.size === 0) return posts;
 
-  const likers = await User.find({ _id: { $in: [...wanted] } }).select("fullName profilePic isOwnerVerified").lean();
+  // ── 2. Friend views (from viewedPosts on friend profiles) ──────────
+  // Check which friends have this post in their viewedPosts
+  const friendViewersMap = new Map(); // postId -> [{ name, avatar }]
+  if (friends.size > 0) {
+    const friendIds = [...friends];
+    const friendsWhoViewed = await User.find(
+      { _id: { $in: friendIds } },
+      { "viewedPosts.post": 1, fullName: 1, profilePic: 1 }
+    ).lean();
+
+    for (const f of friendsWhoViewed) {
+      const viewedPostIds = (f.viewedPosts || []).map((v) => String(v.post));
+      for (const p of posts) {
+        const pid = String(p._id);
+        if (viewedPostIds.includes(pid)) {
+          if (!friendViewersMap.has(pid)) friendViewersMap.set(pid, []);
+          friendViewersMap.get(pid).push({
+            name: (f.fullName || "A connection").split(" ")[0],
+            avatar: f.profilePic || null,
+          });
+        }
+      }
+    }
+  }
+
+  // ── 3. Community saves ──────────────────────────────────────────────
+  // Count how many users who saved this post are in the viewer's communities
+  const communitySavesMap = new Map(); // postId -> count
+  if (communityIds.size > 0) {
+    // Find community members who saved any of these posts
+    const communityMembers = await User.find(
+      { communities: { $in: [...communityIds] } },
+      { savedPosts: 1 }
+    ).lean();
+
+    const memberSavedSet = new Set();
+    for (const m of communityMembers) {
+      for (const sp of (m.savedPosts || [])) {
+        memberSavedSet.add(String(sp));
+      }
+    }
+
+    for (const p of posts) {
+      const pid = String(p._id);
+      if (memberSavedSet.has(pid)) {
+        communitySavesMap.set(pid, (communitySavesMap.get(pid) || 0) + 1);
+      }
+    }
+  }
+
+  // ── 4. City velocity ────────────────────────────────────────────────
+  // Compare this listing's save velocity to the average for its city
+  const cityVelocityMap = new Map(); // postId -> { multiplier, label }
+  {
+    // Group posts by city, count saves per post
+    const cityPosts = new Map(); // city -> [{ postId, savesCount, createdAt }]
+    for (const p of posts) {
+      const city = (p.city || "other").toLowerCase();
+      if (!cityPosts.has(city)) cityPosts.set(city, []);
+      cityPosts.get(city).push({
+        postId: String(p._id),
+        savesCount: p.savesCount || (p.savedBy || []).length,
+        createdAt: p.createdAt,
+      });
+    }
+
+    for (const [city, cityListings] of cityPosts) {
+      if (cityListings.length < 3) continue; // need a baseline
+      const avgSaves = cityListings.reduce((s, l) => s + l.savesCount, 0) / cityListings.length;
+      for (const l of cityListings) {
+        if (avgSaves === 0) continue;
+        const multiplier = l.savesCount / avgSaves;
+        if (multiplier >= 2) {
+          cityVelocityMap.set(l.postId, {
+            multiplier: Math.round(multiplier * 10) / 10,
+            label: `${Math.round(multiplier * 10) / 10}× more saves than similar homes`,
+          });
+        }
+      }
+    }
+  }
+
+  // ── Resolve friend liker profiles ───────────────────────────────────
+  const likers = wanted.size > 0
+    ? await User.find({ _id: { $in: [...wanted] } }).select("fullName profilePic isOwnerVerified").lean()
+    : [];
   const byId = new Map(likers.map((u) => [String(u._id), u]));
 
   return posts.map((p) => {
-    const u = byId.get(picks.get(String(p._id)));
-    if (!u) return p;
+    const pid = String(p._id);
+    const socialProof = {};
+
+    // Friend likes
+    const u = byId.get(picks.get(pid));
+    if (u) {
+      socialProof.name = (u.fullName || "A connection").split(" ")[0];
+      socialProof.fullName = u.fullName || "A connection";
+      socialProof.avatar = u.profilePic || null;
+      socialProof.isFriend = true;
+      socialProof.isOwnerVerified = Boolean(u.isOwnerVerified);
+      socialProof.othersCount = Math.max(0, (p.likesCount || 0) - 1);
+    }
+
+    // Friend views
+    const friendViewers = friendViewersMap.get(pid);
+    if (friendViewers && friendViewers.length > 0) {
+      socialProof.friendsViewed = friendViewers.slice(0, 3);
+      socialProof.friendsViewedCount = friendViewers.length;
+    }
+
+    // Community saves
+    const commSaves = communitySavesMap.get(pid);
+    if (commSaves && commSaves > 0) {
+      socialProof.communitySaves = commSaves;
+    }
+
+    // City velocity
+    const velocity = cityVelocityMap.get(pid);
+    if (velocity) {
+      socialProof.cityVelocity = velocity;
+    }
+
+    // Author response time (from populated author object)
+    if (p.author?.responseRate != null) {
+      const rate = p.author.responseRate;
+      if (rate >= 90) socialProof.authorResponseTime = "~2 hrs";
+      else if (rate >= 70) socialProof.authorResponseTime = "~6 hrs";
+      else if (rate >= 50) socialProof.authorResponseTime = "~1 day";
+    }
+
+    // Appreciation forecast for property card
+    const postForecast = forecastMap?.get(`${String(p.city || "").toLowerCase()}:${String(p.locality || "").toLowerCase()}`) || null;
+
+    // Deal probability score
+    const dealProbability = calculateDealProbability(p, p.author);
+
     return {
       ...p,
-      socialProof: {
-        name: (u.fullName || "A connection").split(" ")[0],
-        fullName: u.fullName || "A connection",
-        avatar: u.profilePic || null,
-        isFriend: true,
-        isOwnerVerified: Boolean(u.isOwnerVerified),
-        othersCount: Math.max(0, (p.likesCount || 0) - 1),
-      },
+      ...(Object.keys(socialProof).length > 0 ? { socialProof } : {}),
+      ...(postForecast?.annualizedRate ? { appreciationForecast: postForecast } : {}),
+      ...(dealProbability ? { dealProbability } : {}),
     };
   });
 }
@@ -2055,7 +2206,7 @@ export async function getPropertyPostById(req, res) {
     }
 
     // Read live engagement (likes, saves, views) and card signals concurrently
-    const [likeEngagement, saveEngagement, cachedViews, activeOfferCount, sellerListingCount] = await Promise.all([
+    const [likeEngagement, saveEngagement, cachedViews, activeOfferCount, sellerListingCount, forecast] = await Promise.all([
       getPostEngagement(postId, currentUserId, "like"),
       getPostEngagement(postId, currentUserId, "save"),
       redisClient.get(`post:${postId}:views`).catch(() => null),
@@ -2069,7 +2220,10 @@ export async function getPropertyPostById(req, res) {
             isBlocked: { $ne: true },
           })
         : Promise.resolve(0),
+      post.city ? getAppreciationForecast(post.city, post.locality).catch(() => null) : null,
     ]);
+
+    const dealProbability = calculateDealProbability(post, authorCopy);
 
     const likesCount = likeEngagement !== null ? likeEngagement.count : (post.likedBy?.length || 0);
     const isLikedByMe = likeEngagement !== null
@@ -2095,6 +2249,8 @@ export async function getPropertyPostById(req, res) {
         activeOfferCount,
         sellerListingCount,
         priceHistory: sanitizePriceHistory(post.priceHistory, post.price),
+        appreciationForecast: forecast?.annualizedRate ? forecast : null,
+        dealProbability,
       },
     });
   } catch (error) {
