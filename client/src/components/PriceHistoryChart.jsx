@@ -20,7 +20,14 @@ const PADDING = 24;
 // No charting library in this project — this is a handful of data points,
 // so a plain SVG line is simpler than pulling in a dependency for it.
 export default function PriceHistoryChart({ history }) {
-  const points = Array.isArray(history) ? history.filter((h) => Number.isFinite(h?.price)) : [];
+  const rawList = Array.isArray(history) ? history.filter((h) => Number.isFinite(h?.price) && Number(h.price) > 0) : [];
+  const points = [];
+  for (const item of rawList) {
+    const itemPrice = Number(item.price);
+    if (points.length === 0 || Number(points[points.length - 1].price) !== itemPrice) {
+      points.push({ ...item, price: itemPrice });
+    }
+  }
   if (points.length < 2) return null;
 
   const prices = points.map((p) => p.price);

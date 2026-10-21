@@ -22,18 +22,53 @@ const app = express();
 // CLIENT_URL is also used as-is for the Google OAuth redirect (auth.controller.js),
 // so it must stay a single origin — just add it to the CORS allow-list alongside
 // the local dev origins, so `npm run dev` keeps working unchanged after this is set.
-const allowedOrigins = [...new Set([
+const explicitAllowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
+  "http://localhost:5175",
+  "http://localhost:3000",
+  "http://localhost:8081",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  "http://127.0.0.1:5175",
+  "http://127.0.0.1:8081",
   process.env.CLIENT_URL,
-].filter(Boolean))];
+  ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",") : []),
+]
+  .filter(Boolean)
+  .map((o) => o.trim().replace(/\/$/, ""));
+
+const allowedOriginsSet = new Set(explicitAllowedOrigins);
+
+const isDevLocalOrigin = (origin) => {
+  if (process.env.NODE_ENV === "production") return false;
+  try {
+    const url = new URL(origin);
+    const host = url.hostname;
+    return (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "10.0.2.2" ||
+      host.startsWith("192.168.") ||
+      host.startsWith("10.") ||
+      host.endsWith(".local")
+    );
+  } catch {
+    return false;
+  }
+};
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin) {
       return callback(null, true);
     }
-    return callback(new Error("Not allowed by CORS"));
+    const cleanOrigin = origin.replace(/\/$/, "");
+    if (allowedOriginsSet.has(cleanOrigin) || isDevLocalOrigin(cleanOrigin)) {
+      return callback(null, true);
+    }
+    logger.warn(`[CORS] Blocked request from origin: ${origin}`);
+    return callback(null, false);
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

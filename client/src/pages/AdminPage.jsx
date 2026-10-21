@@ -1,24 +1,33 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link } from "react-router";
+import { Link, Navigate } from "react-router";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AlertTriangle,
   BarChart3,
+  Calendar,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Download,
   ExternalLink,
   Eye,
   FileText,
   Flag,
   Handshake,
+  Home,
   Image as ImageIcon,
+  Info,
   Loader2,
+  Lock,
+  MapPin,
   Megaphone,
   MessageSquareWarning,
   MoreVertical,
   MousePointerClick,
   Pencil,
+  Phone,
   Plus,
   Search,
   ShieldAlert,
@@ -30,6 +39,7 @@ import {
   ToggleRight,
   Trash2,
   User as UserIcon,
+  UserCheck,
   Users,
   X,
 } from "lucide-react";
@@ -2016,7 +2026,17 @@ function toDownloadUrl(url) {
   return url.replace("/upload/", "/upload/fl_attachment/");
 }
 
-function VerificationPanel() {
+// Cloudinary blocks public .pdf requests on default accounts (401 deny or ACL failure).
+// But Cloudinary's image engine converts any PDF under /image/upload/ to .jpg dynamically with HTTP 200!
+function toViewUrl(url) {
+  if (!url) return "";
+  if (url.includes("res.cloudinary.com") && /\.pdf$/i.test(url)) {
+    return url.replace(/\.pdf$/i, ".jpg");
+  }
+  return url;
+}
+
+function OwnerVerificationQueue() {
   const queryClient = useQueryClient();
   const [statusTab, setStatusTab] = useState("PENDING");
   const [reviewTarget, setReviewTarget] = useState(null); // { id, approve }
@@ -2428,6 +2448,713 @@ function VerificationReportModal({ request, onClose }) {
           <img src={request.docUrl} alt="Submitted document" className="max-h-full max-w-full object-contain" />
         </div>
       )}
+    </div>
+  );
+}
+
+const PROPERTY_VERIFICATION_TABS = [
+  { value: "PENDING", label: "Pending" },
+  { value: "VERIFIED", label: "Verified" },
+  { value: "REJECTED", label: "Rejected" },
+  { value: "ALL", label: "All" },
+];
+
+function PropertyAddressVerificationQueue() {
+  const queryClient = useQueryClient();
+  const [statusTab, setStatusTab] = useState("PENDING");
+  const [page, setPage] = useState(1);
+  const [rejectTarget, setRejectTarget] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [verifyTarget, setVerifyTarget] = useState(null);
+  const [verificationNote, setVerificationNote] = useState("");
+  const [auditTarget, setAuditTarget] = useState(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["adminPropertyVerifications", statusTab, page],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/admin/property-verifications", {
+        params: { status: statusTab, page, limit: 15 },
+      });
+      return response.data?.data;
+    },
+  });
+
+  const posts = data?.posts || [];
+  const counts = data?.counts || { pending: 0, verified: 0, rejected: 0, all: 0 };
+  const pagination = data?.pagination || { page: 1, totalPages: 1 };
+
+  const { mutate: reviewBill, isPending } = useMutation({
+    mutationFn: async ({ id, status, rejectionReason, verificationNote }) => {
+      const response = await axiosInstance.patch(`/admin/property-verifications/${id}`, {
+        status,
+        rejectionReason,
+        verificationNote,
+      });
+      return response.data?.data;
+    },
+    onSuccess: (_data, variables) => {
+      toast.success(variables.status === "VERIFIED" ? "Address verified successfully!" : "Verification rejected");
+      queryClient.invalidateQueries({ queryKey: ["adminPropertyVerifications"] });
+      queryClient.invalidateQueries({ queryKey: ["propertyPost"] });
+      queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
+      setVerifyTarget(null);
+      setRejectTarget(null);
+      setVerificationNote("");
+      setRejectionReason("");
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to update verification status");
+    },
+  });
+
+  return (
+    <div className="rounded-2xl border border-base-300 bg-base-100 shadow-sm">
+      <div className="flex items-center justify-between border-b border-base-300 p-4 sm:p-5">
+        <div className="flex items-center gap-2">
+          <div className="grid size-9 place-items-center rounded-xl bg-primary/15 text-primary">
+            <FileText className="size-4" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-base-content">Property Address Verification (Bills)</h2>
+            <p className="text-xs text-base-content/60">
+              {isLoading ? "Loading…" : `${posts.length} listing${posts.length !== 1 ? "s" : ""} on page ${page}`}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Status Filter Tabs */}
+      <div className="flex gap-1 border-b border-base-300 px-4 pt-3 sm:px-5">
+        {PROPERTY_VERIFICATION_TABS.map((tab) => {
+          const count =
+            tab.value === "PENDING"
+              ? counts.pending
+              : tab.value === "VERIFIED"
+                ? counts.verified
+                : tab.value === "REJECTED"
+                  ? counts.rejected
+                  : counts.all;
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => {
+                setStatusTab(tab.value);
+                setPage(1);
+              }}
+              className={`rounded-t-lg px-3 py-1.5 text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+                statusTab === tab.value
+                  ? "border-b-2 border-primary text-primary"
+                  : "text-base-content/50 hover:text-base-content"
+              }`}
+            >
+              <span>{tab.label}</span>
+              <span
+                className={`text-[11px] px-1.5 py-0.2 rounded-full ${
+                  statusTab === tab.value ? "bg-primary/20 text-primary" : "bg-base-200 text-base-content/60"
+                }`}
+              >
+                {count ?? 0}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-16 text-base-content/40">
+          <Loader2 className="size-6 animate-spin" />
+        </div>
+      ) : posts.length === 0 ? (
+        <div className="p-12 text-center">
+          <FileText className="mx-auto size-10 text-base-content/30 stroke-[1.5]" />
+          <p className="mt-3 text-sm font-semibold text-base-content/70">
+            No {statusTab.toLowerCase()} property address verification requests.
+          </p>
+          <p className="mt-1 text-xs text-base-content/50">
+            Properties with uploaded electricity bills will appear here for admin review.
+          </p>
+        </div>
+      ) : (
+        <div className="divide-y divide-base-200/80">
+          {posts.map((post) => {
+            const billUrl = post.postMeta?.residential?.electricityBillUrl || post.postMeta?.electricityBillUrl;
+            const billStatus = post.postMeta?.residential?.electricityBillStatus || (billUrl ? "PENDING" : "NONE");
+            const rejectionReasonText = post.postMeta?.residential?.electricityBillRejectionReason;
+            const verifiedAt = post.postMeta?.residential?.electricityBillVerifiedAt;
+            const verifiedBy = post.postMeta?.residential?.electricityBillVerifiedBy || post.postMeta?.electricityBillVerifiedBy;
+            const verificationNote = post.postMeta?.residential?.electricityBillVerificationNote || post.postMeta?.electricityBillVerificationNote;
+
+            return (
+              <div key={post._id} className="p-4 sm:p-5 hover:bg-base-200/30 transition-colors">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  {/* Left: Media + Information */}
+                  <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                    {post.mediaUrls?.[0] ? (
+                      <img
+                        src={post.mediaUrls[0]}
+                        alt={post.title}
+                        className="size-18 sm:size-20 shrink-0 rounded-xl object-cover border border-base-300"
+                      />
+                    ) : (
+                      <div className="size-18 sm:size-20 shrink-0 rounded-xl bg-base-200 flex items-center justify-center text-base-content/40 border border-base-300">
+                        <Home className="size-8 stroke-[1.5]" />
+                      </div>
+                    )}
+
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      {/* Title + Badges */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                          to={`/property/${post._id}`}
+                          target="_blank"
+                          className="font-bold text-sm sm:text-base text-base-content hover:text-primary transition-colors inline-flex items-center gap-1"
+                        >
+                          <span className="truncate">{post.title}</span>
+                          <ExternalLink className="size-3 text-base-content/40 shrink-0" />
+                        </Link>
+
+                        <span className="badge badge-sm badge-outline text-[10px] uppercase font-bold tracking-wider">
+                          {post.postType?.replace(/_/g, " ")}
+                        </span>
+
+                        {billStatus === "VERIFIED" ? (
+                          <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 bg-emerald-500/10 border border-emerald-500/25 dark:text-emerald-400">
+                            <CheckCircle2 className="size-3 shrink-0" />
+                            Address Verified
+                          </span>
+                        ) : billStatus === "REJECTED" ? (
+                          <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-error bg-error/10 border border-error/25">
+                            <AlertTriangle className="size-3 shrink-0" />
+                            Rejected
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-amber-700 bg-amber-500/10 border border-amber-500/25 dark:text-amber-400">
+                            <Clock className="size-3 shrink-0" />
+                            Pending Review
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Location & Price */}
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-base-content/70">
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin className="size-3.5 text-primary shrink-0" />
+                          {[post.locality, post.city].filter(Boolean).join(", ") || "Location not specified"}
+                        </span>
+                        <span className="font-semibold text-base-content">
+                          ₹{post.price?.toLocaleString?.("en-IN") ?? post.price}
+                        </span>
+                        {post.createdAt && (
+                          <span className="inline-flex items-center gap-1 text-base-content/50">
+                            <Calendar className="size-3.5 shrink-0" />
+                            {new Date(post.createdAt).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Poster Info */}
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-base-content/60">
+                        <span className="inline-flex items-center gap-1.5">
+                          <UserIcon className="size-3.5 text-base-content/50 shrink-0" />
+                          <span>
+                            Posted by <strong className="text-base-content/85">{post.author?.fullName || "User"}</strong>{" "}
+                            <span className="text-[11px] text-base-content/50">
+                              ({post.author?.activeRole || post.author?.primaryRole || "User"})
+                            </span>
+                          </span>
+                        </span>
+                        {post.author?.mobileNumber && (
+                          <span className="inline-flex items-center gap-1">
+                            <Phone className="size-3.5 text-base-content/50 shrink-0" />
+                            {post.author.mobileNumber}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Audit summaries if verified or rejected */}
+                      {billStatus === "VERIFIED" && (
+                        <div className="mt-2 rounded-xl bg-emerald-500/5 border border-emerald-500/20 p-2.5 text-xs text-emerald-800 dark:text-emerald-300 flex flex-wrap items-center justify-between gap-2">
+                          <div className="inline-flex items-center gap-1.5 min-w-0">
+                            <CheckCircle2 className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                            <span>
+                              Verified by <strong className="font-semibold">{verifiedBy?.fullName || "Admin"}</strong>
+                              {verifiedAt && ` on ${new Date(verifiedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}`}
+                            </span>
+                            {verificationNote && (
+                              <span className="text-base-content/65 truncate max-w-xs italic">
+                                · "{verificationNote}"
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setAuditTarget(post)}
+                            className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer"
+                          >
+                            Audit Details
+                          </button>
+                        </div>
+                      )}
+
+                      {billStatus === "REJECTED" && (
+                        <div className="mt-2 rounded-xl bg-error/5 border border-error/20 p-2.5 text-xs text-error flex flex-wrap items-center justify-between gap-2">
+                          <div className="inline-flex items-center gap-1.5 min-w-0">
+                            <AlertTriangle className="size-3.5 shrink-0" />
+                            <span>
+                              Rejected by <strong className="font-semibold">{verifiedBy?.fullName || "Admin"}</strong>
+                              {rejectionReasonText && `: "${rejectionReasonText}"`}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setAuditTarget(post)}
+                            className="text-[11px] font-semibold text-error hover:underline cursor-pointer"
+                          >
+                            Audit Details
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right: Bill Document Actions & Review Controls */}
+                  <div className="flex flex-wrap lg:flex-col items-center lg:items-end gap-2 shrink-0 pt-2 lg:pt-0 border-t border-base-200/80 lg:border-t-0">
+                    {billUrl && (
+                      <div className="flex items-center gap-1.5">
+                        <a
+                          href={toViewUrl(billUrl)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-sm btn-outline border-base-300 gap-1.5 text-xs"
+                        >
+                          <Eye className="size-3.5" /> View Bill
+                        </a>
+                        <a
+                          href={`/api/admin/property-verifications/${post._id}/bill-download`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-sm btn-ghost gap-1.5 text-xs"
+                          title="Download Original Bill (PDF)"
+                        >
+                          <Download className="size-3.5" />
+                        </a>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2">
+                      {billStatus !== "VERIFIED" && (
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          className="btn btn-sm btn-success text-white gap-1.5"
+                          onClick={() => {
+                            setVerifyTarget(post);
+                            setVerificationNote("");
+                          }}
+                        >
+                          <CheckCircle2 className="size-4" />
+                          Verify
+                        </button>
+                      )}
+
+                      {billStatus !== "REJECTED" && (
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          className="btn btn-sm btn-outline btn-error gap-1.5"
+                          onClick={() => {
+                            setRejectTarget(post);
+                            setRejectionReason("");
+                          }}
+                        >
+                          <ShieldAlert className="size-4" />
+                          Reject
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-base-300 px-4 py-3 sm:px-5">
+          <p className="text-xs text-base-content/60">
+            Page {pagination.page} of {pagination.totalPages}
+          </p>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="btn btn-xs border-base-300"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              disabled={page >= pagination.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+              className="btn btn-xs border-base-300"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Verification Confirmation Modal */}
+      {verifyTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setVerifyTarget(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-base-100 p-5 shadow-xl border border-base-300" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 text-success font-bold text-base">
+              <CheckCircle2 className="size-5" />
+              <span>Verify Property Address</span>
+            </div>
+            <p className="text-xs text-base-content/70 mt-1">
+              Confirm that the uploaded electricity bill matches the listing address and details for:
+            </p>
+
+            <div className="mt-3 rounded-xl bg-base-200/60 p-3 text-xs space-y-1.5">
+              <p className="font-semibold text-base-content truncate">"{verifyTarget.title}"</p>
+              <p className="text-base-content/65 inline-flex items-center gap-1.5">
+                <MapPin className="size-3.5 text-primary shrink-0" />
+                {[verifyTarget.locality, verifyTarget.city].filter(Boolean).join(", ") || "Location not specified"}
+              </p>
+              <div className="text-base-content/65 flex items-center gap-3">
+                <span className="inline-flex items-center gap-1">
+                  <UserIcon className="size-3.5 text-base-content/50 shrink-0" />
+                  {verifyTarget.author?.fullName || "User"}
+                </span>
+                {verifyTarget.author?.mobileNumber && (
+                  <span className="inline-flex items-center gap-1">
+                    <Phone className="size-3.5 text-base-content/50 shrink-0" />
+                    {verifyTarget.author.mobileNumber}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Document preview & links */}
+            {(verifyTarget.postMeta?.residential?.electricityBillUrl || verifyTarget.postMeta?.electricityBillUrl) && (() => {
+              const bUrl = verifyTarget.postMeta?.residential?.electricityBillUrl || verifyTarget.postMeta?.electricityBillUrl;
+              return (
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-semibold">
+                    <span className="text-base-content/70">Attached Electricity Bill:</span>
+                    <div className="flex items-center gap-1.5">
+                      <a
+                        href={toViewUrl(bUrl)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-xs border-base-300 gap-1 text-primary"
+                      >
+                        <Eye className="size-3" /> View Full
+                      </a>
+                      <a
+                        href={`/api/admin/property-verifications/${verifyTarget._id}/bill-download`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-xs btn-ghost gap-1"
+                        title="Download Bill (PDF)"
+                      >
+                        <Download className="size-3" /> Download
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Inline visual bill preview */}
+                  <div className="rounded-xl border border-base-300 bg-base-200/50 p-2 flex items-center justify-center max-h-56 overflow-auto">
+                    <img
+                      src={toViewUrl(bUrl)}
+                      alt="Electricity bill preview"
+                      className="max-h-52 w-auto object-contain rounded-lg shadow-xs"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Verification Note (Admin Only / Internal Audit) */}
+            <label className="form-control mt-3">
+              <span className="label-text text-xs text-base-content/70 font-semibold mb-1">
+                Verification Note (Admin Only / Internal Audit)
+              </span>
+              <textarea
+                className="textarea textarea-bordered w-full text-xs"
+                placeholder="e.g. Consumer number and address verified against listing"
+                value={verificationNote}
+                onChange={(e) => setVerificationNote(e.target.value)}
+                maxLength={500}
+                rows={2}
+              />
+            </label>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                className="btn btn-sm border-base-300"
+                onClick={() => setVerifyTarget(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isPending}
+                className="btn btn-sm btn-success text-white gap-1.5"
+                onClick={() =>
+                  reviewBill({
+                    id: verifyTarget._id,
+                    status: "VERIFIED",
+                    verificationNote,
+                  })
+                }
+              >
+                <CheckCircle2 className="size-4" />
+                Confirm & Verify Address
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Modal */}
+      {rejectTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setRejectTarget(null)}>
+          <div className="w-full max-w-sm rounded-2xl bg-base-100 p-5 shadow-xl border border-base-300" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 text-error font-bold text-base">
+              <ShieldAlert className="size-5" />
+              <span>Reject Address Verification</span>
+            </div>
+            <p className="text-xs text-base-content/60 mt-1">
+              Provide a reason for rejecting the electricity bill for <span className="font-medium text-base-content">"{rejectTarget.title}"</span>.
+            </p>
+            <textarea
+              className="textarea textarea-bordered mt-3 w-full text-sm"
+              placeholder="e.g. Document unreadable, address mismatch, or outdated bill"
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              maxLength={500}
+              rows={3}
+            />
+            <div className="mt-3 flex justify-end gap-2">
+              <button type="button" className="btn btn-sm border-base-300" onClick={() => setRejectTarget(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isPending}
+                className="btn btn-sm btn-error text-white gap-1.5"
+                onClick={() =>
+                  reviewBill({
+                    id: rejectTarget._id,
+                    status: "REJECTED",
+                    rejectionReason,
+                  })
+                }
+              >
+                <ShieldAlert className="size-4" />
+                Reject Bill
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Audit Details Modal (Admin Eyes Only) */}
+      {auditTarget && (() => {
+        const targetBillUrl = auditTarget.postMeta?.residential?.electricityBillUrl || auditTarget.postMeta?.electricityBillUrl;
+        const targetStatus = auditTarget.postMeta?.residential?.electricityBillStatus || (targetBillUrl ? "PENDING" : "NONE");
+        const targetVerifiedBy = auditTarget.postMeta?.residential?.electricityBillVerifiedBy || auditTarget.postMeta?.electricityBillVerifiedBy;
+        const targetVerifiedAt = auditTarget.postMeta?.residential?.electricityBillVerifiedAt;
+        const targetNote = auditTarget.postMeta?.residential?.electricityBillVerificationNote || auditTarget.postMeta?.electricityBillVerificationNote;
+        const targetReason = auditTarget.postMeta?.residential?.electricityBillRejectionReason;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setAuditTarget(null)}>
+            <div className="w-full max-w-md rounded-2xl bg-base-100 p-5 shadow-2xl border border-base-300" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between pb-3 border-b border-base-200">
+                <div className="flex items-center gap-2">
+                  {targetStatus === "VERIFIED" ? (
+                    <div className="grid size-8 place-items-center rounded-xl bg-success/15 text-success">
+                      <CheckCircle2 className="size-4.5" />
+                    </div>
+                  ) : (
+                    <div className="grid size-8 place-items-center rounded-xl bg-error/15 text-error">
+                      <ShieldAlert className="size-4.5" />
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="font-bold text-sm text-base-content">
+                      {targetStatus === "VERIFIED" ? "Address Verification Audit" : "Verification Rejection Audit"}
+                    </h3>
+                    <p className="text-[11px] text-base-content/50">Internal Admin Records Only</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-xs btn-circle"
+                  onClick={() => setAuditTarget(null)}
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+
+              <div className="mt-3.5 space-y-3 text-xs">
+                <div className="rounded-xl bg-base-200/50 p-3 space-y-1.5">
+                  <p className="font-semibold text-base-content truncate">"{auditTarget.title}"</p>
+                  <p className="text-base-content/65 inline-flex items-center gap-1.5">
+                    <MapPin className="size-3.5 text-primary shrink-0" />
+                    {[auditTarget.locality, auditTarget.city].filter(Boolean).join(", ") || "Location not specified"}
+                  </p>
+                  <div className="text-base-content/65 flex items-center gap-3">
+                    <span className="inline-flex items-center gap-1">
+                      <UserIcon className="size-3.5 text-base-content/50 shrink-0" />
+                      Listed by <strong className="text-base-content/85">{auditTarget.author?.fullName || "User"}</strong>
+                    </span>
+                    {auditTarget.author?.mobileNumber && (
+                      <span className="inline-flex items-center gap-1">
+                        <Phone className="size-3.5 text-base-content/50 shrink-0" />
+                        {auditTarget.author.mobileNumber}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-base-200 bg-base-100">
+                  {targetVerifiedBy?.profilePic ? (
+                    <img src={targetVerifiedBy.profilePic} alt="" className="size-10 rounded-full object-cover border border-base-300" />
+                  ) : (
+                    <div className="grid size-10 place-items-center rounded-full bg-primary/10 text-primary font-bold text-sm">
+                      {(targetVerifiedBy?.fullName || "A")[0]}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] text-base-content/50 font-medium">Reviewed by</p>
+                    <p className="font-bold text-sm text-base-content truncate">{targetVerifiedBy?.fullName || "Admin"}</p>
+                    {targetVerifiedBy?.email && <p className="text-xs text-base-content/60 truncate">{targetVerifiedBy.email}</p>}
+                  </div>
+                </div>
+
+                {targetVerifiedAt && (
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-base-200/40 text-xs">
+                    <span className="text-base-content/60 inline-flex items-center gap-1">
+                      <Calendar className="size-3.5 shrink-0" /> Verification Timestamp:
+                    </span>
+                    <span className="font-medium text-base-content">
+                      {new Date(targetVerifiedAt).toLocaleString("en-IN", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </span>
+                  </div>
+                )}
+
+                {targetStatus === "VERIFIED" && targetNote && (
+                  <div className="p-3 rounded-xl bg-success/5 border border-success/20 text-xs">
+                    <span className="font-semibold text-success block mb-0.5">Admin Verification Note:</span>
+                    <p className="text-base-content/80 leading-relaxed italic">"{targetNote}"</p>
+                  </div>
+                )}
+
+                {targetStatus === "REJECTED" && targetReason && (
+                  <div className="p-3 rounded-xl bg-error/5 border border-error/20 text-xs">
+                    <span className="font-semibold text-error block mb-0.5">Rejection Reason:</span>
+                    <p className="text-error leading-relaxed italic">"{targetReason}"</p>
+                  </div>
+                )}
+
+                {targetBillUrl && (
+                  <div className="pt-1 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <a
+                        href={toViewUrl(targetBillUrl)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-sm border-base-300 gap-1.5 text-xs text-primary"
+                      >
+                        <Eye className="size-3.5" /> View Bill
+                      </a>
+                      <a
+                        href={`/api/admin/property-verifications/${auditTarget._id}/bill-download`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-sm btn-ghost gap-1.5 text-xs"
+                        title="Download Bill (PDF)"
+                      >
+                        <Download className="size-3.5" /> Download
+                      </a>
+                    </div>
+                    <span className="text-[10px] text-base-content/50 inline-flex items-center gap-1">
+                      <Lock className="size-3" /> Audit trail protected
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-primary"
+                  onClick={() => setAuditTarget(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+function VerificationPanel() {
+  const [category, setCategory] = useState("owner"); // "owner" | "property"
+
+  return (
+    <div className="space-y-4">
+      {/* Category Toggle Buttons */}
+      <div className="flex gap-2 border-b border-base-300 pb-3">
+        <button
+          type="button"
+          onClick={() => setCategory("owner")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+            category === "owner"
+              ? "bg-primary text-white shadow-sm"
+              : "bg-base-200 text-base-content/70 hover:bg-base-300"
+          }`}
+        >
+          <ShieldCheck className="size-4" />
+          Owner Identity Verification
+        </button>
+        <button
+          type="button"
+          onClick={() => setCategory("property")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+            category === "property"
+              ? "bg-primary text-white shadow-sm"
+              : "bg-base-200 text-base-content/70 hover:bg-base-300"
+          }`}
+        >
+          <FileText className="size-4" />
+          Property Address Verification (Bills)
+        </button>
+      </div>
+
+      {category === "owner" ? <OwnerVerificationQueue /> : <PropertyAddressVerificationQueue />}
     </div>
   );
 }
@@ -3822,6 +4549,12 @@ function CoinHistoryPanel() {
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("users");
+  const { data: authData } = useQuery({ queryKey: ["authUser"] });
+  const authUser = authData?.data?.user || authData?.data || null;
+
+  if (!authUser?.isAdmin) {
+    return <Navigate to="/marketplace" replace />;
+  }
 
   return (
     <AppShell title="Admin" subtitle="Manage platform users and marketplace posts.">

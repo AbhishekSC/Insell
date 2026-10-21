@@ -2,22 +2,31 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AlertTriangle,
+  ArrowUpDown,
+  Ban,
   Bath,
   Bed,
   Bookmark,
   BookmarkCheck,
+  Briefcase,
   Building2,
   Calendar,
   Car,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock,
   Compass,
+  Droplets,
+  Dumbbell,
   Eye,
   Expand,
   ExternalLink,
   FileText,
   Flag,
+  Flame,
+  GraduationCap,
   Heart,
   Home,
   Layers,
@@ -27,19 +36,27 @@ import {
   Ruler,
   Share2,
   ShieldCheck,
+  Shirt,
+  Sparkles,
   Star,
   BarChart3,
   TrendingUp,
+  User,
   UserRoundPlus,
   Users,
+  UtensilsCrossed,
   Volume2,
   VolumeX,
   Wallet,
+  Wifi,
+  Wind,
   X,
   Zap,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import BoostPropertyModal from "../components/BoostPropertyModal";
+import VerifyAddressModal from "../components/VerifyAddressModal";
+import { getPostSpaceType } from "../lib/propertyDetailBadges";
 import ShareModal from "../components/ShareModal";
 import NeighbourhoodSummary from "../components/NeighbourhoodSummary";
 import NeighborhoodVibeCard from "../components/NeighborhoodVibeCard";
@@ -118,6 +135,68 @@ function titleCase(value) {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+const AMENITY_ICONS = {
+  "attached washroom": Bath,
+  "unattached washroom": Bath,
+  "washroom": Bath,
+  "bed": Bed,
+  "mattress": Bed,
+  "geyser": Flame,
+  "water purifier": Droplets,
+  "24x7 water supply": Droplets,
+  "water supply": Droplets,
+  "ac": Wind,
+  "air conditioner": Wind,
+  "security/cctv": ShieldCheck,
+  "cctv": ShieldCheck,
+  "security": ShieldCheck,
+  "fan & lights": Zap,
+  "fan": Zap,
+  "lights": Zap,
+  "wifi": Wifi,
+  "covered parking": Car,
+  "open parking": Car,
+  "parking": Car,
+  "laundry": Shirt,
+  "wardrobe": Layers,
+  "modular kitchen": UtensilsCrossed,
+  "kitchen": UtensilsCrossed,
+  "gas stove/chimney": Flame,
+  "gas stove": Flame,
+  "chimney": Flame,
+  "lift": ArrowUpDown,
+  "gym": Dumbbell,
+};
+
+function getAmenityIcon(name) {
+  const normalized = String(name || "").toLowerCase().trim();
+  for (const [key, IconComp] of Object.entries(AMENITY_ICONS)) {
+    if (normalized.includes(key)) return IconComp;
+  }
+  return Sparkles;
+}
+
+const TENANT_ICONS = {
+  "male": User,
+  "female": User,
+  "bachelor": User,
+  "bachelors": Users,
+  "working": Briefcase,
+  "professional": Briefcase,
+  "student": GraduationCap,
+  "students": GraduationCap,
+  "family": Home,
+  "any": Users,
+};
+
+function getTenantIcon(name) {
+  const normalized = String(name || "").toLowerCase().trim();
+  for (const [key, IconComp] of Object.entries(TENANT_ICONS)) {
+    if (normalized.includes(key)) return IconComp;
+  }
+  return Users;
+}
+
 function getListingBadge(post) {
   // Takes priority over customBadge — once a deal is closed, that's more
   // important and more accurate than whatever badge text was set while the
@@ -154,12 +233,20 @@ function Section({ title, icon: Icon, children }) {
   );
 }
 
-function SpecCard({ icon: Icon, value, label, tone }) {
+function SpecCard({ icon: Icon, value, label }) {
   return (
-    <div className={`rounded-xl p-5 text-center transition-colors ${tone}`}>
-      {Icon ? <Icon className="size-6 mx-auto mb-2" /> : null}
-      <p className="text-sm font-bold text-base-content truncate">{value}</p>
-      <p className="text-xs text-base-content/70">{label}</p>
+    <div className="group flex items-center gap-2.5 sm:gap-3 rounded-2xl border border-base-300/80 bg-base-200/50 p-2.5 sm:p-3 transition-all hover:border-primary/40 hover:bg-base-200 hover:shadow-xs min-w-0">
+      <div className="grid size-8 sm:size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+        {Icon ? <Icon className="size-4 sm:size-4.5" /> : null}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] sm:text-[11px] font-semibold text-base-content/60 uppercase tracking-wider leading-tight">
+          {label}
+        </p>
+        <p className="text-xs sm:text-sm font-bold text-base-content leading-snug break-words mt-0.5">
+          {value}
+        </p>
+      </div>
     </div>
   );
 }
@@ -191,6 +278,7 @@ export default function PropertyDetailPage() {
   const [reviewedOfferIds, setReviewedOfferIds] = useState([]);
   const [showAllOffers, setShowAllOffers] = useState(false);
   const [showBoostModal, setShowBoostModal] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
   const isNeighborhoodVibeEnabled = useFeatureFlag("neighborhood_vibe_score");
   const isAiValuationEnabled = useFeatureFlag("ai_property_valuation");
 
@@ -458,12 +546,17 @@ export default function PropertyDetailPage() {
   // Increment view count when page loads
   useEffect(() => {
     if (id) {
-      axiosInstance.post(`/posts/${id}/view`).catch(() => {
-        // Non-critical — view count is best-effort.
-      });
+      axiosInstance
+        .post(`/posts/${id}/view`)
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
+        })
+        .catch(() => {
+          // Non-critical — view count is best-effort.
+        });
       notePropertyView(); // feeds the progressive-onboarding "shown enough listings" gate
     }
-  }, [id]);
+  }, [id, queryClient]);
 
   // Track for the "Recently Viewed" rail once the post's data has actually
   // loaded (need title/image/price to display it later, not just the id).
@@ -503,21 +596,52 @@ export default function PropertyDetailPage() {
   // but older data (and some other views like the compare tool) used flat postMeta.* keys.
   // Read both so real data shows up regardless of which shape a given post was saved with.
   const flatMeta = postData.postMeta && typeof postData.postMeta === "object" && !Array.isArray(postData.postMeta) ? postData.postMeta : {};
+  const residential = flatMeta.residential || {};
   const requirement = flatMeta.requirement || {};
   const project = flatMeta.project || {};
   const investment = flatMeta.investment || {};
 
-  const furnishing = requirement.furnishedPreference || flatMeta.furnishing || "";
+  const furnishing = residential.furnishing || requirement.furnishedPreference || flatMeta.furnishing || "";
   const hasParking = requirement.parkingRequired || flatMeta.parking;
   const possession = flatMeta.possessionStatus || (requirement.possessionDate ? formatDate(requirement.possessionDate) : "");
-  const facing = flatMeta.facing || "";
-  const floorNumber = flatMeta.floorNumber;
-  const totalFloors = flatMeta.totalFloors;
-  const ageOfProperty = flatMeta.ageOfProperty || "";
+  const facing = residential.facing || flatMeta.facing || "";
+  const floorNumber = residential.floorNumber ?? flatMeta.floorNumber;
+  const totalFloors = residential.totalFloors ?? flatMeta.totalFloors;
+  const ageOfProperty = residential.ageOfProperty || flatMeta.ageOfProperty || "";
+  const maintenanceCharges = residential.maintenanceCharges ?? flatMeta.maintenanceCharges;
+  const spaceType = getPostSpaceType(postData);
+  const houseRules = residential.houseRules || flatMeta.houseRules || "";
+  const houseRulesList = Array.isArray(houseRules)
+    ? houseRules.filter(Boolean)
+    : typeof houseRules === "string" && houseRules.trim()
+      ? houseRules.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean)
+      : [];
+  const preferredTenants = Array.isArray(residential.preferredTenants) && residential.preferredTenants.length > 0
+    ? residential.preferredTenants
+    : (Array.isArray(flatMeta.preferredTenants) ? flatMeta.preferredTenants : []);
+  const alternativeMobile = residential.alternativeMobile || flatMeta.alternativeMobile || "";
+  const electricityBillUrl =
+    residential.electricityBillUrl ||
+    flatMeta.electricityBillUrl ||
+    flatMeta.electricityBill ||
+    postData.electricityBillUrl ||
+    "";
+  const electricityBillStatus =
+    residential.electricityBillStatus ||
+    flatMeta.electricityBillStatus ||
+    postData.electricityBillStatus ||
+    (electricityBillUrl ? "PENDING" : "NONE");
+  const electricityBillRejectionReason =
+    residential.electricityBillRejectionReason ||
+    flatMeta.electricityBillRejectionReason ||
+    postData.electricityBillRejectionReason ||
+    "";
 
   const amenitiesList = Array.isArray(flatMeta.amenities) && flatMeta.amenities.length > 0
     ? flatMeta.amenities
-    : String(requirement.amenitiesText || "").split(",").map((item) => item.trim()).filter(Boolean);
+    : Array.isArray(residential.amenities) && residential.amenities.length > 0
+      ? residential.amenities
+      : String(requirement.amenitiesText || "").split(",").map((item) => item.trim()).filter(Boolean);
 
   const hasRequirementData = Boolean(
     requirement.moveInDate || requirement.availableFromDate || requirement.leaseDurationMonths ||
@@ -531,8 +655,8 @@ export default function PropertyDetailPage() {
   const reraNumber = project.reraNumber || flatMeta.reraNumber || "";
   const reraVerified = Boolean(flatMeta.reraVerified);
   const projectStatus = flatMeta.projectStatus || "";
-  const maintenanceCharges = flatMeta.maintenanceCharges;
   const bookingAmount = flatMeta.bookingAmount;
+  const depositAmount = requirement.depositAmount || flatMeta.depositAmount || residential.depositAmount || "";
 
   const signalBadges = getPropertySignals(postData, { context: "detail" });
 
@@ -580,16 +704,18 @@ export default function PropertyDetailPage() {
   ];
 
   const specs = [
-    postData.bedrooms ? { icon: Bed, value: postData.bedrooms, label: "Bedrooms", tone: "bg-primary/10 text-primary" } : null,
-    postData.bathrooms ? { icon: Bath, value: postData.bathrooms, label: "Bathrooms", tone: "bg-info/10 text-info" } : null,
-    postData.areaSqft ? { icon: Ruler, value: `${Number(postData.areaSqft).toLocaleString("en-IN")} sq.ft`, label: "Area", tone: "bg-success/10 text-success" } : null,
-    postData.propertyType ? { icon: Building2, value: postData.propertyType, label: "Type", tone: "bg-warning/10 text-warning" } : null,
-    furnishing ? { icon: Home, value: titleCase(furnishing), label: "Furnishing", tone: "bg-secondary/10 text-secondary" } : null,
-    hasParking ? { icon: Car, value: "Available", label: "Parking", tone: "bg-success/10 text-success" } : null,
-    possession ? { icon: Clock, value: possession, label: "Possession", tone: "bg-error/10 text-error" } : null,
-    facing ? { icon: Compass, value: facing, label: "Facing", tone: "bg-base-200 text-base-content/70" } : null,
-    floorNumber ? { icon: Layers, value: totalFloors ? `${floorNumber} of ${totalFloors}` : `Floor ${floorNumber}`, label: "Floor", tone: "bg-info/10 text-info" } : null,
-    ageOfProperty ? { icon: Calendar, value: ageOfProperty, label: "Age", tone: "bg-warning/10 text-warning" } : null,
+    postData.bedrooms ? { icon: Bed, value: postData.bedrooms, label: "Bedrooms" } : null,
+    postData.bathrooms ? { icon: Bath, value: postData.bathrooms, label: "Bathrooms" } : null,
+    postData.areaSqft ? { icon: Ruler, value: `${Number(postData.areaSqft).toLocaleString("en-IN")} sq.ft`, label: "Area" } : null,
+    postData.propertyType ? { icon: Building2, value: postData.propertyType, label: "Type" } : null,
+    spaceType ? { icon: Home, value: spaceType, label: "Space Type" } : null,
+    furnishing ? { icon: Home, value: titleCase(furnishing), label: "Furnishing" } : null,
+    hasParking ? { icon: Car, value: "Available", label: "Parking" } : null,
+    possession ? { icon: Clock, value: possession, label: "Possession" } : null,
+    facing ? { icon: Compass, value: facing, label: "Facing" } : null,
+    floorNumber ? { icon: Layers, value: totalFloors ? `${floorNumber} of ${totalFloors}` : `Floor ${floorNumber}`, label: "Floor" } : null,
+    ageOfProperty ? { icon: Calendar, value: ageOfProperty, label: "Age" } : null,
+    maintenanceCharges ? { icon: Wallet, value: `₹${Number(maintenanceCharges).toLocaleString("en-IN")}/mo`, label: "Maintenance" } : null,
   ].filter(Boolean);
 
   const amenitiesData = amenitiesResult?.items || [];
@@ -597,8 +723,26 @@ export default function PropertyDetailPage() {
 
   const publishedDiffersFromCreated = postData.publishedAt && postData.createdAt &&
     new Date(postData.publishedAt).getTime() !== new Date(postData.createdAt).getTime();
-  const wasEdited = postData.updatedAt && postData.createdAt &&
-    new Date(postData.updatedAt).getTime() - new Date(postData.createdAt).getTime() > 60000;
+  const publishBaseTime = postData.publishedAt ? new Date(postData.publishedAt).getTime() : (postData.createdAt ? new Date(postData.createdAt).getTime() : 0);
+  const wasEdited = Boolean(
+    postData.updatedAt &&
+    publishBaseTime &&
+    new Date(postData.updatedAt).getTime() - publishBaseTime > 5 * 60 * 1000
+  );
+
+  const distinctValidPrices = (() => {
+    const list = Array.isArray(postData?.priceHistory)
+      ? postData.priceHistory.filter((h) => Number.isFinite(h?.price) && Number(h.price) > 0)
+      : [];
+    const deduped = [];
+    for (const item of list) {
+      const itemPrice = Number(item.price);
+      if (deduped.length === 0 || Number(deduped[deduped.length - 1].price) !== itemPrice) {
+        deduped.push({ ...item, price: itemPrice });
+      }
+    }
+    return deduped;
+  })();
 
   return (
     <AppShell hideHero>
@@ -942,6 +1086,63 @@ export default function PropertyDetailPage() {
                     </button>
                   </div>
 
+                  {/* Owner Address Verification Callout */}
+                  {electricityBillStatus !== "VERIFIED" && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-primary/10 to-transparent border border-emerald-500/25">
+                      <div className="flex items-center gap-3">
+                        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                          <ShieldCheck className="size-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-bold text-base-content">
+                              {electricityBillStatus === "PENDING"
+                                ? "Address Verification Under Review"
+                                : electricityBillStatus === "REJECTED"
+                                  ? "Address Verification Rejected"
+                                  : "Verify Property Address"}
+                            </p>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              electricityBillStatus === "PENDING"
+                                ? "bg-amber-500/20 text-amber-700 dark:text-amber-400"
+                                : electricityBillStatus === "REJECTED"
+                                  ? "bg-error/20 text-error"
+                                  : "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+                            }`}>
+                              {electricityBillStatus === "PENDING"
+                                ? "⏳ In Review"
+                                : electricityBillStatus === "REJECTED"
+                                  ? "⚠️ Action Required"
+                                  : "⚡ +25% Reach Boost"}
+                            </span>
+                          </div>
+                          <p className="text-xs text-base-content/70 font-medium mt-0.5">
+                            {electricityBillStatus === "PENDING"
+                              ? "Admin is reviewing your electricity bill. You can replace the document if needed."
+                              : electricityBillStatus === "REJECTED"
+                                ? (electricityBillRejectionReason ? `Reason: ${electricityBillRejectionReason}` : "Upload a clear electricity bill to verify your address.")
+                                : "Upload your electricity bill to get the verified badge & boost feed visibility."}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowVerifyModal(true)}
+                        className="flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-primary/90 transition-all self-start sm:self-auto"
+                      >
+                        <ShieldCheck className="size-3.5" />
+                        <span>
+                          {electricityBillStatus === "PENDING"
+                            ? "Replace Bill"
+                            : electricityBillStatus === "REJECTED"
+                              ? "Re-upload Bill"
+                              : "Verify Address"}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+
                   <ListingPerformance post={postData} />
                 </div>
               )}
@@ -1044,10 +1245,10 @@ export default function PropertyDetailPage() {
 
               {/* Specifications */}
               {specs.length > 0 && (
-                <Section title="Property Specifications">
-                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                <Section title={`Property Specifications (${specs.length})`} icon={Building2}>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3">
                     {specs.map((spec, idx) => (
-                      <SpecCard key={idx} icon={spec.icon} value={spec.value} label={spec.label} tone={spec.tone} />
+                      <SpecCard key={idx} icon={spec.icon} value={spec.value} label={spec.label} />
                     ))}
                   </div>
                 </Section>
@@ -1055,12 +1256,64 @@ export default function PropertyDetailPage() {
 
               {/* Amenities (features listed by the poster) */}
               {amenitiesList.length > 0 && (
-                <Section title="Amenities">
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {amenitiesList.map((amenity, idx) => (
-                      <div key={idx} className="flex items-center gap-3 bg-base-200 hover:bg-base-200 px-4 py-3 rounded-xl text-sm text-base-content transition-colors">
-                        <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0"></span>
-                        {amenity}
+                <Section title={`Amenities (${amenitiesList.length})`} icon={Sparkles}>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-3">
+                    {amenitiesList.map((amenity, idx) => {
+                      const IconComp = getAmenityIcon(amenity);
+                      return (
+                        <div
+                          key={idx}
+                          className="group flex items-center gap-2.5 sm:gap-3 rounded-2xl border border-base-300/80 bg-base-200/50 p-2.5 sm:p-3 text-xs sm:text-sm font-medium text-base-content transition-all hover:border-primary/40 hover:bg-base-200 hover:shadow-xs min-w-0"
+                        >
+                          <div className="grid size-8 sm:size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+                            <IconComp className="size-4 sm:size-4.5" />
+                          </div>
+                          <span className="min-w-0 flex-1 leading-snug break-words">{amenity}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Section>
+              )}
+
+              {/* Preferred Tenants */}
+              {preferredTenants.length > 0 && (
+                <Section title="Preferred Tenants" icon={Users}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3">
+                    {preferredTenants.map((tenant, idx) => {
+                      const IconComp = getTenantIcon(tenant);
+                      return (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-2.5 sm:gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3 sm:p-3.5 text-xs sm:text-sm font-semibold text-base-content transition-all hover:bg-emerald-500/10 hover:border-emerald-500/40 min-w-0"
+                        >
+                          <div className="grid size-8 sm:size-9 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                            <IconComp className="size-4 sm:size-4.5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-base-content leading-snug break-words">{tenant}</p>
+                            <p className="text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Eligible Tenant</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Section>
+              )}
+
+              {/* House Rules */}
+              {houseRulesList.length > 0 && (
+                <Section title="House Rules" icon={FileText}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {houseRulesList.map((rule, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-3 p-3 rounded-xl bg-base-200/60 hover:bg-base-200 border border-base-300/80 transition-all shadow-2xs"
+                      >
+                        <div className="size-7 rounded-lg bg-error/10 text-error flex items-center justify-center shrink-0">
+                          <Ban className="size-3.5" />
+                        </div>
+                        <span className="text-sm font-medium text-base-content leading-snug">{rule}</span>
                       </div>
                     ))}
                   </div>
@@ -1120,10 +1373,19 @@ export default function PropertyDetailPage() {
               )}
 
               {/* Financial Details */}
-              {(postData.price || maintenanceCharges || bookingAmount) && (
+              {(postData.price || maintenanceCharges || bookingAmount || depositAmount) && (
                 <Section title="Financial Details" icon={Wallet}>
                   <div className="space-y-1">
-                    <InfoRow label="Price" value={<span className="text-xl font-bold">{formatMoney(postData.price)}</span>} />
+                    <InfoRow
+                      label={postData.listingType === "Rent" ? "Monthly Rent" : "Price"}
+                      value={
+                        <span className="text-xl font-bold">
+                          {formatMoney(postData.price)}
+                          {postData.listingType === "Rent" ? <span className="text-sm font-normal text-base-content/60">/mo</span> : ""}
+                        </span>
+                      }
+                    />
+                    {depositAmount ? <InfoRow label="Security Deposit" value={formatMoney(depositAmount)} /> : null}
                     <InfoRow label="Maintenance charges" value={maintenanceCharges ? `₹${Number(maintenanceCharges).toLocaleString("en-IN")}/month` : null} />
                     <InfoRow label="Booking amount" value={bookingAmount ? formatMoney(bookingAmount) : null} />
                   </div>
@@ -1143,10 +1405,10 @@ export default function PropertyDetailPage() {
                 </Section>
               )}
 
-              {/* Price History */}
-              {postData.priceHistory?.length > 1 && (
+              {/* Price History — only shown when there has actually been a real price change */}
+              {distinctValidPrices.length > 1 && (
                 <Section title="Price History" icon={TrendingUp}>
-                  <PriceHistoryChart history={postData.priceHistory} />
+                  <PriceHistoryChart history={distinctValidPrices} />
                 </Section>
               )}
 
@@ -1223,9 +1485,106 @@ export default function PropertyDetailPage() {
               )}
 
               {/* Legal & Ownership Information */}
-              {(reraVerified || reraNumber || possession || projectStatus) && (
+              {(reraVerified || reraNumber || possession || projectStatus || electricityBillUrl || isOwner) && (
                 <Section title="Legal & Ownership Details" icon={ShieldCheck}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {electricityBillUrl ? (
+                      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl md:col-span-2 border ${
+                        electricityBillStatus === "VERIFIED"
+                          ? "bg-success/10 border-success/30"
+                          : electricityBillStatus === "REJECTED"
+                            ? "bg-error/10 border-error/30"
+                            : "bg-amber-500/10 border-amber-500/30"
+                      }`}>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`size-9 rounded-lg flex items-center justify-center shrink-0 ${
+                            electricityBillStatus === "VERIFIED"
+                              ? "bg-success/20 text-success"
+                              : electricityBillStatus === "REJECTED"
+                                ? "bg-error/20 text-error"
+                                : "bg-amber-500/20 text-amber-600 dark:text-amber-400"
+                          }`}>
+                            {electricityBillStatus === "VERIFIED" ? (
+                              <ShieldCheck className="size-5" />
+                            ) : electricityBillStatus === "REJECTED" ? (
+                              <AlertTriangle className="size-5" />
+                            ) : (
+                              <Clock className="size-5" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-base-content">Address Verification</p>
+                            <p className="text-xs text-base-content/70 leading-snug break-words">
+                              {electricityBillStatus === "VERIFIED"
+                                ? "Electricity bill verified by admin"
+                                : electricityBillStatus === "REJECTED"
+                                  ? (electricityBillRejectionReason ? `Rejected: ${electricityBillRejectionReason}` : "Electricity bill rejected by admin")
+                                  : "Electricity bill submitted & awaiting admin review"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                          {isOwner && electricityBillStatus !== "VERIFIED" && (
+                            <button
+                              type="button"
+                              onClick={() => setShowVerifyModal(true)}
+                              className="btn btn-xs btn-outline btn-primary"
+                            >
+                              {electricityBillStatus === "REJECTED" ? "Re-upload" : "Replace Bill"}
+                            </button>
+                          )}
+                          <span className={`font-semibold px-3 py-1 rounded-full text-xs sm:text-sm ${
+                            electricityBillStatus === "VERIFIED"
+                              ? "font-bold text-success bg-success/15"
+                              : electricityBillStatus === "REJECTED"
+                                ? "font-bold text-error bg-error/15"
+                                : "font-bold text-amber-600 dark:text-amber-400 bg-amber-500/15"
+                          }`}>
+                            {electricityBillStatus === "VERIFIED"
+                              ? "✓ Address Verified"
+                              : electricityBillStatus === "REJECTED"
+                                ? "Verification Rejected"
+                                : "⏳ Verification Pending"}
+                          </span>
+                        </div>
+                      </div>
+                    ) : isOwner ? (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl md:col-span-2 border border-primary/25 bg-primary/5">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="size-9 rounded-lg flex items-center justify-center shrink-0 bg-primary/15 text-primary">
+                            <ShieldCheck className="size-5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold text-base-content">Verify Property Address</p>
+                            <p className="text-xs text-base-content/70">
+                              Upload electricity bill to get the "✓ Address Verified" badge & 25% higher reach.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowVerifyModal(true)}
+                          className="btn btn-sm btn-primary self-start sm:self-auto shrink-0"
+                        >
+                          Verify Now
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between p-3.5 sm:p-4 rounded-xl md:col-span-2 border border-base-200 bg-base-200/40">
+                        <div className="flex items-center gap-3">
+                          <div className="size-9 rounded-lg flex items-center justify-center shrink-0 bg-base-300 text-base-content/50">
+                            <ShieldCheck className="size-5" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-base-content">Address Verification</p>
+                            <p className="text-xs text-base-content/60">This property's address is not yet verified</p>
+                          </div>
+                        </div>
+                        <span className="rounded-full px-2.5 py-0.5 text-xs font-semibold bg-base-300 text-base-content/60">
+                          Unverified
+                        </span>
+                      </div>
+                    )}
                     {reraVerified && (
                       <div className="flex items-center justify-between p-4 bg-success/10 rounded-xl">
                         <span className="text-base-content/70">RERA Verified</span>
@@ -1323,6 +1682,19 @@ export default function PropertyDetailPage() {
                     ) : null;
                   })()}
 
+                  {electricityBillUrl && electricityBillStatus === "VERIFIED" && (
+                    <div className="mb-4 flex items-center gap-2 rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-xs font-semibold text-success">
+                      <ShieldCheck className="size-4 shrink-0" />
+                      <span>Address Verified via Electricity Bill</span>
+                    </div>
+                  )}
+                  {electricityBillUrl && electricityBillStatus === "PENDING" && (
+                    <div className="mb-4 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                      <Clock className="size-4 shrink-0" />
+                      <span>Address Verification Under Review</span>
+                    </div>
+                  )}
+
                   <div className="space-y-3">
                     {postData.author?.mobileNumber && (
                       <>
@@ -1343,6 +1715,15 @@ export default function PropertyDetailPage() {
                           WhatsApp
                         </a>
                       </>
+                    )}
+                    {alternativeMobile && (
+                      <a
+                        href={`tel:${alternativeMobile}`}
+                        className="w-full py-3 px-4 bg-base-200 hover:bg-base-300 text-base-content font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 text-sm"
+                      >
+                        <Phone className="size-4" />
+                        Alt: {alternativeMobile}
+                      </a>
                     )}
                     {!isOwner && (
                       connectionStatus === "friends" ? (
@@ -1582,6 +1963,15 @@ export default function PropertyDetailPage() {
         isOpen={showBoostModal}
         post={postData}
         onClose={() => setShowBoostModal(false)}
+      />
+
+      <VerifyAddressModal
+        isOpen={showVerifyModal}
+        post={postData}
+        onClose={() => setShowVerifyModal(false)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["propertyPost", id] });
+        }}
       />
     </AppShell>
   );

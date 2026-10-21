@@ -26,7 +26,16 @@ export function getPriceContextBadges(post, { max = 2, now = Date.now() } = {}) 
   const badges = [];
   if (!post) return badges;
 
-  const history = Array.isArray(post.priceHistory) ? post.priceHistory : [];
+  const rawHistory = Array.isArray(post.priceHistory)
+    ? post.priceHistory.filter((h) => Number.isFinite(h?.price) && Number(h.price) > 0)
+    : [];
+  const history = [];
+  for (const item of rawHistory) {
+    const itemPrice = Number(item.price);
+    if (history.length === 0 || Number(history[history.length - 1].price) !== itemPrice) {
+      history.push({ ...item, price: itemPrice });
+    }
+  }
   const created = new Date(post.publishedAt || post.createdAt).getTime();
   const ageDays = Number.isFinite(created) ? (now - created) / 86400000 : Infinity;
 

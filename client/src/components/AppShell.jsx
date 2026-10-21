@@ -652,9 +652,13 @@ export default function AppShell({
     setShowNotificationPanel(false);
   }, [location.pathname, location.search]);
 
-  const authData = queryClient.getQueryData(["authUser"]);
+  const { data: authData } = useQuery({
+    queryKey: ["authUser"],
+    staleTime: 1000 * 60 * 5,
+  });
   const authUser = authData?.data?.user || authData?.data || null;
-  const visibleNavItems = authUser?.isAdmin ? [...navItems, ADMIN_NAV_ITEM] : navItems;
+  const isAdmin = Boolean(authUser?.isAdmin);
+  const visibleNavItems = isAdmin ? [...navItems, ADMIN_NAV_ITEM] : navItems;
   const mobileOverflowNavItems = visibleNavItems.filter(
     (item) => !MOBILE_PRIMARY_NAV_TOS.has(item.to) && item.section !== "activity"
   );
@@ -665,8 +669,8 @@ export default function AppShell({
       const response = await axiosInstance.get("/admin/live-users-count");
       return response.data?.data?.count ?? null;
     },
-    enabled: Boolean(authUser?.isAdmin),
-    refetchInterval: 30000,
+    enabled: isAdmin,
+    refetchInterval: isAdmin ? 30000 : false,
   });
 
   const userRoleLabel = authUser?.activeRole || authUser?.primaryRole || "Buyer";

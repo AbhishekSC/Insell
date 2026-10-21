@@ -21,18 +21,97 @@ export const FIELD_KIND = {
   SELECT: "select",
   BOOLEAN: "boolean",
   DATE: "date",
+  CHECKBOX_GRID: "checkbox_grid",
+  TEXTAREA: "textarea",
+  FILE: "file",
+  HOUSE_RULES: "house_rules",
 };
 
-const FURNISHING_OPTIONS = ["Furnished", "Semi-Furnished", "Unfurnished"];
-const OCCUPANCY_OPTIONS = ["Single", "Double", "Shared", "Any"];
-const GENDER_OPTIONS = ["Any", "Male", "Female"];
-const TENANT_OPTIONS = ["Family", "Bachelors", "Students", "Any"];
-const OCCUPATION_OPTIONS = ["Student", "Working Professional", "Business Owner", "Other"];
-const REQUIREMENT_PROPERTY_OPTIONS = ["PG", "Room", "Flat", "Shared Flat", "Independent House", "Villa"];
-const AREA_UNIT_OPTIONS = ["Acre", "Hectare", "Bigha", "Sq. Yard", "Sq. Ft"];
-const SOIL_OPTIONS = ["Black Soil", "Red Soil", "Alluvial", "Sandy", "Laterite", "Other"];
-const WATER_OPTIONS = ["Borewell", "Canal", "River", "Rain-fed", "None"];
-const COMMERCIAL_TYPE_OPTIONS = ["Office", "Shop", "Showroom", "Warehouse", "Restaurant", "Co-working", "Other"];
+export const FURNISHING_OPTIONS = ["Fully Furnished", "Semi Furnished", "Unfurnished"];
+export const OCCUPANCY_OPTIONS = ["Single", "Double", "Shared", "Any"];
+export const GENDER_OPTIONS = ["Any", "Male", "Female"];
+export const TENANT_OPTIONS = ["Family", "Bachelors", "Students", "Any"];
+export const OCCUPATION_OPTIONS = ["Student", "Working Professional", "Business Owner", "Other"];
+export const REQUIREMENT_PROPERTY_OPTIONS = ["PG", "Room", "Flat", "Shared Flat", "Independent House", "Villa"];
+export const AREA_UNIT_OPTIONS = ["Acre", "Hectare", "Bigha", "Sq. Yard", "Sq. Ft"];
+export const SOIL_OPTIONS = ["Black Soil", "Red Soil", "Alluvial", "Sandy", "Laterite", "Other"];
+export const WATER_OPTIONS = ["Borewell", "Canal", "River", "Rain-fed", "None"];
+export const COMMERCIAL_TYPE_OPTIONS = ["Office", "Shop", "Showroom", "Warehouse", "Restaurant", "Co-working", "Other"];
+
+export const HOUSE_RULE_SUGGESTIONS = [
+  "No Smoking",
+  "No Alcohol",
+  "No Late Entry (after 10 PM)",
+  "No Pets",
+  "No Loud Music",
+  "No Parties",
+  "Vegetarian Only",
+  "No Cooking",
+  "No Overnight Guests",
+];
+
+export const AMENITY_OPTIONS = [
+  "Attached Washroom",
+  "Unattached Washroom",
+  "Covered Parking",
+  "Open Parking",
+  "Gym",
+  "Security/CCTV",
+  "Laundry",
+  "Lift",
+  "Bed",
+  "Mattress",
+  "Wardrobe",
+  "Sofa",
+  "Geyser",
+  "Fan & Lights",
+  "Modular Kitchen",
+  "Gas Stove/Chimney",
+  "Water Purifier",
+  "24x7 Water Supply",
+  "Balcony",
+  "Terrace",
+  "AC",
+  "WiFi",
+  "Power Backup",
+  "Swimming Pool",
+];
+
+export const PREFERRED_TENANT_OPTIONS = [
+  "Bachelor Female",
+  "Bachelor Male",
+  "Students",
+  "Working Professionals",
+  "Govt. Employees",
+  "Family",
+];
+
+export const FACING_OPTIONS = [
+  "North",
+  "South",
+  "East",
+  "West",
+  "North-East",
+  "North-West",
+  "South-East",
+  "South-West",
+];
+
+export const SPACE_TYPE_OPTIONS = [
+  "Entire Flat",
+  "Private Room",
+  "Shared Room",
+  "PG",
+  "Co-living",
+];
+
+export const AGE_OPTIONS = [
+  "New Construction",
+  "1-3 Years",
+  "3-5 Years",
+  "5-10 Years",
+  "10+ Years",
+];
 
 // Every field the wizard can render, keyed by the `draft` state key it binds
 // to. `label`/`kind`/`options` drive the input; nothing else.
@@ -46,6 +125,22 @@ export const FIELD_DEFS = {
   availableFromDate: { label: "Available from", kind: FIELD_KIND.DATE },
   tenantType: { label: "Tenant preference", kind: FIELD_KIND.SELECT, options: TENANT_OPTIONS },
   furnishedPreference: { label: "Furnishing", kind: FIELD_KIND.SELECT, options: FURNISHING_OPTIONS },
+  furnishing: { label: "Furnishing", kind: FIELD_KIND.SELECT, options: FURNISHING_OPTIONS },
+  facing: { label: "Facing", kind: FIELD_KIND.SELECT, options: FACING_OPTIONS },
+  totalFloors: { label: "Total floors", kind: FIELD_KIND.NUMBER },
+  ageOfProperty: { label: "Age of property", kind: FIELD_KIND.SELECT, options: AGE_OPTIONS },
+  maintenanceCharges: { label: "Maintenance (₹/month)", kind: FIELD_KIND.NUMBER },
+  houseRules: {
+    label: "House rules",
+    kind: FIELD_KIND.HOUSE_RULES,
+    placeholder: "Type a rule (e.g. No smoking) and press Enter",
+    suggestions: HOUSE_RULE_SUGGESTIONS,
+  },
+  spaceType: { label: "Space type", kind: FIELD_KIND.SELECT, options: SPACE_TYPE_OPTIONS },
+  preferredTenants: { label: "Preferred tenants", kind: FIELD_KIND.CHECKBOX_GRID, options: PREFERRED_TENANT_OPTIONS },
+  alternativeMobile: { label: "Alternative mobile (optional)", kind: FIELD_KIND.TEXT, placeholder: "9876543210" },
+  electricityBillUrl: { label: "Electricity bill", kind: FIELD_KIND.FILE, description: "Upload bill to verify address (PDF or image)" },
+  amenities: { label: "Amenities", kind: FIELD_KIND.CHECKBOX_GRID, options: AMENITY_OPTIONS },
   parkingRequired: { label: "Parking available", kind: FIELD_KIND.BOOLEAN },
   amenitiesText: { label: "Amenities", kind: FIELD_KIND.TEXT, placeholder: "Gym, security, power backup" },
   possessionDate: { label: "Possession date", kind: FIELD_KIND.DATE },
@@ -87,11 +182,13 @@ export const FIELD_DEFS = {
 // Fields whose draft keys the server does NOT read at the top level — the
 // createPost payload builder passes the whole `draft` through, and the
 // server only picks known columns, so these land in postMeta today only if
-// the payload builder is extended. For now they are captured in draft state
-// and surface in the preview; wiring them into postMeta is Phase 2.
+// the payload builder is extended.
 export const META_ONLY_FIELDS = new Set([
   "landArea", "landAreaUnit", "soilType", "waterAvailability", "roadAccess",
   "electricityAvailable", "commercialType", "carpetArea", "floorNumber", "washrooms",
+  "furnishing", "facing", "totalFloors", "ageOfProperty", "maintenanceCharges",
+  "houseRules", "spaceType", "preferredTenants", "alternativeMobile",
+  "electricityBillUrl", "amenities",
 ]);
 
 const RESIDENTIAL_LISTING_INTENTS = ["Sell", "Rent"];
@@ -102,14 +199,42 @@ const RESIDENTIAL_LISTING_INTENTS = ["Sell", "Rent"];
 export const POST_TYPE_CONFIG = {
   PROPERTY_SALE: {
     essential: ["price", "areaSqft", "bedrooms", "bathrooms"],
-    advanced: ["furnishedPreference", "parkingRequired", "possessionDate", "loanRequired", "amenitiesText"],
+    advanced: [
+      "spaceType",
+      "furnishing",
+      "facing",
+      "floorNumber",
+      "totalFloors",
+      "ageOfProperty",
+      "maintenanceCharges",
+      "parkingRequired",
+      "possessionDate",
+      "loanRequired",
+      "amenities",
+      "electricityBillUrl",
+      "alternativeMobile",
+    ],
     card: ["bedrooms", "bathrooms", "areaSqft"],
     allowedListingTypes: RESIDENTIAL_LISTING_INTENTS,
     requiresMedia: true,
   },
   PROPERTY_RENT: {
     essential: ["price", "depositAmount", "bedrooms", "bathrooms", "availableFromDate"],
-    advanced: ["furnishedPreference", "tenantType", "parkingRequired", "amenitiesText"],
+    advanced: [
+      "spaceType",
+      "furnishing",
+      "spaceType",
+      "facing",
+      "floorNumber",
+      "totalFloors",
+      "maintenanceCharges",
+      "parkingRequired",
+      "amenities",
+      "houseRules",
+      "preferredTenants",
+      "electricityBillUrl",
+      "alternativeMobile",
+    ],
     card: ["bedrooms", "bathrooms", "areaSqft"],
     allowedListingTypes: ["Rent"],
     requiresMedia: true,
@@ -117,35 +242,61 @@ export const POST_TYPE_CONFIG = {
   },
   REQUIREMENT_BUY: {
     essential: ["budgetMin", "budgetMax", "requirementPropertyType"],
-    advanced: ["possessionDate", "loanRequired", "amenitiesText"],
+    advanced: ["possessionDate", "loanRequired", "amenities"],
     card: ["requirementPropertyType"],
     allowedListingTypes: ["Buy"],
     requiresMedia: false,
   },
   REQUIREMENT_RENT: {
     essential: ["budgetMin", "budgetMax", "requirementPropertyType", "moveInDate"],
-    advanced: ["furnishedPreference", "occupancyPreference", "genderPreference", "occupation", "amenitiesText"],
+    advanced: ["furnishedPreference", "occupancyPreference", "genderPreference", "occupation", "amenities"],
     card: ["requirementPropertyType", "budgetMax"],
     allowedListingTypes: ["Rent"],
     requiresMedia: false,
   },
   COMMERCIAL_LISTING: {
     essential: ["price", "commercialType", "carpetArea"],
-    advanced: ["areaSqft", "floorNumber", "washrooms", "parkingRequired"],
+    advanced: [
+      "areaSqft",
+      "furnishing",
+      "facing",
+      "floorNumber",
+      "washrooms",
+      "maintenanceCharges",
+      "parkingRequired",
+      "amenities",
+      "electricityBillUrl",
+      "alternativeMobile",
+    ],
     card: ["commercialType", "carpetArea"],
     allowedListingTypes: RESIDENTIAL_LISTING_INTENTS,
     requiresMedia: true,
   },
   AGRICULTURAL_LISTING: {
     essential: ["price", "landArea", "landAreaUnit"],
-    advanced: ["soilType", "waterAvailability", "roadAccess", "electricityAvailable"],
+    advanced: [
+      "soilType",
+      "waterAvailability",
+      "roadAccess",
+      "electricityAvailable",
+      "electricityBillUrl",
+      "alternativeMobile",
+    ],
     card: ["landArea", "landAreaUnit", "soilType"],
     allowedListingTypes: ["Sell"],
     requiresMedia: true,
   },
   BUILDER_PROJECT: {
     essential: ["projectName", "price", "launchDate"],
-    advanced: ["reraNumber", "brochureUrl", "areaSqft", "bedrooms", "bathrooms"],
+    advanced: [
+      "reraNumber",
+      "brochureUrl",
+      "areaSqft",
+      "bedrooms",
+      "bathrooms",
+      "facing",
+      "amenities",
+    ],
     card: ["projectName"],
     allowedListingTypes: ["Project"],
     requiresMedia: true,
@@ -160,7 +311,7 @@ export const POST_TYPE_CONFIG = {
   },
   OPEN_HOUSE_EVENT: {
     essential: ["price", "possessionDate"],
-    advanced: ["bedrooms", "bathrooms", "areaSqft"],
+    advanced: ["bedrooms", "bathrooms", "areaSqft", "furnishing", "amenities"],
     card: ["bedrooms", "bathrooms"],
     allowedListingTypes: ["Event"],
     requiresMedia: true,

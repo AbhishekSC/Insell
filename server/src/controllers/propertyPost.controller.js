@@ -39,7 +39,7 @@ import { cloudinaryInstance } from "../config/cloudinary.js";
 import { centroidForCity } from "../utils/cityCentroids.js";
 
 const PROPERTY_MEDIA_FOLDER = "property-media";
-const PROPERTY_MEDIA_ALLOWED_FORMATS = "jpg,jpeg,png,webp,gif,mp4,webm,mov";
+const PROPERTY_MEDIA_ALLOWED_FORMATS = "jpg,jpeg,png,webp,gif,mp4,webm,mov,pdf,heic,heif,jfif";
 
 function normalizeMediaUrls(raw) {
   if (Array.isArray(raw)) {
@@ -585,8 +585,42 @@ export async function getPropertyFeed(req, res) {
         { title: regex }, 
         { caption: regex }, 
         { city: regex }, 
-        { locality: regex }
+        { locality: regex },
+        { propertyType: regex },
+        { "postMeta.residential.spaceType": regex },
+        { "postMeta.spaceType": regex },
+        { "postMeta.residential.furnishing": regex },
+        { "postMeta.furnishing": regex },
+        { authorRole: regex },
       ];
+
+      // Smart badge query parsing
+      const bhkMatch = query.match(/(\d+)\s*bhk/i);
+      if (bhkMatch) {
+        filter.$or.push({ bedrooms: parseInt(bhkMatch[1], 10) });
+      }
+      if (/owner|direct/i.test(query)) {
+        filter.$or.push({ authorRole: { $in: ["Landlord", "Seller", "Owner", "Direct Owner"] } });
+      }
+      if (/verified/i.test(query)) {
+        filter.$or.push(
+          { addressVerified: true },
+          { "postMeta.residential.electricityBillStatus": "VERIFIED" },
+          { "postMeta.electricityBillStatus": "VERIFIED" }
+        );
+      }
+      if (/pet/i.test(query)) {
+        filter.$or.push(
+          { caption: /pet/i },
+          { "postMeta.residential.houseRules": /pet/i }
+        );
+      }
+      if (/bachelor/i.test(query)) {
+        filter.$or.push(
+          { caption: /bachelor/i },
+          { "postMeta.residential.preferredTenants": /bachelor/i }
+        );
+      }
       
       // Also search by author name
       const User = (await import("../models/User.model.js")).default;
@@ -656,8 +690,16 @@ export async function getPropertyFeed(req, res) {
           filter.areaSqft = { $gte: 2000 };
           break;
         case "verified":
-          // Only show posts from verified users (Broker, Seller, Landlord)
-          filter.author = { $in: await getVerifiedUserIds() };
+          // Show posts from verified users (Broker, Seller, Landlord) OR listings with verified address
+          const verifiedUserIds = await getVerifiedUserIds();
+          filter.$or = [
+            { author: { $in: verifiedUserIds } },
+            { electricityBillStatus: "VERIFIED" },
+            { "postMeta.residential.electricityBillStatus": "VERIFIED" },
+            { "postMeta.commercial.electricityBillStatus": "VERIFIED" },
+            { "postMeta.land.electricityBillStatus": "VERIFIED" },
+            { "postMeta.pgHostel.electricityBillStatus": "VERIFIED" },
+          ];
           break;
         case "recent":
           // Show recent posts (already the default sort, no filter needed)
@@ -742,48 +784,9 @@ export async function getPropertyFeed(req, res) {
       PropertyPost.countDocuments(filter),
     ]);
 
-    // Read live engagement from Redis for each post (falls back to MongoDB arrays)
+    // Read live engagement and views from Redis for each post (falls back to MongoDB)
     const postsWithEngagement = await Promise.all(
-      posts.map(async (post) => {
-        const likedBy = Array.isArray(post.likedBy) ? post.likedBy.map((item) => String(item)) : [];
-        const savedBy = Array.isArray(post.savedBy) ? post.savedBy.map((item) => String(item)) : [];
-        const isBoostActive = Boolean(
-          post.isBoosted &&
-          post.boostExpiresAt &&
-          new Date(post.boostExpiresAt).getTime() > nowMs
-        );
-
-        let likesCount = likedBy.length;
-        let isLikedByMe = currentUserId ? likedBy.includes(currentUserId) : false;
-        let savesCount = savedBy.length;
-        let isSavedByMe = currentUserId ? savedBy.includes(currentUserId) : false;
-
-        try {
-          const [likeEng, saveEng] = await Promise.all([
-            getPostEngagement(post._id, currentUserId, "like"),
-            getPostEngagement(post._id, currentUserId, "save"),
-          ]);
-          if (likeEng !== null) {
-            likesCount = likeEng.count;
-            isLikedByMe = Boolean(likeEng.isEngaged);
-          }
-          if (saveEng !== null) {
-            savesCount = saveEng.count;
-            isSavedByMe = Boolean(saveEng.isEngaged);
-          }
-        } catch {}
-
-        return {
-          ...post,
-          isBoosted: isBoostActive,
-          boostExpiresAt: post.boostExpiresAt,
-          boostCount: post.boostCount || 0,
-          likesCount,
-          isLikedByMe,
-          savesCount,
-          isSavedByMe,
-        };
-      })
+      posts.map((p) => decorateForUser(p, currentUserId))
     );
 
     const decoratedPosts = await attachSocialProof(
@@ -821,6 +824,29 @@ export async function getPropertyFeed(req, res) {
         if (p.isBlocked && !isOwn) return false;
         if (reportedPostIds.has(pId)) return false;
         return true;
+      });
+
+      // Priority sort within the feed: Boosted posts first, then Address-Verified listings (+weightage), then recency
+      combinedPosts.sort((a, b) => {
+        if (Boolean(a.isBoosted) !== Boolean(b.isBoosted)) {
+          return a.isBoosted ? -1 : 1;
+        }
+        const aVerified =
+          a.electricityBillStatus === "VERIFIED" ||
+          a.postMeta?.residential?.electricityBillStatus === "VERIFIED" ||
+          a.postMeta?.commercial?.electricityBillStatus === "VERIFIED" ||
+          a.postMeta?.land?.electricityBillStatus === "VERIFIED" ||
+          a.postMeta?.pgHostel?.electricityBillStatus === "VERIFIED";
+        const bVerified =
+          b.electricityBillStatus === "VERIFIED" ||
+          b.postMeta?.residential?.electricityBillStatus === "VERIFIED" ||
+          b.postMeta?.commercial?.electricityBillStatus === "VERIFIED" ||
+          b.postMeta?.land?.electricityBillStatus === "VERIFIED" ||
+          b.postMeta?.pgHostel?.electricityBillStatus === "VERIFIED";
+        if (Boolean(aVerified) !== Boolean(bVerified)) {
+          return aVerified ? -1 : 1;
+        }
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
       });
 
       const responseData = {
@@ -928,6 +954,29 @@ function nearMeWithinBandScore(post) {
   return recency + quality;
 }
 
+// Sanitizes price history by removing invalid/0 values and deduplicating identical consecutive entries.
+export function sanitizePriceHistory(history, currentPrice) {
+  const current = Number(currentPrice) || 0;
+  if (!Array.isArray(history) || history.length === 0) {
+    return current > 0 ? [{ price: current, changedAt: new Date() }] : [];
+  }
+  const valid = history.filter((h) => Number(h?.price) > 0);
+  if (valid.length === 0) {
+    return current > 0 ? [{ price: current, changedAt: new Date() }] : [];
+  }
+  const deduped = [];
+  for (const item of valid) {
+    const itemPrice = Number(item.price);
+    if (deduped.length === 0 || Number(deduped[deduped.length - 1].price) !== itemPrice) {
+      deduped.push({
+        price: itemPrice,
+        changedAt: item.changedAt || new Date(),
+      });
+    }
+  }
+  return deduped;
+}
+
 async function decorateForUser(post, currentUserId) {
   const likedBy = Array.isArray(post.likedBy) ? post.likedBy.map(String) : [];
   const savedBy = Array.isArray(post.savedBy) ? post.savedBy.map(String) : [];
@@ -941,11 +990,13 @@ async function decorateForUser(post, currentUserId) {
   let isLikedByMe = currentUserId ? likedBy.includes(currentUserId) : false;
   let savesCount = savedBy.length;
   let isSavedByMe = currentUserId ? savedBy.includes(currentUserId) : false;
+  let viewCount = Number(post.viewCount || 0);
 
   try {
-    const [likeEng, saveEng] = await Promise.all([
+    const [likeEng, saveEng, cachedViews] = await Promise.all([
       getPostEngagement(post._id, currentUserId, "like"),
       getPostEngagement(post._id, currentUserId, "save"),
+      redisClient.get(`post:${post._id}:views`).catch(() => null),
     ]);
     if (likeEng !== null) {
       likesCount = likeEng.count;
@@ -954,6 +1005,9 @@ async function decorateForUser(post, currentUserId) {
     if (saveEng !== null) {
       savesCount = saveEng.count;
       isSavedByMe = Boolean(saveEng.isEngaged);
+    }
+    if (cachedViews !== null && cachedViews !== undefined) {
+      viewCount = parseInt(cachedViews, 10) || 0;
     }
   } catch {}
 
@@ -964,8 +1018,10 @@ async function decorateForUser(post, currentUserId) {
     boostCount: post.boostCount || 0,
     likesCount,
     savesCount,
+    viewCount,
     isLikedByMe,
     isSavedByMe,
+    priceHistory: sanitizePriceHistory(post.priceHistory, post.price),
   };
 }
 
@@ -1174,6 +1230,15 @@ export async function createPropertyPost(req, res) {
     const safeStatus = ["DRAFT", "PUBLISHED", "ARCHIVED"].includes(status) ? status : "PUBLISHED";
     const safeVisibility = ["PUBLIC", "PRIVATE"].includes(visibility) ? visibility : "PUBLIC";
 
+    const meta = sanitizePostMeta(req.body?.postMeta);
+    const billUrl = meta?.residential?.electricityBillUrl || meta?.electricityBillUrl;
+    if (billUrl) {
+      if (!meta.residential) meta.residential = {};
+      meta.residential.electricityBillStatus = "PENDING";
+    } else if (meta?.residential) {
+      meta.residential.electricityBillStatus = "NONE";
+    }
+
     const post = await PropertyPost.create({
       author: userId,
       authorRole: activeRole,
@@ -1193,7 +1258,7 @@ export async function createPropertyPost(req, res) {
       bathrooms: Number(req.body?.bathrooms || 0),
       areaSqft: Number(req.body?.areaSqft || 0),
       mediaUrls: normalizeMediaUrls(req.body?.mediaUrls),
-      postMeta: sanitizePostMeta(req.body?.postMeta),
+      postMeta: meta,
       latitude: req.body?.latitude ? Number(req.body.latitude) : undefined,
       longitude: req.body?.longitude ? Number(req.body.longitude) : undefined,
     });
@@ -1391,7 +1456,9 @@ export async function updatePropertyPost(req, res) {
     post.postType = effectivePostType;
     post.status = safeStatus;
     post.visibility = safeVisibility;
-    post.publishedAt = safeStatus === "PUBLISHED" && post.status !== "PUBLISHED" ? new Date() : post.publishedAt;
+    if (isBeingPublished) {
+      post.publishedAt = new Date();
+    }
     post.listingType = String(req.body?.listingType || post.listingType).trim();
     post.propertyType = String(req.body?.propertyType || post.propertyType).trim();
     post.customBadge = String(req.body?.customBadge ?? post.customBadge ?? "").trim().slice(0, 40);
@@ -1401,11 +1468,17 @@ export async function updatePropertyPost(req, res) {
     post.locality = String(req.body?.locality || post.locality).trim();
     const oldPrice = post.price;
     post.price = Number(req.body?.price ?? post.price);
-    if (post.price !== oldPrice) {
+
+    if (isBeingPublished) {
+      // First publication: reset price history to official launch price so draft typing keystrokes are not treated as price history
+      post.priceHistory = [{ price: post.price, changedAt: post.publishedAt || new Date() }];
+    } else if (safeStatus === "DRAFT") {
+      // Still drafting: keep only the current draft price without accumulating history
+      post.priceHistory = [{ price: post.price, changedAt: post.createdAt || new Date() }];
+    } else if (wasPublished && post.price !== oldPrice && oldPrice > 0 && post.price > 0) {
+      // Live published post: track genuine price updates
       if (!post.priceHistory || post.priceHistory.length === 0) {
-        // Older posts created before priceHistory existed have none yet —
-        // backfill the pre-edit price so the chart doesn't start mid-story.
-        post.priceHistory = [{ price: oldPrice, changedAt: post.createdAt || new Date() }];
+        post.priceHistory = [{ price: oldPrice, changedAt: post.publishedAt || post.createdAt || new Date() }];
       }
       post.priceHistory.push({ price: post.price, changedAt: new Date() });
     }
@@ -1417,8 +1490,52 @@ export async function updatePropertyPost(req, res) {
       post.mediaUrls = normalizeMediaUrls(req.body.mediaUrls);
     }
     
+    if (req.body?.electricityBillUrl !== undefined && !req.body?.postMeta) {
+      const billUrl = String(req.body.electricityBillUrl || "").trim();
+      if (!post.postMeta) post.postMeta = {};
+      if (!post.postMeta.residential) post.postMeta.residential = {};
+      post.postMeta.residential.electricityBillUrl = billUrl;
+      if (billUrl) {
+        post.postMeta.residential.electricityBillStatus = "PENDING";
+        post.postMeta.residential.electricityBillVerifiedAt = undefined;
+        post.postMeta.residential.electricityBillVerifiedBy = undefined;
+        post.postMeta.residential.electricityBillRejectionReason = undefined;
+      } else {
+        post.postMeta.residential.electricityBillStatus = "NONE";
+      }
+      post.markModified("postMeta");
+    }
+
     if (req.body?.postMeta) {
-      post.postMeta = sanitizePostMeta(req.body.postMeta);
+      const sanitizedMeta = sanitizePostMeta(req.body.postMeta);
+      const oldBill = post.postMeta?.residential?.electricityBillUrl || post.postMeta?.electricityBillUrl;
+      const newBill = sanitizedMeta?.residential?.electricityBillUrl || sanitizedMeta?.electricityBillUrl;
+
+      if (newBill) {
+        if (newBill !== oldBill) {
+          // New bill uploaded or modified -> resets to PENDING for admin review
+          if (!sanitizedMeta.residential) sanitizedMeta.residential = {};
+          sanitizedMeta.residential.electricityBillStatus = "PENDING";
+          sanitizedMeta.residential.electricityBillVerifiedAt = undefined;
+          sanitizedMeta.residential.electricityBillVerifiedBy = undefined;
+          sanitizedMeta.residential.electricityBillRejectionReason = undefined;
+        } else {
+          // Preserve existing verification status
+          if (!sanitizedMeta.residential) sanitizedMeta.residential = {};
+          sanitizedMeta.residential.electricityBillStatus =
+            post.postMeta?.residential?.electricityBillStatus || "PENDING";
+          sanitizedMeta.residential.electricityBillVerifiedAt =
+            post.postMeta?.residential?.electricityBillVerifiedAt;
+          sanitizedMeta.residential.electricityBillVerifiedBy =
+            post.postMeta?.residential?.electricityBillVerifiedBy;
+          sanitizedMeta.residential.electricityBillRejectionReason =
+            post.postMeta?.residential?.electricityBillRejectionReason;
+        }
+      } else if (sanitizedMeta?.residential) {
+        sanitizedMeta.residential.electricityBillStatus = "NONE";
+      }
+
+      post.postMeta = sanitizedMeta;
     }
     
     if (req.body?.latitude !== undefined) {
@@ -1955,6 +2072,7 @@ export async function getPropertyPostById(req, res) {
         isSavedByMe: Boolean(isSavedByMe),
         activeOfferCount,
         sellerListingCount,
+        priceHistory: sanitizePriceHistory(post.priceHistory, post.price),
       },
     });
   } catch (error) {
@@ -2390,6 +2508,13 @@ export async function incrementViewCount(req, res) {
 
     // High-speed in-memory increment via Redis INCR (~1ms, zero MongoDB writes on hot path)
     const viewCount = await incrementViewCountRedis(postId, post.viewCount || 0);
+
+    // In background, ensure MongoDB stays synced and feed cache is purged
+    PropertyPost.updateOne({ _id: postId }, { $set: { viewCount } }).catch(() => {});
+    try {
+      const feedKeys = await redisClient.keys("property:feed:*");
+      if (feedKeys.length > 0) await redisClient.del(feedKeys);
+    } catch {}
 
     return sendSuccessResponse(res, 200, "View count incremented", {
       viewCount,

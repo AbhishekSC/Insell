@@ -1,4 +1,5 @@
 import multer from "multer";
+import path from "path";
 import { createCloudinaryStorage } from "../config/cloudinary.js";
 
 const storage = createCloudinaryStorage("community-resources", ["jpg", "jpeg", "png", "webp", "pdf", "docx", "txt"], {
@@ -169,7 +170,7 @@ export const uploadCommunityPhoto = multer({
   },
 });
 
-const propertyMediaStorage = createCloudinaryStorage("property-media", ["jpg", "jpeg", "png", "webp", "gif", "mp4", "webm", "mov"], {
+const propertyMediaStorage = createCloudinaryStorage("property-media", ["jpg", "jpeg", "png", "webp", "gif", "mp4", "webm", "mov", "pdf", "heic", "heif", "jfif"], {
   maxWidth: 1920,
   maxHeight: 1080,
   quality: 'auto:good',
@@ -177,17 +178,30 @@ const propertyMediaStorage = createCloudinaryStorage("property-media", ["jpg", "
 });
 
 function propertyMediaFileFilter(_req, file, cb) {
+  const ext = path.extname(file.originalname || "").toLowerCase();
+  const allowedExts = [
+    ".png", ".jpg", ".jpeg", ".webp", ".gif", ".heic", ".heif", ".jfif",
+    ".pdf",
+    ".mp4", ".webm", ".mov"
+  ];
   const allowedMimeTypes = [
     "image/png",
     "image/jpeg",
+    "image/pjpeg",
     "image/webp",
     "image/gif",
+    "image/heic",
+    "image/heif",
+    "application/pdf",
+    "application/x-pdf",
     "video/mp4",
     "video/webm",
     "video/quicktime",
   ];
-  if (!allowedMimeTypes.includes(file.mimetype)) {
-    cb(new Error("Unsupported media file type. Only images (PNG, JPEG, WEBP, GIF) and videos (MP4, WEBM, MOV) are allowed."));
+  if (!allowedMimeTypes.includes(file.mimetype) && !allowedExts.includes(ext)) {
+    const err = new Error("Unsupported media file type. Only images, PDFs, and videos are allowed.");
+    err.statusCode = 400;
+    cb(err);
     return;
   }
   cb(null, true);

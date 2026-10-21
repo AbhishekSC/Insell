@@ -83,6 +83,39 @@ const InvestmentMetaSchema = new mongoose.Schema(
   subOpts
 );
 
+export const ELECTRICITY_BILL_STATUS = {
+  NONE: "NONE",
+  PENDING: "PENDING",
+  VERIFIED: "VERIFIED",
+  REJECTED: "REJECTED",
+};
+
+const ResidentialMetaSchema = new mongoose.Schema(
+  {
+    furnishing: String,
+    facing: String,
+    floorNumber: Number,
+    totalFloors: Number,
+    ageOfProperty: String,
+    maintenanceCharges: Number,
+    houseRules: mongoose.Schema.Types.Mixed,
+    spaceType: String,
+    preferredTenants: [String],
+    alternativeMobile: String,
+    electricityBillUrl: String,
+    electricityBillStatus: {
+      type: String,
+      enum: ["NONE", "PENDING", "VERIFIED", "REJECTED"],
+      default: "NONE",
+    },
+    electricityBillVerifiedAt: Date,
+    electricityBillVerifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    electricityBillRejectionReason: String,
+    electricityBillVerificationNote: String,
+  },
+  subOpts
+);
+
 export const PostMetaSchema = new mongoose.Schema(
   {
     requirement: { type: RequirementMetaSchema, default: () => ({}) },
@@ -90,6 +123,7 @@ export const PostMetaSchema = new mongoose.Schema(
     commercial: { type: CommercialMetaSchema, default: () => ({}) },
     project: { type: ProjectMetaSchema, default: () => ({}) },
     investment: { type: InvestmentMetaSchema, default: () => ({}) },
+    residential: { type: ResidentialMetaSchema, default: () => ({}) },
     amenities: { type: [String], default: undefined },
   },
   { _id: false, strict: false, minimize: true }

@@ -45,13 +45,13 @@ import CommentSection from "../components/CommentSection";
 import { getRecentlyViewed } from "../utils/recentlyViewed";
 import HighlightsBar from "../components/HighlightsBar";
 import PropertyPostCard from "../components/PropertyPostCard";
+import VerifyAddressModal from "../components/VerifyAddressModal";
 import ClampedCaption from "../components/ClampedCaption";
 import CompareToggleButton from "../components/CompareToggleButton";
 import CompareFloatingBar from "../components/CompareFloatingBar";
 import FullscreenMediaViewer from "../components/FullscreenMediaViewer";
-import { buildPropertyDetailBadges } from "../lib/propertyDetailBadges";
+import { getCuratedCardBadges, getPropertyInfoBadges } from "../lib/propertyDetailBadges";
 import { getPriceContextBadges } from "../lib/priceContextBadges";
-import { getPropertySignals, toneClass } from "../lib/propertySignalBadges";
 import { toggleCompareSelection } from "../lib/compareSelection";
 import PostAuthorLink from "../components/PostAuthorLink";
 import EmailVerification from "../components/EmailVerification";
@@ -113,14 +113,12 @@ function ProfileStat({ label, value }) {
 // Price + tag row shown on the profile's Posts / Saved cards — mirrors the
 // marketplace feed card (price, inline price-change, one grey tag row) plus
 // the profile-only "blocked by admin" notice.
-function ProfilePriceBlock({ post, detailBadges, signalBadges }) {
+function ProfilePriceBlock({ post, isOwnPost, onVerifyAddress }) {
   const changeBadge = getPriceContextBadges(post)
     .filter((b) => b.key === "drop" || b.key === "rise")
     .slice(0, 1)[0];
-  const tags = [
-    ...detailBadges.slice(0, 3).map((d, idx) => ({ key: `d${idx}`, label: d.label, className: "bg-base-200 text-base-content/70" })),
-    ...signalBadges.filter((s) => !/view/i.test(s.label)).slice(0, 2).map((s) => ({ key: s.key, label: s.label, className: toneClass(s.tone) })),
-  ];
+  const curatedBadges = getCuratedCardBadges(post, { isOwnPost, max: 4 });
+  const infoBadges = getPropertyInfoBadges(post);
   return (
     <>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -145,11 +143,48 @@ function ProfilePriceBlock({ post, detailBadges, signalBadges }) {
         </div>
       )}
 
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {tags.map((t) => (
-            <span key={t.key} className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${t.className}`}>
-              {t.label}
+      {/* Row 1: Clickable / Categorical Badges */}
+      {curatedBadges.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pt-0.5">
+          {curatedBadges.map((badge) => {
+            if (badge.isAction && badge.action === "verifyAddress") {
+              return (
+                <button
+                  key={badge.key}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onVerifyAddress?.(post);
+                  }}
+                  title="Verify address to boost reach"
+                  className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[11px] transition-all cursor-pointer shadow-xs hover:shadow-sm hover:-translate-y-0.5 active:translate-y-0 active:scale-95 ${badge.className}`}
+                >
+                  {badge.label}
+                </button>
+              );
+            }
+            return (
+              <span
+                key={badge.key}
+                className={`inline-flex items-center rounded-lg px-2.5 py-0.5 text-[11px] shadow-xs ${badge.className}`}
+              >
+                {badge.label}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Row 2: Non-clickable Informational Badges (Transit/Railway distance, Floor, Sqft, Baths) */}
+      {infoBadges.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pt-0.5">
+          {infoBadges.map((info) => (
+            <span
+              key={info.key}
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-normal cursor-default select-none pointer-events-none ${info.className}`}
+            >
+              {info.icon === "MapPin" && <MapPin className="size-2.5 shrink-0" />}
+              {info.label}
             </span>
           ))}
         </div>
@@ -241,6 +276,7 @@ export default function UserProfilePage() {
   const isOwnProfile = relationship.isSelf;
 
   const [boostTargetPost, setBoostTargetPost] = useState(null);
+  const [verifyAddressTargetPost, setVerifyAddressTargetPost] = useState(null);
   const [adToolsOpen, setAdToolsOpen] = useState(false);
   const [adToolsPost, setAdToolsPost] = useState(null);
   const { data: referralData } = useQuery({
@@ -1078,8 +1114,7 @@ export default function UserProfilePage() {
                           {posts.map((post) => {
                             const media = normalizeMedia(post);
                             const badge = getListingBadge(post);
-                            const detailBadges = buildPropertyDetailBadges(post);
-                            const signalBadges = getPropertySignals(post, { context: "feed" }).slice(0, 7);
+                            const isOwnPost = isOwnProfile;
 
                             const handleDoubleClickMedia = (event) => {
                               event.stopPropagation();
@@ -1096,6 +1131,7 @@ export default function UserProfilePage() {
                                 post={post}
                                 isOwnPost={isOwnProfile}
                                 onBoost={(p) => setBoostTargetPost(p)}
+                                onVerifyAddress={(p) => setVerifyAddressTargetPost(p)}
                                 media={media}
                                 onDoubleClickMedia={handleDoubleClickMedia}                                mediaOverlay={
                                   likedBurstPostId === post._id ? (
@@ -1220,7 +1256,13 @@ export default function UserProfilePage() {
                                   setShowShareModal(true);
                                 }}
                                 onFullscreen={(img) => setSelectedImage(img)}
-                                priceBlock={<ProfilePriceBlock post={post} detailBadges={detailBadges} signalBadges={signalBadges} />}
+                                priceBlock={
+                                  <ProfilePriceBlock
+                                    post={post}
+                                    isOwnPost={isOwnPost}
+                                    onVerifyAddress={(p) => setVerifyAddressTargetPost(p)}
+                                  />
+                                }
                                 description={
                                   <ClampedCaption text={post.caption || "A beautifully curated property with modern design and premium amenities."} />
                                 }
@@ -1300,8 +1342,6 @@ export default function UserProfilePage() {
                           {bookmarks.map((post) => {
                             const media = normalizeMedia(post);
                             const badge = getListingBadge(post);
-                            const detailBadges = buildPropertyDetailBadges(post);
-                            const signalBadges = getPropertySignals(post, { context: "feed" }).slice(0, 7);
 
                             const isOwnPost = post.author?._id && String(post.author._id) === String(authUser?._id);
 
@@ -1318,6 +1358,8 @@ export default function UserProfilePage() {
                               <PropertyPostCard
                                 key={post._id}
                                 post={post}
+                                isOwnPost={isOwnPost}
+                                onVerifyAddress={(p) => setVerifyAddressTargetPost(p)}
                                 media={media}
                                 onDoubleClickMedia={handleDoubleClickMedia}                                mediaOverlay={
                                   likedBurstPostId === post._id ? (
@@ -1378,7 +1420,13 @@ export default function UserProfilePage() {
                                   setShowShareModal(true);
                                 }}
                                 onFullscreen={(img) => setSelectedImage(img)}
-                                priceBlock={<ProfilePriceBlock post={post} detailBadges={detailBadges} signalBadges={signalBadges} />}
+                                priceBlock={
+                                  <ProfilePriceBlock
+                                    post={post}
+                                    isOwnPost={isOwnPost}
+                                    onVerifyAddress={(p) => setVerifyAddressTargetPost(p)}
+                                  />
+                                }
                                 description={
                                   <ClampedCaption text={post.caption || "A beautifully curated property with modern design and premium amenities."} />
                                 }
@@ -2120,6 +2168,18 @@ export default function UserProfilePage() {
         isOpen={Boolean(boostTargetPost)}
         post={boostTargetPost}
         onClose={() => setBoostTargetPost(null)}
+      />
+
+      <VerifyAddressModal
+        isOpen={Boolean(verifyAddressTargetPost)}
+        post={verifyAddressTargetPost}
+        onClose={() => setVerifyAddressTargetPost(null)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["userPosts"] });
+          queryClient.invalidateQueries({ queryKey: ["myPosts"] });
+          queryClient.invalidateQueries({ queryKey: ["userBookmarks"] });
+          queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
+        }}
       />
 
       <AdToolsModal

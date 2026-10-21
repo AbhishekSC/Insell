@@ -130,6 +130,14 @@ export async function toggleEngagementRedis(postId, userId, type = "like") {
 
     // Get accurate active count
     const count = await redisClient.zCard(key);
+
+    // If count is 0 after toggle (i.e. user unliked and nobody else has liked),
+    // restore the sentinel so the empty state stays cached without hitting MongoDB repeatedly
+    if (count === 0) {
+      await redisClient.zAdd(key, [{ score: 0, value: "__empty__" }]);
+      await redisClient.expire(key, CACHE_TTL_SECONDS);
+    }
+
     const active = !alreadyActive;
 
     return { active, count };
@@ -147,7 +155,14 @@ export async function getPostEngagement(postId, userId, type = "like") {
   const key = `post:${postId}:${type}d_by`;
   try {
     await ensureCacheReady(postId, type);
-    const count = await redisClient.zCard(key);
+    let count = await redisClient.zCard(key);
+
+    // Sentinel check: if '__empty__' sentinel exists with score 0, exclude it from active count
+    const sentinelScore = await redisClient.zScore(key, "__empty__");
+    if (sentinelScore !== null && sentinelScore !== undefined && Number(sentinelScore) === 0) {
+      count = Math.max(0, count - 1);
+    }
+
     let isEngaged = false;
     if (userId) {
       const score = await redisClient.zScore(key, String(userId));
