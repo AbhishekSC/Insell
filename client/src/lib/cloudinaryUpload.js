@@ -23,14 +23,19 @@ async function uploadOneFileToCloudinary(file, signatureData, onFileProgress) {
   formData.append("folder", folder);
   formData.append("allowed_formats", allowed_formats);
 
-  const response = await axios.post(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, formData, {
-    onUploadProgress: (event) => {
-      if (!event.total) return;
-      onFileProgress?.(Math.round((event.loaded / event.total) * 100));
-    },
-  });
+  try {
+    const response = await axios.post(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, formData, {
+      onUploadProgress: (event) => {
+        if (!event.total) return;
+        onFileProgress?.(Math.round((event.loaded / event.total) * 100));
+      },
+    });
 
-  return response.data.secure_url;
+    return response.data.secure_url;
+  } catch (err) {
+    const cloudMsg = err.response?.data?.error?.message || err.message;
+    throw new Error(`Upload failed: ${cloudMsg}`);
+  }
 }
 
 // Uploads files sequentially (not in parallel) so a single aggregate
@@ -43,17 +48,41 @@ export async function uploadPropertyMedia(files, onProgress) {
     throw new Error(`${oversized.name} is larger than 50MB`);
   }
 
-  const { data } = await axiosInstance.get("/posts/upload-media/signature");
-  const signatureData = data?.data;
+  // 1. Try direct-to-Cloudinary first (fast, offloads bandwidth from server)
+  try {
+    const { data } = await axiosInstance.get("/posts/upload-media/signature");
+    const signatureData = data?.data;
 
-  const urls = [];
-  for (let i = 0; i < files.length; i += 1) {
-    const url = await uploadOneFileToCloudinary(files[i], signatureData, (filePercent) => {
-      const overallPercent = Math.round(((i + filePercent / 100) / files.length) * 100);
-      onProgress?.(overallPercent);
+    const urls = [];
+    for (let i = 0; i < files.length; i += 1) {
+      const url = await uploadOneFileToCloudinary(files[i], signatureData, (filePercent) => {
+        const overallPercent = Math.round(((i + filePercent / 100) / files.length) * 100);
+        onProgress?.(overallPercent);
+      });
+      urls.push(url);
+    }
+
+    return urls;
+  } catch (directErr) {
+    console.warn("Direct Cloudinary upload failed, falling back to backend upload:", directErr);
+
+    // 2. Fallback: multipart upload through /posts/upload-media
+    // Uses backend multer-storage-cloudinary with full server authority (handles PDFs, HEIC, etc.)
+    const formData = new FormData();
+    files.forEach((file) => formData.append("media", file));
+
+    const res = await axiosInstance.post("/posts/upload-media", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress: (event) => {
+        if (!event.total) return;
+        onProgress?.(Math.round((event.loaded / event.total) * 100));
+      },
     });
-    urls.push(url);
-  }
 
-  return urls;
+    const urls = res.data?.data?.mediaUrls || [];
+    if (!urls.length) {
+      throw directErr;
+    }
+    return urls;
+  }
 }

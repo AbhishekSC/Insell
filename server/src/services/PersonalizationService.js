@@ -147,6 +147,17 @@ class PersonalizationService {
     // Content-based feature matching
     score += this.getContentFeatureScore(property, userBehavior) * (weights.contentFeatures / 100);
 
+    // Trust & Address Verification boost (+15 points towards personalization score)
+    const isAddressVerified =
+      property.electricityBillStatus === "VERIFIED" ||
+      property.postMeta?.residential?.electricityBillStatus === "VERIFIED" ||
+      property.postMeta?.commercial?.electricityBillStatus === "VERIFIED" ||
+      property.postMeta?.land?.electricityBillStatus === "VERIFIED" ||
+      property.postMeta?.pgHostel?.electricityBillStatus === "VERIFIED";
+    if (isAddressVerified) {
+      score += 15;
+    }
+
     return Math.min(100, Math.max(0, score));
   }
 
@@ -1709,6 +1720,15 @@ class PersonalizationService {
         // wrong type / wrong area / above the "too expensive" ceiling.
         const negMult = this.negativePreferencePenalty(property, negativePrefs);
 
+        // Address verification weightage boost (25% higher ranking weight in feed)
+        const isAddressVerified =
+          property.electricityBillStatus === "VERIFIED" ||
+          property.postMeta?.residential?.electricityBillStatus === "VERIFIED" ||
+          property.postMeta?.commercial?.electricityBillStatus === "VERIFIED" ||
+          property.postMeta?.land?.electricityBillStatus === "VERIFIED" ||
+          property.postMeta?.pgHostel?.electricityBillStatus === "VERIFIED";
+        const verifiedMultiplier = isAddressVerified ? 1.25 : 1.0;
+
         return {
           ...property,
           personalizationScore,
@@ -1716,7 +1736,8 @@ class PersonalizationService {
           recencyScore,
           popularityScore,
           negMult,
-          finalScore: blended * negMult,
+          isAddressVerified,
+          finalScore: blended * negMult * verifiedMultiplier,
         };
       });
 

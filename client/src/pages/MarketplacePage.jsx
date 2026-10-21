@@ -54,9 +54,9 @@ import CompareFloatingBar from "../components/CompareFloatingBar";
 import FullscreenMediaViewer from "../components/FullscreenMediaViewer";
 import ScrollTopButton from "../components/ScrollTopButton";
 import { useScrollRestoration } from "../hooks/useScrollRestoration";
-import { buildPropertyDetailBadges } from "../lib/propertyDetailBadges";
+import { getCuratedCardBadges, getPropertyInfoBadges } from "../lib/propertyDetailBadges";
+import VerifyAddressModal from "../components/VerifyAddressModal";
 import { getPriceContextBadges } from "../lib/priceContextBadges";
-import { getPropertySignals, toneClass } from "../lib/propertySignalBadges";
 import PreferencePrompt from "../components/PreferencePrompt";
 import LocationPrompt from "../components/LocationPrompt";
 import { trackRecoEvent } from "../lib/recoEvents";
@@ -327,6 +327,27 @@ export default function MarketplacePage() {
   const [searchAuthorId, setSearchAuthorId] = useState(null);
   const [activeCategory, setActiveCategory] = useState("For You");
   const [selectedTrendingLocation, setSelectedTrendingLocation] = useState(null);
+  const [activeBadgeFilter, setActiveBadgeFilter] = useState(null);
+
+  const handleFilterByBadge = (badge, e) => {
+    if (e) e.stopPropagation();
+    const val = badge?.filterValue || badge?.label || "";
+    if (!val) return;
+
+    if (activeBadgeFilter === val) {
+      setActiveBadgeFilter(null);
+      setSearch("");
+    } else {
+      setActiveBadgeFilter(val);
+      setSearch(val);
+    }
+  };
+
+  useEffect(() => {
+    if (!search && activeBadgeFilter) {
+      setActiveBadgeFilter(null);
+    }
+  }, [search, activeBadgeFilter]);
   const [likedBurstPostId, setLikedBurstPostId] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [selectedPostForComments, setSelectedPostForComments] = useState(null);
@@ -378,6 +399,7 @@ export default function MarketplacePage() {
   const [reportTargetPost, setReportTargetPost] = useState(null);
   const [reportSubmitted, setReportSubmitted] = useState(false);
   const [boostTargetPost, setBoostTargetPost] = useState(null);
+  const [verifyAddressTargetPost, setVerifyAddressTargetPost] = useState(null);
 
   // Portaled to <body> so the menu escapes the card's own overflow-hidden
   // (needed for the image's rounded corners) — otherwise it gets clipped.
@@ -652,6 +674,18 @@ export default function MarketplacePage() {
     carpetArea: "",
     floorNumber: "",
     washrooms: "",
+    // Enhanced residential fields
+    furnishing: "",
+    facing: "",
+    totalFloors: "",
+    ageOfProperty: "",
+    maintenanceCharges: "",
+    houseRules: [],
+    spaceType: "",
+    preferredTenants: [],
+    amenities: [],
+    alternativeMobile: "",
+    electricityBillUrl: "",
   });
 
   const [citySuggestions, setCitySuggestions] = useState([]);
@@ -1056,20 +1090,6 @@ export default function MarketplacePage() {
     }, 400);
   };
 
-  // Batch the extras the feed payload doesn't carry (price-vs-area verdict,
-  // live offer count) in one call for all visible cards.
-  const visiblePostIds = useMemo(() => posts.map((p) => String(p._id)), [posts]);
-  const { data: cardSignals = {} } = useQuery({
-    queryKey: ["cardSignals", visiblePostIds],
-    queryFn: async () => {
-      if (visiblePostIds.length === 0) return {};
-      const res = await axiosInstance.post("/posts/card-signals", { ids: visiblePostIds.slice(0, 40) }, { skipErrorToast: true });
-      return res.data?.data?.signals || {};
-    },
-    enabled: visiblePostIds.length > 0,
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-  });
 
   const nearMeMeta = data?.pages?.[0]?.meta?.nearMe || null;
   const nearMeInfo = useMemo(() => {
@@ -1195,11 +1215,13 @@ export default function MarketplacePage() {
   // back to top-level fields) so resuming feels identical to creating —
   // every field editable through the same steps, not a stripped-down form.
   const mapPostToDraftState = (post) => {
-    const requirement = post.postMeta?.requirement || {};
-    const project = post.postMeta?.project || {};
-    const investment = post.postMeta?.investment || {};
-    const land = post.postMeta?.land || {};
-    const commercial = post.postMeta?.commercial || {};
+    const flatMeta = post.postMeta && typeof post.postMeta === "object" && !Array.isArray(post.postMeta) ? post.postMeta : {};
+    const requirement = flatMeta.requirement || {};
+    const project = flatMeta.project || {};
+    const investment = flatMeta.investment || {};
+    const land = flatMeta.land || {};
+    const commercial = flatMeta.commercial || {};
+    const residential = flatMeta.residential || {};
     return {
       postType: post.postType || "PROPERTY_SALE",
       listingType: post.listingType || "Sell",
@@ -1245,26 +1267,54 @@ export default function MarketplacePage() {
       electricityAvailable: Boolean(land.electricityAvailable),
       commercialType: commercial.commercialType || "",
       carpetArea: commercial.carpetArea || "",
-      floorNumber: commercial.floorNumber || "",
+      floorNumber: residential.floorNumber ?? commercial.floorNumber ?? flatMeta.floorNumber ?? "",
       washrooms: commercial.washrooms || "",
-      status: "DRAFT",
+      furnishing: residential.furnishing || flatMeta.furnishing || "",
+      facing: residential.facing || flatMeta.facing || "",
+      totalFloors: residential.totalFloors ?? flatMeta.totalFloors ?? "",
+      ageOfProperty: residential.ageOfProperty || flatMeta.ageOfProperty || "",
+      maintenanceCharges: residential.maintenanceCharges ?? flatMeta.maintenanceCharges ?? "",
+      houseRules: Array.isArray(residential.houseRules)
+        ? residential.houseRules
+        : Array.isArray(flatMeta.houseRules)
+          ? flatMeta.houseRules
+          : typeof (residential.houseRules || flatMeta.houseRules) === "string" && (residential.houseRules || flatMeta.houseRules).trim()
+            ? (residential.houseRules || flatMeta.houseRules).split(/[\n,]+/).map((s) => s.trim()).filter(Boolean)
+            : [],
+      spaceType: residential.spaceType || flatMeta.spaceType || post?.spaceType || "",
+      preferredTenants: Array.isArray(residential.preferredTenants) && residential.preferredTenants.length > 0
+        ? residential.preferredTenants
+        : (Array.isArray(flatMeta.preferredTenants) ? flatMeta.preferredTenants : []),
+      amenities: Array.isArray(flatMeta.amenities) && flatMeta.amenities.length > 0
+        ? flatMeta.amenities
+        : Array.isArray(residential.amenities) && residential.amenities.length > 0
+          ? residential.amenities
+          : String(requirement.amenitiesText || "").split(",").map((item) => item.trim()).filter(Boolean),
+      alternativeMobile: residential.alternativeMobile || flatMeta.alternativeMobile || "",
+      electricityBillUrl: residential.electricityBillUrl || flatMeta.electricityBillUrl || flatMeta.electricityBill || "",
+      status: post?.status || "DRAFT",
     };
   };
 
-  const resumeDraft = (post) => {
+  const resumeDraft = (post, targetStep = 1) => {
     setDraft(mapPostToDraftState(post));
     setEditingDraftId(post._id);
     setShowDraftsList(false);
     setComposerResult(null);
-    setComposerStep(1);
+    setComposerStep(targetStep);
   };
 
   // Same underlying flow as resuming a draft — the composer always PUTs to
   // the existing post when editingDraftId is set, and submitting normally
   // (not "Save as Draft") re-sends status: "PUBLISHED", so this can't
   // accidentally unpublish a live listing.
-  const handleEditPost = (post) => {
-    resumeDraft(post);
+  const handleEditPost = (post, options = {}) => {
+    const targetStep = typeof options === "number" ? options : (options?.step ?? 2);
+    const expandVerification = typeof options === "object" ? Boolean(options?.expandVerification) : false;
+    resumeDraft(post, targetStep);
+    if (expandVerification) {
+      setDraft((prev) => ({ ...prev, expandVerificationShutter: true }));
+    }
     setIsComposerOpen(true);
   };
 
@@ -1304,11 +1354,27 @@ export default function MarketplacePage() {
       .map((item) => item.trim())
       .filter(Boolean);
 
+    const residential = {
+      furnishing: draft.furnishing || "",
+      facing: draft.facing || "",
+      floorNumber: draft.floorNumber !== "" && draft.floorNumber !== undefined ? Number(draft.floorNumber) : undefined,
+      totalFloors: draft.totalFloors !== "" && draft.totalFloors !== undefined ? Number(draft.totalFloors) : undefined,
+      ageOfProperty: draft.ageOfProperty || "",
+      maintenanceCharges: draft.maintenanceCharges !== "" && draft.maintenanceCharges !== undefined ? Number(draft.maintenanceCharges) : undefined,
+      houseRules: Array.isArray(draft.houseRules) ? draft.houseRules : (draft.houseRules ? [draft.houseRules] : []),
+      spaceType: draft.spaceType || "",
+      preferredTenants: Array.isArray(draft.preferredTenants) ? draft.preferredTenants : [],
+      alternativeMobile: draft.alternativeMobile || "",
+      electricityBillUrl: draft.electricityBillUrl || "",
+    };
+
     const postMeta = {
+      residential,
+      amenities: Array.isArray(draft.amenities) ? draft.amenities : [],
       requirement: {
         furnishedPreference: draft.furnishedPreference || "",
         parkingRequired: Boolean(draft.parkingRequired),
-        amenitiesText: draft.amenitiesText || "",
+        amenitiesText: Array.isArray(draft.amenities) && draft.amenities.length > 0 ? draft.amenities.join(", ") : (draft.amenitiesText || ""),
         possessionDate: draft.possessionDate || "",
         loanRequired: Boolean(draft.loanRequired),
         moveInDate: draft.moveInDate || "",
@@ -1741,6 +1807,17 @@ export default function MarketplacePage() {
       carpetArea: "",
       floorNumber: "",
       washrooms: "",
+      furnishing: "",
+      facing: "",
+      totalFloors: "",
+      ageOfProperty: "",
+      maintenanceCharges: "",
+      houseRules: [],
+      spaceType: "",
+      preferredTenants: [],
+      amenities: [],
+      alternativeMobile: "",
+      electricityBillUrl: "",
     }));
   };
 
@@ -1758,7 +1835,10 @@ export default function MarketplacePage() {
         setSearchType(type || null);
         setSearchAuthorId(authorId || null);
       }}
-      onCreateProperty={() => setIsComposerOpen(true)}
+      onCreateProperty={() => {
+        resetComposer();
+        setIsComposerOpen(true);
+      }}
     >
       <div className="xl:h-full xl:min-h-0">
         <div className="flex gap-4 xl:h-full">
@@ -1871,6 +1951,25 @@ export default function MarketplacePage() {
 
             </div>
 
+            {activeBadgeFilter && (
+              <div className="mt-2.5 flex items-center justify-between rounded-xl bg-primary/10 border border-primary/20 px-3 py-1.5 text-xs animate-in fade-in duration-200">
+                <div className="flex items-center gap-1.5 text-primary font-medium min-w-0">
+                  <span className="opacity-75">Filtered by badge:</span>
+                  <span className="font-bold underline truncate">"{activeBadgeFilter}"</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveBadgeFilter(null);
+                    setSearch("");
+                  }}
+                  className="btn btn-ghost btn-xs text-primary hover:bg-primary/20 font-semibold gap-1 h-auto min-h-0 py-1 px-2 rounded-lg"
+                >
+                  <X className="size-3" /> Clear
+                </button>
+              </div>
+            )}
+
             <RoleBasedFilters
               userRole={activeRole}
               isOpen={isFiltersOpen}
@@ -1972,20 +2071,7 @@ export default function MarketplacePage() {
                   const isRequirement = postType.startsWith("REQUIREMENT_");
                   const requirementTitle = post.title || (postType === "REQUIREMENT_RENT" ? "Looking for Rental Property" : "Looking to Buy Property");
 
-                  const detailBadges = buildPropertyDetailBadges(post, activeRole);
                   const priceContextBadges = isRequirement ? [] : getPriceContextBadges(post);
-                  const sig = cardSignals[String(post._id)] || {};
-                  const postWithSignals = { ...post, activeOfferCount: sig.activeOffers };
-                  const insightBadge = !isRequirement && sig.priceInsight
-                    ? sig.priceInsight.verdict === "below"
-                      ? { key: "insight", label: `${Math.abs(sig.priceInsight.deltaPct)}% below area avg`, tone: "good" }
-                      : sig.priceInsight.verdict === "above"
-                        ? { key: "insight", label: `${sig.priceInsight.deltaPct}% above area avg`, tone: "warn" }
-                        : null
-                    : null;
-                  const signalBadges = isRequirement
-                    ? []
-                    : [...(insightBadge ? [insightBadge] : []), ...getPropertySignals(postWithSignals, { context: "feed" })].slice(0, 7);
                   const distPill = distancePill(post);
 
                   const handleDoubleClickMedia = (event) => {
@@ -2003,6 +2089,8 @@ export default function MarketplacePage() {
                       post={post}
                       isOwnPost={Boolean(authUser?._id && post.author?._id && String(authUser._id) === String(post.author._id))}
                       onBoost={(p) => setBoostTargetPost(p)}
+                      onEdit={(p, opts) => handleEditPost(p, opts)}
+                      onVerifyAddress={(p) => setVerifyAddressTargetPost(p)}
                       media={post.media}
                       onDoubleClickMedia={handleDoubleClickMedia}
                       badge={badge}
@@ -2087,30 +2175,74 @@ export default function MarketplacePage() {
                               ))}
                           </div>
 
-                          {/* One tag row: specs, then up to 2 signals */}
-                          {(detailBadges.length > 0 || signalBadges.length > 0 || distPill) && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {distPill && (
-                                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${distPill.className}`}>
-                                  <MapPin className="size-2.5" />
-                                  {distPill.label}
-                                </span>
-                              )}
-                              {detailBadges.slice(0, 3).map((detail, idx) => (
-                                <span key={`d${idx}`} className="rounded-full bg-base-200 px-2.5 py-0.5 text-[11px] font-medium text-base-content/70">
-                                  {detail.label}
-                                </span>
-                              ))}
-                              {signalBadges
-                                .filter((s) => !/view/i.test(s.label))
-                                .slice(0, 2)
-                                .map((s) => (
-                                  <span key={s.key} className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${toneClass(s.tone)}`}>
-                                    {s.label}
-                                  </span>
-                                ))}
-                            </div>
-                          )}
+                          {/* Badges & Property Info Section */}
+                          {(() => {
+                            const isOwn = Boolean(authUser?._id && post.author?._id && String(authUser._id) === String(post.author._id));
+                            const curatedBadges = getCuratedCardBadges(post, { isOwnPost: isOwn, max: 4 });
+                            const infoBadges = getPropertyInfoBadges(post, { distPill });
+
+                            if (curatedBadges.length === 0 && infoBadges.length === 0) return null;
+                            return (
+                              <div className="space-y-1.5 pt-0.5">
+                                {/* Row 1: Clickable Filter Badges */}
+                                {curatedBadges.length > 0 && (
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    {curatedBadges.map((badge) => {
+                                      if (badge.isAction && badge.action === "verifyAddress") {
+                                        return (
+                                          <button
+                                            key={badge.key}
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setVerifyAddressTargetPost(post);
+                                            }}
+                                            title="Verify address to boost reach"
+                                            className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[11px] transition-all cursor-pointer shadow-xs hover:shadow-sm hover:-translate-y-0.5 active:translate-y-0 active:scale-95 ${badge.className}`}
+                                          >
+                                            {badge.label}
+                                          </button>
+                                        );
+                                      }
+                                      const isSelected = activeBadgeFilter === (badge.filterValue || badge.label);
+                                      return (
+                                        <button
+                                          key={badge.key}
+                                          type="button"
+                                          onClick={(e) => handleFilterByBadge(badge, e)}
+                                          title={`Filter feed by "${badge.label}"`}
+                                          className={`inline-flex items-center rounded-lg px-2.5 py-0.5 text-[11px] transition-all cursor-pointer shadow-xs hover:shadow-sm hover:-translate-y-0.5 active:translate-y-0 active:scale-95 ${
+                                            badge.className
+                                          } ${
+                                            isSelected
+                                              ? "ring-2 ring-primary ring-offset-1 font-bold shadow-sm scale-105"
+                                              : ""
+                                          }`}
+                                        >
+                                          {badge.label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+
+                                {/* Row 2: Non-clickable Informational Badges (Transit/Railway distance, Floor, Sqft, Baths) */}
+                                {infoBadges.length > 0 && (
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    {infoBadges.map((info) => (
+                                      <span
+                                        key={info.key}
+                                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-normal cursor-default select-none pointer-events-none ${info.className}`}
+                                      >
+                                        {info.icon === "MapPin" && <MapPin className="size-2.5 shrink-0" />}
+                                        {info.label}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
 
                           {post.postMeta?.moveInDate && activeRole === "Tenant" && (
                             <p className="text-[11px] text-base-content/50">
@@ -2441,7 +2573,14 @@ export default function MarketplacePage() {
 
       {activeSection === "marketplace" && (
         <>
-          <button type="button" className="btn btn-circle fixed bottom-24 right-5 z-40 h-14 w-14 border-none bg-primary text-white shadow-xl hover:bg-primary xl:hidden" onClick={() => setIsComposerOpen(true)}>
+          <button
+            type="button"
+            className="btn btn-circle fixed bottom-24 right-5 z-40 h-14 w-14 border-none bg-primary text-white shadow-xl hover:bg-primary xl:hidden"
+            onClick={() => {
+              resetComposer();
+              setIsComposerOpen(true);
+            }}
+          >
             <Plus className="size-6" />
           </button>
           <ScrollTopButton className="bottom-40 right-6 xl:bottom-8 xl:right-8" />
@@ -2459,15 +2598,17 @@ export default function MarketplacePage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                    <Sparkles className="size-4" />
-                    Create Post
+                    {editingDraftId ? <Edit3 className="size-4" /> : <Sparkles className="size-4" />}
+                    {editingDraftId ? "Edit Post" : "Create Post"}
                   </p>
                   <h3 className="mt-2 text-2xl font-black text-base-content">
                     {showDraftsList
                       ? "Your Drafts"
                       : composerResult
-                        ? (composerResult === "DRAFT" ? "Saved as draft" : "Post published")
-                        : `Step ${composerStep} of ${totalComposerSteps}`}
+                        ? (composerResult === "DRAFT" ? "Saved as draft" : editingDraftId ? "Post updated" : "Post published")
+                        : editingDraftId
+                          ? `${stepKey === "details" ? "Edit Details" : stepKey === "photos" ? "Update Media" : stepKey === "review" ? "Review & Update" : "Edit Post"} (Step ${composerStep} of ${totalComposerSteps})`
+                          : `Step ${composerStep} of ${totalComposerSteps}`}
                   </h3>
                   {!showDraftsList && !composerResult && autosaveState !== "idle" && (
                     <p className="mt-1 text-xs text-base-content/50">
@@ -3015,16 +3156,30 @@ export default function MarketplacePage() {
                         </button>
                       </div>
                     ) : (
-                      <button
-                        type="button"
-                        className="btn border-none bg-primary text-white hover:bg-primary"
-                        disabled={!stepValid}
-                        onClick={() => setComposerStep((prev) => Math.min(totalComposerSteps, prev + 1))}
-                      >
-                        {stepKey === "photos" && composerMedia.length === 0 && !getPostTypeConfig(draft.postType).requiresMedia
-                          ? "Skip for now"
-                          : "Next"}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {editingDraftId && (
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-primary"
+                            disabled={creating || !stepValid}
+                            onClick={() => {
+                              createPost(draft.status || "PUBLISHED");
+                            }}
+                          >
+                            {creating ? "Saving…" : "Save Changes"}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="btn border-none bg-primary text-white hover:bg-primary"
+                          disabled={!stepValid}
+                          onClick={() => setComposerStep((prev) => Math.min(totalComposerSteps, prev + 1))}
+                        >
+                          {stepKey === "photos" && composerMedia.length === 0 && !getPostTypeConfig(draft.postType).requiresMedia
+                            ? "Skip for now"
+                            : "Next"}
+                        </button>
+                      </div>
                     )}
                   </>
                 )}
@@ -3185,6 +3340,12 @@ export default function MarketplacePage() {
         isOpen={Boolean(boostTargetPost)}
         post={boostTargetPost}
         onClose={() => setBoostTargetPost(null)}
+      />
+
+      <VerifyAddressModal
+        isOpen={Boolean(verifyAddressTargetPost)}
+        post={verifyAddressTargetPost}
+        onClose={() => setVerifyAddressTargetPost(null)}
       />
 
       {postMenuAnchor &&

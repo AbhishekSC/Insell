@@ -20,6 +20,9 @@ import {
   getLiveUsersCount,
   getAdminFeedback,
   resolveFeedback,
+  getAdminPropertyVerifications,
+  reviewPropertyVerification,
+  downloadPropertyBill,
 } from "../controllers/admin.controller.js";
 import {
   adminListFeatureFlags,
@@ -51,6 +54,10 @@ router.get("/coin-history", adminGetCoinHistory);
 router.get("/posts", getAdminPosts);
 router.post("/posts/:id/block", blockPost);
 router.post("/posts/:id/unblock", unblockPost);
+
+router.get("/property-verifications", getAdminPropertyVerifications);
+router.patch("/property-verifications/:id", reviewPropertyVerification);
+router.get("/property-verifications/:id/bill-download", downloadPropertyBill);
 
 router.get("/reports", getAdminReports);
 router.get("/reports/:postId", getAdminReportDetail);

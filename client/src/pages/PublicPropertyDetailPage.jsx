@@ -4,12 +4,71 @@ import { useQuery } from "@tanstack/react-query";
 import {
   MapPin, Bed, Bath, Ruler, Building2, Phone,
   IndianRupee, CalendarClock, Bookmark, Loader2,
+  ShieldCheck, Users, FileText, Ban, Clock, Sparkles,
+  Droplets, Flame, Wind, Zap, Wifi, Car, Shirt, Layers,
+  Briefcase, GraduationCap, User,
 } from "lucide-react";
 import axiosInstance from "../lib/axios";
 import LoginPromptModal from "../components/LoginPromptModal";
 import logoDesktop from "../assets/brand/logo-desktop.png";
 
 const isVideo = (u) => /\/video\/upload\/|\.(mp4|mov|webm|m4v)(\?|$)/i.test(u || "");
+
+const AMENITY_ICONS = {
+  "attached washroom": Bath,
+  "unattached washroom": Bath,
+  "washroom": Bath,
+  "bed": Bed,
+  "mattress": Bed,
+  "geyser": Flame,
+  "water purifier": Droplets,
+  "24x7 water supply": Droplets,
+  "water supply": Droplets,
+  "ac": Wind,
+  "air conditioner": Wind,
+  "security/cctv": ShieldCheck,
+  "cctv": ShieldCheck,
+  "security": ShieldCheck,
+  "fan & lights": Zap,
+  "fan": Zap,
+  "lights": Zap,
+  "wifi": Wifi,
+  "covered parking": Car,
+  "open parking": Car,
+  "parking": Car,
+  "laundry": Shirt,
+  "wardrobe": Layers,
+  "gas stove/chimney": Flame,
+  "gas stove": Flame,
+  "chimney": Flame,
+};
+
+function getAmenityIcon(name) {
+  const normalized = String(name || "").toLowerCase().trim();
+  for (const [key, IconComp] of Object.entries(AMENITY_ICONS)) {
+    if (normalized.includes(key)) return IconComp;
+  }
+  return Sparkles;
+}
+
+const TENANT_ICONS = {
+  "male": User,
+  "female": User,
+  "bachelor": User,
+  "bachelors": Users,
+  "working": Briefcase,
+  "professional": Briefcase,
+  "student": GraduationCap,
+  "students": GraduationCap,
+};
+
+function getTenantIcon(name) {
+  const normalized = String(name || "").toLowerCase().trim();
+  for (const [key, IconComp] of Object.entries(TENANT_ICONS)) {
+    if (normalized.includes(key)) return IconComp;
+  }
+  return Users;
+}
 
 export default function PublicPropertyDetailPage() {
   const { id } = useParams();
@@ -107,6 +166,15 @@ export default function PublicPropertyDetailPage() {
               <MapPin className="size-3.5" /> {p.locationLabel}
             </p>
           )}
+          {p.addressVerified ? (
+            <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
+              <ShieldCheck className="size-3.5" /> Address Verified
+            </div>
+          ) : p.electricityBillStatus === "PENDING" ? (
+            <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+              <Clock className="size-3.5" /> Address Verification in Review
+            </div>
+          ) : null}
         </div>
 
         {/* Specs */}
@@ -175,14 +243,85 @@ export default function PublicPropertyDetailPage() {
         {/* Amenities */}
         {p.amenities.length > 0 && (
           <div className="mt-6">
-            <h2 className="mb-2 text-sm font-semibold text-base-content">Amenities</h2>
-            <div className="flex flex-wrap gap-2">
-              {p.amenities.map((a) => (
-                <span key={a} className="rounded-lg bg-base-200 px-2.5 py-1 text-xs text-base-content/70">{a}</span>
-              ))}
+            <h2 className="mb-3 text-sm font-semibold text-base-content flex items-center gap-1.5">
+              <Sparkles className="size-4 text-primary" /> Amenities ({p.amenities.length})
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {p.amenities.map((a) => {
+                const IconComp = getAmenityIcon(a);
+                return (
+                  <div
+                    key={a}
+                    className="flex items-center gap-2.5 rounded-xl border border-base-200 bg-base-200/50 p-2.5 text-xs font-medium text-base-content/90 min-w-0"
+                  >
+                    <div className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                      <IconComp className="size-3.5" />
+                    </div>
+                    <span className="min-w-0 flex-1 leading-snug break-words">{a}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
+
+        {/* Preferred Tenants */}
+        {p.preferredTenants?.length > 0 && (
+          <div className="mt-6">
+            <h2 className="mb-3 text-sm font-semibold text-base-content flex items-center gap-1.5">
+              <Users className="size-4 text-primary" /> Preferred Tenants
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {p.preferredTenants.map((t) => {
+                const IconComp = getTenantIcon(t);
+                return (
+                  <div
+                    key={t}
+                    className="flex items-center gap-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs font-semibold text-base-content"
+                  >
+                    <div className="grid size-7 shrink-0 place-items-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                      <IconComp className="size-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-base-content">{t}</p>
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Eligible Tenant</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* House Rules */}
+        {(() => {
+          const rules = Array.isArray(p.houseRules)
+            ? p.houseRules.filter(Boolean)
+            : typeof p.houseRules === "string" && p.houseRules.trim()
+              ? p.houseRules.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean)
+              : [];
+          if (rules.length === 0) return null;
+          return (
+            <div className="mt-6">
+              <h2 className="mb-2.5 text-sm font-semibold text-base-content flex items-center gap-1.5">
+                <FileText className="size-4 text-primary" /> House Rules
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {rules.map((rule, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2.5 rounded-xl border border-base-200 bg-base-200/50 p-3 text-xs sm:text-sm font-medium text-base-content/90"
+                  >
+                    <div className="size-6 rounded-md bg-error/10 text-error flex items-center justify-center shrink-0">
+                      <Ban className="size-3" />
+                    </div>
+                    <span>{rule}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Similar listings — horizontal scroll */}
         {p.related.length > 0 && (

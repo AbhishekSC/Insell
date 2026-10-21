@@ -81,6 +81,19 @@ export function preferredTypeMatch(post, authUser) {
     : null;
 }
 
+export function addressVerifiedBadge(post) {
+  const isVerified =
+    Boolean(post?.addressVerified) ||
+    post?.electricityBillStatus === "VERIFIED" ||
+    post?.postMeta?.residential?.electricityBillStatus === "VERIFIED" ||
+    post?.postMeta?.electricityBillStatus === "VERIFIED" ||
+    post?.postMeta?.commercial?.electricityBillStatus === "VERIFIED" ||
+    post?.postMeta?.land?.electricityBillStatus === "VERIFIED";
+
+  if (!isVerified) return null;
+  return { key: "addressVerified", label: "✓ Address Verified", tone: "good" };
+}
+
 export function possession(post) {
   const p = post?.postMeta?.possessionStatus || post?.postMeta?.projectStatus;
   if (p === "Ready to Move" || p === "Ready To Move") return { key: "possession", label: "Ready to move", tone: "good" };
@@ -190,6 +203,7 @@ export function getPropertySignals(post, { context = "feed" } = {}) {
   const type = String(post.postType || "").toUpperCase();
   if (type.startsWith("REQUIREMENT_")) return [];
 
+  const verified = [addressVerifiedBadge(post)].filter(Boolean);
   const money = [pricePerSqft(post)].filter(Boolean);
   const demand = demandBadges(post, { max: context === "detail" ? 3 : 2 });
   const trending = trendingBadge(post);
@@ -198,10 +212,11 @@ export function getPropertySignals(post, { context = "feed" } = {}) {
   const quality = [completenessBadge(post)].filter(Boolean);
 
   if (context === "detail") {
-    return dedupe([...status, ...(trending ? [trending] : []), ...money, ...demand, ...seller, ...quality]);
+    return dedupe([...verified, ...status, ...(trending ? [trending] : []), ...money, ...demand, ...seller, ...quality]);
   }
   // feed: same signals, capped so the card stays scannable. Most useful first.
   return dedupe([
+    ...verified,            // ✓ Address Verified is #1 trust signal
     ...status.slice(0, 1),
     ...(trending ? [trending] : []),
     ...money,               // ₹/sqft

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Heart, MessageCircle, Bookmark, Send, Volume2, VolumeX, Building2, Maximize2, Phone, BadgeCheck, Zap } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, Send, Volume2, VolumeX, Building2, Maximize2, Phone, BadgeCheck, Zap, CheckCircle2, ShieldCheck } from "lucide-react";
 import PostAuthorLink from "./PostAuthorLink";
 import { useStoryOverlay } from "../context/StoryOverlayContext";
 import { lqipUrl, cardImageUrl } from "../lib/cloudinaryImage";
@@ -327,11 +327,11 @@ export default function PropertyPostCard({
         {description}
 
         {/* meta + contact on one row */}
-        {(viewsCount > 0 || metaLine || onContact) && (
+        {(viewsCount !== undefined || metaLine || onContact) && (
           <div className="flex items-center justify-between gap-3">
             <p className="flex min-w-0 items-center gap-1.5 truncate text-xs text-base-content/45">
-              {viewsCount > 0 && <span>{viewsCount} view{viewsCount === 1 ? "" : "s"}</span>}
-              {viewsCount > 0 && metaLine && <span>·</span>}
+              <span>{(viewsCount || 0)} view{(viewsCount || 0) === 1 ? "" : "s"}</span>
+              {metaLine && <span>·</span>}
               {metaLine}
             </p>
             {onContact && (

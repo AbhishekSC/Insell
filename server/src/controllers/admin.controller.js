@@ -12,6 +12,7 @@ import { NotificationChannel } from "../services/NotificationService.js";
 import redisClient from "../config/redisClient.config.js";
 import { getLiveUsersCountRedis } from "../services/likeCache.service.js";
 import { creditCoins, getOrCreateWallet } from "../services/wallet.service.js";
+import { cloudinaryInstance, extractPublicIdFromUrl } from "../config/cloudinary.js";
 
 // Roles treated as "verified" — same rule the marketplace's Verified filter
 // already uses (there's no dedicated verified-broker flag yet, just role).
@@ -774,5 +775,190 @@ export const adminGetCoinHistory = async (req, res) => {
   } catch (error) {
     logger.error("Error fetching coin history:", error);
     return sendErrorResponse(res, 500, "Failed to fetch coin history");
+  }
+};
+
+// List property listings with uploaded electricity bills for admin verification queue
+export const getAdminPropertyVerifications = async (req, res) => {
+  try {
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
+    const skip = (page - 1) * limit;
+    const status = String(req.query.status || "PENDING").toUpperCase();
+
+    const billBaseFilter = {
+      isDeleted: { $ne: true },
+      $or: [
+        { "postMeta.residential.electricityBillUrl": { $exists: true, $ne: "" } },
+        { "postMeta.electricityBillUrl": { $exists: true, $ne: "" } },
+      ],
+    };
+
+    let statusCondition = {};
+    if (status === "PENDING") {
+      statusCondition = {
+        $or: [
+          { "postMeta.residential.electricityBillStatus": "PENDING" },
+          { "postMeta.residential.electricityBillStatus": { $exists: false } },
+          { "postMeta.residential.electricityBillStatus": null },
+          { "postMeta.residential.electricityBillStatus": "" },
+        ],
+      };
+    } else if (status === "VERIFIED") {
+      statusCondition = {
+        $or: [
+          { "postMeta.residential.electricityBillStatus": "VERIFIED" },
+          { "postMeta.electricityBillStatus": "VERIFIED" },
+        ],
+      };
+    } else if (status === "REJECTED") {
+      statusCondition = {
+        $or: [
+          { "postMeta.residential.electricityBillStatus": "REJECTED" },
+          { "postMeta.electricityBillStatus": "REJECTED" },
+        ],
+      };
+    }
+
+    const queryFilter = {
+      ...billBaseFilter,
+      ...(status !== "ALL" ? statusCondition : {}),
+    };
+
+    const [posts, total, pendingCount, verifiedCount, rejectedCount] = await Promise.all([
+      PropertyPost.find(queryFilter)
+        .select("title listingType propertyType postType price city locality mediaUrls postMeta author createdAt updatedAt")
+        .populate("author", "fullName email mobileNumber profilePic activeRole primaryRole isVerified")
+        .populate("postMeta.residential.electricityBillVerifiedBy", "fullName email profilePic")
+        .sort({ updatedAt: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      PropertyPost.countDocuments(queryFilter),
+      PropertyPost.countDocuments({
+        ...billBaseFilter,
+        $or: [
+          { "postMeta.residential.electricityBillStatus": "PENDING" },
+          { "postMeta.residential.electricityBillStatus": { $exists: false } },
+          { "postMeta.residential.electricityBillStatus": null },
+          { "postMeta.residential.electricityBillStatus": "" },
+        ],
+      }),
+      PropertyPost.countDocuments({
+        ...billBaseFilter,
+        $or: [
+          { "postMeta.residential.electricityBillStatus": "VERIFIED" },
+          { "postMeta.electricityBillStatus": "VERIFIED" },
+        ],
+      }),
+      PropertyPost.countDocuments({
+        ...billBaseFilter,
+        $or: [
+          { "postMeta.residential.electricityBillStatus": "REJECTED" },
+          { "postMeta.electricityBillStatus": "REJECTED" },
+        ],
+      }),
+    ]);
+
+    return sendSuccessResponse(res, 200, "Property verifications fetched", {
+      posts,
+      counts: {
+        pending: pendingCount,
+        verified: verifiedCount,
+        rejected: rejectedCount,
+        all: pendingCount + verifiedCount + rejectedCount,
+      },
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
+  } catch (error) {
+    logger.error("Error fetching property verifications:", error);
+    return sendErrorResponse(res, 500, "Failed to fetch property verifications");
+  }
+};
+
+// Admin approve or reject a property listing's electricity bill
+export const reviewPropertyVerification = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, rejectionReason, verificationNote } = req.body || {};
+    const adminId = req.user._id;
+
+    if (!["VERIFIED", "REJECTED"].includes(status)) {
+      return sendErrorResponse(res, 400, "Status must be VERIFIED or REJECTED");
+    }
+
+    const post = await PropertyPost.findById(id);
+    if (!post || post.isDeleted) {
+      return sendErrorResponse(res, 404, "Property post not found");
+    }
+
+    if (!post.postMeta) post.postMeta = {};
+    if (!post.postMeta.residential) post.postMeta.residential = {};
+
+    post.postMeta.residential.electricityBillStatus = status;
+    post.postMeta.residential.electricityBillVerifiedAt = new Date();
+    post.postMeta.residential.electricityBillVerifiedBy = adminId;
+    if (status === "REJECTED") {
+      post.postMeta.residential.electricityBillRejectionReason = String(rejectionReason || "").trim();
+      post.postMeta.residential.electricityBillVerificationNote = "";
+    } else if (status === "VERIFIED") {
+      post.postMeta.residential.electricityBillVerificationNote = String(verificationNote || "").trim();
+      post.postMeta.residential.electricityBillRejectionReason = "";
+    }
+
+    // Backward-compat flat mirror
+    post.postMeta.electricityBillStatus = status;
+
+    post.markModified("postMeta");
+    await post.save();
+
+    // Invalidate Redis feed cache and post detail cache
+    try {
+      await redisClient.del(`post:${id}:detail`);
+      const keys = await redisClient.keys("property:feed:*");
+      if (keys.length > 0) await redisClient.del(keys);
+    } catch (e) {
+      logger.warn("Cache invalidate error:", e);
+    }
+
+    return sendSuccessResponse(res, 200, `Property bill marked as ${status}`, { post });
+  } catch (error) {
+    logger.error("Error reviewing property verification:", error);
+    return sendErrorResponse(res, 500, "Failed to review property verification");
+  }
+};
+
+// Admin securely view or download property electricity bill (bypasses Cloudinary 401 ACL block)
+export const downloadPropertyBill = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const post = await PropertyPost.findById(id).select("postMeta title");
+    if (!post) {
+      return sendErrorResponse(res, 404, "Property post not found");
+    }
+
+    const billUrl = post.postMeta?.residential?.electricityBillUrl || post.postMeta?.electricityBillUrl;
+    if (!billUrl) {
+      return sendErrorResponse(res, 404, "No bill found for this property");
+    }
+
+    if (billUrl.includes("res.cloudinary.com")) {
+      const publicId = extractPublicIdFromUrl(billUrl);
+      const isPdf = /\.pdf$/i.test(billUrl);
+      const format = isPdf ? "pdf" : (billUrl.split(".").pop() || "jpg");
+
+      // Generate signed private download URL (authenticated via API secret)
+      const signedDownloadUrl = cloudinaryInstance.utils.private_download_url(publicId, format, {
+        resource_type: "image",
+        type: "upload",
+      });
+
+      return res.redirect(signedDownloadUrl);
+    }
+
+    return res.redirect(billUrl);
+  } catch (error) {
+    logger.error("Error generating property bill download URL:", error);
+    return sendErrorResponse(res, 500, "Failed to download bill");
   }
 };

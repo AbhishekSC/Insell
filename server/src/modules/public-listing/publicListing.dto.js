@@ -36,15 +36,21 @@ function specsLabel(post) {
 
 function keyDetails(post) {
   const m = post.postMeta && typeof post.postMeta === "object" && !Array.isArray(post.postMeta) ? post.postMeta : {};
+  const res = m.residential || {};
   const out = [];
   const add = (label, value) => {
     if (value !== undefined && value !== null && value !== "" && value !== false) out.push({ label, value: String(value) });
   };
-  add("Furnishing", m.furnishing);
-  if (m.parking) add("Parking", "Available");
-  add("Facing", m.facing);
-  if (m.floorNumber) add("Floor", m.totalFloors ? `${m.floorNumber} of ${m.totalFloors}` : `${m.floorNumber}`);
-  add("Age", m.ageOfProperty);
+  add("Space Type", res.spaceType || m.spaceType);
+  add("Furnishing", res.furnishing || m.furnishing);
+  if (m.parking || m.requirement?.parkingRequired) add("Parking", "Available");
+  add("Facing", res.facing || m.facing);
+  const flr = res.floorNumber ?? m.floorNumber;
+  const tot = res.totalFloors ?? m.totalFloors;
+  if (flr) add("Floor", tot ? `${flr} of ${tot}` : `${flr}`);
+  add("Age", res.ageOfProperty || m.ageOfProperty);
+  const maint = res.maintenanceCharges ?? m.maintenanceCharges;
+  if (maint) add("Maintenance", `₹${Number(maint).toLocaleString("en-IN")}/mo`);
   add("Possession", m.possessionStatus);
   return out;
 }
@@ -102,7 +108,21 @@ export function toPublicDetailDTO(post, related = [], people = []) {
     areaSqft: post.areaSqft || 0,
     propertyType: post.propertyType || "",
     images,
-    amenities: Array.isArray(post.postMeta?.amenities) ? post.postMeta.amenities.filter(Boolean).slice(0, 20) : [],
+    amenities: Array.isArray(post.postMeta?.amenities) && post.postMeta.amenities.length > 0
+      ? post.postMeta.amenities.filter(Boolean).slice(0, 30)
+      : (Array.isArray(post.postMeta?.residential?.amenities) ? post.postMeta.residential.amenities.filter(Boolean).slice(0, 30) : []),
+    houseRules: post.postMeta?.residential?.houseRules || post.postMeta?.houseRules || "",
+    preferredTenants: Array.isArray(post.postMeta?.residential?.preferredTenants) && post.postMeta.residential.preferredTenants.length > 0
+      ? post.postMeta.residential.preferredTenants
+      : (Array.isArray(post.postMeta?.preferredTenants) ? post.postMeta.preferredTenants : []),
+    addressVerified: Boolean(
+      post.postMeta?.residential?.electricityBillStatus === "VERIFIED" ||
+      post.postMeta?.electricityBillStatus === "VERIFIED"
+    ),
+    electricityBillStatus:
+      post.postMeta?.residential?.electricityBillStatus ||
+      post.postMeta?.electricityBillStatus ||
+      (post.postMeta?.residential?.electricityBillUrl || post.postMeta?.electricityBillUrl ? "PENDING" : "NONE"),
     keyDetails: keyDetails(post),
     author: post.author
       ? {
