@@ -347,6 +347,8 @@ propertyPostSchema.index({ status: 1, visibility: 1, isDeleted: 1, isBlocked: 1,
 // Matches "my posts" / author-filtered feeds (profile pages, authorId
 // query param) sorted by newest.
 propertyPostSchema.index({ author: 1, isDeleted: 1, createdAt: -1 });
+// Compound index for admin property verification queue lookups
+propertyPostSchema.index({ "postMeta.residential.electricityBillStatus": 1, isDeleted: 1 });
 
 propertyPostSchema.plugin(cdnMediaPlugin, { fields: [{ field: "mediaUrls", preset: "property" }] });
 
