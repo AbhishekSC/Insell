@@ -602,20 +602,32 @@ export function extractTransitPill(post) {
   return null;
 }
 
-// Non-clickable dynamic informational badges (Transit distance, Proximity, Floor, Sqft, Baths, Maintenance)
+// Non-clickable dynamic informational badges (Transit distance, Proximity, Floor, Sqft, Baths, Amenities, Age, Facing, Maintenance)
 export function getPropertyInfoBadges(post, options = {}) {
   if (!post) return [];
   const meta = post.postMeta || {};
   const res = meta.residential || {};
+  const comm = meta.commercial || {};
   const land = meta.land || {};
   const isRequirement = String(post.postType || "").toUpperCase().startsWith("REQUIREMENT_");
   if (isRequirement) return [];
 
+  const existingKeys = new Set(options.existingKeys || []);
   const infoBadges = [];
+  const addBadge = (badge) => {
+    if (badge && !existingKeys.has(badge.key)) {
+      infoBadges.push(badge);
+      existingKeys.add(badge.key);
+    }
+  };
+
+  const amenities = Array.isArray(meta.amenities)
+    ? meta.amenities
+    : (Array.isArray(res.amenities) ? res.amenities : []);
 
   // 1. Proximity / User Distance (if provided from distancePill)
   if (options.distPill) {
-    infoBadges.push({
+    addBadge({
       key: "dist",
       icon: "MapPin",
       label: options.distPill.label,
@@ -626,7 +638,7 @@ export function getPropertyInfoBadges(post, options = {}) {
   // 2. Railway / Metro / Transit Proximity
   const transitPill = extractTransitPill(post);
   if (transitPill) {
-    infoBadges.push({
+    addBadge({
       key: "transit",
       label: transitPill.label,
       className: "bg-blue-500/8 text-blue-700/85 dark:text-blue-300/85 border border-blue-500/20 text-[10.5px] font-medium",
@@ -634,7 +646,7 @@ export function getPropertyInfoBadges(post, options = {}) {
   }
 
   // 3. Floor Information
-  const floor = res.floorNumber ?? meta.floorNumber;
+  const floor = res.floorNumber ?? comm.floorNumber ?? meta.floorNumber;
   const total = res.totalFloors ?? meta.totalFloors;
   if (floor !== undefined && floor !== null && floor !== "") {
     const fNum = Number(floor);
@@ -644,48 +656,112 @@ export function getPropertyInfoBadges(post, options = {}) {
       else if (total && fNum === Number(total)) floorLabel = `Top Floor (${fNum}/${total})`;
       else if (total && Number(total) > 0) floorLabel = `Floor ${fNum} of ${total}`;
 
-      infoBadges.push({
+      addBadge({
         key: "floor",
         label: floorLabel,
-        className: "bg-base-200/50 text-base-content/65 border border-base-300/40 text-[10.5px] font-normal",
+        className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
       });
     }
   }
 
   // 4. Area (sqft or land area)
   if (post.areaSqft && Number(post.areaSqft) > 0) {
-    infoBadges.push({
+    addBadge({
       key: "sqft",
       label: `${Number(post.areaSqft).toLocaleString("en-IN")} sqft`,
-      className: "bg-base-200/50 text-base-content/65 border border-base-300/40 text-[10.5px] font-normal",
+      className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
     });
   } else if (land.landArea && Number(land.landArea) > 0) {
-    infoBadges.push({
+    addBadge({
       key: "landArea",
       label: `${land.landArea} ${land.landAreaUnit || "Acre"}`.trim(),
-      className: "bg-base-200/50 text-base-content/65 border border-base-300/40 text-[10.5px] font-normal",
+      className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
+    });
+  } else if (comm.carpetArea && Number(comm.carpetArea) > 0) {
+    addBadge({
+      key: "carpetArea",
+      label: `${Number(comm.carpetArea).toLocaleString("en-IN")} sqft`,
+      className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
     });
   }
 
-  // 5. Bathrooms (if >= 1)
+  // 5. Bathrooms / Washrooms
   if (post.bathrooms && Number(post.bathrooms) > 0) {
-    infoBadges.push({
+    addBadge({
       key: "baths",
       label: `${post.bathrooms} Bath${Number(post.bathrooms) > 1 ? "s" : ""}`,
-      className: "bg-base-200/50 text-base-content/65 border border-base-300/40 text-[10.5px] font-normal",
+      className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
+    });
+  } else if (comm.washrooms && Number(comm.washrooms) > 0) {
+    addBadge({
+      key: "washrooms",
+      label: `${comm.washrooms} Washroom${Number(comm.washrooms) > 1 ? "s" : ""}`,
+      className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
     });
   }
 
-  // 6. Maintenance charges
-  const maint = res.maintenanceCharges ?? meta.maintenanceCharges;
+  // 6. Age of Property (e.g. New Construction, 1-3 Years)
+  const age = res.ageOfProperty || meta.ageOfProperty;
+  if (age) {
+    addBadge({
+      key: "age",
+      label: age,
+      className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
+    });
+  }
+
+  // 7. Facing (e.g. East Facing, North-East Facing)
+  const facing = res.facing || comm.facing || meta.facing;
+  if (facing) {
+    addBadge({
+      key: "facing",
+      label: `${facing} Facing`,
+      className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
+    });
+  }
+
+  // 8. Key Standout Amenities
+  const amenityPills = [
+    { pattern: /balcony|terrace/i, label: "Balcony" },
+    { pattern: /power\s*backup/i, label: "Power Backup" },
+    { pattern: /24x7\s*water|water\s*supply/i, label: "24x7 Water" },
+    { pattern: /lift|elevator/i, label: "Lift" },
+    { pattern: /gym/i, label: "Gym" },
+    { pattern: /swimming\s*pool/i, label: "Pool" },
+    { pattern: /gas\s*(?:stove|chimney|pipeline)/i, label: "Gas Pipeline" },
+    { pattern: /cctv|security/i, label: "CCTV / Security" },
+  ];
+
+  for (const item of amenityPills) {
+    if (amenities.some((a) => item.pattern.test(a))) {
+      addBadge({
+        key: `amenity_${item.label}`,
+        label: item.label,
+        className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
+      });
+    }
+  }
+
+  // 9. Furnishing (if not already displayed in curated)
+  const furnishing = res.furnishing || meta.furnishing;
+  if (furnishing && !/unfurnished/i.test(furnishing)) {
+    addBadge({
+      key: "furnishing",
+      label: furnishing === "Fully Furnished" ? "Furnished" : furnishing,
+      className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
+    });
+  }
+
+  // 10. Maintenance charges
+  const maint = res.maintenanceCharges ?? comm.maintenanceCharges ?? meta.maintenanceCharges;
   if (maint && Number(maint) > 0) {
-    infoBadges.push({
+    addBadge({
       key: "maint",
       label: `₹${Number(maint).toLocaleString("en-IN")}/mo maint.`,
-      className: "bg-base-200/50 text-base-content/65 border border-base-300/40 text-[10.5px] font-normal",
+      className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
     });
   }
 
-  // Return up to 4 info badges
-  return infoBadges.slice(0, 4);
+  const maxItems = options.max || 8;
+  return infoBadges.slice(0, maxItems);
 }
