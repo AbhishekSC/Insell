@@ -599,8 +599,30 @@ export async function getPropertyFeed(req, res) {
       if (bhkMatch) {
         filter.$or.push({ bedrooms: parseInt(bhkMatch[1], 10) });
       }
-      if (/owner|direct/i.test(query)) {
-        filter.$or.push({ authorRole: { $in: ["Landlord", "Seller", "Owner", "Direct Owner"] } });
+      if (/parking/i.test(query)) {
+        filter.$or.push(
+          { "postMeta.amenities": /parking/i },
+          { "postMeta.residential.amenities": /parking/i },
+          { "postMeta.parkingRequired": true }
+        );
+      }
+      if (/ready/i.test(query)) {
+        filter.$or.push(
+          { "postMeta.possessionStatus": /ready/i },
+          { "postMeta.residential.possessionStatus": /ready/i },
+          { "postMeta.projectStatus": /ready/i }
+        );
+      }
+      if (/security|gated|cctv/i.test(query)) {
+        filter.$or.push(
+          { "postMeta.amenities": /security|cctv/i },
+          { "postMeta.residential.amenities": /security|cctv/i }
+        );
+      }
+      if (/family/i.test(query)) {
+        filter.$or.push(
+          { "postMeta.residential.preferredTenants": /family/i }
+        );
       }
       if (/verified/i.test(query)) {
         filter.$or.push(
