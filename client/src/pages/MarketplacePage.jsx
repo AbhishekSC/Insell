@@ -2175,71 +2175,64 @@ export default function MarketplacePage() {
                               ))}
                           </div>
 
-                          {/* Badges & Property Info Section */}
+                          {/* Badges & Property Info Section (Seamless Unified Flow, Zero Wasted Space) */}
                           {(() => {
                             const isOwn = Boolean(authUser?._id && post.author?._id && String(authUser._id) === String(post.author._id));
                             const curatedBadges = getCuratedCardBadges(post, { isOwnPost: isOwn, max: 4 });
-                            const infoBadges = getPropertyInfoBadges(post, { distPill });
+                            const curatedKeys = curatedBadges.map((b) => b.key);
+                            const infoBadges = getPropertyInfoBadges(post, { distPill, existingKeys: curatedKeys, max: 8 });
 
                             if (curatedBadges.length === 0 && infoBadges.length === 0) return null;
                             return (
-                              <div className="space-y-1.5 pt-0.5">
-                                {/* Row 1: Clickable Filter Badges */}
-                                {curatedBadges.length > 0 && (
-                                  <div className="flex flex-wrap items-center gap-1.5">
-                                    {curatedBadges.map((badge) => {
-                                      if (badge.isAction && badge.action === "verifyAddress") {
-                                        return (
-                                          <button
-                                            key={badge.key}
-                                            type="button"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setVerifyAddressTargetPost(post);
-                                            }}
-                                            title="Verify address to boost reach"
-                                            className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[11px] transition-all cursor-pointer shadow-xs hover:shadow-sm hover:-translate-y-0.5 active:translate-y-0 active:scale-95 ${badge.className}`}
-                                          >
-                                            {badge.label}
-                                          </button>
-                                        );
-                                      }
-                                      const isSelected = activeBadgeFilter === (badge.filterValue || badge.label);
-                                      return (
-                                        <button
-                                          key={badge.key}
-                                          type="button"
-                                          onClick={(e) => handleFilterByBadge(badge, e)}
-                                          title={`Filter feed by "${badge.label}"`}
-                                          className={`inline-flex items-center rounded-lg px-2.5 py-0.5 text-[11px] transition-all cursor-pointer shadow-xs hover:shadow-sm hover:-translate-y-0.5 active:translate-y-0 active:scale-95 ${
-                                            badge.className
-                                          } ${
-                                            isSelected
-                                              ? "ring-2 ring-primary ring-offset-1 font-bold shadow-sm scale-105"
-                                              : ""
-                                          }`}
-                                        >
-                                          {badge.label}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-
-                                {/* Row 2: Non-clickable Informational Badges (Transit/Railway distance, Floor, Sqft, Baths) */}
-                                {infoBadges.length > 0 && (
-                                  <div className="flex flex-wrap items-center gap-1.5">
-                                    {infoBadges.map((info) => (
-                                      <span
-                                        key={info.key}
-                                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-normal cursor-default select-none pointer-events-none ${info.className}`}
+                              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                {/* Clickable Filter Badges (Tactile Chips) */}
+                                {curatedBadges.map((badge) => {
+                                  if (badge.isAction && badge.action === "verifyAddress") {
+                                    return (
+                                      <button
+                                        key={badge.key}
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setVerifyAddressTargetPost(post);
+                                        }}
+                                        title="Verify address to boost reach"
+                                        className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[11px] transition-all cursor-pointer shadow-xs hover:shadow-sm hover:-translate-y-0.5 active:translate-y-0 active:scale-95 ${badge.className}`}
                                       >
-                                        {info.icon === "MapPin" && <MapPin className="size-2.5 shrink-0" />}
-                                        {info.label}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
+                                        {badge.label}
+                                      </button>
+                                    );
+                                  }
+                                  const isSelected = activeBadgeFilter === (badge.filterValue || badge.label);
+                                  return (
+                                    <button
+                                      key={badge.key}
+                                      type="button"
+                                      onClick={(e) => handleFilterByBadge(badge, e)}
+                                      title={`Filter feed by "${badge.label}"`}
+                                      className={`inline-flex items-center rounded-lg px-2.5 py-0.5 text-[11px] transition-all cursor-pointer shadow-xs hover:shadow-sm hover:-translate-y-0.5 active:translate-y-0 active:scale-95 ${
+                                        badge.className
+                                      } ${
+                                        isSelected
+                                          ? "ring-2 ring-primary ring-offset-1 font-bold shadow-sm scale-105"
+                                          : ""
+                                      }`}
+                                    >
+                                      {badge.label}
+                                    </button>
+                                  );
+                                })}
+
+                                {/* Non-clickable Informational Badges (Seamlessly wrapping to fill space) */}
+                                {infoBadges.map((info) => (
+                                  <span
+                                    key={info.key}
+                                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-normal cursor-default select-none pointer-events-none ${info.className}`}
+                                  >
+                                    {info.icon === "MapPin" && <MapPin className="size-2.5 shrink-0" />}
+                                    {info.label}
+                                  </span>
+                                ))}
                               </div>
                             );
                           })()}

@@ -118,7 +118,8 @@ function ProfilePriceBlock({ post, isOwnPost, onVerifyAddress }) {
     .filter((b) => b.key === "drop" || b.key === "rise")
     .slice(0, 1)[0];
   const curatedBadges = getCuratedCardBadges(post, { isOwnPost, max: 4 });
-  const infoBadges = getPropertyInfoBadges(post);
+  const curatedKeys = curatedBadges.map((b) => b.key);
+  const infoBadges = getPropertyInfoBadges(post, { existingKeys: curatedKeys, max: 8 });
   return (
     <>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -143,9 +144,9 @@ function ProfilePriceBlock({ post, isOwnPost, onVerifyAddress }) {
         </div>
       )}
 
-      {/* Row 1: Clickable / Categorical Badges */}
-      {curatedBadges.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 pt-0.5">
+      {/* Unified Badges Flow: Clickable Chips + Informational Specs (Zero Wasted Space) */}
+      {(curatedBadges.length > 0 || infoBadges.length > 0) && (
+        <div className="flex flex-wrap items-center gap-1.5 pt-1">
           {curatedBadges.map((badge) => {
             if (badge.isAction && badge.action === "verifyAddress") {
               return (
@@ -172,12 +173,7 @@ function ProfilePriceBlock({ post, isOwnPost, onVerifyAddress }) {
               </span>
             );
           })}
-        </div>
-      )}
 
-      {/* Row 2: Non-clickable Informational Badges (Transit/Railway distance, Floor, Sqft, Baths) */}
-      {infoBadges.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 pt-0.5">
           {infoBadges.map((info) => (
             <span
               key={info.key}
