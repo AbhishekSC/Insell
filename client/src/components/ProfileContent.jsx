@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Camera, Link2, MapPin, Phone, BadgeCheck, Sparkles, UploadCloud, UserCircle } from "lucide-react";
+import { Camera, Link2, MapPin, Phone, BadgeCheck, Sparkles, UploadCloud, UserCircle, Briefcase } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import LocationPicker from "./LocationPicker";
@@ -30,6 +30,8 @@ export default function ProfileContent() {
   const [localPreview, setLocalPreview] = useState("");
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [locationDetails, setLocationDetails] = useState(authUser?.locationDetails || null);
+  const [showWorkLocationPicker, setShowWorkLocationPicker] = useState(false);
+  const [workLocation, setWorkLocation] = useState(authUser?.workLocation || null);
   const [showVerification, setShowVerification] = useState(false);
 
   useEffect(() => {
@@ -123,6 +125,37 @@ export default function ProfileContent() {
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || "Failed to update location");
+    },
+  });
+
+  const { mutate: saveWorkLocation, isPending: isSavingWorkLocation } = useMutation({
+    mutationFn: async (workData) => {
+      const response = await axiosInstance.patch("/users/work-location", {
+        workLocation: workData,
+      });
+      return response.data;
+    },
+    onSuccess: (response) => {
+      const user = response?.data?.user;
+      queryClient.setQueryData(["authUser"], (prev) => {
+        const prevData = prev?.data?.user || prev?.data || {};
+        return {
+          status: "success",
+          data: {
+            user: {
+              ...prevData,
+              ...user,
+            },
+          },
+        };
+      });
+      queryClient.invalidateQueries({ queryKey: ["authUser"] });
+      queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
+      toast.success("Workplace updated! Commute scoring enabled.");
+      setShowWorkLocationPicker(false);
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to update work location");
     },
   });
 
@@ -289,6 +322,82 @@ export default function ProfileContent() {
                 </div>
               </div>
             )}
+
+            {/* Workplace / Office Location for Commute-Time Aware Scoring */}
+            <div className="rounded-xl border border-base-300 bg-base-200/50 p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs sm:text-sm font-semibold text-base-content flex items-center gap-1.5">
+                    <Briefcase className="size-4 text-purple-600 dark:text-purple-400" />
+                    Workplace / Office Location
+                  </span>
+                  <p className="text-[11px] text-base-content/60">
+                    Powers accurate commute-time scoring and travel duration on properties
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowWorkLocationPicker(!showWorkLocationPicker)}
+                  className="btn btn-xs sm:btn-sm border border-purple-300 dark:border-purple-800 bg-base-100 text-base-content hover:bg-base-200"
+                >
+                  <MapPin className="size-3.5 text-purple-600" />
+                  {workLocation?.city || workLocation?.formattedAddress ? (workLocation.city || "Workplace set") : "Set workplace"}
+                </button>
+              </div>
+
+              {workLocation && !showWorkLocationPicker && (
+                <div className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                  <div className="flex items-start gap-2">
+                    <Briefcase className="size-4 text-purple-600 dark:text-purple-400 mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-base-content">
+                        {workLocation.city || "Office location"}
+                        {workLocation.state ? `, ${workLocation.state}` : ""}
+                      </p>
+                      {workLocation.formattedAddress && (
+                        <p className="text-[11px] text-base-content/60 mt-0.5 line-clamp-1">{workLocation.formattedAddress}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {showWorkLocationPicker && (
+                <div className="mt-3 p-3 rounded-xl border border-purple-500/25 bg-base-100">
+                  <LocationPicker
+                    onLocationChange={(data) => {
+                      setWorkLocation(data);
+                    }}
+                    initialPosition={
+                      workLocation?.latitude && workLocation?.longitude
+                        ? [workLocation.latitude, workLocation.longitude]
+                        : null
+                    }
+                  />
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (workLocation) {
+                          saveWorkLocation(workLocation);
+                        }
+                      }}
+                      disabled={isSavingWorkLocation || !workLocation}
+                      className="btn btn-sm bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
+                    >
+                      {isSavingWorkLocation ? "Saving..." : "Save Workplace"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowWorkLocationPicker(false)}
+                      className="btn btn-sm border border-base-300 bg-base-100 text-base-content hover:bg-base-200"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <label className="form-control">
               <span className="label-text mb-1 text-xs sm:text-sm text-base-content">Primary role</span>

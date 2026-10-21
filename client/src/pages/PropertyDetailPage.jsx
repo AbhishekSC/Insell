@@ -56,7 +56,7 @@ import {
 import toast from "react-hot-toast";
 import BoostPropertyModal from "../components/BoostPropertyModal";
 import VerifyAddressModal from "../components/VerifyAddressModal";
-import { getPostSpaceType } from "../lib/propertyDetailBadges";
+import { getPostSpaceType, extractTransitPill } from "../lib/propertyDetailBadges";
 import ShareModal from "../components/ShareModal";
 import NeighbourhoodSummary from "../components/NeighbourhoodSummary";
 import NeighborhoodVibeCard from "../components/NeighborhoodVibeCard";
@@ -946,6 +946,15 @@ export default function PropertyDetailPage() {
                       <span className="rounded-full bg-base-200 px-2.5 py-0.5 text-xs font-medium text-base-content/70">
                         {String(postData.listingType || "").toLowerCase() === "rent" || postData.postType === "PROPERTY_RENT" ? "For Rent" : titleCase(postData.postType)}
                       </span>
+                      {(() => {
+                        const transit = extractTransitPill(postData);
+                        if (!transit) return null;
+                        return (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300 border border-blue-500/20">
+                            {transit.label}
+                          </span>
+                        );
+                      })()}
                       {isOwner && (
                         <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
                           Your listing
@@ -959,6 +968,29 @@ export default function PropertyDetailPage() {
                             {s.label}
                           </span>
                         ))}
+                      </div>
+                    )}
+
+                    {/* Market Appreciation & Deal Insights */}
+                    {(postData.appreciationForecast || postData.dealProbability?.level === "HIGH") && (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {postData.appreciationForecast && Number(postData.appreciationForecast.annualizedRate) > 0 && (
+                          <div className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                            <span>📈</span>
+                            <span>Projected +{postData.appreciationForecast.annualizedRate}% annual appreciation</span>
+                            {postData.appreciationForecast.projectedPsf12m && (
+                              <span className="text-emerald-700/80 dark:text-emerald-400 font-normal">
+                                (Est. ₹{Number(postData.appreciationForecast.projectedPsf12m).toLocaleString("en-IN")}/sq.ft in 12m)
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {postData.dealProbability && postData.dealProbability.level === "HIGH" && (
+                          <div className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-900 dark:text-amber-300">
+                            <span>🎯</span>
+                            <span>{postData.dealProbability.label || "High Deal Likelihood"}</span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

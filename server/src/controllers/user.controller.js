@@ -11,6 +11,7 @@ export {
   getUserPublicProfile,
   getUserFriendsList,
   updateUserLocation,
+  updateWorkLocation,
   updateDigestPreference,
   getPreferencePrompt,
   answerPreferencePrompt,

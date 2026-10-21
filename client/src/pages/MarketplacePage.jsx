@@ -325,6 +325,7 @@ export default function MarketplacePage() {
   const [search, setSearch] = useState(() => searchParams.get("search") || "");
   const [searchType, setSearchType] = useState(null);
   const [searchAuthorId, setSearchAuthorId] = useState(null);
+  const [activeNaturalParsed, setActiveNaturalParsed] = useState(null);
   const [activeCategory, setActiveCategory] = useState("For You");
   const [selectedTrendingLocation, setSelectedTrendingLocation] = useState(null);
   const [activeBadgeFilter, setActiveBadgeFilter] = useState(null);
@@ -854,30 +855,44 @@ export default function MarketplacePage() {
       }
       params.set("limit", "12");
 
-      // Handle author-specific search
-      if (searchType === 'author' && searchAuthorId) {
-        params.set("authorId", searchAuthorId);
-      } else if (search.trim()) {
-        params.set("q", search.trim());
+      // Handle author-specific search vs natural search vs standard query
+      const isNaturalQuery = /\b(bhk|bedroom|under|below|less than|near|lakh|lac|cr|crore|rent|between|with|garden|pool|gym)\b/i.test(search.trim());
+
+      let response;
+      if (search.trim() && isNaturalQuery && searchType !== 'author') {
+        const pageNum = params.get("page") || 1;
+        response = await axiosInstance.get(`/search/natural?q=${encodeURIComponent(search.trim())}&page=${pageNum}&limit=12`);
+        if (response.data?.data?.parsed) {
+          setActiveNaturalParsed(response.data.data.parsed);
+        }
+      } else {
+        if (searchType === 'author' && searchAuthorId) {
+          params.set("authorId", searchAuthorId);
+        } else if (search.trim()) {
+          params.set("q", search.trim());
+        }
+
+        if (queryListingType) params.set("listingType", queryListingType);
+        if (queryPropertyType) params.set("propertyType", queryPropertyType);
+
+        // Add category filter
+        if (activeCategory && activeCategory !== "For You") {
+          params.set("category", activeCategory.toLowerCase());
+        }
+
+        // Fresh browser location for Near Me — the server prefers this over the
+        // saved / city location.
+        if (isNearMe && nearMeCoords) {
+          params.set("lat", String(nearMeCoords.lat));
+          params.set("lon", String(nearMeCoords.lon));
+          if (nearMeCoords.accuracy) params.set("accuracy", String(nearMeCoords.accuracy));
+        }
+
+        response = await axiosInstance.get(`/posts?${params.toString()}`);
+        if (!search.trim()) {
+          setActiveNaturalParsed(null);
+        }
       }
-
-      if (queryListingType) params.set("listingType", queryListingType);
-      if (queryPropertyType) params.set("propertyType", queryPropertyType);
-
-      // Add category filter
-      if (activeCategory && activeCategory !== "For You") {
-        params.set("category", activeCategory.toLowerCase());
-      }
-
-      // Fresh browser location for Near Me — the server prefers this over the
-      // saved / city location.
-      if (isNearMe && nearMeCoords) {
-        params.set("lat", String(nearMeCoords.lat));
-        params.set("lon", String(nearMeCoords.lon));
-        if (nearMeCoords.accuracy) params.set("accuracy", String(nearMeCoords.accuracy));
-      }
-
-      const response = await axiosInstance.get(`/posts?${params.toString()}`);
       return response.data?.data || { posts: [], pagination: { page: 1, totalPages: 1 } };
     },
     getNextPageParam: (lastPage) => {
@@ -1964,6 +1979,51 @@ export default function MarketplacePage() {
                     setSearch("");
                   }}
                   className="btn btn-ghost btn-xs text-primary hover:bg-primary/20 font-semibold gap-1 h-auto min-h-0 py-1 px-2 rounded-lg"
+                >
+                  <X className="size-3" /> Clear
+                </button>
+              </div>
+            )}
+
+            {activeNaturalParsed && search && (
+              <div className="mt-2.5 flex items-center justify-between rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 px-3 py-2 text-xs animate-in fade-in duration-200">
+                <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                  <span className="font-semibold text-primary flex items-center gap-1 mr-1">
+                    <Sparkles className="size-3.5 fill-primary" /> Smart Match:
+                  </span>
+                  {activeNaturalParsed.bedrooms && (
+                    <span className="rounded-md bg-base-100 border border-primary/20 px-2 py-0.5 font-semibold text-base-content">
+                      🛏️ {activeNaturalParsed.bedrooms} BHK
+                    </span>
+                  )}
+                  {activeNaturalParsed.city && (
+                    <span className="rounded-md bg-base-100 border border-primary/20 px-2 py-0.5 font-semibold text-base-content">
+                      📍 {activeNaturalParsed.city}
+                    </span>
+                  )}
+                  {activeNaturalParsed.maxPrice && (
+                    <span className="rounded-md bg-base-100 border border-primary/20 px-2 py-0.5 font-semibold text-emerald-700 dark:text-emerald-400">
+                      💰 Under {formatMoney(activeNaturalParsed.maxPrice)}
+                    </span>
+                  )}
+                  {activeNaturalParsed.nearTransport && (
+                    <span className="rounded-md bg-base-100 border border-primary/20 px-2 py-0.5 font-medium text-base-content">
+                      🚇 Near Transit
+                    </span>
+                  )}
+                  {activeNaturalParsed.amenities?.map((a) => (
+                    <span key={a} className="rounded-md bg-base-100 border border-primary/20 px-2 py-0.5 font-medium text-base-content capitalize">
+                      ✨ {a}
+                    </span>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveNaturalParsed(null);
+                    setSearch("");
+                  }}
+                  className="btn btn-ghost btn-xs text-primary hover:bg-primary/20 font-semibold gap-1 h-auto min-h-0 py-1 px-2 rounded-lg shrink-0 ml-2"
                 >
                   <X className="size-3" /> Clear
                 </button>

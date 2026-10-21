@@ -35,8 +35,8 @@ describe("PersonalizationService.getPostTypeScore", () => {
 describe("PersonalizationService.calculatePropertyScore", () => {
   const user = { friends: [], locationDetails: {} };
 
-  it("stays within 0..100 and runs with an empty behavior blob", () => {
-    const score = PersonalizationService.calculatePropertyScore(
+  it("stays within 0..100 and runs with an empty behavior blob", async () => {
+    const score = await PersonalizationService.calculatePropertyScore(
       { postType: "PROPERTY_SALE", propertyType: "Apartment", price: 5000000, city: "Indore" },
       user,
       {}
@@ -45,18 +45,18 @@ describe("PersonalizationService.calculatePropertyScore", () => {
     expect(score).toBeLessThanOrEqual(100);
   });
 
-  it("scores a matching post type higher than a non-matching one, all else equal", () => {
+  it("scores a matching post type higher than a non-matching one, all else equal", async () => {
     const behavior = {
       preferredPostTypes: [{ type: "AGRICULTURAL_LISTING", score: 80 }],
       preferredPropertyTypes: [],
     };
     const base = { propertyType: "Agricultural Land", price: 2000000, city: "Indore" };
-    const match = PersonalizationService.calculatePropertyScore(
+    const match = await PersonalizationService.calculatePropertyScore(
       { ...base, postType: "AGRICULTURAL_LISTING" },
       user,
       behavior
     );
-    const noMatch = PersonalizationService.calculatePropertyScore(
+    const noMatch = await PersonalizationService.calculatePropertyScore(
       { ...base, postType: "PROPERTY_SALE" },
       user,
       behavior

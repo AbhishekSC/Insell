@@ -1,6 +1,10 @@
 import PropertyPost from "../models/PropertyPost.model.js";
 import User from "../models/User.model.js";
 import { logger } from "../utils/logger.js";
+import {
+  executeNaturalSearch,
+  parseNaturalQuery,
+} from "../services/NaturalLanguageSearchService.js";
 
 /**
  * Search autocomplete endpoint
@@ -279,6 +283,72 @@ export async function clearSearchHistory(req, res) {
     res.status(500).json({
       success: false,
       message: "Failed to clear search history"
+    });
+  }
+}
+
+/**
+ * GET /search/natural?q=2BHK+near+metro+under+50+lakhs+in+Pune
+ * Natural language property search endpoint
+ */
+export async function naturalLanguageSearch(req, res) {
+  try {
+    const query = String(req.query.q || req.query.query || "").trim();
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 12));
+    const currentUserId = req.user?._id ? String(req.user._id) : null;
+
+    if (!query) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          query: "",
+          parsed: {},
+          posts: [],
+          total: 0,
+          pagination: { page, limit, total: 0, totalPages: 0 },
+        },
+      });
+    }
+
+    const result = await executeNaturalSearch({
+      query,
+      currentUserId,
+      page,
+      limit,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Natural language search executed successfully",
+      data: result,
+    });
+  } catch (error) {
+    logger.error("Error in naturalLanguageSearch:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to execute natural language search",
+      error: error.message,
+    });
+  }
+}
+
+/**
+ * GET /search/parse?q=...
+ * Parse-only endpoint (allows frontend to display chips for detected filters)
+ */
+export async function parseQueryOnly(req, res) {
+  try {
+    const query = String(req.query.q || req.query.query || "").trim();
+    const parsed = parseNaturalQuery(query);
+    return res.status(200).json({
+      success: true,
+      data: parsed,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to parse query",
     });
   }
 }

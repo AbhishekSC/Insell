@@ -301,26 +301,76 @@ export default function PropertyPostCard({
           )}
         </div>
 
-        {/* Instagram-style like context — only when a connection liked it */}
-        {post.socialProof?.fullName && (
-          <button
-            type="button"
-            className="flex items-center gap-1.5 text-left text-xs text-base-content/70"
-            onClick={onOpenLikes ? stop(onOpenLikes) : undefined}
-          >
-            {post.socialProof.avatar && (
-              <img src={post.socialProof.avatar} alt="" className="size-4 rounded-full object-cover" />
+        {/* Social Proof Signals Block */}
+        {(post.socialProof?.fullName ||
+          post.socialProof?.friendsViewed?.length > 0 ||
+          post.socialProof?.communitySaves > 0 ||
+          post.socialProof?.cityVelocity ||
+          post.socialProof?.authorResponseTime ||
+          post.dealProbability?.level === "HIGH") && (
+          <div className="space-y-1 pt-0.5">
+            {/* Instagram-style like context — only when a connection liked it */}
+            {post.socialProof?.fullName && (
+              <button
+                type="button"
+                className="flex items-center gap-1.5 text-left text-xs text-base-content/70 hover:opacity-85"
+                onClick={onOpenLikes ? stop(onOpenLikes) : undefined}
+              >
+                {post.socialProof.avatar && (
+                  <img src={post.socialProof.avatar} alt="" className="size-4 rounded-full object-cover" />
+                )}
+                <span className="truncate">
+                  Liked by <span className="font-semibold text-base-content">{post.socialProof.fullName}</span>
+                  {post.socialProof.isOwnerVerified && (
+                    <BadgeCheck className="ml-0.5 inline-block size-3 shrink-0 align-middle text-primary" aria-label="Verified Owner" />
+                  )}
+                  {post.socialProof.othersCount > 0 && (
+                    <> and <span className="font-semibold text-base-content hover:underline">{post.socialProof.othersCount.toLocaleString("en-IN")} others</span></>
+                  )}
+                </span>
+              </button>
             )}
-            <span className="truncate">
-              Liked by <span className="font-semibold text-base-content">{post.socialProof.fullName}</span>
-              {post.socialProof.isOwnerVerified && (
-                <BadgeCheck className="ml-0.5 inline-block size-3 shrink-0 align-middle text-primary" aria-label="Verified Owner" />
+
+            {/* Friends viewed context */}
+            {post.socialProof?.friendsViewed?.length > 0 && (
+              <div className="flex items-center gap-1.5 text-xs text-base-content/70">
+                <div className="flex -space-x-1.5 overflow-hidden">
+                  {post.socialProof.friendsViewed.map((f, i) => (
+                    f.avatar ? (
+                      <img key={i} src={f.avatar} alt="" className="inline-block size-4 rounded-full ring-1 ring-base-100 object-cover" />
+                    ) : (
+                      <div key={i} className="inline-grid size-4 place-items-center rounded-full bg-primary/20 text-[9px] font-bold text-primary ring-1 ring-base-100">
+                        {f.name?.[0] || "F"}
+                      </div>
+                    )
+                  ))}
+                </div>
+                <span className="truncate text-[11px]">
+                  Viewed by <span className="font-semibold text-base-content">{post.socialProof.friendsViewed[0].name}</span>
+                  {post.socialProof.friendsViewedCount > 1 && ` and ${post.socialProof.friendsViewedCount - 1} other${post.socialProof.friendsViewedCount > 2 ? "s" : ""}`}
+                </span>
+              </div>
+            )}
+
+            {/* Velocity, Community Saves, Seller Response, and Deal Signals */}
+            <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[11px]">
+              {post.socialProof?.cityVelocity && (
+                <span className="inline-flex items-center gap-1 font-semibold text-orange-600 dark:text-orange-400">
+                  <span>🔥</span> {post.socialProof.cityVelocity.label}
+                </span>
               )}
-              {post.socialProof.othersCount > 0 && (
-                <> and <span className="font-semibold text-base-content hover:underline">{post.socialProof.othersCount.toLocaleString("en-IN")} others</span></>
+              {post.socialProof?.communitySaves > 0 && (
+                <span className="inline-flex items-center gap-1 font-medium text-primary">
+                  <span>👥</span> {post.socialProof.communitySaves} community {post.socialProof.communitySaves === 1 ? "save" : "saves"}
+                </span>
               )}
-            </span>
-          </button>
+              {post.socialProof?.authorResponseTime && (
+                <span className="inline-flex items-center gap-1 text-base-content/60">
+                  <span>⚡</span> Responds in {post.socialProof.authorResponseTime}
+                </span>
+              )}
+            </div>
+          </div>
         )}
 
         {priceBlock}

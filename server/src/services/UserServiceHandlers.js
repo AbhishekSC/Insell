@@ -754,6 +754,71 @@ export async function updateUserLocation(req, res) {
   }
 }
 
+// PATCH /users/work-location  { latitude, longitude, label?, address? }
+//
+// Sets the user's work / office location for commute-time-aware scoring.
+// The personalization engine blends this with proximity: a property that's
+// farther but faster to commute to can outscore one that's closer as the
+// crow flies. Clearing workLocation (passing null coordinates) removes it.
+export async function updateWorkLocation(req, res) {
+  try {
+    const currentUserId = req.user._id;
+    const { latitude, longitude, label, address } = req.body || {};
+
+    // Allow clearing: both null/undefined → remove workLocation
+    if (latitude == null && longitude == null) {
+      const updated = await User.findByIdAndUpdate(
+        currentUserId,
+        { $unset: { workLocation: 1 } },
+        { new: true }
+      );
+      // Bust feed cache so commute blending is removed immediately
+      try {
+        const keys = await redisClient.keys(`property:feed:*:${currentUserId}`);
+        if (keys.length > 0) await redisClient.del(keys);
+      } catch {}
+      return sendSuccessResponse(res, 200, "Work location removed", {
+        user: sanitizeUserData(updated),
+      });
+    }
+
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      return sendErrorResponse(res, 400, "Invalid coordinates");
+    }
+
+    const updated = await User.findByIdAndUpdate(
+      currentUserId,
+      {
+        workLocation: {
+          latitude: lat,
+          longitude: lng,
+          label: String(label || "").slice(0, 100),
+          address: String(address || "").slice(0, 300),
+          updatedAt: new Date(),
+        },
+      },
+      { new: true }
+    );
+
+    if (!updated) return sendErrorResponse(res, 404, "User not found");
+
+    // Bust feed cache so commute scoring takes effect immediately
+    try {
+      const keys = await redisClient.keys(`property:feed:*:${currentUserId}`);
+      if (keys.length > 0) await redisClient.del(keys);
+    } catch {}
+
+    return sendSuccessResponse(res, 200, "Work location updated successfully", {
+      user: sanitizeUserData(updated),
+    });
+  } catch (error) {
+    logger.error("Error updating work location:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
 // PATCH /users/digest-preference  { optOut: boolean }
 // One-click "turn off this email" target for the weekly digest — see
 // modules/weekly-digest. Doesn't touch in-app or push notifications.
