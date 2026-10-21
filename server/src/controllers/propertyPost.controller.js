@@ -2237,6 +2237,28 @@ export async function getPropertyPostById(req, res) {
 
     const viewCount = cachedViews !== null ? parseInt(cachedViews, 10) : (post.viewCount || 0);
 
+    // Record view in user history if authenticated
+    if (currentUserId && !isPostOwner) {
+      User.updateOne(
+        { _id: currentUserId },
+        { $pull: { viewedPosts: { post: postId } } }
+      )
+        .then(() => {
+          User.updateOne(
+            { _id: currentUserId },
+            {
+              $push: {
+                viewedPosts: {
+                  $each: [{ post: postId, viewedAt: new Date() }],
+                  $slice: -100,
+                },
+              },
+            }
+          ).catch(() => {});
+        })
+        .catch(() => {});
+    }
+
     return sendSuccessResponse(res, 200, "Property post fetched successfully", {
       post: {
         ...post,
@@ -2689,6 +2711,26 @@ export async function incrementViewCount(req, res) {
 
     // In background, ensure MongoDB stays synced and feed cache is purged
     PropertyPost.updateOne({ _id: postId }, { $set: { viewCount } }).catch(() => {});
+    if (userId) {
+      User.updateOne(
+        { _id: userId },
+        { $pull: { viewedPosts: { post: postId } } }
+      )
+        .then(() => {
+          User.updateOne(
+            { _id: userId },
+            {
+              $push: {
+                viewedPosts: {
+                  $each: [{ post: postId, viewedAt: new Date() }],
+                  $slice: -100,
+                },
+              },
+            }
+          ).catch(() => {});
+        })
+        .catch(() => {});
+    }
     try {
       const feedKeys = await redisClient.keys("property:feed:*");
       if (feedKeys.length > 0) await redisClient.del(feedKeys);
