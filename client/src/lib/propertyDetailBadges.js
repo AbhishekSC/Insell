@@ -440,35 +440,6 @@ export function getCuratedCardBadges(post, options = {}) {
     });
   }
 
-  // 5. Price Drop (Urgent Deal)
-  const rawPriceHistory = Array.isArray(post.priceHistory) ? post.priceHistory : [];
-  const cleanHistory = rawPriceHistory
-    .filter((entry) => Number(entry?.price) > 0)
-    .sort((a, b) => new Date(a.changedAt || 0) - new Date(b.changedAt || 0))
-    .reduce((acc, entry) => {
-      const p = Number(entry.price);
-      if (acc.length === 0 || acc[acc.length - 1].price !== p) {
-        acc.push({ ...entry, price: p });
-      }
-      return acc;
-    }, []);
-
-  if (cleanHistory.length >= 2) {
-    const prev = cleanHistory[cleanHistory.length - 2]?.price;
-    const curr = cleanHistory[cleanHistory.length - 1]?.price;
-    if (prev && curr && curr < prev) {
-      const dropAmount = prev - curr;
-      candidates.push({
-        key: "priceDrop",
-        label: `↓ ₹${dropAmount >= 1000 ? Math.round(dropAmount / 1000) + "k" : dropAmount} Drop`,
-        filterValue: "price drop",
-        type: "deal",
-        className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-bold hover:bg-emerald-500/20 hover:border-emerald-500/50",
-        priority: 4,
-      });
-    }
-  }
-
   // 6. Furnishing (Fully Furnished / Semi Furnished)
   const furnishing = res.furnishing || meta.furnishing;
   if (furnishing && !/unfurnished/i.test(furnishing)) {
@@ -570,9 +541,24 @@ export function getCuratedCardBadges(post, options = {}) {
 }
 
 // Extracts transit proximity expressions (e.g. "1.5 km from railway station", "500m from metro")
-// from property title, caption, or locality.
+// from property title, caption, locality, or resolved commuteHighlight.
 export function extractTransitPill(post) {
   if (!post) return null;
+  if (post.commuteHighlight?.text) {
+    let raw = String(post.commuteHighlight.text)
+      .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "")
+      .trim();
+    if (raw) {
+      // Normalize 'mins' to singular 'min'
+      raw = raw.replace(/\bmins\b/i, "min");
+      return {
+        key: "transit",
+        label: raw,
+        isPersonalized: Boolean(post.commuteHighlight.isPersonalized),
+        icon: post.commuteHighlight.icon || "Navigation",
+      };
+    }
+  }
   const text = `${post.title || ""} ${post.caption || ""} ${post.locality || ""}`;
   if (!text.trim()) return null;
 
@@ -582,10 +568,7 @@ export function extractTransitPill(post) {
   );
   if (distMatch) {
     const raw = distMatch[0].trim();
-    const isTrain = /railway|train/i.test(raw);
-    const isMetro = /metro|subway/i.test(raw);
-    const icon = isTrain ? "🚆" : isMetro ? "🚇" : "📍";
-    return { key: "transit", label: `${icon} ${raw}` };
+    return { key: "transit", label: raw };
   }
 
   // 2. Proximity phrases like "near metro", "near railway station", "close to metro"
@@ -594,9 +577,7 @@ export function extractTransitPill(post) {
   );
   if (nearMatch) {
     const raw = nearMatch[0].trim();
-    const isTrain = /railway|train/i.test(raw);
-    const icon = isTrain ? "🚆" : "🚇";
-    return { key: "transit", label: `${icon} ${raw}` };
+    return { key: "transit", label: raw };
   }
 
   return null;
@@ -640,8 +621,11 @@ export function getPropertyInfoBadges(post, options = {}) {
   if (transitPill) {
     addBadge({
       key: "transit",
+      icon: transitPill.icon || (transitPill.isPersonalized ? "Navigation" : "transit"),
       label: transitPill.label,
-      className: "bg-blue-500/8 text-blue-700/85 dark:text-blue-300/85 border border-blue-500/20 text-[10.5px] font-medium",
+      className: transitPill.isPersonalized
+        ? "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 text-[10.5px] font-medium rounded-md px-2 py-0.5"
+        : "bg-base-200/80 text-base-content/85 text-[10.5px] font-medium rounded-md px-2 py-0.5",
     });
   }
 
@@ -649,7 +633,8 @@ export function getPropertyInfoBadges(post, options = {}) {
   if (post.appreciationForecast && Number(post.appreciationForecast.annualizedRate) > 0) {
     addBadge({
       key: "appreciation",
-      label: `📈 +${post.appreciationForecast.annualizedRate}%/yr projected`,
+      icon: "TrendingUp",
+      label: `+${post.appreciationForecast.annualizedRate}%/yr projected`,
       className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 font-semibold text-[10.5px]",
     });
   }
@@ -658,16 +643,19 @@ export function getPropertyInfoBadges(post, options = {}) {
   if (post.dealProbability && (post.dealProbability.level === "HIGH" || post.dealProbability.score >= 65)) {
     addBadge({
       key: "deal_prob",
-      label: `🎯 ${post.dealProbability.label || "High Deal Likelihood"}`,
+      icon: "Target",
+      label: post.dealProbability.label || "High Deal Likelihood",
       className: "bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/25 font-semibold text-[10.5px]",
     });
   }
 
   // 2d. Commute Time from Work
   if (post.commuteDurationMin && Number(post.commuteDurationMin) > 0) {
+    const target = post.commuteTargetName || post.commuteDestination || "work";
     addBadge({
       key: "commute_time",
-      label: `🚗 ${post.commuteDurationMin} min to work`,
+      icon: "Navigation",
+      label: `${post.commuteDurationMin} min to ${target}`,
       className: "bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/25 font-medium text-[10.5px]",
     });
   }

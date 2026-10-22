@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import React, { useState, useEffect, useId } from "react";
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import { MapPin, Navigation } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -13,25 +13,97 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
 
+function normalizePos(pos) {
+  if (!pos) return null;
+  let lat = null;
+  let lng = null;
+  if (Array.isArray(pos) && pos.length === 2) {
+    lat = Number(pos[0]);
+    lng = Number(pos[1]);
+  } else if (typeof pos === "object") {
+    lat = Number(pos.lat ?? pos.latitude);
+    lng = Number(pos.lng ?? pos.longitude);
+  }
+  if (
+    typeof lat === "number" &&
+    typeof lng === "number" &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    (lat !== 0 || lng !== 0) &&
+    Math.abs(lat) <= 90 &&
+    Math.abs(lng) <= 180
+  ) {
+    return { lat, lng };
+  }
+  return null;
+}
+
+class MapErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(err) {
+    console.warn("Leaflet Map Error caught:", err);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex h-[200px] w-full flex-col items-center justify-center rounded-xl border border-base-300 bg-base-200/50 p-4 text-center">
+          <MapPin className="size-6 text-base-content/40 mb-1" />
+          <p className="text-xs text-base-content/60">Map preview unavailable</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function MapViewUpdater({ position }) {
+  const map = useMap();
+  useEffect(() => {
+    if (position && Number.isFinite(position.lat) && Number.isFinite(position.lng)) {
+      try {
+        map.setView([position.lat, position.lng], 13, { animate: true });
+      } catch (_) {}
+    }
+  }, [position, map]);
+  return null;
+}
+
 function LocationMarker({ position, setPosition, onLocationSelect }) {
   useMapEvents({
     click(e) {
-      setPosition(e.latlng);
+      const latlng = { lat: e.latlng.lat, lng: e.latlng.lng };
+      setPosition(latlng);
       if (onLocationSelect) {
-        onLocationSelect(e.latlng);
+        onLocationSelect(latlng);
       }
     },
   });
 
-  return position === null ? null : (
-    <Marker position={position} />
-  );
+  if (!position || typeof position.lat !== "number" || typeof position.lng !== "number") {
+    return null;
+  }
+
+  return <Marker position={[position.lat, position.lng]} />;
 }
 
 export default function LocationPicker({ onLocationChange, initialPosition }) {
-  const [position, setPosition] = useState(initialPosition || null);
+  const instanceId = useId();
+  const [position, setPosition] = useState(() => normalizePos(initialPosition));
   const [loading, setLoading] = useState(false);
   const [address, setAddress] = useState("");
+
+  useEffect(() => {
+    const next = normalizePos(initialPosition);
+    if (next) {
+      setPosition(next);
+    }
+  }, [initialPosition]);
 
   const handleGetCurrentLocation = async () => {
     setLoading(true);
@@ -40,9 +112,15 @@ export default function LocationPicker({ onLocationChange, initialPosition }) {
       const latlng = { lat: coords.latitude, lng: coords.longitude };
       setPosition(latlng);
       
-      // Get address details
-      const addressDetails = await reverseGeocode(coords.latitude, coords.longitude);
-      setAddress(addressDetails.formattedAddress);
+      let addressDetails = {
+        formattedAddress: `Current Location (${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)})`,
+        city: "",
+      };
+      try {
+        const res = await reverseGeocode(coords.latitude, coords.longitude);
+        if (res) addressDetails = res;
+      } catch {}
+      setAddress(addressDetails.formattedAddress || "");
       
       if (onLocationChange) {
         onLocationChange({
@@ -53,28 +131,38 @@ export default function LocationPicker({ onLocationChange, initialPosition }) {
       }
     } catch (error) {
       console.error("Error getting location:", error);
-      alert("Failed to get your location. Please make sure location services are enabled.");
+      alert("Failed to get your location. Please click on the map or pick a preset.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleMapClick = async (latlng) => {
+    let addressDetails = {
+      formattedAddress: `Selected Pin (${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)})`,
+      city: "",
+      locality: "",
+    };
     try {
-      const addressDetails = await reverseGeocode(latlng.lat, latlng.lng);
-      setAddress(addressDetails.formattedAddress);
-      
-      if (onLocationChange) {
-        onLocationChange({
-          latitude: latlng.lat,
-          longitude: latlng.lng,
-          ...addressDetails,
-        });
-      }
+      const res = await reverseGeocode(latlng.lat, latlng.lng);
+      if (res) addressDetails = res;
     } catch (error) {
-      console.error("Error reverse geocoding:", error);
+      console.warn("Reverse geocode fallback:", error);
+    }
+    setAddress(addressDetails.formattedAddress || "");
+    
+    if (onLocationChange) {
+      onLocationChange({
+        latitude: latlng.lat,
+        longitude: latlng.lng,
+        ...addressDetails,
+      });
     }
   };
+
+  const centerCoords = position
+    ? [position.lat, position.lng]
+    : [20.5937, 78.9629]; // Default India center
 
   return (
     <div className="space-y-4">
@@ -91,21 +179,25 @@ export default function LocationPicker({ onLocationChange, initialPosition }) {
       </div>
 
       <div className="relative h-[300px] w-full rounded-xl border border-base-300 overflow-hidden">
-        <MapContainer
-          center={position || [20.5937, 78.9629]} // Default to India center
-          zoom={position ? 13 : 5}
-          style={{ height: "100%", width: "100%" }}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <LocationMarker
-            position={position}
-            setPosition={setPosition}
-            onLocationSelect={handleMapClick}
-          />
-        </MapContainer>
+        <MapErrorBoundary>
+          <MapContainer
+            key={`map-${instanceId}`}
+            center={centerCoords}
+            zoom={position ? 13 : 5}
+            style={{ height: "100%", width: "100%" }}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <MapViewUpdater position={position} />
+            <LocationMarker
+              position={position}
+              setPosition={setPosition}
+              onLocationSelect={handleMapClick}
+            />
+          </MapContainer>
+        </MapErrorBoundary>
       </div>
 
       {address && (
@@ -115,9 +207,9 @@ export default function LocationPicker({ onLocationChange, initialPosition }) {
         </div>
       )}
 
-      {position && (
+      {position && typeof position.lat === "number" && typeof position.lng === "number" && (
         <div className="text-xs text-base-content/60">
-          Selected: {position.lat.toFixed(6)}, {position.lng.toFixed(6)}
+          Selected: {position.lat.toFixed(4)}, {position.lng.toFixed(4)}
         </div>
       )}
     </div>

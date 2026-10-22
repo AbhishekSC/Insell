@@ -24,6 +24,8 @@ import {
   Loader2,
   Map,
   MapPin,
+  Navigation,
+  Target,
   Maximize,
   MessageCircle,
   MoreVertical,
@@ -521,9 +523,8 @@ export default function MarketplacePage() {
     
     if (isFriend) {
       // Open chat directly if already friends
-      setActiveSection("chat");
-      // You might want to select the specific user in chat here
-      toast.success("Opening chat with " + post.author?.fullName?.split(" ")[0]);
+      navigate(`/chat?userId=${post.author?._id}`);
+      toast.success("Opening chat with " + (post.author?.fullName?.split(" ")[0] || "owner"));
     } else {
       // Open contact modal if not friends
       setSelectedPostForContact(post);
@@ -2290,6 +2291,9 @@ export default function MarketplacePage() {
                                     className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-normal cursor-default select-none pointer-events-none ${info.className}`}
                                   >
                                     {info.icon === "MapPin" && <MapPin className="size-2.5 shrink-0" />}
+                                    {(info.icon === "Navigation" || info.icon === "transit") && <Navigation className="size-2.5 shrink-0" />}
+                                    {info.icon === "TrendingUp" && <TrendingUp className="size-2.5 shrink-0" />}
+                                    {info.icon === "Target" && <Target className="size-2.5 shrink-0" />}
                                     {info.label}
                                   </span>
                                 ))}

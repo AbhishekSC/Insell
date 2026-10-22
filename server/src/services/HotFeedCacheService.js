@@ -121,8 +121,12 @@ export async function invalidateHotCityCache(city = "") {
   try {
     const normalizedCity = String(city || "").trim().toLowerCase();
     const pattern = `feed:hot:city:${normalizedCity || "all"}:*`;
-    for await (const key of redisClient.scanIterator({ MATCH: pattern, COUNT: 50 })) {
-      await redisClient.del(key);
+    for await (const keys of redisClient.scanIterator({ MATCH: pattern, COUNT: 50 })) {
+      const keyList = Array.isArray(keys) ? keys : [keys];
+      const validKeys = keyList.filter((k) => typeof k === "string" && k.length > 0);
+      if (validKeys.length > 0) {
+        await redisClient.del(validKeys);
+      }
     }
   } catch (err) {
     logger.warn("Error invalidating hot feed cache:", err);

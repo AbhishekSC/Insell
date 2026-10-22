@@ -22,5 +22,14 @@ export function sanitizeUserData(user) {
     userData.isVerified = false;
   }
 
+  // Normalize workLocation: only clear if both coordinates and label are missing/empty
+  if (userData.workLocation) {
+    const hasCoords = Number.isFinite(Number(userData.workLocation.latitude)) && Number.isFinite(Number(userData.workLocation.longitude));
+    const hasLabel = Boolean(userData.workLocation.label && String(userData.workLocation.label).trim());
+    if (!hasCoords && !hasLabel) {
+      userData.workLocation = null;
+    }
+  }
+
   return userData;
 }

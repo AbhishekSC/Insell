@@ -327,8 +327,12 @@ export async function getEmbeddingVersion() {
 export async function invalidateEmbeddings() {
   try {
     // Scan and delete all cf:embedding:* keys
-    for await (const key of redisClient.scanIterator({ MATCH: "cf:*", COUNT: 100 })) {
-      await redisClient.del(key);
+    for await (const keys of redisClient.scanIterator({ MATCH: "cf:*", COUNT: 100 })) {
+      if (Array.isArray(keys) && keys.length > 0) {
+        await redisClient.del(keys);
+      } else if (typeof keys === "string" && keys) {
+        await redisClient.del(keys);
+      }
     }
     logger.info("[CF] Invalidated all CF embeddings");
   } catch (err) {

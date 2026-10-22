@@ -323,8 +323,12 @@ export async function batchGetForecasts(locations = []) {
 export async function invalidateForecastCache(city, locality = null) {
   try {
     const pattern = `${FORECAST_CACHE_PREFIX}:${String(city).toLowerCase()}:*`;
-    for await (const key of redisClient.scanIterator({ MATCH: pattern, COUNT: 100 })) {
-      await redisClient.del(key);
+    for await (const keys of redisClient.scanIterator({ MATCH: pattern, COUNT: 100 })) {
+      if (Array.isArray(keys) && keys.length > 0) {
+        await redisClient.del(keys);
+      } else if (typeof keys === "string" && keys) {
+        await redisClient.del(keys);
+      }
     }
     logger.info(`[APPRECIATION] Invalidated forecast cache for ${city}`);
   } catch (err) {

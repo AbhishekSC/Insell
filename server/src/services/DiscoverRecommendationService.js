@@ -13,8 +13,12 @@ const overlap = (left = [], right = []) => left.some((value) => right.map(normal
 export async function invalidateDiscoverCache(userId) {
   try {
     const pattern = `discover:${userId}:*`;
-    for await (const key of redisClient.scanIterator({ MATCH: pattern, COUNT: 100 })) {
-      await redisClient.del(key);
+    for await (const keys of redisClient.scanIterator({ MATCH: pattern, COUNT: 100 })) {
+      if (Array.isArray(keys) && keys.length > 0) {
+        await redisClient.del(keys);
+      } else if (typeof keys === "string" && keys) {
+        await redisClient.del(keys);
+      }
     }
   } catch {
     // Cache invalidation must not block profile, listing, or connection updates.

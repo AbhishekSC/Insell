@@ -46,21 +46,31 @@ export const verifyUser = async (req, res, next) => {
     let user = null;
     const cacheKey = `user:${decoded.id}:profile`;
 
-    try {
-      const cached = await redisClient.get(cacheKey);
-      if (cached) {
-        user = JSON.parse(cached);
-      }
-    } catch (cacheErr) {
-      logger.warn(`Redis user profile cache read error: ${cacheErr?.message || cacheErr}`);
-    }
-
-    if (!user) {
+    // For /verify endpoint, always fetch fresh user from MongoDB so client always has accurate live profile
+    if (req.path === "/verify") {
       user = await User.findById(decoded.id).lean();
       if (user) {
         try {
           await redisClient.setEx(cacheKey, 300, JSON.stringify(user));
         } catch (_) {}
+      }
+    } else {
+      try {
+        const cached = await redisClient.get(cacheKey);
+        if (cached) {
+          user = JSON.parse(cached);
+        }
+      } catch (cacheErr) {
+        logger.warn(`Redis user profile cache read error: ${cacheErr?.message || cacheErr}`);
+      }
+
+      if (!user) {
+        user = await User.findById(decoded.id).lean();
+        if (user) {
+          try {
+            await redisClient.setEx(cacheKey, 300, JSON.stringify(user));
+          } catch (_) {}
+        }
       }
     }
     if (process.env.DEBUG_AUTH === "true") {

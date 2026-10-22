@@ -754,6 +754,40 @@ export async function updateUserLocation(req, res) {
   }
 }
 
+// Helper to bust all user-specific and feed-related Redis caches
+async function invalidateUserAndFeedCaches(userId) {
+  try {
+    const keysToDelete = [
+      `user:${userId}:profile`,
+      `user:profile:${userId}`,
+      `feed:personalized:${userId}`,
+      `recommendations:for_you:${userId}`,
+    ];
+    await redisClient.del(keysToDelete);
+
+    // Broadly purge feed and commute caches
+    const patterns = [
+      `property:feed:*${userId}*`,
+      `property:feed:shared:*`,
+      `property:feed:for_you:*`,
+      `feed:hot:*`,
+      `commute:*`,
+    ];
+    for (const pattern of patterns) {
+      try {
+        const found = await redisClient.keys(pattern);
+        if (Array.isArray(found) && found.length > 0) {
+          await redisClient.del(found);
+        }
+      } catch (err) {
+        logger.warn(`Failed to scan/del pattern ${pattern}:`, err?.message);
+      }
+    }
+  } catch (err) {
+    logger.warn(`Error invalidating user/feed caches for ${userId}:`, err?.message);
+  }
+}
+
 // PATCH /users/work-location  { latitude, longitude, label?, address? }
 //
 // Sets the user's work / office location for commute-time-aware scoring.
@@ -763,22 +797,31 @@ export async function updateUserLocation(req, res) {
 export async function updateWorkLocation(req, res) {
   try {
     const currentUserId = req.user._id;
-    const { latitude, longitude, label, address } = req.body || {};
+    // Support both direct fields and wrapped { workLocation: ... }
+    const raw = req.body?.workLocation || req.body || {};
+    const { latitude, longitude, label, address, city, state, formattedAddress } = raw;
 
     // Allow clearing: both null/undefined → remove workLocation
     if (latitude == null && longitude == null) {
-      const updated = await User.findByIdAndUpdate(
-        currentUserId,
-        { $unset: { workLocation: 1 } },
-        { new: true }
-      );
-      // Bust feed cache so commute blending is removed immediately
+      await User.updateOne({ _id: currentUserId }, { $unset: { workLocation: 1 } });
+      const updated = await User.findById(currentUserId).lean();
+
+      // Bust user profile and feed caches
+      await invalidateUserAndFeedCaches(currentUserId);
       try {
-        const keys = await redisClient.keys(`property:feed:*:${currentUserId}`);
-        if (keys.length > 0) await redisClient.del(keys);
-      } catch {}
+        const uStr = String(currentUserId);
+        await redisClient.del(`user:${uStr}:profile`);
+        if (updated) {
+          delete updated.workLocation;
+          await redisClient.setEx(`user:${uStr}:profile`, 300, JSON.stringify(updated));
+        }
+      } catch (_) {}
+
+      const sanitized = sanitizeUserData(updated);
+      if (sanitized) sanitized.workLocation = null;
+
       return sendSuccessResponse(res, 200, "Work location removed", {
-        user: sanitizeUserData(updated),
+        user: sanitized,
       });
     }
 
@@ -788,14 +831,20 @@ export async function updateWorkLocation(req, res) {
       return sendErrorResponse(res, 400, "Invalid coordinates");
     }
 
+    const resolvedLabel = String(label || city || formattedAddress || address || "Workplace").slice(0, 100);
+    const resolvedAddress = String(address || formattedAddress || label || "").slice(0, 300);
+
     const updated = await User.findByIdAndUpdate(
       currentUserId,
       {
         workLocation: {
           latitude: lat,
           longitude: lng,
-          label: String(label || "").slice(0, 100),
-          address: String(address || "").slice(0, 300),
+          label: resolvedLabel,
+          address: resolvedAddress,
+          city: city ? String(city).slice(0, 100) : undefined,
+          state: state ? String(state).slice(0, 100) : undefined,
+          formattedAddress: formattedAddress ? String(formattedAddress).slice(0, 300) : undefined,
           updatedAt: new Date(),
         },
       },
@@ -804,11 +853,15 @@ export async function updateWorkLocation(req, res) {
 
     if (!updated) return sendErrorResponse(res, 404, "User not found");
 
-    // Bust feed cache so commute scoring takes effect immediately
+    // Invalidate user profile and feed cache so /auth/verify and feeds immediately reflect the update
+    await invalidateUserAndFeedCaches(currentUserId);
     try {
-      const keys = await redisClient.keys(`property:feed:*:${currentUserId}`);
-      if (keys.length > 0) await redisClient.del(keys);
-    } catch {}
+      const uStr = String(currentUserId);
+      await redisClient.del(`user:${uStr}:profile`);
+      if (updated) {
+        await redisClient.setEx(`user:${uStr}:profile`, 300, JSON.stringify(updated));
+      }
+    } catch (_) {}
 
     return sendSuccessResponse(res, 200, "Work location updated successfully", {
       user: sanitizeUserData(updated),

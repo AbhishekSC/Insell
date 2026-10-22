@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Camera, Link2, MapPin, Phone, BadgeCheck, Sparkles, UploadCloud, UserCircle, Briefcase } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
@@ -10,7 +10,15 @@ import ReferralCard from "./ReferralCard";
 
 export default function ProfileContent() {
   const queryClient = useQueryClient();
-  const authData = queryClient.getQueryData(["authUser"]);
+  const { data: authData } = useQuery({
+    queryKey: ["authUser"],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
+      return response.data;
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
   const authUser = authData?.data?.user || authData?.data || null;
   const availableRoles = Array.isArray(authUser?.userRoles) && authUser.userRoles.length > 0
     ? authUser.userRoles
@@ -31,8 +39,21 @@ export default function ProfileContent() {
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [locationDetails, setLocationDetails] = useState(authUser?.locationDetails || null);
   const [showWorkLocationPicker, setShowWorkLocationPicker] = useState(false);
-  const [workLocation, setWorkLocation] = useState(authUser?.workLocation || null);
+  const [workLocation, setWorkLocation] = useState(
+    authUser?.workLocation?.label || (authUser?.workLocation?.latitude && authUser?.workLocation?.longitude)
+      ? authUser.workLocation
+      : null
+  );
   const [showVerification, setShowVerification] = useState(false);
+
+  useEffect(() => {
+    if (showWorkLocationPicker) return; // Don't clobber active form editing
+    if (authUser?.workLocation && (authUser.workLocation.label || (authUser.workLocation.latitude && authUser.workLocation.longitude))) {
+      setWorkLocation(authUser.workLocation);
+    } else {
+      setWorkLocation(null);
+    }
+  }, [showWorkLocationPicker, authUser?.workLocation, authUser?.workLocation?.label]);
 
   useEffect(() => {
     if (!profileImageFile) {
@@ -77,7 +98,7 @@ export default function ProfileContent() {
       return response.data;
     },
     onSuccess: (response) => {
-      const user = response?.data?.user;
+      const user = response?.data?.data?.user || response?.data?.user;
       queryClient.setQueryData(["authUser"], (prev) => {
         const prevData = prev?.data?.user || prev?.data || {};
         return {
@@ -106,7 +127,7 @@ export default function ProfileContent() {
       return response.data;
     },
     onSuccess: (response) => {
-      const user = response?.data?.user;
+      const user = response?.data?.data?.user || response?.data?.user;
       queryClient.setQueryData(["authUser"], (prev) => {
         const prevData = prev?.data?.user || prev?.data || {};
         return {
@@ -130,32 +151,103 @@ export default function ProfileContent() {
 
   const { mutate: saveWorkLocation, isPending: isSavingWorkLocation } = useMutation({
     mutationFn: async (workData) => {
+      let lat = Number(workData?.latitude);
+      let lng = Number(workData?.longitude);
+
+      // If user typed a workplace name but coordinates are missing, fall back to current profile location
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        if (locationDetails?.latitude && locationDetails?.longitude) {
+          lat = Number(locationDetails.latitude);
+          lng = Number(locationDetails.longitude);
+        } else if (authUser?.locationDetails?.latitude && authUser?.locationDetails?.longitude) {
+          lat = Number(authUser.locationDetails.latitude);
+          lng = Number(authUser.locationDetails.longitude);
+        } else if (authUser?.workLocation?.latitude && authUser?.workLocation?.longitude) {
+          lat = Number(authUser.workLocation.latitude);
+          lng = Number(authUser.workLocation.longitude);
+        }
+      }
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        throw new Error("Please tap a preset hub or click on the map to set coordinates.");
+      }
+
+      const resolvedLabel = (workData?.label && String(workData.label).trim()) || workData?.city || workData?.formattedAddress || "Workplace";
       const response = await axiosInstance.patch("/users/work-location", {
-        workLocation: workData,
+        latitude: lat,
+        longitude: lng,
+        label: resolvedLabel,
+        city: workData?.city || locationDetails?.city || "",
+        state: workData?.state || locationDetails?.state || "",
+        formattedAddress: workData?.formattedAddress || workData?.address || locationDetails?.formattedAddress || "",
+        address: workData?.formattedAddress || workData?.address || "",
+        workLocation: {
+          ...workData,
+          latitude: lat,
+          longitude: lng,
+          label: resolvedLabel,
+        },
       });
       return response.data;
     },
     onSuccess: (response) => {
-      const user = response?.data?.user;
+      const savedUser = response?.data?.user || response?.user || response?.data;
+      const savedWork = savedUser?.workLocation || response?.data?.workLocation || workLocation;
+      if (savedWork) {
+        setWorkLocation(savedWork);
+      }
       queryClient.setQueryData(["authUser"], (prev) => {
-        const prevData = prev?.data?.user || prev?.data || {};
+        const prevUser = prev?.data?.user || prev?.data || prev || {};
         return {
           status: "success",
           data: {
             user: {
-              ...prevData,
-              ...user,
+              ...prevUser,
+              ...savedUser,
+              workLocation: savedWork,
             },
           },
         };
       });
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
       queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
-      toast.success("Workplace updated! Commute scoring enabled.");
+      toast.success("Workplace updated!");
       setShowWorkLocationPicker(false);
     },
     onError: (error) => {
-      toast.error(error?.response?.data?.message || "Failed to update work location");
+      toast.error(error?.message || error?.response?.data?.message || "Failed to update work location");
+    },
+  });
+
+  const { mutate: removeWorkLocation, isPending: isRemovingWorkLocation } = useMutation({
+    mutationFn: async () => {
+      const response = await axiosInstance.patch("/users/work-location", {
+        latitude: null,
+        longitude: null,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      setWorkLocation(null);
+      queryClient.setQueryData(["authUser"], (prev) => {
+        const prevUser = prev?.data?.user || prev?.data || prev || {};
+        return {
+          status: "success",
+          data: {
+            user: {
+              ...prevUser,
+              workLocation: null,
+            },
+          },
+        };
+      });
+      queryClient.invalidateQueries({ queryKey: ["authUser"] });
+      queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
+      toast.success("Workplace removed");
+      setShowWorkLocationPicker(false);
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || error?.message || "Failed to remove work location");
     },
   });
 
@@ -323,50 +415,156 @@ export default function ProfileContent() {
               </div>
             )}
 
-            {/* Workplace / Office Location for Commute-Time Aware Scoring */}
-            <div className="rounded-xl border border-base-300 bg-base-200/50 p-3.5 space-y-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-xs sm:text-sm font-semibold text-base-content flex items-center gap-1.5">
-                    <Briefcase className="size-4 text-purple-600 dark:text-purple-400" />
-                    Workplace / Office Location
-                  </span>
-                  <p className="text-[11px] text-base-content/60">
-                    Powers accurate commute-time scoring and travel duration on properties
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowWorkLocationPicker(!showWorkLocationPicker)}
-                  className="btn btn-xs sm:btn-sm border border-purple-300 dark:border-purple-800 bg-base-100 text-base-content hover:bg-base-200"
-                >
-                  <MapPin className="size-3.5 text-purple-600" />
-                  {workLocation?.city || workLocation?.formattedAddress ? (workLocation.city || "Workplace set") : "Set workplace"}
-                </button>
-              </div>
-
-              {workLocation && !showWorkLocationPicker && (
-                <div className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                  <div className="flex items-start gap-2">
-                    <Briefcase className="size-4 text-purple-600 dark:text-purple-400 mt-0.5 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-base-content">
-                        {workLocation.city || "Office location"}
-                        {workLocation.state ? `, ${workLocation.state}` : ""}
-                      </p>
-                      {workLocation.formattedAddress && (
-                        <p className="text-[11px] text-base-content/60 mt-0.5 line-clamp-1">{workLocation.formattedAddress}</p>
-                      )}
+            {/* Workplace / Office Location */}
+            {(() => {
+              const activeWork = showWorkLocationPicker ? workLocation : (authUser?.workLocation ?? workLocation);
+              const hasWorkLocation = Boolean(
+                activeWork && (
+                  (activeWork.latitude && activeWork.longitude) ||
+                  (activeWork.label && String(activeWork.label).trim())
+                )
+              );
+              return (
+                <div className="space-y-2">
+                  {!showWorkLocationPicker ? (
+                    hasWorkLocation ? (
+                      /* Clean Set State: Minimalist, Apple/Instagram aesthetic */
+                      <div className="flex items-center justify-between rounded-xl border border-base-200 bg-base-100 p-3 shadow-2xs">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="size-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                            <Briefcase className="size-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-bold text-base-content truncate">
+                                {activeWork.label || "Workplace"}
+                              </span>
+                            </div>
+                            <p className="text-xs text-base-content/60 truncate">
+                              {activeWork.city || (activeWork.formattedAddress ? activeWork.formattedAddress.split(",")[0] : null) || activeWork.address || "Location set"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setWorkLocation(authUser?.workLocation ? { ...authUser.workLocation } : null);
+                              setShowWorkLocationPicker(true);
+                            }}
+                            className="btn btn-xs btn-ghost text-base-content/70 hover:text-base-content"
+                          >
+                            Change
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeWorkLocation()}
+                            disabled={isRemovingWorkLocation}
+                            className="btn btn-xs btn-ghost text-error/70 hover:text-error"
+                          >
+                            {isRemovingWorkLocation ? "..." : "Remove"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                  /* Clean Empty State: Zero clutter */
+                  <div className="flex items-center justify-between rounded-xl border border-dashed border-base-300 bg-base-100/50 p-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="size-8 rounded-lg bg-base-200 text-base-content/60 flex items-center justify-center shrink-0">
+                        <Briefcase className="size-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-xs sm:text-sm font-medium text-base-content">Workplace</span>
+                        <p className="text-[11px] text-base-content/50">Set to see commute times</p>
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowWorkLocationPicker(true)}
+                      className="btn btn-xs sm:btn-sm btn-outline border-base-300 text-base-content hover:bg-base-200 rounded-lg shrink-0"
+                    >
+                      Set location
+                    </button>
                   </div>
-                </div>
-              )}
+                )
+              ) : (
+                /* Clean Picker Form: Focused, minimal text */
+                <div className="rounded-xl border border-base-300 bg-base-100 p-3.5 space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between pb-1 border-b border-base-200">
+                    <span className="text-xs sm:text-sm font-bold text-base-content flex items-center gap-1.5">
+                      <Briefcase className="size-4 text-purple-600" />
+                      Workplace Location
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowWorkLocationPicker(false)}
+                      className="btn btn-xs btn-ghost text-base-content/50 hover:text-base-content"
+                    >
+                      Cancel
+                    </button>
+                  </div>
 
-              {showWorkLocationPicker && (
-                <div className="mt-3 p-3 rounded-xl border border-purple-500/25 bg-base-100">
+                  {/* Workplace Name Field */}
+                  <div>
+                    <label className="text-xs font-medium text-base-content/75 mb-1 block">
+                      Workplace Name
+                    </label>
+                    <input
+                      type="text"
+                      className="input input-sm input-bordered w-full border-base-300 bg-base-100 focus:border-purple-500 rounded-lg"
+                      placeholder="e.g. Novio, Google, BKC Office"
+                      value={workLocation?.label || ""}
+                      onChange={(e) =>
+                        setWorkLocation((prev) => ({
+                          ...(prev || {}),
+                          label: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  {/* Compact Quick Presets */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: "BKC", city: "Mumbai", state: "Maharashtra", latitude: 19.0662, longitude: 72.8687, formattedAddress: "BKC, Mumbai" },
+                      { label: "Hinjawadi", city: "Pune", state: "Maharashtra", latitude: 18.5913, longitude: 73.7389, formattedAddress: "Hinjawadi, Pune" },
+                      { label: "Cyber City", city: "Gurugram", state: "Haryana", latitude: 28.4950, longitude: 77.0895, formattedAddress: "Cyber City, Gurugram" },
+                      { label: "Whitefield", city: "Bengaluru", state: "Karnataka", latitude: 12.9850, longitude: 77.7310, formattedAddress: "Whitefield, Bengaluru" },
+                      { label: "Hitec City", city: "Hyderabad", state: "Telangana", latitude: 17.4474, longitude: 78.3762, formattedAddress: "Hitec City, Hyderabad" },
+                    ].map((hub) => (
+                      <button
+                        key={hub.label}
+                        type="button"
+                        onClick={() => {
+                          setWorkLocation((prev) => {
+                            const trimmed = prev?.label ? String(prev.label).trim() : "";
+                            const isGeneric = !trimmed || trimmed.toLowerCase().includes("current location") || trimmed === "Workplace";
+                            return {
+                              ...(prev || {}),
+                              ...hub,
+                              label: isGeneric ? hub.label : trimmed,
+                            };
+                          });
+                        }}
+                        className="btn btn-xs rounded-full border border-base-300 bg-base-200/50 text-base-content hover:bg-base-200 font-normal"
+                      >
+                        {hub.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Map / Pin Picker */}
                   <LocationPicker
                     onLocationChange={(data) => {
-                      setWorkLocation(data);
+                      setWorkLocation((prev) => {
+                        const trimmed = prev?.label ? String(prev.label).trim() : "";
+                        const isGeneric = !trimmed || trimmed.toLowerCase().includes("current location") || trimmed === "Workplace";
+                        return {
+                          ...(prev || {}),
+                          ...data,
+                          label: isGeneric ? (data.city || data.formattedAddress || "Workplace") : trimmed,
+                        };
+                      });
                     }}
                     initialPosition={
                       workLocation?.latitude && workLocation?.longitude
@@ -374,30 +572,45 @@ export default function ProfileContent() {
                         : null
                     }
                   />
-                  <div className="flex gap-2 mt-3">
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2 pt-1">
                     <button
                       type="button"
                       onClick={() => {
-                        if (workLocation) {
-                          saveWorkLocation(workLocation);
-                        }
+                        saveWorkLocation(workLocation);
                       }}
-                      disabled={isSavingWorkLocation || !workLocation}
-                      className="btn btn-sm bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
+                      disabled={isSavingWorkLocation}
+                      className="btn btn-sm bg-purple-600 text-white hover:bg-purple-700 rounded-lg disabled:opacity-50"
                     >
                       {isSavingWorkLocation ? "Saving..." : "Save Workplace"}
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowWorkLocationPicker(false)}
-                      className="btn btn-sm border border-base-300 bg-base-100 text-base-content hover:bg-base-200"
+                      className="btn btn-sm btn-ghost rounded-lg"
                     >
                       Cancel
                     </button>
+                    {hasWorkLocation && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          removeWorkLocation();
+                          setShowWorkLocationPicker(false);
+                        }}
+                        disabled={isRemovingWorkLocation}
+                        className="btn btn-sm btn-ghost text-error hover:bg-error/10 ml-auto rounded-lg"
+                      >
+                        {isRemovingWorkLocation ? "Removing..." : "Remove"}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
             </div>
+              );
+            })()}
 
             <label className="form-control">
               <span className="label-text mb-1 text-xs sm:text-sm text-base-content">Primary role</span>

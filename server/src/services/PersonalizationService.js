@@ -14,6 +14,7 @@ import {
   getInvestorScore,
   batchGetForecasts,
 } from "./AppreciationForecastService.js";
+import CardCTRService from "./CardCTRService.js";
 
 // Real estate demand is geographically bound — a buyer in Pune will not take a
 // Chennai listing however well it matches on price/type. So recommendations
@@ -742,11 +743,15 @@ class PersonalizationService {
    */
   static async invalidatePersonalizationCache(userId) {
     try {
-      const pattern = `personalization:*:${userId}`;
-      for await (const key of redisClient.scanIterator({ MATCH: pattern, COUNT: 100 })) {
-        await redisClient.del(key);
+      const pattern = userId ? `personalization:*:${userId}` : "personalization:*";
+      for await (const keys of redisClient.scanIterator({ MATCH: pattern, COUNT: 100 })) {
+        const keyList = Array.isArray(keys) ? keys : [keys];
+        const validKeys = keyList.filter((k) => typeof k === "string" && k.length > 0);
+        if (validKeys.length > 0) {
+          await redisClient.del(validKeys);
+        }
       }
-      logger.info(`Invalidated personalization cache for user ID: ${userId}`);
+      logger.info(`Invalidated personalization cache for user ID: ${userId || "all"}`);
     } catch (error) {
       logger.warn("Failed to invalidate personalization cache:", error);
     }
@@ -2158,6 +2163,11 @@ class PersonalizationService {
           property.postMeta?.pgHostel?.electricityBillStatus === "VERIFIED";
         const verifiedMultiplier = isAddressVerified ? 1.25 : 1.0;
 
+        // Predicted CTR (pCTR) scoring layer & Contextual time-of-day boost
+        const pCTR = CardCTRService.calculatePCTR(property);
+        const pCTRMultiplier = 0.85 + (pCTR * 0.35); // 0.88x to 1.20x
+        const timeOfDayMultiplier = CardCTRService.getTimeOfDayMultiplier(property); // 1.0x or 1.15x for evening rentals / weekend purchases
+
         return {
           ...property,
           personalizationScore,
@@ -2168,7 +2178,8 @@ class PersonalizationService {
           cfWeight,
           negMult,
           isAddressVerified,
-          finalScore: blended * negMult * verifiedMultiplier,
+          pCTR,
+          finalScore: blended * negMult * verifiedMultiplier * pCTRMultiplier * timeOfDayMultiplier,
         };
       })
       );
