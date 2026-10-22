@@ -68,7 +68,9 @@ function MapViewUpdater({ position }) {
     if (position && Number.isFinite(position.lat) && Number.isFinite(position.lng)) {
       try {
         map.setView([position.lat, position.lng], 13, { animate: true });
-      } catch (_) {}
+      } catch {
+        // Ignore map animation error
+      }
     }
   }, [position, map]);
   return null;
@@ -119,7 +121,9 @@ export default function LocationPicker({ onLocationChange, initialPosition }) {
       try {
         const res = await reverseGeocode(coords.latitude, coords.longitude);
         if (res) addressDetails = res;
-      } catch {}
+      } catch {
+        // Fallback to coordinates if reverse geocode fails
+      }
       setAddress(addressDetails.formattedAddress || "");
       
       if (onLocationChange) {
