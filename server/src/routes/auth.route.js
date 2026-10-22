@@ -48,6 +48,12 @@ router.post("/onboarding", verifyUser, onboarding);
 router.post("/profile-setup", verifyUser, onboarding);
 
 router.get("/verify", verifyUser, (req, res) => {
+  res.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+    "Surrogate-Control": "no-store",
+  });
   sendSuccessResponse(res, 200, "User verified successfully", {
     user: req.user,
   });

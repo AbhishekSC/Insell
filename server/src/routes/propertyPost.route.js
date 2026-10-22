@@ -25,6 +25,8 @@ import {
   boostPropertyPost,
   expireBoostedPostsSweep,
   getMyPropertyPosts,
+  recordMicroEngagement,
+  recordCoverClick,
 } from "../controllers/propertyPost.controller.js";
 import { uploadPropertyMedia } from "../middlewares/upload.middleware.js";
 
@@ -40,6 +42,8 @@ router.get("/hot", verifyUser, requireVerified, getHotPropertiesFeed);
 router.get("/me", verifyUser, requireVerified, getMyPropertyPosts);
 router.get("/price-suggestion", verifyUser, requireVerified, getPriceSuggestion);
 router.post("/card-signals", verifyUser, requireVerified, getCardSignals);
+router.post("/micro-engagement", verifyUser, requireVerified, recordMicroEngagement);
+router.post("/:id/cover-click", verifyUser, requireVerified, recordCoverClick);
 router.get("/:id", verifyUser, requireVerified, getPropertyPostById);
 router.get("/:id/similar", verifyUser, requireVerified, getSimilarProperties);
 router.get("/:id/likers", verifyUser, requireVerified, getPostLikers);

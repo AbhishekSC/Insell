@@ -17,6 +17,9 @@ import {
   IndianRupee,
   Loader2,
   MapPin,
+  Navigation,
+  TrendingUp,
+  Target,
   MessageCircle,
   MoreVertical,
   Phone,
@@ -180,6 +183,9 @@ function ProfilePriceBlock({ post, isOwnPost, onVerifyAddress }) {
               className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-normal cursor-default select-none pointer-events-none ${info.className}`}
             >
               {info.icon === "MapPin" && <MapPin className="size-2.5 shrink-0" />}
+              {(info.icon === "Navigation" || info.icon === "transit") && <Navigation className="size-2.5 shrink-0" />}
+              {info.icon === "TrendingUp" && <TrendingUp className="size-2.5 shrink-0" />}
+              {info.icon === "Target" && <Target className="size-2.5 shrink-0" />}
               {info.label}
             </span>
           ))}

@@ -188,7 +188,7 @@ export const pushRealtimeNotification = async (userId, eventType) => {
   try {
     await getStreamClient().sendUserCustomEvent(String(userId), { type: eventType });
   } catch (error) {
-    logger.error("Failed to push realtime notification (non-fatal):", {
+    logger.warn("Failed to push realtime notification (non-fatal):", {
       userId: String(userId),
       eventType,
       message: error.message,

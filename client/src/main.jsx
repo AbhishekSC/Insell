@@ -13,6 +13,7 @@ import { FeatureFlagProvider } from "./context/FeatureFlagContext";
 import { initPostHog } from "./lib/posthog";
 import Sentry, { initSentry } from "./lib/sentry";
 import { setAuthToken } from "./lib/authToken";
+import axiosInstance from "./lib/axios";
 
 initPostHog();
 initSentry();
@@ -34,6 +35,17 @@ if (oauthParams.get("success") === "true") {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      queryFn: async ({ queryKey }) => {
+        if (queryKey[0] === "authUser") {
+          try {
+            const res = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
+            return res.data;
+          } catch {
+            return null;
+          }
+        }
+        return null;
+      },
       staleTime: 2 * 60 * 1000, // 2 minutes (reduced from 5)
       cacheTime: 10 * 60 * 1000, // 10 minutes
       refetchOnWindowFocus: false,

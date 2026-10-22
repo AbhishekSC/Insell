@@ -34,6 +34,7 @@ import { debitCoins } from "../services/wallet.service.js";
 import { calculateLivePropertyValuation } from "../utils/propertyValuationService.js";
 import { notifyMatches as notifySavedSearchMatches } from "../modules/saved-search/savedSearch.app.service.js";
 import Offer from "../models/Offer.model.js";
+import VisitRequest from "../models/VisitRequest.model.js";
 import { closeActiveOffersForPost } from "./offer.controller.js";
 import { cloudinaryInstance } from "../config/cloudinary.js";
 import { centroidForCity } from "../utils/cityCentroids.js";
@@ -42,6 +43,7 @@ import {
   getAppreciationForecast,
 } from "../services/AppreciationForecastService.js";
 import { calculateDealProbability } from "../services/DealProbabilityService.js";
+import CardCTRService from "../services/CardCTRService.js";
 
 const PROPERTY_MEDIA_FOLDER = "property-media";
 const PROPERTY_MEDIA_ALLOWED_FORMATS = "jpg,jpeg,png,webp,gif,mp4,webm,mov,pdf,heic,heif,jfif";
@@ -877,8 +879,14 @@ export async function getPropertyFeed(req, res) {
         return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
       });
 
+      // Apply Live Session-Momentum Live Adaptation (TikTok/Reels style)
+      let finalForYouPosts = combinedPosts;
+      if (currentUserId) {
+        finalForYouPosts = await CardCTRService.applySessionMomentum(combinedPosts, currentUserId);
+      }
+
       const responseData = {
-        posts: combinedPosts,
+        posts: finalForYouPosts,
         sections: {
           new: newPosts.length,
           recent: recentPosts.length,
@@ -908,8 +916,14 @@ export async function getPropertyFeed(req, res) {
     const nextCursor = posts.length === limit ? String(posts[posts.length - 1]._id) : null;
     const hasMore = posts.length === limit;
 
+    // Apply Live Session-Momentum Live Adaptation (TikTok/Reels style)
+    let finalDecoratedPosts = decoratedPosts;
+    if (currentUserId) {
+      finalDecoratedPosts = await CardCTRService.applySessionMomentum(decoratedPosts, currentUserId);
+    }
+
     const responseData = {
-      posts: decoratedPosts,
+      posts: finalDecoratedPosts,
       pagination: {
         page,
         limit,
@@ -1070,9 +1084,11 @@ async function attachSocialProof(posts, currentUserId) {
 
   let friends = new Set();
   let communityIds = new Set();
+  let viewer = null;
 
   if (currentUserId) {
-    const me = await User.findById(currentUserId).select("friends communities").lean();
+    const me = await User.findById(currentUserId).select("friends communities workLocation").lean();
+    viewer = me;
     friends = new Set((me?.friends || []).map(String));
     communityIds = new Set((me?.communities || []).map(String));
   }
@@ -1184,6 +1200,49 @@ async function attachSocialProof(posts, currentUserId) {
     : [];
   const byId = new Map(likers.map((u) => [String(u._id), u]));
 
+  // ── 5. Real inquiries aggregation (Visits + Offers) ──────────────────
+  const postObjectIds = posts.map((p) => p._id).filter(Boolean);
+  const realInquiriesTodayMap = new Map();
+  const realInquiriesWeekMap = new Map();
+
+  if (postObjectIds.length > 0) {
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    try {
+      const [visitStats, offerStats] = await Promise.all([
+        VisitRequest.aggregate([
+          { $match: { post: { $in: postObjectIds }, createdAt: { $gte: oneWeekAgo } } },
+          {
+            $group: {
+              _id: "$post",
+              today: { $sum: { $cond: [{ $gte: ["$createdAt", oneDayAgo] }, 1, 0] } },
+              week: { $sum: 1 },
+            },
+          },
+        ]),
+        Offer.aggregate([
+          { $match: { post: { $in: postObjectIds }, createdAt: { $gte: oneWeekAgo } } },
+          {
+            $group: {
+              _id: "$post",
+              today: { $sum: { $cond: [{ $gte: ["$createdAt", oneDayAgo] }, 1, 0] } },
+              week: { $sum: 1 },
+            },
+          },
+        ]),
+      ]);
+
+      for (const item of [...visitStats, ...offerStats]) {
+        const pid = String(item._id);
+        realInquiriesTodayMap.set(pid, (realInquiriesTodayMap.get(pid) || 0) + (item.today || 0));
+        realInquiriesWeekMap.set(pid, (realInquiriesWeekMap.get(pid) || 0) + (item.week || 0));
+      }
+    } catch (e) {
+      logger.warn("attachSocialProof inquiries aggregation error:", e?.message);
+    }
+  }
+
   return posts.map((p) => {
     const pid = String(p._id);
     const socialProof = {};
@@ -1206,10 +1265,11 @@ async function attachSocialProof(posts, currentUserId) {
       socialProof.friendsViewedCount = friendViewers.length;
     }
 
-    // Community saves
+    // Community saves & Social herd effect
     const commSaves = communitySavesMap.get(pid);
     if (commSaves && commSaves > 0) {
       socialProof.communitySaves = commSaves;
+      socialProof.communityProof = `${commSaves} member${commSaves > 1 ? "s" : ""} from your communities saved this`;
     }
 
     // City velocity
@@ -1221,9 +1281,10 @@ async function attachSocialProof(posts, currentUserId) {
     // Author response time (from populated author object)
     if (p.author?.responseRate != null) {
       const rate = p.author.responseRate;
-      if (rate >= 90) socialProof.authorResponseTime = "~2 hrs";
-      else if (rate >= 70) socialProof.authorResponseTime = "~6 hrs";
-      else if (rate >= 50) socialProof.authorResponseTime = "~1 day";
+      if (rate >= 90) socialProof.authorResponseTime = "~15 mins";
+      else if (rate >= 70) socialProof.authorResponseTime = "~2 hrs";
+      else if (rate >= 50) socialProof.authorResponseTime = "~6 hrs";
+      else socialProof.authorResponseTime = "~1 day";
     }
 
     // Appreciation forecast for property card
@@ -1232,12 +1293,16 @@ async function attachSocialProof(posts, currentUserId) {
     // Deal probability score
     const dealProbability = calculateDealProbability(p, p.author);
 
-    return {
+    const basePost = {
       ...p,
+      realInquiriesToday: realInquiriesTodayMap.get(pid) || 0,
+      realInquiriesWeek: realInquiriesWeekMap.get(pid) || 0,
       ...(Object.keys(socialProof).length > 0 ? { socialProof } : {}),
       ...(postForecast?.annualizedRate ? { appreciationForecast: postForecast } : {}),
       ...(dealProbability ? { dealProbability } : {}),
     };
+
+    return CardCTRService.enrichPostSignals(basePost, viewer);
   });
 }
 
@@ -2972,4 +3037,46 @@ export async function getHotPropertiesFeed(req, res) {
     return sendErrorResponse(res, 500, "Failed to retrieve hot properties feed");
   }
 }
+
+/**
+ * POST /api/posts/micro-engagement
+ * Logs in-feed dwell time (>2.5s) and carousel swipes for dynamic interest biasing
+ */
+export async function recordMicroEngagement(req, res) {
+  try {
+    const userId = req.user?._id;
+    const { postId, dwellTimeMs, swipedPhotosCount } = req.body || {};
+    if (!userId || !postId) {
+      return sendErrorResponse(res, 400, "Missing required fields");
+    }
+    await CardCTRService.recordMicroEngagement(
+      String(userId),
+      String(postId),
+      Number(dwellTimeMs) || 0,
+      Number(swipedPhotosCount) || 0
+    );
+    return sendSuccessResponse(res, 200, "Micro-engagement recorded");
+  } catch (error) {
+    logger.warn("Error recording micro-engagement:", error.message);
+    return sendSuccessResponse(res, 200, "OK");
+  }
+}
+
+/**
+ * POST /api/posts/:id/cover-click
+ * Logs which cover image index was clicked for the multi-armed bandit (MAB) optimizer
+ */
+export async function recordCoverClick(req, res) {
+  try {
+    const { id } = req.params;
+    const { coverIndex } = req.body || {};
+    if (id) {
+      await CardCTRService.recordCoverClick(String(id), Number(coverIndex) || 0);
+    }
+    return sendSuccessResponse(res, 200, "Cover click logged");
+  } catch {
+    return sendSuccessResponse(res, 200, "OK");
+  }
+}
+
 

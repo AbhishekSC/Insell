@@ -1,12 +1,44 @@
 import { useEffect, useRef, useState } from "react";
-import { Heart, MessageCircle, Bookmark, Send, Volume2, VolumeX, Building2, Maximize2, Phone, BadgeCheck, Zap, CheckCircle2, ShieldCheck } from "lucide-react";
+import {
+  Heart,
+  MessageCircle,
+  Bookmark,
+  Send,
+  Volume2,
+  VolumeX,
+  Building2,
+  Maximize2,
+  Phone,
+  BadgeCheck,
+  Zap,
+  CheckCircle2,
+  ShieldCheck,
+  TrendingDown,
+  Gem,
+  FileText,
+  Play,
+  Camera,
+  Flame,
+  Eye,
+  Sparkles,
+  MapPin,
+  Users,
+} from "lucide-react";
 import PostAuthorLink from "./PostAuthorLink";
 import { useStoryOverlay } from "../context/StoryOverlayContext";
 import { lqipUrl, cardImageUrl } from "../lib/cloudinaryImage";
+import axiosInstance from "../lib/axios";
 
 function isVideoUrl(url) {
   if (!url) return false;
   return /\.(mp4|webm|mov|avi|mkv)(\?.*)?$/i.test(url);
+}
+
+function stripEmoji(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "")
+    .trim();
 }
 
 // Compact, Instagram-style: "now", "3h", "10d", "5w".
@@ -105,11 +137,55 @@ export default function PropertyPostCard({
   const activeIsVideo = isVideoUrl(activeMedia);
   const locationLabel = [post.locality, post.city].filter(Boolean).join(", ");
 
+  // Micro-engagement & in-feed dwell-time tracking (>2.5s or carousel swipe)
+  const dwellTimerRef = useRef(null);
+  const microEngagedRef = useRef(false);
+
   const handleScroll = () => {
     const el = scrollerRef.current;
     if (!el || !el.clientWidth) return;
     const idx = Math.max(0, Math.min(slides.length - 1, Math.round(el.scrollLeft / el.clientWidth)));
     setActiveIdx((prev) => (prev === idx ? prev : idx));
+
+    if (idx >= 1 && !microEngagedRef.current && post._id) {
+      microEngagedRef.current = true;
+      axiosInstance
+        .post("/posts/micro-engagement", {
+          postId: post._id,
+          dwellTimeMs: 1500,
+          swipedPhotosCount: idx,
+        })
+        .catch(() => {});
+    }
+  };
+
+  useEffect(() => {
+    if (cardInView && !microEngagedRef.current && post._id) {
+      dwellTimerRef.current = setTimeout(() => {
+        microEngagedRef.current = true;
+        axiosInstance
+          .post("/posts/micro-engagement", {
+            postId: post._id,
+            dwellTimeMs: 2600,
+            swipedPhotosCount: activeIdx,
+          })
+          .catch(() => {});
+      }, 2500);
+    } else {
+      if (dwellTimerRef.current) clearTimeout(dwellTimerRef.current);
+    }
+    return () => {
+      if (dwellTimerRef.current) clearTimeout(dwellTimerRef.current);
+    };
+  }, [cardInView, post._id, activeIdx]);
+
+  const handleCardClick = (e) => {
+    if (post._id) {
+      axiosInstance
+        .post(`/posts/${post._id}/cover-click`, { coverIndex: activeIdx })
+        .catch(() => {});
+    }
+    onOpenPost?.(e);
   };
 
   useEffect(() => {
@@ -141,7 +217,7 @@ export default function PropertyPostCard({
   return (
     <article
       className={`group cursor-pointer overflow-hidden rounded-2xl border bg-base-100 shadow-sm transition hover:shadow-lg ${className}`}
-      onClick={onOpenPost}
+      onClick={handleCardClick}
     >
       {/* ---------- MEDIA ---------- */}
       <div className="relative overflow-hidden">
@@ -226,6 +302,59 @@ export default function PropertyPostCard({
           </div>
         </div>
 
+        {/* Dynamic Opportunity Overlays: Price Drop · Under Market · 0 Brokerage (Up to 2 Badges) */}
+        {(post.dealHighlight?.priceDropFormatted ||
+          post.dealHighlight?.underMarketPct ||
+          post.dealHighlight?.isDirectOwner) && (
+          <div className="pointer-events-none absolute left-3 top-14 z-10 flex flex-wrap items-center gap-1.5 max-w-[85%]">
+            {post.dealHighlight?.priceDropFormatted && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/95 px-2.5 py-0.5 text-[10px] font-black text-white shadow-md backdrop-blur-xs ring-1 ring-emerald-300/40 animate-pulse">
+                <TrendingDown className="size-3" />
+                <span>
+                  {post.dealHighlight.priceDropFormatted} Drop
+                  {post.dealHighlight.priceDropWhen ? ` (${post.dealHighlight.priceDropWhen})` : ""}
+                </span>
+              </span>
+            )}
+            {post.dealHighlight?.underMarketPct && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-cyan-600 to-blue-600 px-2.5 py-0.5 text-[10px] font-extrabold text-white shadow-md backdrop-blur-xs ring-1 ring-cyan-300/40">
+                <Gem className="size-3" />
+                <span>{post.dealHighlight.underMarketPct}% Under Market</span>
+              </span>
+            )}
+            {post.dealHighlight?.isDirectOwner && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-600/90 px-2 py-0.5 text-[10px] font-bold text-white shadow-md backdrop-blur-xs ring-1 ring-amber-300/40">
+                <ShieldCheck className="size-3" />
+                <span>0 Brokerage (Owner)</span>
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Media Feature Teasers: Floor Plan, Video Tour, Photos Count (3 Separate Badges) */}
+        {(!isOwnPost || post.isBlocked) && (
+          <div className="pointer-events-none absolute bottom-3 left-3 z-10 flex items-center gap-1.5">
+            {post.mediaFeatures?.hasFloorPlan && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white shadow-sm backdrop-blur-sm">
+                <FileText className="size-2.5 text-primary-content" />
+                <span>Floor Plan</span>
+              </span>
+            )}
+            {post.mediaFeatures?.hasVideo && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white shadow-sm backdrop-blur-sm">
+                <Play className="size-2.5 fill-white text-white" />
+                <span>Video Tour</span>
+              </span>
+            )}
+            {slides.length > 1 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white shadow-sm backdrop-blur-sm">
+                <Camera className="size-2.5" />
+                <span>{slides.length} Photos</span>
+              </span>
+            )}
+          </div>
+        )}
+
         {/* bottom-left: clickable boost and promote badges for owner if not blocked */}
         {isOwnPost && !post.isBlocked && (
           <div className="absolute bottom-3 left-3 z-10 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
@@ -301,79 +430,72 @@ export default function PropertyPostCard({
           )}
         </div>
 
-        {/* Social Proof Signals Block */}
-        {(post.socialProof?.fullName ||
-          post.socialProof?.friendsViewed?.length > 0 ||
-          post.socialProof?.communitySaves > 0 ||
-          post.socialProof?.cityVelocity ||
-          post.socialProof?.authorResponseTime ||
-          post.dealProbability?.level === "HIGH") && (
-          <div className="space-y-1 pt-0.5">
-            {/* Instagram-style like context — only when a connection liked it */}
-            {post.socialProof?.fullName && (
-              <button
-                type="button"
-                className="flex items-center gap-1.5 text-left text-xs text-base-content/70 hover:opacity-85"
-                onClick={onOpenLikes ? stop(onOpenLikes) : undefined}
-              >
-                {post.socialProof.avatar && (
-                  <img src={post.socialProof.avatar} alt="" className="size-4 rounded-full object-cover" />
-                )}
-                <span className="truncate">
-                  Liked by <span className="font-semibold text-base-content">{post.socialProof.fullName}</span>
-                  {post.socialProof.isOwnerVerified && (
-                    <BadgeCheck className="ml-0.5 inline-block size-3 shrink-0 align-middle text-primary" aria-label="Verified Owner" />
-                  )}
-                  {post.socialProof.othersCount > 0 && (
-                    <> and <span className="font-semibold text-base-content hover:underline">{post.socialProof.othersCount.toLocaleString("en-IN")} others</span></>
-                  )}
-                </span>
-              </button>
+        {/* Instagram-style Liked By Line — exact Instagram format */}
+        {post.socialProof?.fullName ? (
+          <button
+            type="button"
+            className="flex items-center gap-1.5 text-left text-xs text-base-content/75 hover:opacity-85"
+            onClick={onOpenLikes ? stop(onOpenLikes) : undefined}
+          >
+            {post.socialProof.avatar && (
+              <img src={post.socialProof.avatar} alt="" className="size-4 rounded-full object-cover" />
             )}
-
-            {/* Friends viewed context — only if no connection liked it to keep card clean */}
-            {!post.socialProof?.fullName && post.socialProof?.friendsViewed?.length > 0 && (
-              <div className="flex items-center gap-1.5 text-xs text-base-content/70">
-                <div className="flex -space-x-1.5 overflow-hidden">
-                  {post.socialProof.friendsViewed.map((f, i) => (
-                    f.avatar ? (
-                      <img key={i} src={f.avatar} alt="" className="inline-block size-4 rounded-full ring-1 ring-base-100 object-cover" />
-                    ) : (
-                      <div key={i} className="inline-grid size-4 place-items-center rounded-full bg-primary/20 text-[9px] font-bold text-primary ring-1 ring-base-100">
-                        {f.name?.[0] || "F"}
-                      </div>
-                    )
-                  ))}
-                </div>
-                <span className="truncate text-[11px]">
-                  Viewed by <span className="font-semibold text-base-content">{post.socialProof.friendsViewed[0].name}</span>
-                  {post.socialProof.friendsViewedCount > 1 && ` and ${post.socialProof.friendsViewedCount - 1} other${post.socialProof.friendsViewedCount > 2 ? "s" : ""}`}
-                </span>
-              </div>
-            )}
-
-            {/* Velocity, Community Saves, Seller Response, and Deal Signals */}
-            <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[11px]">
-              {post.socialProof?.cityVelocity && (
-                <span className="inline-flex items-center gap-1 font-semibold text-orange-600 dark:text-orange-400">
-                  <span>🔥</span> {post.socialProof.cityVelocity.label}
-                </span>
+            <span className="truncate">
+              Liked by <span className="font-semibold text-base-content">{post.socialProof.fullName}</span>
+              {post.socialProof.isOwnerVerified && (
+                <BadgeCheck className="ml-0.5 inline-block size-3 shrink-0 align-middle text-primary" aria-label="Verified Owner" />
               )}
-              {post.socialProof?.communitySaves > 0 && (
-                <span className="inline-flex items-center gap-1 font-medium text-primary">
-                  <span>👥</span> {post.socialProof.communitySaves} community {post.socialProof.communitySaves === 1 ? "save" : "saves"}
-                </span>
+              {post.socialProof.othersCount > 0 && (
+                <> and <span className="font-semibold text-base-content hover:underline">{post.socialProof.othersCount.toLocaleString("en-IN")} others</span></>
               )}
-              {post.socialProof?.authorResponseTime && (
-                <span className="inline-flex items-center gap-1 text-base-content/60">
-                  <span>⚡</span> Responds in {post.socialProof.authorResponseTime}
-                </span>
-              )}
+            </span>
+          </button>
+        ) : post.socialProof?.friendsViewed?.length > 0 ? (
+          <div className="flex items-center gap-1.5 text-xs text-base-content/75">
+            <div className="flex -space-x-1.5 overflow-hidden">
+              {post.socialProof.friendsViewed.map((f, i) => (
+                f.avatar ? (
+                  <img key={i} src={f.avatar} alt="" className="inline-block size-4 rounded-full ring-1 ring-base-100 object-cover" />
+                ) : (
+                  <div key={i} className="inline-grid size-4 place-items-center rounded-full bg-primary/20 text-[9px] font-bold text-primary ring-1 ring-base-100">
+                    {f.name?.[0] || "F"}
+                  </div>
+                )
+              ))}
             </div>
+            <span className="truncate text-[11px]">
+              Viewed by <span className="font-semibold text-base-content">{post.socialProof.friendsViewed[0].name}</span>
+              {post.socialProof.friendsViewedCount > 1 && ` and ${post.socialProof.friendsViewedCount - 1} others`}
+            </span>
+          </div>
+        ) : null}
+
+        {/* Activity & Urgency Line — Plain clean text, real icons, zero emojis */}
+        {(post.urgencySignals?.primaryBadge || post.urgencySignals?.responseTimeText) && (
+          <div className="flex items-center gap-1.5 text-xs text-base-content/70">
+            {post.urgencySignals?.primaryBadge && (
+              <span className="inline-flex items-center gap-1 font-medium">
+                {post.urgencySignals.primaryBadge.icon === "flame" && <Flame className="size-3 text-error" />}
+                {post.urgencySignals.primaryBadge.icon === "zap" && <Zap className="size-3 text-amber-500" />}
+                {post.urgencySignals.primaryBadge.icon === "bookmark" && <Bookmark className="size-3 text-base-content/60" />}
+                {post.urgencySignals.primaryBadge.icon === "trending" && <TrendingDown className="size-3 rotate-180 text-base-content/60" />}
+                <span>{stripEmoji(post.urgencySignals.primaryBadge.text)}</span>
+              </span>
+            )}
+            {post.urgencySignals?.primaryBadge && post.urgencySignals?.responseTimeText && (
+              <span className="text-base-content/30">·</span>
+            )}
+            {post.urgencySignals?.responseTimeText && (
+              <span className="inline-flex items-center gap-1 font-medium">
+                <Zap className="size-3 text-amber-500 shrink-0" />
+                <span>Responds {stripEmoji(post.urgencySignals.responseTimeText)}</span>
+              </span>
+            )}
           </div>
         )}
 
         {priceBlock}
+
         {description}
 
         {/* meta + contact on one row */}

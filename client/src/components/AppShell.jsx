@@ -727,6 +727,14 @@ export default function AppShell({
 
   const { data: authData } = useQuery({
     queryKey: ["authUser"],
+    queryFn: async () => {
+      try {
+        const res = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
+        return res.data;
+      } catch {
+        return null;
+      }
+    },
     staleTime: 1000 * 60 * 5,
   });
   const authUser = authData?.data?.user || authData?.data || null;
