@@ -29,7 +29,7 @@ const MAX_DURATION_MINUTES = 240; // 4 hours
 function callRoomId(circleId) {
   return `community-${circleId}`;
 }
-const SITE_ORIGIN = (process.env.CLIENT_URL || "https://insell-fe.vercel.app").replace(/\/$/, "");
+const SITE_ORIGIN = (process.env.CLIENT_URL || "https://nearmy-space.vercel.app").replace(/\/$/, "");
 const BRAND_PRIMARY = "#2f6fed";
 
 function isMemberOf(circle, userId) {

@@ -29,7 +29,7 @@ export async function sendWelcomeEmail({ email, name }) {
             <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
               <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
                 <div style="background: white; display: inline-block; padding: 10px 18px; border-radius: 8px;">
-                  <img src="https://insell-fe.vercel.app/logo-email.png" alt="NearMySpace" style="height: 32px; display: block;" />
+                  <img src="https://nearmy-space.vercel.app/logo-email.png" alt="Insell" style="height: 32px; display: block;" />
                 </div>
                 <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Welcome Aboard! 🎉</p>
               </div>
@@ -116,7 +116,7 @@ export async function sendResetOTPEmail({ email, otp }) {
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
             <div style="background: white; display: inline-block; padding: 10px 18px; border-radius: 8px;">
-              <img src="https://insell-fe.vercel.app/logo-email.png" alt="NearMySpace" style="height: 32px; display: block;" />
+              <img src="https://nearmy-space.vercel.app/logo-email.png" alt="Insell" style="height: 32px; display: block;" />
             </div>
             <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Password Reset Request</p>
           </div>
@@ -171,7 +171,7 @@ export async function sendLoginOTPEmail({ email, otp }) {
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
             <div style="background: white; display: inline-block; padding: 10px 18px; border-radius: 8px;">
-              <img src="https://insell-fe.vercel.app/logo-email.png" alt="NearMySpace" style="height: 32px; display: block;" />
+              <img src="https://nearmy-space.vercel.app/logo-email.png" alt="Insell" style="height: 32px; display: block;" />
             </div>
             <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Passwordless Sign-In 🔐</p>
           </div>
