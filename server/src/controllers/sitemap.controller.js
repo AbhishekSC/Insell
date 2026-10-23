@@ -1,12 +1,16 @@
 import { asyncHandler } from "../core/asyncHandler.js";
 import PropertyPost from "../models/PropertyPost.model.js";
 
-const getSiteOrigin = () => {
-  return (process.env.CLIENT_URL || process.env.FRONTEND_URL || "https://insell.in").replace(/\/$/, "");
+const getSiteOrigin = (req) => {
+  if (req?.headers?.["x-forwarded-host"]) {
+    const proto = req.headers["x-forwarded-proto"] || "https";
+    return `${proto}://${req.headers["x-forwarded-host"]}`.replace(/\/$/, "");
+  }
+  return (process.env.CLIENT_URL || process.env.FRONTEND_URL || "https://nearmy-space.vercel.app").replace(/\/$/, "");
 };
 
 export const generateSitemapXml = asyncHandler(async (req, res) => {
-  const origin = getSiteOrigin();
+  const origin = getSiteOrigin(req);
 
   // Fetch up to 5,000 public active listings
   const activePosts = await PropertyPost.find({

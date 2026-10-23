@@ -99,11 +99,11 @@ export default function GuestLandingPage() {
           "@context": "https://schema.org",
           "@type": "WebSite",
           "name": "Insell",
-          "url": "https://insell.in",
+          "url": "https://nearmy-space.vercel.app",
           "description": "India's social real estate marketplace for verified homes and direct owner connections.",
           "potentialAction": {
             "@type": "SearchAction",
-            "target": "https://insell.in/marketplace?q={search_term_string}",
+            "target": "https://nearmy-space.vercel.app/marketplace?q={search_term_string}",
             "query-input": "required name=search_term_string"
           }
         }}

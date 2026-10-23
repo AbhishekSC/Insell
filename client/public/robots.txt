@@ -21,4 +21,4 @@ Disallow: /verify-otp
 Disallow: /new-password
 Disallow: /forgot-password
 
-Sitemap: https://insell.in/sitemap.xml
+Sitemap: https://nearmy-space.vercel.app/sitemap.xml
