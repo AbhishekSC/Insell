@@ -1,9 +1,18 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    visualizer({
+      filename: 'dist/stats.html',
+      open: false,
+      gzipSize: true,
+      brotliSize: true,
+    }),
+  ],
   build: {
     rollupOptions: {
       output: {
@@ -24,11 +33,14 @@ export default defineConfig({
         target: 'http://localhost:5001',
         changeOrigin: true,
       },
-      // Server-rendered share pages (/p/:id, /u/:id) — in prod Vercel
-      // rewrites these to the backend; mirror that in dev so shared links
-      // resolve instead of falling through to the SPA. Regex so it only
-      // catches a single-segment /p/x or /u/x, not /property/... or /profile.
+      // Server-rendered share pages (/p/:id, /u/:id) and dynamic sitemap (/sitemap.xml)
+      // in prod Vercel rewrites these to the backend; mirror that in dev so shared links
+      // resolve instead of falling through to the SPA.
       '^/(p|u)/[^/]+$': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+      },
+      '/sitemap.xml': {
         target: 'http://localhost:5001',
         changeOrigin: true,
       },
