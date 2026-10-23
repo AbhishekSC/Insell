@@ -120,7 +120,7 @@ export default function PublicPropertyDetailPage() {
   const pageTitle = p.priceLabel ? `${p.title} - ${p.priceLabel}` : p.title;
   const pageDesc = p.description
     ? `${p.description.slice(0, 150)}... ${p.location ? `Located in ${p.location}.` : ""}`
-    : `Explore this verified ${p.propertyType || "property"} in ${p.location || "India"}. View pricing, photos, and direct owner contact on Insell.`;
+    : `Explore this verified ${p.propertyType || "property"} in ${p.location || "India"}. View pricing, photos, and direct owner contact on NearMySpace.`;
 
   return (
     <div className="min-h-screen bg-base-100">

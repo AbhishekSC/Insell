@@ -60,7 +60,7 @@ export default function PublicUserProfilePage() {
     <div className="min-h-screen bg-base-100">
       <SEO
         title={`${p.name || "Member Profile"} (${p.role || "Real Estate"})`}
-        description={p.bio || `Connect with ${p.name || "this member"} on Insell to view listings and verified properties.`}
+        description={p.bio || `Connect with ${p.name || "this member"} on NearMySpace to view listings and verified properties.`}
         path={`/users/${userId}`}
         image={p.avatar || logoDesktop}
         type="profile"
@@ -75,8 +75,8 @@ export default function PublicUserProfilePage() {
       />
       {/* Slim top bar for logged-out visitors */}
       <div className="sticky top-0 z-30 flex items-center justify-between border-b border-base-200 bg-base-100/90 px-4 py-3 backdrop-blur">
-        <Link to="/" aria-label="Insell home" className="flex items-center">
-          <img src={logoDesktop} alt="Insell" className="h-8 w-auto" />
+        <Link to="/" aria-label="NearMySpace home" className="flex items-center">
+          <img src={logoDesktop} alt="NearMySpace" className="h-8 w-auto" />
         </Link>
         <div className="flex items-center gap-2">
           <Link to={`/login?next=/users/${userId}`} className="rounded-lg bg-primary px-3.5 py-1.5 text-sm font-semibold text-white">

@@ -98,7 +98,7 @@ export default function GuestLandingPage() {
         schema={{
           "@context": "https://schema.org",
           "@type": "WebSite",
-          "name": "Insell",
+          "name": "NearMySpace",
           "url": "https://nearmy-space.vercel.app",
           "description": "India's social real estate marketplace for verified homes and direct owner connections.",
           "potentialAction": {
