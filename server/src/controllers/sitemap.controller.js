@@ -1,4 +1,4 @@
-import asyncHandler from "express-async-handler";
+import { asyncHandler } from "../core/asyncHandler.js";
 import PropertyPost from "../models/PropertyPost.model.js";
 
 const getSiteOrigin = () => {
