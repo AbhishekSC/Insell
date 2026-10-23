@@ -2,7 +2,7 @@ import { POST_TYPES } from "../../utils/postPolicy.js";
 
 // Public site origin — where /p/:id share links live. Falls back to the
 // configured client URL, then the production domain.
-const SITE_ORIGIN = (process.env.CLIENT_URL || "https://insell-fe.vercel.app").replace(/\/$/, "");
+const SITE_ORIGIN = (process.env.CLIENT_URL || "https://nearmy-space.vercel.app").replace(/\/$/, "");
 
 const RENT_TYPES = new Set([POST_TYPES.PROPERTY_RENT, POST_TYPES.REQUIREMENT_RENT]);
 

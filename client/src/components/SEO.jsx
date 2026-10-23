@@ -1,7 +1,9 @@
 import { Helmet } from "react-helmet-async";
 
 const DEFAULT_SITE_NAME = "Insell";
-const DEFAULT_SITE_URL = import.meta.env.VITE_SITE_URL || "https://insell.in";
+const DEFAULT_SITE_URL =
+  import.meta.env.VITE_SITE_URL ||
+  (typeof window !== "undefined" && window.location.origin ? window.location.origin : "https://nearmy-space.vercel.app");
 const DEFAULT_IMAGE = `${DEFAULT_SITE_URL}/logo-desktop.png`;
 const DEFAULT_DESCRIPTION =
   "Insell is India's social real estate marketplace. Explore verified homes, direct owner connections, smart commute times, and authentic community reviews.";

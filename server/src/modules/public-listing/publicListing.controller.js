@@ -4,7 +4,7 @@ import { getSharePreview, getPublicListingDetail, getGuestFeed, recordShare } fr
 import { renderSharePage, renderNotFoundPage } from "./publicListing.view.js";
 import { isCrawler } from "../../utils/isCrawler.js";
 
-const SITE_ORIGIN = (process.env.CLIENT_URL || "https://insell-fe.vercel.app").replace(/\/$/, "");
+const SITE_ORIGIN = (process.env.CLIENT_URL || "https://nearmy-space.vercel.app").replace(/\/$/, "");
 
 // GET /api/public/listings/:id/preview  (no auth)
 export const getListingSharePreview = asyncHandler(async (req, res) => {

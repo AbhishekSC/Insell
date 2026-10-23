@@ -4,7 +4,7 @@ import { getPublicProfile } from "./publicProfile.app.service.js";
 import { renderProfilePage, renderNotFoundPage } from "./publicProfile.view.js";
 import { isCrawler } from "../../utils/isCrawler.js";
 
-const SITE_ORIGIN = (process.env.CLIENT_URL || "https://insell-fe.vercel.app").replace(/\/$/, "");
+const SITE_ORIGIN = (process.env.CLIENT_URL || "https://nearmy-space.vercel.app").replace(/\/$/, "");
 
 // GET /api/public/users/:id  (no auth) — JSON for the logged-out profile page
 export const getPublicUserProfile = asyncHandler(async (req, res) => {
