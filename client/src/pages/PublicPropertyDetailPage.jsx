@@ -11,6 +11,7 @@ import {
 import axiosInstance from "../lib/axios";
 import LoginPromptModal from "../components/LoginPromptModal";
 import logoDesktop from "../assets/brand/logo-desktop.png";
+import SEO from "../components/SEO";
 
 const isVideo = (u) => /\/video\/upload\/|\.(mp4|mov|webm|m4v)(\?|$)/i.test(u || "");
 
@@ -116,11 +117,30 @@ export default function PublicPropertyDetailPage() {
     p.propertyType ? { icon: Building2, label: p.propertyType } : null,
   ].filter(Boolean);
 
+  const pageTitle = p.priceLabel ? `${p.title} - ${p.priceLabel}` : p.title;
+  const pageDesc = p.description
+    ? `${p.description.slice(0, 150)}... ${p.location ? `Located in ${p.location}.` : ""}`
+    : `Explore this verified ${p.propertyType || "property"} in ${p.location || "India"}. View pricing, photos, and direct owner contact on Insell.`;
+
   return (
     <div className="min-h-screen bg-base-100">
+      <SEO
+        title={pageTitle}
+        description={pageDesc}
+        path={`/property/${id}`}
+        image={cover || logoDesktop}
+        type="product"
+        propertyData={{
+          ...p,
+          latitude: p.latitude || p.locationCoords?.coordinates?.[1],
+          longitude: p.longitude || p.locationCoords?.coordinates?.[0],
+          areaSqFt: p.areaSqft || p.areaSqFt,
+          images: images,
+        }}
+      />
       <div className="sticky top-0 z-30 flex items-center justify-between border-b border-base-200 bg-base-100/90 px-4 py-3 backdrop-blur">
-        <Link to="/" aria-label="NearMySpace home" className="flex items-center">
-          <img src={logoDesktop} alt="NearMySpace" className="h-8 w-auto" />
+        <Link to="/" aria-label="Insell home" className="flex items-center">
+          <img src={logoDesktop} alt="Insell" className="h-8 w-auto" />
         </Link>
         <div className="flex items-center gap-2">
           <Link to={`/login?next=/property/${id}`} className="rounded-lg bg-primary px-3.5 py-1.5 text-sm font-semibold text-white">Log in</Link>

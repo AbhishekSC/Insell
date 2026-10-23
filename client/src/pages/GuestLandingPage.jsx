@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import axiosInstance from "../lib/axios";
 import logoDesktop from "../assets/brand/logo-desktop.png";
+import SEO from "../components/SEO";
 
 function ListingCard({ l, blurred }) {
   const body = (
@@ -90,6 +91,23 @@ export default function GuestLandingPage() {
 
   return (
     <div className="min-h-screen bg-base-100">
+      <SEO
+        title="Find & Sell Homes with Verified Owners & Smart Commutes"
+        description="Discover homes for rent and sale in India. Real-time commute calculations, verified owners, authentic community insights, and zero spam."
+        path="/"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "Insell",
+          "url": "https://insell.in",
+          "description": "India's social real estate marketplace for verified homes and direct owner connections.",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://insell.in/marketplace?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        }}
+      />
       <style>{`
         @keyframes gl-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
         .gl-rise { animation: gl-rise .6s cubic-bezier(.2,.7,.2,1) both; }

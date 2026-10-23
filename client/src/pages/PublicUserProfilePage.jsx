@@ -5,6 +5,7 @@ import { MapPin, Lock, Loader2, BadgeCheck } from "lucide-react";
 import axiosInstance from "../lib/axios";
 import LoginPromptModal from "../components/LoginPromptModal";
 import logoDesktop from "../assets/brand/logo-desktop.png";
+import SEO from "../components/SEO";
 
 function Stat({ label, value, onClick }) {
   return (
@@ -46,7 +47,7 @@ export default function PublicUserProfilePage() {
         <h1 className="text-lg font-semibold text-base-content">This profile isn't available</h1>
         <p className="mt-1 text-sm text-base-content/60">It may have been removed or set to private.</p>
         <Link to="/marketplace" className="mt-4 inline-block text-sm font-semibold text-primary hover:underline">
-          Browse NearMySpace →
+          Browse Insell →
         </Link>
       </div>
     );
@@ -57,10 +58,25 @@ export default function PublicUserProfilePage() {
 
   return (
     <div className="min-h-screen bg-base-100">
+      <SEO
+        title={`${p.name || "Member Profile"} (${p.role || "Real Estate"})`}
+        description={p.bio || `Connect with ${p.name || "this member"} on Insell to view listings and verified properties.`}
+        path={`/users/${userId}`}
+        image={p.avatar || logoDesktop}
+        type="profile"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "Person",
+          "name": p.name,
+          "description": p.bio || "",
+          "image": p.avatar || "",
+          "jobTitle": p.role || "Real Estate Professional",
+        }}
+      />
       {/* Slim top bar for logged-out visitors */}
       <div className="sticky top-0 z-30 flex items-center justify-between border-b border-base-200 bg-base-100/90 px-4 py-3 backdrop-blur">
-        <Link to="/" aria-label="NearMySpace home" className="flex items-center">
-          <img src={logoDesktop} alt="NearMySpace" className="h-8 w-auto" />
+        <Link to="/" aria-label="Insell home" className="flex items-center">
+          <img src={logoDesktop} alt="Insell" className="h-8 w-auto" />
         </Link>
         <div className="flex items-center gap-2">
           <Link to={`/login?next=/users/${userId}`} className="rounded-lg bg-primary px-3.5 py-1.5 text-sm font-semibold text-white">

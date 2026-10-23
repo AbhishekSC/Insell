@@ -10,6 +10,8 @@ import { useEffect, useState } from "react";
 import axiosInstance from "./lib/axios";
 import posthog, { isPostHogEnabled } from "./lib/posthog";
 import Sentry, { isSentryEnabled } from "./lib/sentry";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 // Every route below is its own chunk, fetched only when a visitor actually
 // navigates there. Before this, ALL of these — Admin, the Stream video/chat
@@ -323,6 +325,8 @@ function App() {
       ) : null}
 
       <AppToaster />
+      <Analytics />
+      <SpeedInsights />
     </div>
   );
 }
