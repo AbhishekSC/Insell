@@ -26,7 +26,7 @@ export function renderSharePage(listing, { siteOrigin }) {
   const canonical = `${siteOrigin}/p/${listing.id}`;
   const ogImage = listing.coverImage || `${siteOrigin}/logo-email.png`;
   const title = esc(listing.ogTitle || listing.title);
-  const desc = esc(listing.description || "View this property on Insell");
+  const desc = esc(listing.description || "View this property on NearMySpace");
   const thumbs =
     (listing.images || []).length > 1
       ? `<div class="thumbs">${listing.images.map((u) => `<img src="${esc(u)}" alt="" loading="lazy">`).join("")}</div>`
@@ -37,11 +37,11 @@ export function renderSharePage(listing, { siteOrigin }) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${title} &middot; Insell</title>
+<title>${title} &middot; NearMySpace</title>
 <meta name="description" content="${desc}">
 <link rel="canonical" href="${canonical}">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Insell">
+<meta property="og:site_name" content="NearMySpace">
 <meta property="og:title" content="${title}">
 <meta property="og:description" content="${desc}">
 <meta property="og:url" content="${canonical}">
@@ -82,7 +82,7 @@ export function renderSharePage(listing, { siteOrigin }) {
     </div>
     ${thumbs}
   </div>
-  <p class="foot">Listed on Insell &mdash; verified owners, smart commutes</p>
+  <p class="foot">Listed on NearMySpace &mdash; verified owners, smart commutes</p>
 </div>
 </body>
 </html>`;

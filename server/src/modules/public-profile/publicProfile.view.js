@@ -15,7 +15,7 @@ export function renderNotFoundPage(siteOrigin) {
 <title>Profile not available</title></head>
 <body style="font-family:system-ui;text-align:center;padding:15vh 1rem;color:#334155">
 <h1 style="font-size:1.25rem">This profile isn't available</h1>
-<a href="${esc(siteOrigin)}" style="color:#2563eb">Browse Insell &rarr;</a>
+<a href="${esc(siteOrigin)}" style="color:#2563eb">Browse NearMySpace &rarr;</a>
 </body></html>`;
 }
 
@@ -23,12 +23,12 @@ export function renderProfilePage(profile, { siteOrigin }) {
   const appUrl = `${siteOrigin}/users/${profile.id}`;
   const canonical = `${siteOrigin}/users/${profile.id}`;
   const ogImage = profile.avatar || `${siteOrigin}/logo-email.png`;
-  const title = `${esc(profile.name)}${profile.isVerified ? " ✓" : ""} on Insell`;
+  const title = `${esc(profile.name)}${profile.isVerified ? " ✓" : ""} on NearMySpace`;
   const descBits = [];
   if (profile.postsCount) descBits.push(`${profile.postsCount} listing${profile.postsCount === 1 ? "" : "s"}`);
   if (profile.city) descBits.push(profile.city);
   if (profile.bio) descBits.push(profile.bio);
-  const desc = esc(descBits.join(" · ") || "View this member on Insell");
+  const desc = esc(descBits.join(" · ") || "View this member on NearMySpace");
 
   const posts = (profile.previewPosts || [])
     .map(
@@ -48,7 +48,7 @@ export function renderProfilePage(profile, { siteOrigin }) {
 <meta name="description" content="${desc}">
 <link rel="canonical" href="${canonical}">
 <meta property="og:type" content="profile">
-<meta property="og:site_name" content="Insell">
+<meta property="og:site_name" content="NearMySpace">
 <meta property="og:title" content="${title}">
 <meta property="og:description" content="${desc}">
 <meta property="og:url" content="${canonical}">
@@ -93,8 +93,8 @@ export function renderProfilePage(profile, { siteOrigin }) {
   </div>
   ${profile.bio ? `<p class="bio">${esc(profile.bio)}</p>` : ""}
   ${posts ? `<div class="grid">${posts}</div>` : ""}
-  <a class="cta" href="${appUrl}">${profile.hasMorePosts ? `See all ${profile.postsCount} listings & contact` : "Open on Insell"}</a>
-  <p class="foot">Insell — verified members, authentic community</p>
+  <a class="cta" href="${appUrl}">${profile.hasMorePosts ? `See all ${profile.postsCount} listings & contact` : "Open on NearMySpace"}</a>
+  <p class="foot">NearMySpace — verified members, authentic community</p>
 </div>
 </body>
 </html>`;
