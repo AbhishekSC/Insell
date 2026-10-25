@@ -1832,6 +1832,65 @@ export default function MarketplacePage() {
     [draft.mediaUrls]
   );
 
+  const previewPost = useMemo(() => {
+    const isRequirement = String(draft.postType || "").startsWith("REQUIREMENT_");
+    const mediaUrls = composerMedia.length > 0
+      ? composerMedia
+      : isRequirement
+        ? []
+        : ["https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80"];
+
+    const isVideo = composerMedia.length > 0 && isVideoUrl(composerMedia[0]);
+
+    return {
+      _id: "preview-post",
+      postType: draft.postType,
+      listingType: draft.listingType || "Sell",
+      propertyType: draft.propertyType || draft.requirementPropertyType || "Apartment",
+      title: draft.title || "Modern Living Space",
+      caption: draft.caption || "",
+      city: draft.city || "Mumbai",
+      locality: draft.locality || "",
+      price: draft.price ? Number(draft.price) : 0,
+      bedrooms: draft.bedrooms ? Number(draft.bedrooms) : null,
+      bathrooms: draft.bathrooms ? Number(draft.bathrooms) : null,
+      areaSqft: draft.areaSqft ? Number(draft.areaSqft) : null,
+      mediaUrls,
+      media: mediaUrls,
+      mediaType: isVideo ? "video" : "image",
+      author: authUser ? {
+        _id: authUser._id || "preview-user",
+        name: authUser.fullName || authUser.name || "You",
+        username: authUser.username || "you",
+        profilePicture: authUser.profilePic || authUser.profilePicture || "",
+        primaryRole: activeRole || "Owner",
+        isOwnerVerified: true,
+      } : {
+        _id: "preview-user",
+        name: "You",
+        username: "you",
+        profilePicture: "",
+        primaryRole: activeRole || "Owner",
+        isOwnerVerified: true,
+      },
+      createdAt: new Date().toISOString(),
+      likesCount: 5,
+      likes: [{ _id: "u1", name: "Darsh", fullName: "Darsh" }],
+      commentsCount: 2,
+      viewsCount: 120,
+      savesCount: 3,
+      isLiked: false,
+      isSaved: false,
+      latitude: draft.latitude,
+      longitude: draft.longitude,
+      liveLocation: draft.latitude && draft.longitude ? {
+        latitude: draft.latitude,
+        longitude: draft.longitude,
+        updatedAt: new Date().toISOString(),
+      } : null,
+    };
+  }, [draft, composerMedia, authUser, activeRole]);
+
   const updateDraft = (field, value) => setDraft((prev) => ({ ...prev, [field]: value }));
 
   const stepValid = useMemo(() => {
@@ -3343,23 +3402,45 @@ export default function MarketplacePage() {
 
               {stepKey === "review" && !composerResult ? (
                 <div>
-                  <p className="text-sm font-semibold text-base-content/70">Review &amp; publish</p>
-                  <article className="mt-4 overflow-hidden rounded-2xl border border-base-300">
-                    {composerMedia.length > 0 && isVideoUrl(composerMedia[0]) ? (
-                      <video src={composerMedia[0]} alt="Preview" className="h-64 w-full object-cover" controls />
-                    ) : (
-                      <img src={composerMedia[0] || "https://placehold.co/1400x900?text=Preview"} alt="Preview" className="h-64 w-full object-cover" />
-                    )}
-                    <div className="p-4">
-                      <p className="text-xs text-base-content/60">{getListingBadge(draft)} · {draft.propertyType || draft.requirementPropertyType || "Real Estate"}</p>
-                      <p className="mt-1 text-xl font-bold text-base-content">{draft.title || "Untitled post"}</p>
-                      <p className="mt-1 text-sm text-base-content/70">{draft.caption || "No description added."}</p>
-                      <p className="mt-2 text-xs text-base-content/60">
-                        {[draft.city, draft.locality].filter(Boolean).join(", ") || "No location set"}
-                      </p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-base-content/70">Review &amp; publish</p>
+                      <p className="text-xs text-base-content/50">Here is how your post will look in the marketplace feed</p>
                     </div>
-                  </article>
-                  <p className="mt-3 text-xs text-base-content/60">
+                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                      Live Feed Preview
+                    </span>
+                  </div>
+
+                  <div className="mt-4 flex justify-center">
+                    <div className="w-full max-w-md">
+                      <PropertyPostCard
+                        post={previewPost}
+                        media={previewPost.media}
+                        badge={getListingBadge(draft)}
+                        isOwnPost={true}
+                        priceBlock={
+                          <div>
+                            <span className="text-xl font-black text-base-content">
+                              {formatMoney(draft.price)}
+                            </span>
+                            {draft.listingType === "Rent" && (
+                              <span className="text-xs text-base-content/60"> /month</span>
+                            )}
+                          </div>
+                        }
+                        description={
+                          draft.caption ? (
+                            <p className="mt-1 text-sm text-base-content/80 line-clamp-2">
+                              {draft.caption}
+                            </p>
+                          ) : null
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <p className="mt-4 text-center text-xs text-base-content/60">
                     Publishing makes this post immediately visible in the marketplace feed. Save as a draft to finish later.
                   </p>
                 </div>

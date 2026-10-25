@@ -335,6 +335,7 @@ export const adminCreateAdvertisement = async (req, res) => {
       title,
       description,
       mediaUrl,
+      mediaType,
       ctaText = "Learn More",
       targetUrl,
       badgeText = "Ad",
@@ -362,10 +363,14 @@ export const adminCreateAdvertisement = async (req, res) => {
       return sendErrorResponse(res, 400, "Target link/URL is required");
     }
 
+    const isVideo = mediaType === "video" || /\.(mp4|webm|mov)(\?|$)/i.test(mediaUrl || "") || (mediaUrl || "").includes("/video/upload/");
+    const resolvedMediaType = isVideo ? "video" : "image";
+
     const ad = await Advertisement.create({
       title: title.trim(),
       description: description.trim(),
       mediaUrl: mediaUrl.trim(),
+      mediaType: resolvedMediaType,
       ctaText: ctaText.trim() || "Learn More",
       targetUrl: targetUrl.trim(),
       badgeText: badgeText.trim() || "Sponsored",
@@ -398,6 +403,7 @@ export const adminUpdateAdvertisement = async (req, res) => {
       "title",
       "description",
       "mediaUrl",
+      "mediaType",
       "ctaText",
       "targetUrl",
       "badgeText",
@@ -467,11 +473,15 @@ export const adminDeleteAdvertisement = async (req, res) => {
 export const uploadAdvertisementImageController = async (req, res) => {
   try {
     if (!req.file) {
-      return sendErrorResponse(res, 400, "No image uploaded");
+      return sendErrorResponse(res, 400, "No media file uploaded");
     }
-    return sendSuccessResponse(res, 200, "Image uploaded successfully", { url: req.file.path });
+    const isVideo = req.file.mimetype?.startsWith("video/") || false;
+    return sendSuccessResponse(res, 200, "Media uploaded successfully", {
+      url: req.file.path,
+      mediaType: isVideo ? "video" : "image",
+    });
   } catch (error) {
-    logger.error("Error uploading ad image:", error);
+    logger.error("Error uploading ad media:", error);
     return sendErrorResponse(res, 500, "Internal Server Error");
   }
 };
@@ -493,6 +503,7 @@ export const createAdvertisementWithCoins = async (req, res) => {
       title,
       description,
       mediaUrl,
+      mediaType,
       targetUrl,
       ctaText = "Learn More",
       badgeText = "Ad",
@@ -507,6 +518,9 @@ export const createAdvertisementWithCoins = async (req, res) => {
     if (!title || !description || !mediaUrl || !targetUrl) {
       return sendErrorResponse(res, 400, "Title, description, banner image, and destination link are required");
     }
+
+    const isVideo = mediaType === "video" || /\.(mp4|webm|mov)(\?|$)/i.test(mediaUrl || "") || (mediaUrl || "").includes("/video/upload/");
+    const resolvedMediaType = isVideo ? "video" : "image";
 
     const plan = AD_COIN_PLANS.find((p) => p.durationDays === Number(durationDays)) || {
       durationDays: Number(durationDays) || 3,
@@ -545,6 +559,7 @@ export const createAdvertisementWithCoins = async (req, res) => {
       title: title.trim(),
       description: description.trim(),
       mediaUrl: mediaUrl.trim(),
+      mediaType: resolvedMediaType,
       targetUrl: targetUrl.trim(),
       ctaText: ctaText.trim() || "Learn More",
       badgeText: badgeText?.trim() || "Ad",

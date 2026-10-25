@@ -20,6 +20,7 @@ import {
   Wallet,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import AdCard from "./AdCard";
 import axiosInstance from "../lib/axios";
 
 const AD_CATEGORIES = [
@@ -61,6 +62,7 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
   const [companyName, setCompanyName] = useState("");
   const [badgeText, setBadgeText] = useState("Ad");
   const [mediaUrl, setMediaUrl] = useState(preselectedPost?.media?.[0]?.url || preselectedPost?.photos?.[0] || "");
+  const [mediaType, setMediaType] = useState("image");
   const [targetUrl, setTargetUrl] = useState(preselectedPost ? `/property/${preselectedPost._id}` : "");
   const [ctaText, setCtaText] = useState("View Listing");
   const [adCategory, setAdCategory] = useState("Real Estate");
@@ -123,6 +125,8 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
       setDescription(post.caption || post.description || "");
       const img = post.mediaUrls?.[0] || post.media?.[0]?.url || post.photos?.[0] || "";
       setMediaUrl(img);
+      const isVid = /\.(mp4|webm|mov)(\?|$)/i.test(img) || img.includes("/video/upload/");
+      setMediaType(isVid ? "video" : "image");
       setTargetUrl(`/property/${post._id}`);
       setTargetCity(post.city || "");
       setTargetIntent(post.listingType === "Rent" ? "Rent" : post.listingType === "Sell" ? "Buy" : "All");
@@ -131,11 +135,12 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
     }
   };
 
-  // Upload custom ad banner
+  // Upload custom ad banner (image or video)
   const handleUploadBanner = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const isVid = file.type?.startsWith("video/") || false;
     const formData = new FormData();
     formData.append("image", file);
     setUploadingImage(true);
@@ -144,10 +149,13 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
       const res = await axiosInstance.post("/advertisements/user/upload-banner", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      setMediaUrl(res.data?.data?.url);
-      toast.success("Banner uploaded!");
+      const url = res.data?.data?.url;
+      const returnedType = res.data?.data?.mediaType || (isVid ? "video" : "image");
+      setMediaUrl(url);
+      setMediaType(returnedType);
+      toast.success(returnedType === "video" ? "Ad video uploaded!" : "Ad banner uploaded!");
     } catch {
-      toast.error("Failed to upload image. Try again.");
+      toast.error("Failed to upload media. Please try again.");
     } finally {
       setUploadingImage(false);
     }
@@ -162,6 +170,7 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
         companyName,
         badgeText: badgeText || "Ad",
         mediaUrl,
+        mediaType,
         targetUrl,
         ctaText,
         adCategory,
@@ -358,23 +367,40 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
                   </div>
                 )}
 
-                {/* Banner */}
+                {/* Banner / Video Media */}
                 <div>
-                  <label className={LABEL_CLASS}>Banner Image *</label>
+                  <div className="flex items-center justify-between">
+                    <label className={LABEL_CLASS}>Ad Media (Video or Image) *</label>
+                    <span className="text-[10px] text-base-content/50">MP4, WebM, PNG, JPG (up to 25MB)</span>
+                  </div>
                   {mediaUrl ? (
-                    <div className="relative aspect-[21/9] w-full overflow-hidden rounded-xl border border-base-300/60 bg-base-200">
-                      <img src={mediaUrl} alt="Banner preview" className="h-full w-full object-cover" />
+                    <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border border-base-300/60 bg-black">
+                      {mediaType === "video" || /\.(mp4|webm|mov)(\?|$)/i.test(mediaUrl) || mediaUrl.includes("/video/upload/") ? (
+                        <video
+                          src={mediaUrl}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <img src={mediaUrl} alt="Banner preview" className="h-full w-full object-cover" />
+                      )}
                       <div className="absolute bottom-2 right-2 flex gap-1.5">
-                        <label className="flex h-7 cursor-pointer items-center gap-1 rounded-lg bg-black/60 px-2.5 text-[11px] font-bold text-white backdrop-blur-sm">
+                        <label className="flex h-7 cursor-pointer items-center gap-1 rounded-lg bg-black/60 px-2.5 text-[11px] font-bold text-white backdrop-blur-sm hover:bg-black/80">
                           {uploadingImage ? <Loader2 className="size-3 animate-spin" /> : <ImageIcon className="size-3" />}
                           Change
-                          <input type="file" accept="image/*" className="hidden" onChange={handleUploadBanner} />
+                          <input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" className="hidden" onChange={handleUploadBanner} />
                         </label>
                         <button
                           type="button"
-                          onClick={() => setMediaUrl("")}
-                          aria-label="Remove banner"
-                          className="grid size-7 place-items-center rounded-lg bg-black/60 text-white backdrop-blur-sm"
+                          onClick={() => {
+                            setMediaUrl("");
+                            setMediaType("image");
+                          }}
+                          aria-label="Remove media"
+                          className="grid size-7 place-items-center rounded-lg bg-black/60 text-white backdrop-blur-sm hover:bg-black/80"
                         >
                           <X className="size-3.5" />
                         </button>
@@ -382,21 +408,26 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
                     </div>
                   ) : (
                     <>
-                      <label className="flex aspect-[21/9] w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-base-300 bg-base-200/50 text-base-content/55 transition hover:border-primary hover:text-primary">
+                      <label className="flex aspect-[16/9] w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-base-300 bg-base-200/50 text-base-content/55 transition hover:border-primary hover:text-primary">
                         {uploadingImage ? (
-                          <Loader2 className="size-5 animate-spin" />
+                          <Loader2 className="size-6 animate-spin text-primary" />
                         ) : (
-                          <ImageIcon className="size-5" />
+                          <Upload className="size-6" />
                         )}
-                        <span className="text-xs font-bold">{uploadingImage ? "Uploading…" : "Upload banner"}</span>
-                        <span className="text-[10px]">Wide image works best (21:9)</span>
-                        <input type="file" accept="image/*" className="hidden" onChange={handleUploadBanner} />
+                        <span className="text-xs font-bold">{uploadingImage ? "Uploading media…" : "Upload video or image banner"}</span>
+                        <span className="text-[10px] text-base-content/40">Short video clip (10–30s) or portrait/landscape banner</span>
+                        <input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" className="hidden" onChange={handleUploadBanner} />
                       </label>
                       <input
                         type="text"
-                        placeholder="Image URL or upload banner"
+                        placeholder="Or paste media URL (image or video)"
                         value={mediaUrl}
-                        onChange={(e) => setMediaUrl(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setMediaUrl(val);
+                          const isVid = /\.(mp4|webm|mov)(\?|$)/i.test(val) || val.includes("/video/upload/");
+                          setMediaType(isVid ? "video" : "image");
+                        }}
                         className={`${INPUT_CLASS} mt-2`}
                       />
                     </>
@@ -564,6 +595,33 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
                   })}
                 </div>
               </section>
+
+              {/* Live Card Preview */}
+              {mediaUrl && (
+                <section className={SECTION_CLASS}>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className={LABEL_CLASS}>Live Feed Preview</label>
+                    <span className="text-[10px] text-base-content/40">How your ad will appear in the feed</span>
+                  </div>
+                  <div className="mx-auto max-w-[320px]">
+                    <AdCard
+                      ad={{
+                        _id: "preview",
+                        title: title || "Your Campaign Title",
+                        description: description || "Your campaign description will appear here in the feed.",
+                        companyName: companyName || "Your Business",
+                        badgeText: badgeText || "Sponsored",
+                        mediaUrl,
+                        mediaType,
+                        targetUrl: targetUrl || "#",
+                        ctaText: ctaText || "View Listing",
+                        adCategory,
+                        targetCity,
+                      }}
+                    />
+                  </div>
+                </section>
+              )}
             </div>
           ) : activeTab === "campaigns" ? (
             /* My Campaigns Tab */
