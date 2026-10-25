@@ -31,12 +31,24 @@ export const FURNISHING_OPTIONS = ["Fully Furnished", "Semi Furnished", "Unfurni
 export const OCCUPANCY_OPTIONS = ["Single", "Double", "Shared", "Any"];
 export const GENDER_OPTIONS = ["Any", "Male", "Female"];
 export const TENANT_OPTIONS = ["Family", "Bachelors", "Students", "Any"];
-export const OCCUPATION_OPTIONS = ["Student", "Working Professional", "Business Owner", "Other"];
+export const OCCUPATION_OPTIONS = ["Student", "Working Professional", "Business Owner", "Intern", "Other"];
 export const REQUIREMENT_PROPERTY_OPTIONS = ["PG", "Room", "Flat", "Shared Flat", "Independent House", "Villa"];
 export const AREA_UNIT_OPTIONS = ["Acre", "Hectare", "Bigha", "Sq. Yard", "Sq. Ft"];
 export const SOIL_OPTIONS = ["Black Soil", "Red Soil", "Alluvial", "Sandy", "Laterite", "Other"];
 export const WATER_OPTIONS = ["Borewell", "Canal", "River", "Rain-fed", "None"];
 export const COMMERCIAL_TYPE_OPTIONS = ["Office", "Shop", "Showroom", "Warehouse", "Restaurant", "Co-working", "Other"];
+
+export const ROOM_TYPE_OPTIONS = ["Private Room", "Shared Room", "PG Bed"];
+export const TARGET_AUDIENCE_OPTIONS = ["Students", "Working Professionals", "Interns", "Any"];
+export const LIFESTYLE_TAG_OPTIONS = [
+  "Veg Only", "Non-Veg OK", "Non-Smoker", "Social Drinker",
+  "Night Owl", "Early Riser", "Pet Friendly", "No Pets",
+];
+export const FLATMATE_AMENITY_OPTIONS = [
+  "WiFi", "Cook Available", "Washing Machine", "AC",
+  "Power Backup", "Geyser", "Gym", "Security/CCTV",
+  "Covered Parking", "24x7 Water Supply",
+];
 
 export const HOUSE_RULE_SUGGESTIONS = [
   "No Smoking",
@@ -155,6 +167,24 @@ export const FIELD_DEFS = {
   genderPreference: { label: "Gender preference", kind: FIELD_KIND.SELECT, options: GENDER_OPTIONS },
   occupation: { label: "Occupation", kind: FIELD_KIND.SELECT, options: OCCUPATION_OPTIONS },
 
+  // --- flatmate ---
+  roomType: { label: "Room type", kind: FIELD_KIND.SELECT, options: ROOM_TYPE_OPTIONS },
+  occupancy: { label: "Sharing (persons per room)", kind: FIELD_KIND.NUMBER },
+  rentPerPerson: { label: "Rent per person (₹/month)", kind: FIELD_KIND.NUMBER },
+  flatmateDeposit: { label: "Deposit (₹)", kind: FIELD_KIND.NUMBER },
+  availableFrom: { label: "Available from", kind: FIELD_KIND.DATE },
+  flatmateFurnishing: { label: "Furnishing", kind: FIELD_KIND.SELECT, options: FURNISHING_OPTIONS },
+  flatmateGender: { label: "Gender preference", kind: FIELD_KIND.SELECT, options: GENDER_OPTIONS },
+  targetAudience: { label: "Who should apply?", kind: FIELD_KIND.CHECKBOX_GRID, options: TARGET_AUDIENCE_OPTIONS },
+  lifestyleTags: { label: "Lifestyle & habits", kind: FIELD_KIND.CHECKBOX_GRID, options: LIFESTYLE_TAG_OPTIONS },
+  amenityTags: { label: "Amenities included", kind: FIELD_KIND.CHECKBOX_GRID, options: FLATMATE_AMENITY_OPTIONS },
+  collegeName: { label: "College / University", kind: FIELD_KIND.TEXT, placeholder: "e.g. PES University, Christ University" },
+  workplaceName: { label: "Workplace / Company", kind: FIELD_KIND.TEXT, placeholder: "e.g. Novio, Infosys, TCS" },
+  seekerBudgetMin: { label: "Budget min (₹/month)", kind: FIELD_KIND.NUMBER },
+  seekerBudgetMax: { label: "Budget max (₹/month)", kind: FIELD_KIND.NUMBER },
+  preferredLocalities: { label: "Preferred areas", kind: FIELD_KIND.TEXT, placeholder: "e.g. Indiranagar, Koramangala, HSR" },
+  groupSize: { label: "Group size (if teaming up)", kind: FIELD_KIND.NUMBER },
+
   // --- builder project ---
   projectName: { label: "Project name", kind: FIELD_KIND.TEXT },
   launchDate: { label: "Launch date", kind: FIELD_KIND.DATE },
@@ -189,6 +219,10 @@ export const META_ONLY_FIELDS = new Set([
   "furnishing", "facing", "totalFloors", "ageOfProperty", "maintenanceCharges",
   "houseRules", "spaceType", "preferredTenants", "alternativeMobile",
   "electricityBillUrl", "amenities",
+  "roomType", "occupancy", "rentPerPerson", "flatmateDeposit", "availableFrom",
+  "flatmateFurnishing", "flatmateGender", "targetAudience", "lifestyleTags",
+  "amenityTags", "collegeName", "workplaceName", "seekerBudgetMin", "seekerBudgetMax",
+  "preferredLocalities", "groupSize",
 ]);
 
 const RESIDENTIAL_LISTING_INTENTS = ["Sell", "Rent"];
@@ -316,6 +350,37 @@ export const POST_TYPE_CONFIG = {
     allowedListingTypes: ["Event"],
     requiresMedia: true,
   },
+  FLATMATE_OFFER: {
+    essential: ["roomType", "rentPerPerson", "flatmateDeposit", "availableFrom", "flatmateGender"],
+    advanced: [
+      "occupancy",
+      "flatmateFurnishing",
+      "targetAudience",
+      "lifestyleTags",
+      "amenityTags",
+      "collegeName",
+      "workplaceName",
+    ],
+    card: ["roomType", "rentPerPerson"],
+    allowedListingTypes: ["Rent"],
+    requiresMedia: true,
+    priceLabel: "Rent per person (₹/month)",
+  },
+  FLATMATE_SEEKING: {
+    essential: ["seekerBudgetMin", "seekerBudgetMax", "moveInDate", "flatmateGender"],
+    advanced: [
+      "occupation",
+      "targetAudience",
+      "lifestyleTags",
+      "collegeName",
+      "workplaceName",
+      "preferredLocalities",
+      "groupSize",
+    ],
+    card: ["seekerBudgetMax"],
+    allowedListingTypes: ["Rent"],
+    requiresMedia: false,
+  },
 };
 
 const FALLBACK_CONFIG = POST_TYPE_CONFIG.PROPERTY_SALE;
@@ -349,6 +414,8 @@ export function getCardChips(post) {
     else if (name === "budgetMax") chips.push(`Up to ₹${Number(value).toLocaleString("en-IN")}`);
     else if (name === "landArea") chips.push(`${value} ${post?.postMeta?.landAreaUnit || ""}`.trim());
     else if (name === "landAreaUnit") continue; // folded into landArea
+    else if (name === "rentPerPerson") chips.push(`₹${Number(value).toLocaleString("en-IN")}/mo`);
+    else if (name === "seekerBudgetMax") chips.push(`Up to ₹${Number(value).toLocaleString("en-IN")}/mo`);
     else chips.push(String(value));
   }
   return chips;

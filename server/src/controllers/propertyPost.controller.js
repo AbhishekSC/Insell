@@ -734,6 +734,9 @@ export async function getPropertyFeed(req, res) {
         case "recent":
           // Show recent posts (already the default sort, no filter needed)
           break;
+        case "flatmates":
+          filter.postType = { $in: ["FLATMATE_OFFER", "FLATMATE_SEEKING"] };
+          break;
       }
     }
 

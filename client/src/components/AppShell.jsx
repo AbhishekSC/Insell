@@ -7,7 +7,6 @@ import {
   BellRing,
   ChevronDown,
   Command,
-  BarChart3,
   Filter,
   Flag,
   Handshake,
@@ -1426,14 +1425,6 @@ export default function AppShell({
                         >
                           <TrendingUp className="size-5" />
                           Trending Localities
-                        </Link>
-                        <Link
-                          to="/locality-insights"
-                          onClick={() => setShowMobileMenu(false)}
-                          className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-base-content/70 hover:bg-base-200"
-                        >
-                          <BarChart3 className="size-5" />
-                          Locality Price Insights
                         </Link>
                         <Link
                           to="/news"

@@ -216,7 +216,7 @@ export default function PropertyPostCard({
 
   return (
     <article
-      className={`group cursor-pointer overflow-hidden rounded-2xl border bg-base-100 shadow-sm transition hover:shadow-lg ${className}`}
+      className={`group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border bg-base-100 shadow-sm transition hover:shadow-lg ${className}`}
       onClick={handleCardClick}
     >
       {/* ---------- MEDIA ---------- */}
@@ -404,7 +404,7 @@ export default function PropertyPostCard({
       </div>
 
       {/* ---------- CONTENT ---------- */}
-      <div className="space-y-2.5 px-4 pb-3 pt-2">
+      <div className="flex flex-1 flex-col gap-2.5 px-4 pb-3 pt-2">
         {/* action bar — compact */}
         <div className="flex items-center justify-between text-base-content/70">
           <div className="flex items-center gap-3.5">
@@ -500,7 +500,7 @@ export default function PropertyPostCard({
 
         {/* meta + contact on one row */}
         {(viewsCount !== undefined || metaLine || onContact) && (
-          <div className="flex items-center justify-between gap-3">
+          <div className="mt-auto flex items-center justify-between gap-3">
             <p className="flex min-w-0 items-center gap-1.5 truncate text-xs text-base-content/45">
               <span>{(viewsCount || 0)} view{(viewsCount || 0) === 1 ? "" : "s"}</span>
               {metaLine && <span>·</span>}

@@ -116,6 +116,28 @@ const ResidentialMetaSchema = new mongoose.Schema(
   subOpts
 );
 
+const FlatmateMetaSchema = new mongoose.Schema(
+  {
+    roomType: String,
+    occupancy: Number,
+    rentPerPerson: Number,
+    depositAmount: Number,
+    availableFrom: String,
+    furnishing: String,
+    genderPreference: String,
+    targetAudience: [String],
+    lifestyleTags: [String],
+    amenityTags: [String],
+    collegeName: String,
+    workplaceName: String,
+    budgetMin: Number,
+    budgetMax: Number,
+    preferredLocalities: [String],
+    groupSize: Number,
+  },
+  subOpts
+);
+
 export const PostMetaSchema = new mongoose.Schema(
   {
     requirement: { type: RequirementMetaSchema, default: () => ({}) },
@@ -124,6 +146,7 @@ export const PostMetaSchema = new mongoose.Schema(
     project: { type: ProjectMetaSchema, default: () => ({}) },
     investment: { type: InvestmentMetaSchema, default: () => ({}) },
     residential: { type: ResidentialMetaSchema, default: () => ({}) },
+    flatmate: { type: FlatmateMetaSchema, default: () => ({}) },
     amenities: { type: [String], default: undefined },
   },
   { _id: false, strict: false, minimize: true }
