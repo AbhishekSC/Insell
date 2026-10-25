@@ -120,7 +120,7 @@ const STORY_COLLECTIONS = [
   { label: "Trending", category: "Recent", image: "https://placehold.co/480x320?text=Trending" },
 ];
 
-const CATEGORY_CHIPS = ["For You", "Following", "Near Me", "Flatmates & Rooms"];
+const CATEGORY_CHIPS = ["For You", "Following", "Near Me"];
 
 const LISTING_TYPES = ["All", "Sell", "Rent", "Requirement", "Project", "Commercial", "Agricultural Land"];
 const PROPERTY_TYPES = ["All", "Apartment", "Independent House", "Villa", "Plot", "Commercial", "Agricultural Land"];
@@ -911,7 +911,7 @@ export default function MarketplacePage() {
 
         // Add category filter
         if (activeCategory && activeCategory !== "For You") {
-          const categoryMap = { "Flatmates & Rooms": "flatmates" };
+          const categoryMap = {};
           params.set("category", categoryMap[activeCategory] || activeCategory.toLowerCase());
         }
 
@@ -2020,7 +2020,7 @@ export default function MarketplacePage() {
               <>
                 <StoriesBar onCategorySelect={setActiveCategory} />
 
-            <div className="mt-4 flex items-center justify-between gap-3 border-b border-base-300 pb-3">
+            <div className="mt-4 border-b border-base-300 pb-3">
               <div className="flex items-center gap-2">
                 {CATEGORY_CHIPS.map((chip) => (
                   <button
@@ -2210,7 +2210,7 @@ export default function MarketplacePage() {
                   const isRequirement = postType.startsWith("REQUIREMENT_");
                   const requirementTitle = post.title || (postType === "REQUIREMENT_RENT" ? "Looking for Rental Property" : "Looking to Buy Property");
 
-                  const priceContextBadges = isRequirement ? [] : getPriceContextBadges(post);
+                  const priceContextBadges = isRequirement || isFlatmate ? [] : getPriceContextBadges(post);
                   const distPill = distancePill(post);
 
                   const handleDoubleClickMedia = (event) => {

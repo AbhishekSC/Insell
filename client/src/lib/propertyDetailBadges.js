@@ -318,10 +318,25 @@ export function getCuratedCardBadges(post, options = {}) {
   const res = meta.residential || {};
   const comm = meta.commercial || {};
   const land = meta.land || {};
-  const isRequirement = String(post.postType || "").toUpperCase().startsWith("REQUIREMENT_");
+  const _pt = String(post.postType || "").toUpperCase();
+  const isRequirement = _pt.startsWith("REQUIREMENT_");
+  const isFlatmate = _pt === "FLATMATE_OFFER" || _pt === "FLATMATE_SEEKING";
   if (isRequirement) return [];
 
   const candidates = [];
+
+  if (isFlatmate) {
+    const fm = meta.flatmate || {};
+    if (fm.roomType) candidates.push({ key: "roomType", label: fm.roomType, filterValue: fm.roomType, type: "spaceType", bgClass: "bg-slate-100 dark:bg-slate-800", textClass: "text-slate-800 dark:text-slate-200", borderClass: "border border-slate-300 dark:border-slate-700", priority: 1 });
+    if (fm.genderPreference && fm.genderPreference !== "Any") candidates.push({ key: "gender", label: `${fm.genderPreference} only`, filterValue: fm.genderPreference, type: "specs", bgClass: "bg-slate-100 dark:bg-slate-800", textClass: "text-slate-800 dark:text-slate-200", borderClass: "border border-slate-300 dark:border-slate-700", priority: 2 });
+    const loc = [post.locality, post.city].filter(Boolean).join(", ");
+    if (loc) candidates.push({ key: "location", label: loc, filterValue: loc, type: "specs", bgClass: "bg-slate-100 dark:bg-slate-800", textClass: "text-slate-800 dark:text-slate-200", borderClass: "border border-slate-300 dark:border-slate-700", priority: 3 });
+    if (Array.isArray(fm.targetAudience)) fm.targetAudience.forEach(t => candidates.push({ key: `audience_${t}`, label: t, filterValue: t, type: "specs", bgClass: "bg-slate-100/60 dark:bg-slate-800/60", textClass: "text-slate-600 dark:text-slate-300", borderClass: "border border-slate-200 dark:border-slate-700", priority: 5 }));
+    if (Array.isArray(fm.lifestyleTags)) fm.lifestyleTags.forEach(t => candidates.push({ key: `lifestyle_${t}`, label: t, filterValue: t, type: "specs", bgClass: "bg-slate-100/60 dark:bg-slate-800/60", textClass: "text-slate-600 dark:text-slate-300", borderClass: "border border-slate-200 dark:border-slate-700", priority: 6 }));
+    const fmAmenities = Array.isArray(fm.amenityTags) ? fm.amenityTags : Array.isArray(meta.amenities) ? meta.amenities : [];
+    fmAmenities.slice(0, 3).forEach(a => candidates.push({ key: `amenity_${a}`, label: a, filterValue: a, type: "specs", bgClass: "bg-slate-100/60 dark:bg-slate-800/60", textClass: "text-slate-600 dark:text-slate-300", borderClass: "border border-slate-200 dark:border-slate-700", priority: 7 }));
+    return candidates.slice(0, max);
+  }
 
   // 1. Space Type (e.g. "Entire Flat", "Private Room", "PG", "Co-living")
   const spaceType = getPostSpaceType(post);
@@ -590,8 +605,10 @@ export function getPropertyInfoBadges(post, options = {}) {
   const res = meta.residential || {};
   const comm = meta.commercial || {};
   const land = meta.land || {};
-  const isRequirement = String(post.postType || "").toUpperCase().startsWith("REQUIREMENT_");
-  if (isRequirement) return [];
+  const _pt2 = String(post.postType || "").toUpperCase();
+  const isRequirement = _pt2.startsWith("REQUIREMENT_");
+  const isFlatmate = _pt2 === "FLATMATE_OFFER" || _pt2 === "FLATMATE_SEEKING";
+  if (isRequirement || isFlatmate) return [];
 
   const existingKeys = new Set(options.existingKeys || []);
   const infoBadges = [];
