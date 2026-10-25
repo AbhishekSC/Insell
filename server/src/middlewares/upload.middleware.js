@@ -107,18 +107,39 @@ export const uploadAnnouncementImage = multer({
   },
 });
 
-const advertisementImageStorage = createCloudinaryStorage("advertisements", ["jpg", "jpeg", "png", "webp"], {
-  maxWidth: 1600,
-  maxHeight: 1200,
-  quality: 'auto:good',
-  resourceType: 'image',
-});
+const advertisementMediaStorage = createCloudinaryStorage(
+  "advertisements",
+  ["jpg", "jpeg", "png", "webp", "gif", "mp4", "webm", "mov"],
+  {
+    maxWidth: 1600,
+    maxHeight: 1920,
+    quality: "auto:good",
+    resourceType: "auto",
+  }
+);
+
+function advertisementMediaFileFilter(_req, file, cb) {
+  const allowedMimeTypes = [
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+    "image/gif",
+    "video/mp4",
+    "video/webm",
+    "video/quicktime",
+  ];
+  if (!allowedMimeTypes.includes(file.mimetype)) {
+    cb(new Error("Unsupported ad file type. Only images (PNG, JPEG, WEBP, GIF) and videos (MP4, WEBM, MOV) are allowed."));
+    return;
+  }
+  cb(null, true);
+}
 
 export const uploadAdvertisementImage = multer({
-  storage: advertisementImageStorage,
-  fileFilter: announcementImageFileFilter,
+  storage: advertisementMediaStorage,
+  fileFilter: advertisementMediaFileFilter,
   limits: {
-    fileSize: 8 * 1024 * 1024,
+    fileSize: 25 * 1024 * 1024,
   },
 });
 

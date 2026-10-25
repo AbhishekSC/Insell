@@ -27,6 +27,11 @@ const advertisementSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    mediaType: {
+      type: String,
+      enum: ["image", "video"],
+      default: "image",
+    },
     ctaText: {
       type: String,
       required: true,

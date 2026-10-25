@@ -38,12 +38,14 @@ import {
   ToggleLeft,
   ToggleRight,
   Trash2,
+  Upload,
   User as UserIcon,
   UserCheck,
   Users,
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import AdCard from "../components/AdCard";
 import AppShell from "../components/AppShell";
 import UserAvatar from "../components/UserAvatar";
 import axiosInstance from "../lib/axios";
@@ -3675,6 +3677,7 @@ function AdvertisementsPanel() {
     title: "",
     description: "",
     mediaUrl: "",
+    mediaType: "image",
     ctaText: "Learn More",
     targetUrl: "",
     badgeText: "Sponsored",
@@ -3708,7 +3711,7 @@ function AdvertisementsPanel() {
   const advertisements = data?.advertisements || [];
   const pagination = data?.pagination || { page: 1, totalPages: 1, total: 0 };
 
-  // Image upload mutation
+  // Media upload mutation (images & videos)
   const { mutate: uploadImage, isPending: isUploadingImage } = useMutation({
     mutationFn: async (file) => {
       const form = new FormData();
@@ -3719,21 +3722,28 @@ function AdvertisementsPanel() {
       return response.data?.data;
     },
     onSuccess: (result) => {
-      setFormData((prev) => ({ ...prev, mediaUrl: result.url }));
-      toast.success("Banner image uploaded successfully");
+      const isVid = result.mediaType === "video" || /\.(mp4|webm|mov)(\?|$)/i.test(result.url) || result.url.includes("/video/upload/");
+      setFormData((prev) => ({
+        ...prev,
+        mediaUrl: result.url,
+        mediaType: result.mediaType || (isVid ? "video" : "image"),
+      }));
+      toast.success(isVid ? "Ad video uploaded successfully!" : "Banner image uploaded successfully!");
     },
     onError: (err) => {
-      toast.error(err?.response?.data?.message || "Failed to upload banner image");
+      toast.error(err?.response?.data?.message || "Failed to upload media");
     },
   });
 
   // Create / Update mutation
   const { mutate: saveAd, isPending: isSaving } = useMutation({
     mutationFn: async () => {
+      const isVid = formData.mediaType === "video" || /\.(mp4|webm|mov)(\?|$)/i.test(formData.mediaUrl) || formData.mediaUrl.includes("/video/upload/");
       const payload = {
         title: formData.title.trim(),
         description: formData.description.trim(),
         mediaUrl: formData.mediaUrl.trim(),
+        mediaType: isVid ? "video" : "image",
         ctaText: formData.ctaText.trim() || "Learn More",
         targetUrl: formData.targetUrl.trim(),
         badgeText: formData.badgeText.trim() || "Sponsored",
@@ -3817,10 +3827,12 @@ function AdvertisementsPanel() {
 
   const handleOpenEdit = (ad) => {
     setEditingAd(ad);
+    const isVid = ad.mediaType === "video" || /\.(mp4|webm|mov)(\?|$)/i.test(ad.mediaUrl || "") || (ad.mediaUrl || "").includes("/video/upload/");
     setFormData({
       title: ad.title || "",
       description: ad.description || "",
       mediaUrl: ad.mediaUrl || "",
+      mediaType: ad.mediaType || (isVid ? "video" : "image"),
       ctaText: ad.ctaText || "Learn More",
       targetUrl: ad.targetUrl || "",
       badgeText: ad.badgeText || "Sponsored",
@@ -3963,15 +3975,26 @@ function AdvertisementsPanel() {
                 className="flex flex-col justify-between overflow-hidden rounded-2xl border border-base-300 bg-base-100 shadow-sm transition hover:border-primary/40 hover:shadow-md"
               >
                 <div>
-                  {/* Image banner preview */}
-                  <div className="relative aspect-[16/9] w-full overflow-hidden bg-base-200">
+                  {/* Media banner preview */}
+                  <div className="relative aspect-[16/9] w-full overflow-hidden bg-black">
                     {ad.mediaUrl ? (
-                      <img
-                        src={ad.mediaUrl}
-                        alt={ad.title}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
+                      ad.mediaType === "video" || /\.(mp4|webm|mov)(\?|$)/i.test(ad.mediaUrl) || ad.mediaUrl.includes("/video/upload/") ? (
+                        <video
+                          src={ad.mediaUrl}
+                          muted
+                          loop
+                          playsInline
+                          autoPlay
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <img
+                          src={ad.mediaUrl}
+                          alt={ad.title}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      )
                     ) : (
                       <div className="flex h-full items-center justify-center bg-base-300">
                         <ImageIcon className="size-8 text-base-content/30" />
@@ -4227,30 +4250,41 @@ function AdvertisementsPanel() {
                 </div>
               </div>
 
-              {/* Banner Image Upload & Preview */}
+              {/* Banner / Video Media Upload & Preview */}
               <div>
-                <label className="text-xs font-semibold text-base-content/80 mb-1 block">
-                  Banner Image *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-base-content/80">
+                    Ad Media (Video or Image) *
+                  </label>
+                  <span className="text-[10px] text-base-content/50">MP4, WebM, PNG, JPG (up to 25MB)</span>
+                </div>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     required
-                    placeholder="Image URL or upload banner below"
+                    placeholder="Media URL or upload file below"
                     value={formData.mediaUrl}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, mediaUrl: e.target.value }))}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const isVid = /\.(mp4|webm|mov)(\?|$)/i.test(val) || val.includes("/video/upload/");
+                      setFormData((prev) => ({
+                        ...prev,
+                        mediaUrl: val,
+                        mediaType: isVid ? "video" : "image",
+                      }));
+                    }}
                     className="input input-sm input-bordered flex-1 text-xs"
                   />
                   <label className="btn btn-sm btn-outline gap-1 text-xs cursor-pointer">
                     {isUploadingImage ? (
                       <Loader2 className="size-3.5 animate-spin" />
                     ) : (
-                      <ImageIcon className="size-3.5" />
+                      <Upload className="size-3.5" />
                     )}
                     <span>Upload</span>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/*,video/mp4,video/webm,video/quicktime"
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
@@ -4261,12 +4295,28 @@ function AdvertisementsPanel() {
                 </div>
 
                 {formData.mediaUrl && (
-                  <div className="mt-2 relative aspect-[21/9] w-full overflow-hidden rounded-xl border border-base-200">
-                    <img
-                      src={formData.mediaUrl}
-                      alt="Banner Preview"
-                      className="h-full w-full object-cover"
-                    />
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-base-content/70">Live Feed Card Preview</span>
+                      <span className="text-[10px] text-base-content/40">Exact appearance in feed</span>
+                    </div>
+                    <div className="mx-auto max-w-[340px]">
+                      <AdCard
+                        ad={{
+                          _id: "admin-preview",
+                          title: formData.title || "Your Campaign Title",
+                          description: formData.description || "Your campaign copy will be rendered here.",
+                          companyName: formData.companyName || "Brand Name",
+                          badgeText: formData.badgeText || "Sponsored",
+                          mediaUrl: formData.mediaUrl,
+                          mediaType: formData.mediaType,
+                          targetUrl: formData.targetUrl || "#",
+                          ctaText: formData.ctaText || "Learn More",
+                          adCategory: formData.adCategory,
+                          targetCity: formData.targetCity,
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
               </div>

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import {
   Heart,
   MessageCircle,
@@ -17,21 +18,24 @@ import {
   Gem,
   FileText,
   Play,
+  Pause,
   Camera,
   Flame,
   Eye,
   Sparkles,
   MapPin,
   Users,
+  ExternalLink,
 } from "lucide-react";
 import PostAuthorLink from "./PostAuthorLink";
 import { useStoryOverlay } from "../context/StoryOverlayContext";
+import { useLiveLocation } from "../hooks/useLiveLocation";
 import { lqipUrl, cardImageUrl } from "../lib/cloudinaryImage";
 import axiosInstance from "../lib/axios";
 
 function isVideoUrl(url) {
   if (!url) return false;
-  return /\.(mp4|webm|mov|avi|mkv)(\?.*)?$/i.test(url);
+  return /\.(mp4|webm|mov|avi|mkv)(\?.*)?$/i.test(url) || url.includes("/video/upload/");
 }
 
 function stripEmoji(str) {
@@ -54,6 +58,27 @@ function relativeDate(dateString) {
   const weeks = Math.floor(days / 7);
   if (weeks < 5) return `${weeks}w`;
   return `${Math.floor(days / 30)}mo`;
+}
+
+function formatMoney(value) {
+  const amount = Number(value || 0);
+  if (!Number.isFinite(amount) || amount <= 0) return "Price on request";
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+function haversineKm(a, b) {
+  if (!a || !b) return null;
+  const R = 6371;
+  const dLat = ((b[0] - a[0]) * Math.PI) / 180;
+  const dLon = ((b[1] - a[1]) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a[0] * Math.PI) / 180) * Math.cos((b[0] * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
 }
 
 // One image inside the swipeable gallery — blur-up placeholder that fades to
@@ -123,19 +148,85 @@ export default function PropertyPostCard({
   onBoost,
   isOwnPost,
 }) {
+  const navigate = useNavigate();
   const [isMuted, setIsMuted] = useState(true);
   const { isActive: isStoryOverlayActive } = useStoryOverlay();
 
-  const slides = Array.isArray(media) ? media.filter(Boolean) : [];
+  const slides = (Array.isArray(media) && media.length > 0)
+    ? media.filter(Boolean)
+    : (Array.isArray(post?.mediaUrls) && post.mediaUrls.length > 0)
+      ? post.mediaUrls.filter(Boolean)
+      : [];
   const hasMultiple = slides.length > 1;
   const [activeIdx, setActiveIdx] = useState(0);
   const [cardInView, setCardInView] = useState(false);
+  const [tapFeedback, setTapFeedback] = useState(null);
+  const cardRef = useRef(null);
   const scrollerRef = useRef(null);
   const videoRefs = useRef([]);
 
   const activeMedia = slides[activeIdx] || slides[0];
-  const activeIsVideo = isVideoUrl(activeMedia);
+  const activeIsVideo = post?.mediaType === "video" || isVideoUrl(activeMedia);
   const locationLabel = [post.locality, post.city].filter(Boolean).join(", ");
+
+  const { location: userLoc } = useLiveLocation();
+
+  // Compute live proximity distance
+  const propCoords = useMemo(() => {
+    if (Number.isFinite(post.latitude) && Number.isFinite(post.longitude)) {
+      return [post.latitude, post.longitude];
+    }
+    if (Array.isArray(post.location?.coordinates) && post.location.coordinates.length === 2) {
+      return [post.location.coordinates[1], post.location.coordinates[0]];
+    }
+    return null;
+  }, [post.latitude, post.longitude, post.location]);
+
+  const liveDistanceKm = useMemo(() => {
+    if (typeof post.distanceKm === "number") return post.distanceKm;
+    if (userLoc?.lat && userLoc?.lon && propCoords) {
+      return haversineKm([userLoc.lat, userLoc.lon], propCoords);
+    }
+    return null;
+  }, [post.distanceKm, userLoc, propCoords]);
+
+  const liveLocationText = useMemo(() => {
+    const loc = [post.locality, post.city].filter(Boolean).join(", ") || "Location";
+    if (liveDistanceKm != null && Number.isFinite(liveDistanceKm)) {
+      const dist = liveDistanceKm < 1 ? `${Math.round(liveDistanceKm * 1000)} m` : `${liveDistanceKm.toFixed(1)} km`;
+      return `${loc} • ${dist} away`;
+    }
+    return loc;
+  }, [post.locality, post.city, liveDistanceKm]);
+
+  const handleOpenLiveLocation = (e) => {
+    e.stopPropagation();
+    if (post?._id) {
+      navigate(`/map-view?propertyId=${post._id}`);
+    } else {
+      navigate("/map-view");
+    }
+  };
+
+  const triggerTapAnim = (type) => {
+    setTapFeedback(type);
+    setTimeout(() => setTapFeedback((curr) => (curr === type ? null : curr)), 600);
+  };
+
+  const handleVideoTap = (e) => {
+    e.stopPropagation();
+    const v = videoRefs.current[activeIdx];
+    if (!v) {
+      handleCardClick(e);
+      return;
+    }
+    if (v.paused) {
+      v.play().then(() => triggerTapAnim("play")).catch(() => {});
+    } else {
+      v.pause();
+      triggerTapAnim("pause");
+    }
+  };
 
   // Micro-engagement & in-feed dwell-time tracking (>2.5s or carousel swipe)
   const dwellTimerRef = useRef(null);
@@ -197,11 +288,24 @@ export default function PropertyPostCard({
   }, [activeIdx, cardInView, isStoryOverlayActive]);
 
   useEffect(() => {
-    const el = scrollerRef.current;
+    const el = activeIsVideo ? cardRef.current : scrollerRef.current;
     if (!el) return undefined;
-    const obs = new IntersectionObserver(([entry]) => setCardInView(entry.isIntersecting), { threshold: 0.5 });
+    const obs = new IntersectionObserver(
+      ([entry]) => setCardInView(entry.isIntersecting && entry.intersectionRatio >= 0.45),
+      { threshold: [0, 0.45, 0.75] }
+    );
     obs.observe(el);
     return () => obs.disconnect();
+  }, [activeIsVideo]);
+
+  useEffect(() => {
+    const handleVis = () => {
+      if (document.hidden) {
+        videoRefs.current.forEach((v) => v?.pause?.());
+      }
+    };
+    document.addEventListener("visibilitychange", handleVis);
+    return () => document.removeEventListener("visibilitychange", handleVis);
   }, []);
 
   const glassBtn =
@@ -213,6 +317,284 @@ export default function PropertyPostCard({
     e.stopPropagation();
     fn?.();
   };
+
+  // ── IMMERSIVE FULL-BLEED REELS LAYOUT (When media is a Video) ──
+  if (activeIsVideo) {
+    return (
+      <article
+        ref={cardRef}
+        className={`group relative flex w-full cursor-pointer flex-col overflow-hidden rounded-2xl sm:rounded-3xl border border-base-300/60 bg-black shadow-md transition-all duration-300 hover:shadow-xl aspect-[9/16] min-h-[500px] sm:min-h-[580px] max-h-[720px] select-none ${className}`}
+        onClick={handleCardClick}
+      >
+        {/* Full-bleed video canvas */}
+        <div
+          onClick={handleVideoTap}
+          onDoubleClick={onDoubleClickMedia}
+          className="absolute inset-0 h-full w-full bg-neutral-950 overflow-hidden"
+        >
+          <video
+            ref={(el) => {
+              videoRefs.current[activeIdx] = el;
+            }}
+            src={activeMedia}
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.01]"
+            muted={isMuted}
+            loop
+            playsInline
+            preload="metadata"
+          />
+
+          {/* Tap-to-play/pause ripple indicator */}
+          {tapFeedback && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="grid size-16 place-items-center rounded-full bg-black/60 text-white backdrop-blur-md animate-ping">
+                {tapFeedback === "play" ? (
+                  <Play className="size-7 fill-white translate-x-0.5" />
+                ) : (
+                  <Pause className="size-7 fill-white" />
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Media overlay slot (e.g. Heart burst animation on double click) */}
+          {mediaOverlay}
+        </div>
+
+        {/* ── TOP SCRIM & AUTHOR OVERLAY ── */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/85 via-black/40 to-transparent p-3.5 pb-16">
+          <div className="flex items-start justify-between gap-2">
+            <div className="pointer-events-auto min-w-0">
+              <PostAuthorLink
+                author={post.author}
+                sizeClass="size-8"
+                textColor="white"
+                inlineMeta={relativeDate(post.createdAt)}
+                meta={
+                  locationLabel ? (
+                    <p className="-mt-0.5 truncate text-[11px] leading-tight text-white/80">{locationLabel}</p>
+                  ) : undefined
+                }
+              />
+            </div>
+
+            <div className="pointer-events-auto flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+              {/* Sound Toggle Button */}
+              <button
+                type="button"
+                className="grid size-8 place-items-center rounded-full bg-black/50 text-white backdrop-blur-md transition-all hover:bg-black/75 hover:scale-105 active:scale-95 ring-1 ring-white/20"
+                onClick={() => setIsMuted((m) => !m)}
+                title={isMuted ? "Unmute video" : "Mute video"}
+              >
+                {isMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+              </button>
+
+              {/* Fullscreen Button */}
+              {onFullscreen && (
+                <button
+                  type="button"
+                  className="grid size-8 place-items-center rounded-full bg-black/50 text-white backdrop-blur-md transition-all hover:bg-black/75 hover:scale-105 active:scale-95 ring-1 ring-white/20"
+                  onClick={() => onFullscreen(activeMedia)}
+                  title="View full screen"
+                >
+                  <Maximize2 className="size-4" />
+                </button>
+              )}
+
+              {compareControl}
+              {menu}
+            </div>
+          </div>
+
+          {/* Opportunity Badges */}
+          {(post.dealHighlight?.priceDropFormatted ||
+            post.dealHighlight?.underMarketPct ||
+            post.dealHighlight?.isDirectOwner ||
+            post.isBoosted) && (
+            <div className="pointer-events-none mt-2 flex flex-wrap items-center gap-1.5 max-w-[85%]">
+              {post.isBoosted && !post.isBlocked && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-2.5 py-0.5 text-[10px] font-extrabold text-white shadow-md ring-1 ring-amber-300/50">
+                  <Zap className="size-3 fill-current" />
+                  Boosted
+                </span>
+              )}
+              {post.dealHighlight?.priceDropFormatted && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/95 px-2.5 py-0.5 text-[10px] font-black text-white shadow-md backdrop-blur-xs ring-1 ring-emerald-300/40">
+                  <TrendingDown className="size-3" />
+                  <span>{post.dealHighlight.priceDropFormatted} Drop</span>
+                </span>
+              )}
+              {post.dealHighlight?.underMarketPct && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-cyan-600 to-blue-600 px-2.5 py-0.5 text-[10px] font-extrabold text-white shadow-md ring-1 ring-cyan-300/40">
+                  <Gem className="size-3" />
+                  <span>{post.dealHighlight.underMarketPct}% Under Market</span>
+                </span>
+              )}
+              {post.dealHighlight?.isDirectOwner && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-600/90 px-2 py-0.5 text-[10px] font-bold text-white shadow-md ring-1 ring-amber-300/40">
+                  <ShieldCheck className="size-3" />
+                  <span>0 Brokerage</span>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── BOTTOM SCRIM & DETAILS OVERLAY ── */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent p-4 sm:p-5 pt-28">
+          <div className="pointer-events-auto space-y-2">
+            {/* Price & Listing Badge */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xl sm:text-2xl font-black text-white drop-shadow-md">
+                  {formatMoney(post.price)}
+                </span>
+                {post.listingType === "Rent" && (
+                  <span className="text-xs text-white/70 font-medium">/ mo</span>
+                )}
+              </div>
+              {badge && (
+                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold shadow-sm ${badgeClassName || "bg-white/90 text-neutral-900"}`}>
+                  {badge}
+                </span>
+              )}
+            </div>
+
+            {/* Live Location & Proximity Pill with Radar Beacon */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleOpenLiveLocation}
+                className="inline-flex items-center gap-1.5 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md px-2.5 py-1 text-[11px] font-semibold text-white shadow-md ring-1 ring-white/25 transition-all active:scale-95"
+                title="View on Interactive Map"
+              >
+                <span className="relative flex size-2 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+                </span>
+                <MapPin className="size-3 text-emerald-400 shrink-0" />
+                <span className="truncate max-w-[240px]">{liveLocationText}</span>
+                <ExternalLink className="size-2.5 text-white/70 ml-0.5 shrink-0" />
+              </button>
+            </div>
+
+            {/* Title & Key Specs */}
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-white line-clamp-1 drop-shadow-sm leading-snug">
+                {post.title}
+              </h3>
+              <p className="mt-0.5 text-xs text-white/80 drop-shadow-sm line-clamp-1">
+                {[
+                  post.bedrooms ? `${post.bedrooms} BHK` : null,
+                  post.areaSqft ? `${post.areaSqft} sqft` : null,
+                  post.furnishing,
+                  post.locality || post.city,
+                ].filter(Boolean).join(" · ")}
+              </p>
+            </div>
+
+            {/* Social Proof Line (Liked by...) with clickable modal */}
+            {post.socialProof?.fullName ? (
+              <button
+                type="button"
+                className="flex items-center gap-1.5 text-left text-xs text-white/85 hover:text-white transition-opacity group/likes cursor-pointer"
+                onClick={onOpenLikes ? stop(onOpenLikes) : undefined}
+                title="View who liked this post"
+              >
+                {post.socialProof.avatar && (
+                  <img src={post.socialProof.avatar} alt="" className="size-4 rounded-full object-cover ring-1 ring-white/30" />
+                )}
+                <span className="truncate text-[11px]">
+                  Liked by <span className="font-semibold text-white">{post.socialProof.fullName}</span>
+                  {post.socialProof.isOwnerVerified && (
+                    <BadgeCheck className="ml-0.5 inline-block size-3 shrink-0 align-middle text-primary" aria-label="Verified Owner" />
+                  )}
+                  {post.socialProof.othersCount > 0 && (
+                    <> and <span className="font-semibold text-white group-hover/likes:underline">{post.socialProof.othersCount.toLocaleString("en-IN")} others</span></>
+                  )}
+                </span>
+              </button>
+            ) : post.socialProof?.friendsViewed?.length > 0 ? (
+              <div className="flex items-center gap-1.5 text-xs text-white/80">
+                <div className="flex -space-x-1.5 overflow-hidden">
+                  {post.socialProof.friendsViewed.map((f, i) => (
+                    f.avatar ? (
+                      <img key={i} src={f.avatar} alt="" className="inline-block size-4 rounded-full ring-1 ring-black/40 object-cover" />
+                    ) : (
+                      <div key={i} className="inline-grid size-4 place-items-center rounded-full bg-primary/40 text-[9px] font-bold text-white ring-1 ring-black/40">
+                        {f.name?.[0] || "F"}
+                      </div>
+                    )
+                  ))}
+                </div>
+                <span className="truncate text-[11px]">
+                  Viewed by <span className="font-semibold text-white">{post.socialProof.friendsViewed[0].name}</span>
+                  {post.socialProof.friendsViewedCount > 1 && ` and ${post.socialProof.friendsViewedCount - 1} others`}
+                </span>
+              </div>
+            ) : null}
+
+            {/* Action Bar (Like, Comment, Share, Save) & Contact Button */}
+            <div className="mt-2.5 flex items-center justify-between gap-2 pt-1 border-t border-white/10" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-3 text-white">
+                <button
+                  type="button"
+                  className="flex items-center gap-1 text-white/90 hover:text-white transition-colors"
+                  onClick={stop(onLike)}
+                >
+                  <Heart className={`size-[18px] ${isLiked ? "fill-error text-error" : ""}`} />
+                  {likesCount > 0 && <span className="text-xs font-semibold tabular-nums">{likesCount}</span>}
+                </button>
+
+                <button
+                  type="button"
+                  className="flex items-center gap-1 text-white/90 hover:text-white transition-colors"
+                  onClick={stop(onComment)}
+                >
+                  <MessageCircle className="size-[18px]" />
+                  {commentsCount > 0 && <span className="text-xs font-semibold tabular-nums">{commentsCount}</span>}
+                </button>
+
+                {onShare && (
+                  <button
+                    type="button"
+                    className="text-white/90 hover:text-white transition-colors"
+                    onClick={stop(onShare)}
+                    title="Share"
+                  >
+                    <Send className="size-[17px]" />
+                  </button>
+                )}
+
+                {onSave && (
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-white/90 hover:text-white transition-colors"
+                    onClick={stop(onSave)}
+                  >
+                    <Bookmark className={`size-[18px] ${isSaved ? "fill-primary text-primary" : ""}`} />
+                    {savesCount > 0 && <span className="text-xs font-semibold tabular-nums">{savesCount}</span>}
+                  </button>
+                )}
+              </div>
+
+              {/* Contact Button */}
+              {onContact && (
+                <button
+                  type="button"
+                  onClick={stop(onContact)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-1.5 text-xs font-bold text-white shadow-md shadow-primary/30 transition-all hover:brightness-110 active:scale-95"
+                >
+                  <Phone className="size-3.5" />
+                  <span>{contactLabel}</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </article>
+    );
+  }
 
   return (
     <article
