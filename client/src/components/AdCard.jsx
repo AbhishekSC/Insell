@@ -21,7 +21,7 @@ export default function AdCard({ ad, onDismiss }) {
     /\.(mp4|webm|mov)(\?|$)/i.test(ad?.mediaUrl || "") ||
     (ad?.mediaUrl || "").includes("/video/upload/");
 
-  // ── Scroll Autoplay & Pause ──
+  // ── Scroll Autoplay & Pause (Instagram-like feed behavior) ──
   useEffect(() => {
     if (!cardRef.current || !ad?._id) return;
 
@@ -99,13 +99,10 @@ export default function AdCard({ ad, onDismiss }) {
     }
 
     if (videoRef.current.paused) {
-      videoRef.current
-        .play()
-        .then(() => {
-          setIsPlaying(true);
-          triggerTapAnim("play");
-        })
-        .catch(() => {});
+      videoRef.current.play().then(() => {
+        setIsPlaying(true);
+        triggerTapAnim("play");
+      }).catch(() => {});
     } else {
       videoRef.current.pause();
       setIsPlaying(false);
@@ -158,12 +155,12 @@ export default function AdCard({ ad, onDismiss }) {
   return (
     <div
       ref={cardRef}
-      className="group relative mb-4 w-full overflow-hidden rounded-2xl border border-base-300/60 bg-base-100 shadow-sm transition-all duration-300 hover:shadow-lg select-none"
+      className="group relative mb-4 aspect-[4/5] min-h-[460px] sm:min-h-[520px] max-h-[620px] w-full overflow-hidden rounded-2xl sm:rounded-3xl border border-base-300/60 bg-neutral-950 shadow-md transition-all duration-300 hover:shadow-xl select-none"
     >
-      {/* ── MEDIA SECTION (Fixed aspect ratio, fills area without stretching) ── */}
+      {/* ── FULL-BLEED BACKGROUND MEDIA CANVAS ── */}
       <div
         onClick={handleMediaTap}
-        className="relative aspect-[16/9] sm:aspect-[2/1] w-full cursor-pointer overflow-hidden bg-base-200"
+        className="absolute inset-0 h-full w-full cursor-pointer bg-neutral-900 overflow-hidden"
       >
         {isVideo ? (
           <video
@@ -173,7 +170,7 @@ export default function AdCard({ ad, onDismiss }) {
             loop
             playsInline
             preload="metadata"
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
           />
         ) : bannerSrc && !imageError ? (
           <img
@@ -181,130 +178,134 @@ export default function AdCard({ ad, onDismiss }) {
             alt={ad.title}
             onError={() => setImageError(true)}
             loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-base-200">
-            <Megaphone className="size-12 text-base-content/40" />
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-neutral-800 via-neutral-900 to-black">
+            <Megaphone className="size-16 text-neutral-600" />
           </div>
         )}
-
-        {/* Subtle top scrim */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black/55 to-transparent" />
-
-        {/* Top Controls Overlay */}
-        <div className="pointer-events-none absolute inset-x-3 top-3 flex items-center justify-between gap-3">
-          {/* Brand & Sponsored Pill */}
-          <div className="pointer-events-auto flex items-center gap-2">
-            {logoSrc ? (
-              <img
-                src={logoSrc}
-                alt=""
-                className="size-6 rounded-full bg-white object-cover ring-1 ring-white/30"
-              />
-            ) : (
-              <div className="grid size-6 place-items-center rounded-full bg-primary text-white font-extrabold text-[10px] ring-1 ring-white/30">
-                {(ad.companyName || "AD").slice(0, 2).toUpperCase()}
-              </div>
-            )}
-            <span className="rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
-              {ad.badgeText || "Sponsored"}
-            </span>
-          </div>
-
-          {/* Right Action Icons (Sound toggle + Hide ad) */}
-          <div className="pointer-events-auto flex items-center gap-1.5">
-            {isVideo && (
-              <button
-                type="button"
-                onClick={toggleSound}
-                className="grid size-7 place-items-center rounded-full bg-black/55 text-white backdrop-blur-sm transition-all hover:bg-black/75 hover:scale-105 active:scale-95 ring-1 ring-white/20"
-                aria-label={isMuted ? "Unmute video" : "Mute video"}
-                title={isMuted ? "Unmute" : "Mute"}
-              >
-                {isMuted ? <VolumeX className="size-3.5" /> : <Volume2 className="size-3.5" />}
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={handleHide}
-              className="grid size-7 place-items-center rounded-full bg-black/55 text-white/90 backdrop-blur-sm transition-all hover:bg-black/75 hover:text-white hover:scale-105 active:scale-95 ring-1 ring-white/20"
-              aria-label="Hide ad"
-              title="Hide this ad"
-            >
-              <X className="size-3.5" />
-            </button>
-          </div>
-        </div>
 
         {/* Play/Pause indicator overlay when video is paused */}
         {isVideo && !isPlaying && !tapFeedback && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="grid size-12 place-items-center rounded-full bg-black/40 text-white backdrop-blur-md ring-1 ring-white/20">
-              <Play className="size-5 fill-white translate-x-0.5" />
+            <div className="grid size-14 place-items-center rounded-full bg-black/40 text-white backdrop-blur-md ring-1 ring-white/20">
+              <Play className="size-6 fill-white translate-x-0.5" />
             </div>
           </div>
         )}
 
-        {/* Tap Ripple / Feedback */}
+        {/* Instagram-style Tap Ripple / Icon Feedback */}
         {tapFeedback && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="grid size-14 place-items-center rounded-full bg-black/60 text-white backdrop-blur-md animate-ping">
+            <div className="grid size-16 place-items-center rounded-full bg-black/60 text-white backdrop-blur-md animate-ping">
               {tapFeedback === "play" ? (
-                <Play className="size-6 fill-white translate-x-0.5" />
+                <Play className="size-7 fill-white translate-x-0.5" />
               ) : (
-                <Pause className="size-6 fill-white" />
+                <Pause className="size-7 fill-white" />
               )}
             </div>
           </div>
         )}
       </div>
 
-      {/* ── CONTENT SECTION (Natural flow, does not overlay the image) ── */}
-      <div className="px-4 pb-4 pt-3 bg-base-100">
-        <div onClick={handleCtaClick} className="cursor-pointer">
-          {ad.companyName && (
-            <p className="text-[11px] font-bold uppercase tracking-wider text-primary">
-              {ad.companyName}
-            </p>
+      {/* ── TOP SCRIM & CONTROLS OVERLAY ── */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/80 via-black/40 to-transparent p-4 pb-14">
+        <div className="flex items-center justify-between gap-3">
+          {/* Brand & Sponsored Pill */}
+          <div className="pointer-events-auto flex items-center gap-2.5">
+            {logoSrc ? (
+              <img
+                src={logoSrc}
+                alt=""
+                className="size-8 sm:size-9 rounded-full bg-white object-cover ring-2 ring-white/30 shadow-sm"
+              />
+            ) : (
+              <div className="grid size-8 sm:size-9 place-items-center rounded-full bg-primary/90 text-white font-extrabold text-xs ring-2 ring-white/30 shadow-sm">
+                {(ad.companyName || "AD").slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            <div className="flex flex-col">
+              {ad.companyName && (
+                <span className="text-xs sm:text-sm font-bold text-white drop-shadow leading-tight">
+                  {ad.companyName}
+                </span>
+              )}
+              <div className="flex items-center gap-1.5">
+                <span className="rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-md ring-1 ring-white/20">
+                  {ad.badgeText || "Sponsored"}
+                </span>
+                {ad.targetCity && (
+                  <span className="hidden sm:inline-block rounded-full bg-black/35 px-2 py-0.5 text-[10px] font-medium text-white/80 backdrop-blur-sm">
+                    {ad.targetCity}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Action Icons (Sound toggle + Hide ad) */}
+          <div className="pointer-events-auto flex items-center gap-2">
+            {isVideo && (
+              <button
+                type="button"
+                onClick={toggleSound}
+                className="grid size-8 place-items-center rounded-full bg-black/50 text-white backdrop-blur-md transition-all hover:bg-black/75 hover:scale-105 active:scale-95 ring-1 ring-white/20"
+                aria-label={isMuted ? "Unmute video" : "Mute video"}
+                title={isMuted ? "Unmute" : "Mute"}
+              >
+                {isMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleHide}
+              className="grid size-8 place-items-center rounded-full bg-black/50 text-white/80 backdrop-blur-md transition-all hover:bg-black/75 hover:text-white hover:scale-105 active:scale-95 ring-1 ring-white/20"
+              aria-label="Hide ad"
+              title="Hide this ad"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── BOTTOM SCRIM & CALL-TO-ACTION OVERLAY ── */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/65 to-transparent p-4 sm:p-5 pt-20">
+        <div className="pointer-events-auto space-y-2">
+          {/* Category Tag (if provided) */}
+          {ad.adCategory && (
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-semibold text-white/90 backdrop-blur-md ring-1 ring-white/20">
+                {ad.adCategory}
+              </span>
+            </div>
           )}
 
-          <h3 className="mt-0.5 text-[15px] font-bold leading-snug text-base-content line-clamp-2 group-hover:text-primary transition-colors">
+          {/* Ad Title */}
+          <h3
+            onClick={handleCtaClick}
+            className="cursor-pointer text-base sm:text-lg font-black leading-snug text-white drop-shadow-md line-clamp-2 transition-colors hover:text-primary-content"
+          >
             {ad.title}
           </h3>
 
+          {/* Ad Description */}
           {ad.description && (
-            <p className="mt-1 text-xs leading-relaxed text-base-content/70 line-clamp-2">
+            <p className="text-xs sm:text-[13px] leading-relaxed text-white/85 line-clamp-2 drop-shadow">
               {ad.description}
             </p>
           )}
-        </div>
 
-        {/* Bottom Row: Metadata Badges + CTA Button */}
-        <div className="mt-3 flex items-center justify-between gap-2">
-          {/* Metadata chips */}
-          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-            {ad.adCategory && (
-              <span className="rounded-full bg-base-200 px-2.5 py-0.5 text-[10px] font-semibold text-base-content/70">
-                {ad.adCategory}
-              </span>
-            )}
-            {ad.targetCity && (
-              <span className="rounded-full bg-base-200 px-2.5 py-0.5 text-[10px] font-medium text-base-content/60">
-                {ad.targetCity}
-              </span>
-            )}
-          </div>
-
-          {/* CTA Button */}
+          {/* Full-Width Prominent CTA Button */}
           <button
             type="button"
             onClick={handleCtaClick}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-bold text-white shadow-sm transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
           >
             <span>{ad.ctaText || "Learn More"}</span>
-            <ExternalLink className="size-3" />
+            <ExternalLink className="size-4 stroke-[2.5]" />
           </button>
         </div>
       </div>
