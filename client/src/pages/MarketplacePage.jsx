@@ -120,7 +120,7 @@ const STORY_COLLECTIONS = [
   { label: "Trending", category: "Recent", image: "https://placehold.co/480x320?text=Trending" },
 ];
 
-const CATEGORY_CHIPS = ["For You", "Following", "Near Me"];
+const CATEGORY_CHIPS = ["For You", "Following", "Near Me", "Flatmates & Rooms"];
 
 const LISTING_TYPES = ["All", "Sell", "Rent", "Requirement", "Project", "Commercial", "Agricultural Land"];
 const PROPERTY_TYPES = ["All", "Apartment", "Independent House", "Villa", "Plot", "Commercial", "Agricultural Land"];
@@ -144,8 +144,8 @@ const CITIES = [
 
 const ROLE_RECOMMENDED_OPTIONS = {
   Buyer: ["REQUIREMENT_BUY"],
-  Tenant: ["REQUIREMENT_RENT"],
-  Student: ["REQUIREMENT_RENT"],
+  Tenant: ["REQUIREMENT_RENT", "FLATMATE_SEEKING", "FLATMATE_OFFER"],
+  Student: ["FLATMATE_SEEKING", "FLATMATE_OFFER", "REQUIREMENT_RENT"],
   Seller: ["PROPERTY_SALE"],
   Landlord: ["PROPERTY_RENT"],
   Broker: ["PROPERTY_SALE", "PROPERTY_RENT", "REQUIREMENT_BUY", "REQUIREMENT_RENT"],
@@ -209,6 +209,18 @@ const POST_TYPE_DEFINITIONS = {
     listingType: "Event",
     propertyType: "Apartment",
   },
+  FLATMATE_OFFER: {
+    label: "Room Available",
+    description: "Offer a room or bed to flatmates",
+    listingType: "Rent",
+    propertyType: "Apartment",
+  },
+  FLATMATE_SEEKING: {
+    label: "Looking for Room / Flatmates",
+    description: "Find a room or team up with flatmates",
+    listingType: "Rent",
+    propertyType: "Apartment",
+  },
 };
 
 const ALL_CREATE_POST_TYPES = [
@@ -221,6 +233,8 @@ const ALL_CREATE_POST_TYPES = [
   "BUILDER_PROJECT",
   "INVESTMENT_OPPORTUNITY",
   "OPEN_HOUSE_EVENT",
+  "FLATMATE_OFFER",
+  "FLATMATE_SEEKING",
 ];
 
 function relativeTimeShort(when) {
@@ -293,6 +307,8 @@ function getListingBadge(post) {
   if (postType === "BUILDER_PROJECT") return "Project";
   if (postType === "INVESTMENT_OPPORTUNITY") return "Investment";
   if (postType === "OPEN_HOUSE_EVENT") return "Open House";
+  if (postType === "FLATMATE_OFFER") return "Room Available";
+  if (postType === "FLATMATE_SEEKING") return "Looking for Room";
   // Commercial / agricultural can be either sale or rent — derive from
   // listingType instead of falling through to the raw "Sell" string.
   if (postType === "AGRICULTURAL_LISTING") {
@@ -688,6 +704,23 @@ export default function MarketplacePage() {
     amenities: [],
     alternativeMobile: "",
     electricityBillUrl: "",
+    // Flatmate fields
+    roomType: "",
+    occupancy: "",
+    rentPerPerson: "",
+    flatmateDeposit: "",
+    availableFrom: "",
+    flatmateFurnishing: "",
+    flatmateGender: "",
+    targetAudience: [],
+    lifestyleTags: [],
+    amenityTags: [],
+    collegeName: "",
+    workplaceName: "",
+    seekerBudgetMin: "",
+    seekerBudgetMax: "",
+    preferredLocalities: "",
+    groupSize: "",
   });
 
   const [citySuggestions, setCitySuggestions] = useState([]);
@@ -878,7 +911,8 @@ export default function MarketplacePage() {
 
         // Add category filter
         if (activeCategory && activeCategory !== "For You") {
-          params.set("category", activeCategory.toLowerCase());
+          const categoryMap = { "Flatmates & Rooms": "flatmates" };
+          params.set("category", categoryMap[activeCategory] || activeCategory.toLowerCase());
         }
 
         // Fresh browser location for Near Me — the server prefers this over the
@@ -1238,6 +1272,7 @@ export default function MarketplacePage() {
     const land = flatMeta.land || {};
     const commercial = flatMeta.commercial || {};
     const residential = flatMeta.residential || {};
+    const flatmate = flatMeta.flatmate || {};
     return {
       postType: post.postType || "PROPERTY_SALE",
       listingType: post.listingType || "Sell",
@@ -1308,6 +1343,22 @@ export default function MarketplacePage() {
           : String(requirement.amenitiesText || "").split(",").map((item) => item.trim()).filter(Boolean),
       alternativeMobile: residential.alternativeMobile || flatMeta.alternativeMobile || "",
       electricityBillUrl: residential.electricityBillUrl || flatMeta.electricityBillUrl || flatMeta.electricityBill || "",
+      roomType: flatmate.roomType || "",
+      occupancy: flatmate.occupancy || "",
+      rentPerPerson: flatmate.rentPerPerson || "",
+      flatmateDeposit: flatmate.depositAmount || "",
+      availableFrom: flatmate.availableFrom || "",
+      flatmateFurnishing: flatmate.furnishing || "",
+      flatmateGender: flatmate.genderPreference || "",
+      targetAudience: Array.isArray(flatmate.targetAudience) ? flatmate.targetAudience : [],
+      lifestyleTags: Array.isArray(flatmate.lifestyleTags) ? flatmate.lifestyleTags : [],
+      amenityTags: Array.isArray(flatmate.amenityTags) ? flatmate.amenityTags : [],
+      collegeName: flatmate.collegeName || "",
+      workplaceName: flatmate.workplaceName || "",
+      seekerBudgetMin: flatmate.budgetMin || "",
+      seekerBudgetMax: flatmate.budgetMax || "",
+      preferredLocalities: Array.isArray(flatmate.preferredLocalities) ? flatmate.preferredLocalities.join(", ") : "",
+      groupSize: flatmate.groupSize || "",
       status: post?.status || "DRAFT",
     };
   };
@@ -1428,12 +1479,38 @@ export default function MarketplacePage() {
         floorNumber: Number(draft.floorNumber || 0),
         washrooms: Number(draft.washrooms || 0),
       },
+      flatmate: {
+        roomType: draft.roomType || "",
+        occupancy: Number(draft.occupancy || 0),
+        rentPerPerson: Number(draft.rentPerPerson || 0),
+        depositAmount: Number(draft.flatmateDeposit || 0),
+        availableFrom: draft.availableFrom || "",
+        furnishing: draft.flatmateFurnishing || "",
+        genderPreference: draft.flatmateGender || "",
+        targetAudience: Array.isArray(draft.targetAudience) ? draft.targetAudience : [],
+        lifestyleTags: Array.isArray(draft.lifestyleTags) ? draft.lifestyleTags : [],
+        amenityTags: Array.isArray(draft.amenityTags) ? draft.amenityTags : [],
+        collegeName: draft.collegeName || "",
+        workplaceName: draft.workplaceName || "",
+        budgetMin: Number(draft.seekerBudgetMin || 0),
+        budgetMax: Number(draft.seekerBudgetMax || 0),
+        preferredLocalities: draft.preferredLocalities
+          ? String(draft.preferredLocalities).split(",").map((s) => s.trim()).filter(Boolean)
+          : [],
+        groupSize: Number(draft.groupSize || 0),
+      },
     };
+
+    const isFlatmate = String(draft.postType || "").startsWith("FLATMATE_");
+    let price = Number(draft.price || 0);
+    if (isRequirement) price = Number(draft.budgetMax || draft.price || 0);
+    else if (draft.postType === "FLATMATE_OFFER") price = Number(draft.rentPerPerson || draft.price || 0);
+    else if (draft.postType === "FLATMATE_SEEKING") price = Number(draft.seekerBudgetMax || draft.price || 0);
 
     return {
       ...draft,
       status,
-      price: isRequirement ? Number(draft.budgetMax || draft.price || 0) : Number(draft.price || 0),
+      price,
       mediaUrls,
       postType: draft.postType,
       postMeta,
@@ -2129,6 +2206,7 @@ export default function MarketplacePage() {
                   const post = item.post;
                   const badge = getListingBadge(post);
                   const postType = String(post.postType || "").toUpperCase();
+                  const isFlatmate = postType === "FLATMATE_OFFER" || postType === "FLATMATE_SEEKING";
                   const isRequirement = postType.startsWith("REQUIREMENT_");
                   const requirementTitle = post.title || (postType === "REQUIREMENT_RENT" ? "Looking for Rental Property" : "Looking to Buy Property");
 
@@ -2144,23 +2222,37 @@ export default function MarketplacePage() {
                     }, 700);
                   };
 
+                  const flatmateBadgeClass = postType === "FLATMATE_OFFER"
+                    ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm"
+                    : postType === "FLATMATE_SEEKING"
+                      ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm"
+                      : null;
+
                   return (
                     <PropertyPostCard
                       key={post._id}
                       post={post}
+                      className={isFlatmate ? (postType === "FLATMATE_OFFER" ? "ring-2 ring-success/30" : "ring-2 ring-warning/30") : ""}
                       isOwnPost={Boolean(authUser?._id && post.author?._id && String(authUser._id) === String(post.author._id))}
                       onBoost={(p) => setBoostTargetPost(p)}
                       onEdit={(p, opts) => handleEditPost(p, opts)}
                       onVerifyAddress={(p) => setVerifyAddressTargetPost(p)}
                       media={post.media}
                       onDoubleClickMedia={handleDoubleClickMedia}
-                      badge={badge}
+                      badge={isFlatmate ? (
+                        <span className="inline-flex items-center gap-1">
+                          <Users className="size-3" />
+                          {badge}
+                        </span>
+                      ) : badge}
                       badgeClassName={
-                        post.offerStatus === "ACCEPTED"
-                          ? "bg-neutral text-white"
-                          : post.customBadge
-                            ? getCustomBadgeClasses(post.customBadge)
-                            : undefined
+                        flatmateBadgeClass
+                          ? flatmateBadgeClass
+                          : post.offerStatus === "ACCEPTED"
+                            ? "bg-neutral text-white"
+                            : post.customBadge
+                              ? getCustomBadgeClasses(post.customBadge)
+                              : undefined
                       }
                       menu={
                         <button
@@ -2184,7 +2276,31 @@ export default function MarketplacePage() {
                         </button>
                       }
                       requirementBlock={
-                        post.media.length === 0 && isRequirement ? (
+                        (!Array.isArray(post.mediaUrls) || post.mediaUrls.length === 0) && isFlatmate ? (
+                          <div className={`flex h-[18rem] items-end p-4 text-white ${
+                            postType === "FLATMATE_SEEKING"
+                              ? "bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500"
+                              : "bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500"
+                          }`}>
+                            <div>
+                              <p className="inline-flex items-center gap-1.5 text-xs uppercase tracking-wide text-white/80">
+                                <Users className="size-3.5" />
+                                {postType === "FLATMATE_SEEKING" ? "Looking for Room" : "Room Available"}
+                              </p>
+                              <p className="mt-1 text-2xl font-black leading-tight">{post.title}</p>
+                              <p className="mt-2 text-sm text-white/90">
+                                {(() => {
+                                  const fm = post.postMeta?.flatmate || {};
+                                  const parts = [];
+                                  if (fm.budgetMin || fm.budgetMax) parts.push(`Budget ${formatMoney(fm.budgetMax || fm.budgetMin)}/mo`);
+                                  if (fm.roomType) parts.push(fm.roomType);
+                                  if (post.locality || post.city) parts.push(post.locality || post.city);
+                                  return parts.join(" · ") || "Flatmate post";
+                                })()}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (!Array.isArray(post.mediaUrls) || post.mediaUrls.length === 0) && isRequirement ? (
                           <div className="flex h-[18rem] items-end bg-gradient-to-br from-primary via-secondary to-info p-4 text-white">
                             <div>
                               <p className="text-xs uppercase tracking-wide text-white/80">Requirement Post</p>
@@ -2209,12 +2325,91 @@ export default function MarketplacePage() {
                       }}
                       onFullscreen={(img) => setSelectedImage(img)}
                       mediaOverlay={
-                        likedBurstPostId === post._id ? (
-                          <Heart className="pointer-events-none absolute left-1/2 top-1/2 size-16 -translate-x-1/2 -translate-y-1/2 fill-white/95 text-white drop-shadow-md animate-pulse" />
-                        ) : null
+                        <>
+                          {likedBurstPostId === post._id && (
+                            <Heart className="pointer-events-none absolute left-1/2 top-1/2 size-16 -translate-x-1/2 -translate-y-1/2 fill-white/95 text-white drop-shadow-md animate-pulse" />
+                          )}
+                          {isFlatmate && Array.isArray(post.mediaUrls) && post.mediaUrls.length > 0 && (() => {
+                            const fm = post.postMeta?.flatmate || {};
+                            const rent = postType === "FLATMATE_OFFER"
+                              ? formatMoney(fm.rentPerPerson || post.price)
+                              : fm.budgetMax ? `${formatMoney(fm.budgetMin || 0)} – ${formatMoney(fm.budgetMax)}` : null;
+                            const infoParts = [fm.roomType, fm.genderPreference && fm.genderPreference !== "Any" ? fm.genderPreference : null].filter(Boolean);
+                            return (
+                              <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent px-4 pb-10 pt-10">
+                                <p className="text-lg font-black leading-tight text-white drop-shadow-sm">
+                                  {rent}<span className="ml-1 text-xs font-normal text-white/70">/mo</span>
+                                </p>
+                                {infoParts.length > 0 && (
+                                  <p className="mt-0.5 text-xs font-medium text-white/80">{infoParts.join(" · ")}</p>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </>
                       }
-                      contactLabel={isRequirement ? "Respond" : "Contact seller"}
+                      contactLabel={isFlatmate ? "Message" : isRequirement ? "Respond" : "Contact seller"}
                       priceBlock={
+                        isFlatmate ? (() => {
+                          const fm = post.postMeta?.flatmate || {};
+                          const isOfferType = postType === "FLATMATE_OFFER";
+                          const priceText = isOfferType
+                            ? formatMoney(fm.rentPerPerson || post.price)
+                            : (fm.budgetMin && fm.budgetMax)
+                              ? `${formatMoney(fm.budgetMin)} – ${formatMoney(fm.budgetMax)}`
+                              : formatMoney(fm.budgetMax || post.price);
+
+                          const infoPills = [];
+                          if (fm.roomType) infoPills.push(fm.roomType + (fm.occupancy > 1 ? ` · ${fm.occupancy}-sharing` : ""));
+                          if (fm.genderPreference && fm.genderPreference !== "Any") infoPills.push(`${fm.genderPreference} only`);
+                          if (fm.furnishing) infoPills.push(fm.furnishing);
+                          if (fm.depositAmount > 0) infoPills.push(`₹${fm.depositAmount.toLocaleString("en-IN")} deposit`);
+                          if (fm.availableFrom) infoPills.push(`Move-in ${fm.availableFrom}`);
+                          const loc = [post.locality, post.city].filter(Boolean).join(", ");
+                          if (loc) infoPills.push(loc);
+
+                          const tags = [...(fm.targetAudience || []), ...(fm.lifestyleTags || []), ...(fm.amenityTags || [])];
+
+                          return (
+                            <>
+                              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                <p className="inline-flex items-baseline text-[1.7rem] font-black leading-none text-base-content">
+                                  {priceText}
+                                  <span className="ml-1 text-sm font-normal text-base-content/50">/ mo</span>
+                                </p>
+                              </div>
+
+                              {infoPills.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                  {infoPills.map((pill) => (
+                                    <span
+                                      key={pill}
+                                      className="inline-flex items-center rounded-lg bg-base-200 px-2.5 py-0.5 text-[11px] font-medium text-base-content/70"
+                                    >
+                                      {pill}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+
+                              {tags.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                  {tags.slice(0, 6).map((tag) => (
+                                    <span
+                                      key={tag}
+                                      className="inline-flex items-center rounded-full border border-base-300 px-2 py-0.5 text-[10.5px] font-normal text-base-content/55"
+                                    >
+                                      {tag}
+                                    </span>
+                                  ))}
+                                  {tags.length > 6 && (
+                                    <span className="text-[10.5px] text-base-content/40">+{tags.length - 6}</span>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })() : (
                         <>
                           {/* Price + inline price-drop */}
                           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -2236,7 +2431,7 @@ export default function MarketplacePage() {
                               ))}
                           </div>
 
-                          {/* Badges & Property Info Section (Seamless Unified Flow, Zero Wasted Space) */}
+                          {/* Badges & Property Info Section */}
                           {(() => {
                             const isOwn = Boolean(authUser?._id && post.author?._id && String(authUser._id) === String(post.author._id));
                             const curatedBadges = getCuratedCardBadges(post, { isOwnPost: isOwn, max: 4 });
@@ -2246,7 +2441,6 @@ export default function MarketplacePage() {
                             if (curatedBadges.length === 0 && infoBadges.length === 0) return null;
                             return (
                               <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                                {/* Clickable Filter Badges (Tactile Chips) */}
                                 {curatedBadges.map((badge) => {
                                   if (badge.isAction && badge.action === "verifyAddress") {
                                     return (
@@ -2284,7 +2478,6 @@ export default function MarketplacePage() {
                                   );
                                 })}
 
-                                {/* Non-clickable Informational Badges (Seamlessly wrapping to fill space) */}
                                 {infoBadges.map((info) => (
                                   <span
                                     key={info.key}
@@ -2307,6 +2500,7 @@ export default function MarketplacePage() {
                             </p>
                           )}
                         </>
+                        )
                       }
                       description={
                         <ClampedCaption text={post.caption || post.title || "A beautifully curated property with modern design and premium amenities."} />

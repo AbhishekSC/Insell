@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { Flame, Sparkles, X } from "lucide-react";
+import { Flame, Sparkles, X, MapPin } from "lucide-react";
 import { cardImageUrl, lqipUrl } from "../lib/cloudinaryImage";
 import { trackRecoEvent } from "../lib/recoEvents";
 
@@ -11,9 +11,6 @@ function formatMoney(value) {
   return `₹${n.toLocaleString("en-IN")}`;
 }
 
-// Normalizes the two different shapes this card can receive: a full
-// PropertyPost doc (from /personalization/recommendations) or the slim
-// trending DTO (from /personalization/trending-near-you).
 function normalizeSuggestion(suggestionType, data) {
   if (suggestionType === "trending") {
     return {
@@ -49,13 +46,11 @@ export default function FeedSuggestionCard({ suggestionType, data, position, onD
   const navigate = useNavigate();
   const cardRef = useRef(null);
   const [firedImpression, setFiredImpression] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const suggestion = normalizeSuggestion(suggestionType, data);
 
   const isTrending = suggestionType === "trending";
-  const accent = isTrending
-    ? { bar: "bg-amber-500/10 text-amber-600", icon: Flame, pill: "Trending", ring: "ring-amber-500/20" }
-    : { bar: "bg-indigo-500/10 text-indigo-600", icon: Sparkles, pill: "Suggested", ring: "ring-indigo-500/20" };
-  const Icon = accent.icon;
+  const Icon = isTrending ? Flame : Sparkles;
 
   useEffect(() => {
     if (firedImpression || !cardRef.current) return;
@@ -115,32 +110,17 @@ export default function FeedSuggestionCard({ suggestionType, data, position, onD
       tabIndex={0}
       onClick={handleOpen}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && handleOpen()}
-      className={`group relative overflow-hidden rounded-2xl border border-base-200 bg-base-100 shadow-sm ring-1 ${accent.ring} cursor-pointer transition hover:shadow-md`}
+      className="group relative cursor-pointer overflow-hidden rounded-2xl border border-base-300/60 bg-base-100 shadow-sm transition-all hover:shadow-lg"
     >
-      <div className={`flex items-center justify-between px-3 py-2 ${accent.bar}`}>
-        <span className="flex items-center gap-1.5 text-xs font-bold">
-          <Icon className="size-3.5" /> {isTrending ? "Trending Near You" : "Recommended for You"}
-        </span>
-        <div className="flex items-center gap-1.5">
-          {suggestion.scoreLabel && (
-            <span className="rounded-full bg-base-100/80 px-1.5 py-0.5 text-[10px] font-bold">
-              {suggestion.scoreLabel}
-            </span>
-          )}
-          <button
-            type="button"
-            aria-label="Not interested"
-            onClick={handleDismiss}
-            className="btn btn-ghost btn-circle btn-xs opacity-60 hover:opacity-100 hover:bg-base-100/60"
-          >
-            <X className="size-3.5" />
-          </button>
-        </div>
-      </div>
-
-      <div className="relative h-[16rem] w-full bg-base-200">
+      {/* ── MEDIA ── */}
+      <div className="relative h-[18rem] w-full overflow-hidden bg-base-200">
         {placeholder && (
-          <img src={placeholder} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
+          <img
+            src={placeholder}
+            alt=""
+            aria-hidden="true"
+            className={`absolute inset-0 h-full w-full scale-110 object-cover blur-xl transition-opacity duration-300 ${imgLoaded ? "opacity-0" : "opacity-100"}`}
+          />
         )}
         {suggestion.image && (
           <img
@@ -148,21 +128,66 @@ export default function FeedSuggestionCard({ suggestionType, data, position, onD
             alt={suggestion.title}
             loading="lazy"
             decoding="async"
-            className="absolute inset-0 h-full w-full object-cover"
+            onLoad={() => setImgLoaded(true)}
+            className={`absolute inset-0 h-full w-full object-cover transition-all duration-500 group-hover:scale-[1.03] ${imgLoaded ? "opacity-100" : "opacity-0"}`}
           />
         )}
+
+        {/* Top scrim */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/50 to-transparent" />
+
+        {/* Top bar: label + score + dismiss */}
+        <div className="absolute inset-x-3 top-3 flex items-center justify-between">
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold text-white shadow-sm backdrop-blur-sm ${
+            isTrending ? "bg-amber-500/80" : "bg-indigo-500/80"
+          }`}>
+            <Icon className="size-3" />
+            {isTrending ? "Trending Near You" : "Recommended for You"}
+          </span>
+          <div className="flex items-center gap-1.5">
+            {suggestion.scoreLabel && (
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-black text-white backdrop-blur-sm ${
+                isTrending ? "bg-amber-500/80" : "bg-indigo-500/80"
+              }`}>
+                {suggestion.scoreLabel}
+              </span>
+            )}
+            <button
+              type="button"
+              aria-label="Not interested"
+              onClick={handleDismiss}
+              className="grid size-6 place-items-center rounded-full bg-black/40 text-white/80 backdrop-blur-sm transition hover:bg-black/60 hover:text-white"
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+        </div>
+
+        {/* Bottom scrim */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent" />
+
+        {/* Bottom overlay: price + location */}
+        <div className="absolute inset-x-3 bottom-3 flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-[15px] font-bold leading-tight text-white drop-shadow-sm">
+              {suggestion.title}
+            </p>
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-white/75">
+              <MapPin className="size-3 shrink-0" />
+              <span className="truncate">{suggestion.subtitle}</span>
+            </p>
+          </div>
+          <span className="shrink-0 rounded-lg bg-black/50 px-2.5 py-1 text-sm font-black text-white backdrop-blur-sm">
+            {formatMoney(suggestion.price)}
+          </span>
+        </div>
+
+        {/* Reason pill */}
         {suggestion.reason && (
-          <span className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white">
+          <span className="absolute bottom-14 left-3 rounded-full bg-white/90 px-2.5 py-0.5 text-[10px] font-semibold text-base-content shadow-sm">
             {suggestion.reason}
           </span>
         )}
-      </div>
-
-      <div className="p-3">
-        <p className="truncate text-sm font-semibold text-base-content">{suggestion.title}</p>
-        <p className="truncate text-xs text-base-content/60">
-          {formatMoney(suggestion.price)} · {suggestion.subtitle}
-        </p>
       </div>
     </div>
   );
