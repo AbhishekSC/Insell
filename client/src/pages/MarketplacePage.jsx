@@ -1501,7 +1501,6 @@ export default function MarketplacePage() {
       },
     };
 
-    const isFlatmate = String(draft.postType || "").startsWith("FLATMATE_");
     let price = Number(draft.price || 0);
     if (isRequirement) price = Number(draft.budgetMax || draft.price || 0);
     else if (draft.postType === "FLATMATE_OFFER") price = Number(draft.rentPerPerson || draft.price || 0);
