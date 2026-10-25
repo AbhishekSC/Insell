@@ -160,7 +160,7 @@ export default function AdCard({ ad, onDismiss }) {
           <button
             type="button"
             onClick={handleCtaClick}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-content shadow-sm transition hover:brightness-95 active:scale-[0.97]"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:opacity-85 active:scale-[0.97]"
           >
             {ad.ctaText || "Learn More"}
             <ExternalLink className="size-3" />
