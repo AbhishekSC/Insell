@@ -1,5 +1,7 @@
 import winston from "winston";
 import DailyRotateFile from "winston-daily-rotate-file";
+import { Logtail } from "@logtail/node";
+import { LogtailTransport } from "@logtail/winston";
 import "dotenv/config";
 
 const SPLAT = Symbol.for("splat");
@@ -68,13 +70,16 @@ const consoleFormat = winston.format.printf((info) => {
 });
 
 const logger = winston.createLogger({
-  level: process.env.NODE_ENV === "production" ? "error" : "debug",
+  level: process.env.LOG_LEVEL || (process.env.NODE_ENV === "production" ? "info" : "debug"),
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.errors({ stack: true }),
     winston.format.splat()
   ),
-  defaultMeta: { service: "syncspace-backend" },
+  defaultMeta: {
+    service: "nearmyspace-backend",
+    environment: process.env.NODE_ENV || "development",
+  },
   transports: [
     new winston.transports.Console({
       format: winston.format.combine(
@@ -106,6 +111,21 @@ const logger = winston.createLogger({
     }),
   ],
 });
+
+// Stream detailed structured logs to Better Stack Logtail when token is configured
+if (process.env.LOGTAIL_SOURCE_TOKEN) {
+  try {
+    const options = {};
+    if (process.env.LOGTAIL_INGESTING_HOST) {
+      const host = process.env.LOGTAIL_INGESTING_HOST.trim();
+      options.endpoint = host.startsWith("http") ? host : `https://${host}`;
+    }
+    const logtail = new Logtail(process.env.LOGTAIL_SOURCE_TOKEN, options);
+    logger.add(new LogtailTransport(logtail));
+  } catch (err) {
+    console.error("Failed to initialize Logtail transport:", err);
+  }
+}
 
 logger.stream = {
   write: (message) => {
