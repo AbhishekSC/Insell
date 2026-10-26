@@ -23,6 +23,8 @@
   "license": "ISC",
   "description": "SyncSpace: Fullstack Chat & Video Calling App ",
   "dependencies": {
+    "@logtail/node": "^0.5.12",
+    "@logtail/winston": "^0.5.12",
     "@sentry/node": "^10.70.0",
     "@stream-io/node-sdk": "^0.8.6",
     "amqplib": "^0.10.9",
