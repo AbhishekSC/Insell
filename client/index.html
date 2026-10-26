@@ -2,12 +2,36 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="shortcut icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NearMySpace | Social Real Estate Marketplace</title>
     <meta name="description" content="Discover verified homes, direct owner connections, smart commute times, and authentic community reviews on NearMySpace." />
     <meta name="theme-color" content="#2563eb" />
     <meta name="google-site-verification" content="4xblI9VJ_61godQRI_G8nS8bXsF540ndqCSeiMCqCCI" />
+
+    <!-- Google Site Name & Organization Structured Data (Fixes "Vercel" site name on Google) -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "NearMySpace",
+        "alternateName": ["Near My Space", "NearMySpace Real Estate", "Insell"],
+        "url": "https://nearmy-space.vercel.app/"
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "NearMySpace",
+        "url": "https://nearmy-space.vercel.app/",
+        "logo": "https://nearmy-space.vercel.app/favicon.png"
+      }
+    </script>
 
     <!-- Open Graph Fallback -->
     <meta property="og:site_name" content="NearMySpace" />
