@@ -7,6 +7,7 @@ import { testCloudinaryConnection } from "./config/cloudinary.js";
 import { connectToRedis, closeRedisConnection } from "./config/redisClient.config.js";
 import { initNotificationWorker, closeNotificationQueue } from "./queues/notification.queue.js";
 import { initEngagementSyncWorker, closeEngagementSyncQueue } from "./queues/engagementSync.queue.js";
+import { initTelemetry } from "./services/telemetry.service.js";
 
 let httpServer = null;
 let shuttingDown = false;
@@ -74,6 +75,7 @@ async function startServer() {
     await Promise.all([connectToRedis(), connectToMongoDB(), testCloudinaryConnection()]);
 
     httpServer = app.listen(PORT, async () => {
+      initTelemetry();
       initNotificationWorker();
       await initEngagementSyncWorker();
       await connectQueue();
