@@ -6,7 +6,7 @@ import mongoose from "mongoose";
 // real behaviour instead of guessing — a weekly job joins impressions to
 // outcomes and refits the weights. Rows expire after 120 days.
 
-const EVENTS = ["impression", "click", "save", "like", "visit_request", "offer", "dismiss"];
+const EVENTS = ["impression", "click", "save", "like", "share", "visit_request", "offer", "dismiss"];
 
 const recoEventSchema = new mongoose.Schema(
   {

@@ -590,8 +590,29 @@ class PersonalizationService {
         return Math.max(0.1, 1 - (daysSince / DECAY_DAYS)); // Minimum weight of 0.1
       };
 
+      // Fetch recent shares (super-signal: sharing to WhatsApp/copy link carries 5x weight)
+      let sharedProperties = [];
+      try {
+        const { default: RecoEvent } = await import("../models/RecoEvent.model.js");
+        const sharedEvents = await RecoEvent.find({ user: userId, event: "share" })
+          .sort({ createdAt: -1 })
+          .limit(20)
+          .populate("post")
+          .lean();
+        sharedProperties = (sharedEvents || [])
+          .filter((e) => e && e.post)
+          .map((e) => ({
+            ...e.post,
+            engagementType: "share",
+            weight: 5.0 * decayFactor(e.createdAt || now),
+          }));
+      } catch (shareErr) {
+        logger.warn("Failed to fetch share events for user behavior:", shareErr?.message);
+      }
+
       // Extract engaged properties with time-based weights
       const engagedProperties = [
+        ...sharedProperties,
         ...(user.likedPosts || []).map(post => ({
           ...post,
           engagementType: 'like',
@@ -609,7 +630,7 @@ class PersonalizationService {
         }))
       ];
 
-      logger.info(`🎯 [RECOMMENDATION] Total engaged properties: ${engagedProperties.length} (Likes: ${(user.likedPosts || []).length}, Saves: ${(user.savedPosts || []).length}, Views: ${(user.viewedPosts || []).length})`);
+      logger.info(`🎯 [RECOMMENDATION] Total engaged properties: ${engagedProperties.length} (Shares: ${sharedProperties.length}, Likes: ${(user.likedPosts || []).length}, Saves: ${(user.savedPosts || []).length}, Views: ${(user.viewedPosts || []).length})`);
 
       // Calculate typical price range using weighted average
       const weightedPrices = engagedProperties.map(p => ({ price: p.price, weight: p.weight })).filter(p => p.price);
@@ -2168,6 +2189,26 @@ class PersonalizationService {
         const pCTRMultiplier = 0.85 + (pCTR * 0.35); // 0.88x to 1.20x
         const timeOfDayMultiplier = CardCTRService.getTimeOfDayMultiplier(property); // 1.0x or 1.15x for evening rentals / weekend purchases
 
+        // Generate contextual match reasons (like Instagram/Netflix "Why you see this")
+        const reasons = [];
+        if (isAddressVerified) {
+          reasons.push("Verified Address");
+        }
+        if (property.locality && user.city && property.city?.toLowerCase() === user.city?.toLowerCase()) {
+          reasons.push(`In ${property.locality}`);
+        } else if (property.city && user.city && property.city?.toLowerCase() === user.city?.toLowerCase()) {
+          reasons.push("In your city");
+        }
+        if (personalizationScore >= 75) {
+          reasons.push("Matches your budget & type");
+        } else if (cfScore >= 65 && cfWeight > 0) {
+          reasons.push("Popular with similar buyers");
+        } else if (popularityScore >= 60) {
+          reasons.push("High interest in your area");
+        } else if (recencyScore >= 80) {
+          reasons.push("New listing");
+        }
+
         return {
           ...property,
           personalizationScore,
@@ -2179,6 +2220,7 @@ class PersonalizationService {
           negMult,
           isAddressVerified,
           pCTR,
+          reasons: reasons.slice(0, 2),
           finalScore: blended * negMult * verifiedMultiplier * pCTRMultiplier * timeOfDayMultiplier,
         };
       })

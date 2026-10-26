@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { calculateAdScore, balanceAdFeed } from "../src/controllers/advertisement.controller.js";
+import {
+  calculateAdScore,
+  balanceAdFeed,
+  recordImpression,
+  recordClick,
+  dismissAdvertisement,
+} from "../src/controllers/advertisement.controller.js";
 import { AD_CATEGORIES } from "../src/models/Advertisement.model.js";
 
 describe("Advertisement Targeting & Metrics Logic", () => {
@@ -203,6 +209,59 @@ describe("Advertisement Targeting & Metrics Logic", () => {
       "Interiors & Services",
       "Lifestyle & Entertainment",
     ]);
+  });
+
+  describe("Preview & Mock Ad Telemetry Safety (ERR-147E Guard)", () => {
+    const createMockRes = () => {
+      const res = {
+        statusCode: null,
+        body: null,
+        status(code) {
+          this.statusCode = code;
+          return this;
+        },
+        json(payload) {
+          this.body = payload;
+          return this;
+        },
+      };
+      return res;
+    };
+
+    it("gracefully acknowledges admin-preview impression with 200 and isPreview flag", async () => {
+      const req = { params: { id: "admin-preview" } };
+      const res = createMockRes();
+
+      await recordImpression(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.status).toBe("success");
+      expect(res.body.data.isPreview).toBe(true);
+      expect(res.body.data.id).toBe("admin-preview");
+    });
+
+    it("gracefully acknowledges preview click with 200 and does not crash on non-ObjectId", async () => {
+      const req = { params: { id: "preview" }, body: { targetUrl: "https://example.com" } };
+      const res = createMockRes();
+
+      await recordClick(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.status).toBe("success");
+      expect(res.body.data.isPreview).toBe(true);
+      expect(res.body.data.targetUrl).toBe("https://example.com");
+    });
+
+    it("gracefully acknowledges mock ad dismiss without hitting MongoDB", async () => {
+      const req = { params: { id: "admin-preview" }, user: null };
+      const res = createMockRes();
+
+      await dismissAdvertisement(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.status).toBe("success");
+      expect(res.body.message).toContain("Preview advertisement dismissed");
+    });
   });
 });
 
