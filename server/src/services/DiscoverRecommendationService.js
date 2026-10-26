@@ -62,14 +62,19 @@ function sectionFor(candidate) {
 function matchesFilter(candidate, filter, city, profession, verified, nearby) {
   if (city && normalized(candidate.city) !== normalized(city)) return false;
   if (profession && !normalized(candidate.primaryRole).includes(normalized(profession))) return false;
-  if (verified === "true" && !candidate.verified) return false;
+  if (verified === "true" && !candidate.verified && !candidate.isOwnerVerified) return false;
   if (nearby === "true" && !candidate.sameCity) return false;
   const key = normalized(filter);
   if (!key || key === "all") return true;
   if (key === "nearby") return candidate.sameCity;
-  if (key === "verified") return candidate.verified;
+  if (key === "verified") return candidate.verified || candidate.isOwnerVerified;
   if (key === "recently active") return candidate.activeToday;
-  return normalized(candidate.primaryRole).includes(key.replace(/s$/, ""));
+  const candidateRole = normalized(candidate.activeRole || candidate.primaryRole || "");
+  const searchRole = key.replace(/s$/, "");
+  if (searchRole === "agent" || searchRole === "broker") {
+    return candidateRole.includes("agent") || candidateRole.includes("broker");
+  }
+  return candidateRole.includes(searchRole);
 }
 
 export async function getDiscoverRecommendations(currentUserId, query = {}) {
