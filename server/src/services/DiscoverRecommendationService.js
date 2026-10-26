@@ -62,14 +62,19 @@ function sectionFor(candidate) {
 function matchesFilter(candidate, filter, city, profession, verified, nearby) {
   if (city && normalized(candidate.city) !== normalized(city)) return false;
   if (profession && !normalized(candidate.primaryRole).includes(normalized(profession))) return false;
-  if (verified === "true" && !candidate.verified) return false;
+  if (verified === "true" && !candidate.verified && !candidate.isOwnerVerified) return false;
   if (nearby === "true" && !candidate.sameCity) return false;
   const key = normalized(filter);
   if (!key || key === "all") return true;
   if (key === "nearby") return candidate.sameCity;
-  if (key === "verified") return candidate.verified;
+  if (key === "verified") return candidate.verified || candidate.isOwnerVerified;
   if (key === "recently active") return candidate.activeToday;
-  return normalized(candidate.primaryRole).includes(key.replace(/s$/, ""));
+  const candidateRole = normalized(candidate.activeRole || candidate.primaryRole || "");
+  const searchRole = key.replace(/s$/, "");
+  if (searchRole === "agent" || searchRole === "broker") {
+    return candidateRole.includes("agent") || candidateRole.includes("broker");
+  }
+  return candidateRole.includes(searchRole);
 }
 
 export async function getDiscoverRecommendations(currentUserId, query = {}) {
@@ -97,6 +102,11 @@ export async function getDiscoverRecommendations(currentUserId, query = {}) {
 
   const currentId = String(currentUser._id);
   const friendIds = (currentUser.friends || []).map(String);
+  const myFriends = friendIds.length > 0
+    ? await User.find({ _id: { $in: friendIds } }).select("_id fullName profilePic").lean()
+    : [];
+  const myFriendsMap = new Map(myFriends.map((f) => [String(f._id), { _id: String(f._id), fullName: f.fullName, profilePic: f.profilePic }]));
+
   const pendingRequests = await FriendRequest.find({ status: "pending", $or: [{ sender: currentUserId }, { receiver: currentUserId }] }).select("sender receiver").lean();
   const excluded = new Set([currentId, ...friendIds]);
   pendingRequests.forEach((request) => { excluded.add(String(request.sender)); excluded.add(String(request.receiver)); });
@@ -218,7 +228,12 @@ export async function getDiscoverRecommendations(currentUserId, query = {}) {
     const stats = statsByAuthor.get(String(user._id)) || {};
     const city = user.city || user.homeBase || user.location || "";
     const sameCity = Boolean(currentCity && normalized(city) === currentCity);
-    const mutualConnections = (user.friends || []).map(String).filter((id) => friendIds.includes(id)).length;
+    const mutualFriendIds = (user.friends || []).map(String).filter((id) => friendIds.includes(id));
+    const mutualConnections = mutualFriendIds.length;
+    const mutualConnectionUsers = mutualFriendIds
+      .map((id) => myFriendsMap.get(id))
+      .filter(Boolean)
+      .slice(0, 3);
     const completion = Number(user.profileCompletion) || profileCompletion(user);
     const verified = Boolean(user.isVerified);
     const rating = Number(user.averageRating || user.rating || 0);
@@ -326,7 +341,7 @@ export async function getDiscoverRecommendations(currentUserId, query = {}) {
     
     const score = (sameCity ? 40 : 0) + (mutualConnections >= 15 ? 35 : mutualConnections >= 5 ? 20 : mutualConnections ? 10 : 0) + (activeToday ? 20 : activeThisWeek ? 10 : 0) + (completion >= 100 ? 15 : completion >= 80 ? 10 : completion >= 60 ? 5 : 0) + (verified ? 15 : 0) + (rating >= 4.8 ? 15 : rating >= 4.5 ? 10 : 0) + Math.min(10, Number(stats.listingsCount || 0)) + (interestMatch ? 12 : 0) + (recentlyJoined ? 10 : 0) + (Number(user.responseRate || 0) >= 80 ? 10 : 0) + commentScore + distanceScore + searchKeywordMatch + searchLocationMatch + likedPropertyMatch + savedPropertyMatch + likedLocationMatch + savedLocationMatch + budgetMatchScore + intentCompatibilityScore;
     
-    return { ...user, city, listingsCount: Number(stats.listingsCount || 0), engagementScore: Number(stats.engagement || 0), profileCompletion: completion, rating, verified, mutualConnections, sameCity, activeToday, recentlyJoined, trending, distance, recommendationScore: score, recommendationReason: reasonFor({ sameCity, mutualCount: mutualConnections, verified, rating, activeToday, interestMatch, trending, recentlyJoined, commentMatch: commentScore > 0, distance: nearby && distance !== Infinity ? distance : null, searchMatch: searchKeywordMatch > 0 || searchLocationMatch > 0, likedMatch: likedPropertyMatch > 0 || likedLocationMatch > 0, savedMatch: savedPropertyMatch > 0 || savedLocationMatch > 0, budgetMatch: budgetMatchScore, intentMatch: intentCompatibilityScore > 10 }) };
+    return { ...user, city, listingsCount: Number(stats.listingsCount || 0), engagementScore: Number(stats.engagement || 0), profileCompletion: completion, rating, verified, mutualConnections, mutualConnectionUsers, sameCity, activeToday, recentlyJoined, trending, distance, recommendationScore: score, recommendationReason: reasonFor({ sameCity, mutualCount: mutualConnections, verified, rating, activeToday, interestMatch, trending, recentlyJoined, commentMatch: commentScore > 0, distance: nearby && distance !== Infinity ? distance : null, searchMatch: searchKeywordMatch > 0 || searchLocationMatch > 0, likedMatch: likedPropertyMatch > 0 || likedLocationMatch > 0, savedMatch: savedPropertyMatch > 0 || savedLocationMatch > 0, budgetMatch: budgetMatchScore, intentMatch: intentCompatibilityScore > 10 }) };
   }).filter((candidate) => candidate !== null && candidate.profileCompletion >= 30 && now - new Date(candidate.updatedAt || candidate.createdAt).getTime() < 365 * 24 * 60 * 60 * 1000)
     .filter((candidate) => matchesFilter(candidate, query.filter, query.city, query.profession, query.verified, query.nearby))
     .sort((a, b) => b.recommendationScore - a.recommendationScore || b.engagementScore - a.engagementScore);
