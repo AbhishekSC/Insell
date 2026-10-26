@@ -21,6 +21,12 @@ export default function AdCard({ ad, onDismiss }) {
     /\.(mp4|webm|mov)(\?|$)/i.test(ad?.mediaUrl || "") ||
     (ad?.mediaUrl || "").includes("/video/upload/");
 
+  const isPreview =
+    !ad?._id ||
+    ad._id === "admin-preview" ||
+    ad._id === "preview" ||
+    Boolean(ad?.isPreview);
+
   // ── Scroll Autoplay & Pause (Instagram-like feed behavior) ──
   useEffect(() => {
     if (!cardRef.current || !ad?._id) return;
@@ -45,8 +51,8 @@ export default function AdCard({ ad, onDismiss }) {
               });
           }
 
-          // Dwell timer for recording impression
-          if (!firedImpression && !dwellTimer.current) {
+          // Dwell timer for recording impression (suppressed for admin / mock previews)
+          if (!isPreview && !firedImpression && !dwellTimer.current) {
             dwellTimer.current = setTimeout(() => {
               axiosInstance.post(`/advertisements/${ad._id}/impression`).catch(() => {});
               setFiredImpression(true);
@@ -89,7 +95,7 @@ export default function AdCard({ ad, onDismiss }) {
         dwellTimer.current = null;
       }
     };
-  }, [isVideo, firedImpression, ad?._id]);
+  }, [isVideo, firedImpression, ad?._id, isPreview]);
 
   // Toggle video play/pause on tapping card media
   const handleMediaTap = () => {
@@ -129,9 +135,11 @@ export default function AdCard({ ad, onDismiss }) {
     e?.stopPropagation?.();
     if (!ad?._id) return;
 
-    axiosInstance.post(`/advertisements/${ad._id}/click`).catch(() => {});
+    if (!isPreview) {
+      axiosInstance.post(`/advertisements/${ad._id}/click`).catch(() => {});
+    }
 
-    if (ad.targetUrl) {
+    if (ad.targetUrl && ad.targetUrl !== "#") {
       if (ad.targetUrl.startsWith("http://") || ad.targetUrl.startsWith("https://")) {
         window.open(ad.targetUrl, "_blank", "noopener,noreferrer");
       } else {
@@ -142,7 +150,7 @@ export default function AdCard({ ad, onDismiss }) {
 
   const handleHide = (e) => {
     e.stopPropagation();
-    if (ad?._id) {
+    if (ad?._id && !isPreview) {
       axiosInstance.post(`/advertisements/${ad._id}/dismiss`).catch(() => {});
     }
     toast.success("Ad hidden", { duration: 2000 });

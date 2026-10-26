@@ -3,6 +3,7 @@ import { X, Copy, Check, Search, MessageCircle, Facebook, Send, Loader2, BadgeCh
 import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
+import { trackRecoEvent } from "../lib/recoEvents";
 import { useStreamContext } from "../context/StreamProvider";
 import UserAvatar from "./UserAvatar";
 
@@ -32,6 +33,7 @@ export default function ShareModal({ isOpen, onClose, postUrl, postTitle, postId
   // Best-effort share counter — never blocks or toasts on failure.
   const recordShare = () => {
     if (!postId) return;
+    trackRecoEvent({ post: postId, event: "share" });
     axiosInstance
       .post(`/public/listings/${postId}/share`, null, { skipErrorToast: true })
       .catch(() => {});

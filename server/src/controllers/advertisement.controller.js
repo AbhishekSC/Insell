@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Advertisement, { AD_CATEGORIES } from "../models/Advertisement.model.js";
 import User from "../models/User.model.js";
 import { redisClient } from "../config/redis.js";
@@ -204,6 +205,12 @@ export const getActiveAdvertisements = async (req, res) => {
 export const recordImpression = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Acknowledge preview or mock impressions gracefully without hitting database
+    if (!id || id === "admin-preview" || id === "preview" || !mongoose.Types.ObjectId.isValid(id)) {
+      return sendSuccessResponse(res, 200, "Preview impression acknowledged", { id, isPreview: true });
+    }
+
     const ad = await Advertisement.findByIdAndUpdate(
       id,
       { $inc: { impressionsCount: 1 } },
@@ -231,6 +238,16 @@ export const recordImpression = async (req, res) => {
 export const recordClick = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Acknowledge preview or mock clicks gracefully without hitting database
+    if (!id || id === "admin-preview" || id === "preview" || !mongoose.Types.ObjectId.isValid(id)) {
+      return sendSuccessResponse(res, 200, "Preview click acknowledged", {
+        id,
+        isPreview: true,
+        targetUrl: req.body?.targetUrl || null,
+      });
+    }
+
     const ad = await Advertisement.findByIdAndUpdate(
       id,
       { $inc: { clicksCount: 1 } },
@@ -257,6 +274,12 @@ export const recordClick = async (req, res) => {
 export const dismissAdvertisement = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Acknowledge preview or mock dismissals gracefully without hitting database
+    if (!id || id === "admin-preview" || id === "preview" || !mongoose.Types.ObjectId.isValid(id)) {
+      return sendSuccessResponse(res, 200, "Preview advertisement dismissed");
+    }
+
     if (req.user?._id) {
       await User.findByIdAndUpdate(req.user._id, { $addToSet: { hiddenAds: id } });
     }
@@ -399,6 +422,9 @@ export const adminCreateAdvertisement = async (req, res) => {
 export const adminUpdateAdvertisement = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return sendErrorResponse(res, 400, "Invalid advertisement ID");
+    }
     const allowed = [
       "title",
       "description",
@@ -455,6 +481,9 @@ export const adminUpdateAdvertisement = async (req, res) => {
 export const adminDeleteAdvertisement = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return sendErrorResponse(res, 400, "Invalid advertisement ID");
+    }
     const ad = await Advertisement.findByIdAndDelete(id);
     if (!ad) {
       return sendErrorResponse(res, 404, "Advertisement not found");
@@ -634,6 +663,9 @@ export const getMyCampaigns = async (req, res) => {
 export const toggleMyCampaignStatus = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return sendErrorResponse(res, 400, "Invalid campaign ID");
+    }
     const ad = await Advertisement.findOne({ _id: id, createdBy: req.user._id });
 
     if (!ad) {

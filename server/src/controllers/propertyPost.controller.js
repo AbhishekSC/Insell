@@ -474,6 +474,8 @@ export async function getPropertyFeed(req, res) {
     const category = String(req.query.category || "").trim().toLowerCase();
     const statusFilter = String(req.query.status || "").trim().toUpperCase();
     const currentUserId = req.user?._id ? String(req.user._id) : "";
+    const isRefresh = req.query.refresh === "true" || req.query.refresh === "1";
+    const refreshSeed = parseInt(req.query.seed, 10) || 0;
 
     // Shared cache key for generic public feeds (independent of currentUserId)
     const isStandardPublicFeed = (
@@ -492,10 +494,10 @@ export async function getPropertyFeed(req, res) {
     const sharedCacheKey = `property:feed:shared:${page}:${limit}:${city}:${listingType}:${propertyType}:${postType}:${category}`;
     const userCacheKey = `property:feed:${page}:${limit}:${query}:${city}:${listingType}:${propertyType}:${postType}:${authorId}:${savedBy}:${category}:${currentUserId}:${priceMin ?? ""}:${priceMax ?? ""}:${amenities.join("|")}`;
 
-    // Try to get from cache (only for first page without complex filters).
+    // Try to get from cache (only for first page without complex filters and when NOT refreshing).
     // Standard public feeds share a single hot Redis cache across all users.
     try {
-      if (isStandardPublicFeed) {
+      if (!isRefresh && isStandardPublicFeed) {
         const cachedRaw = await redisClient.get(sharedCacheKey);
         if (cachedRaw) {
           const { posts: rawPosts, total } = JSON.parse(cachedRaw);
@@ -527,6 +529,7 @@ export async function getPropertyFeed(req, res) {
           });
         }
       } else if (
+        !isRefresh &&
         page === 1 &&
         !query &&
         !authorId &&
@@ -888,6 +891,44 @@ export async function getPropertyFeed(req, res) {
         finalForYouPosts = await CardCTRService.applySessionMomentum(combinedPosts, currentUserId);
       }
 
+      // On pull-to-refresh: apply Instagram-style seen demotion & dynamic rotation (Page 1 only)
+      if (isRefresh && page === 1 && currentUserId && finalForYouPosts.length > 3) {
+        try {
+          const seenIds = await redisClient.zRange(`personalization:seen:${currentUserId}`, 0, -1);
+          if (Array.isArray(seenIds) && seenIds.length > 0) {
+            const seenSet = new Set(seenIds.map(String));
+            const unseen = finalForYouPosts.filter((p) => !seenSet.has(String(p._id)));
+            const seen = finalForYouPosts.filter((p) => seenSet.has(String(p._id)));
+
+            if (unseen.length >= 2) {
+              finalForYouPosts = [...unseen, ...seen];
+            }
+          }
+
+          const windowSize = Math.min(8, finalForYouPosts.length);
+          if (windowSize > 2) {
+            const shift = (refreshSeed || Math.floor(Date.now() / 15000)) % (windowSize - 1) + 1;
+            const topWindow = finalForYouPosts.slice(0, windowSize);
+            const rotated = [...topWindow.slice(shift), ...topWindow.slice(0, shift)];
+            finalForYouPosts = [...rotated, ...finalForYouPosts.slice(windowSize)];
+          }
+        } catch (rotationErr) {
+          logger.warn("For-You refresh rotation error:", rotationErr?.message);
+        }
+      }
+
+      if (currentUserId && finalForYouPosts.length > 0) {
+        try {
+          const now = Date.now();
+          const topToMark = finalForYouPosts.slice(0, 10).map((p) => ({
+            score: now,
+            value: String(p._id),
+          }));
+          await redisClient.zAdd(`personalization:seen:${currentUserId}`, topToMark);
+          await redisClient.expire(`personalization:seen:${currentUserId}`, 86400);
+        } catch {}
+      }
+
       const responseData = {
         posts: finalForYouPosts,
         sections: {
@@ -923,6 +964,47 @@ export async function getPropertyFeed(req, res) {
     let finalDecoratedPosts = decoratedPosts;
     if (currentUserId) {
       finalDecoratedPosts = await CardCTRService.applySessionMomentum(decoratedPosts, currentUserId);
+    }
+
+    // On pull-to-refresh: apply Instagram-style seen demotion & dynamic rotation (Page 1 only)
+    if (isRefresh && page === 1 && currentUserId && finalDecoratedPosts.length > 3) {
+      try {
+        const seenIds = await redisClient.zRange(`personalization:seen:${currentUserId}`, 0, -1);
+        if (Array.isArray(seenIds) && seenIds.length > 0) {
+          const seenSet = new Set(seenIds.map(String));
+          const unseen = finalDecoratedPosts.filter((p) => !seenSet.has(String(p._id)));
+          const seen = finalDecoratedPosts.filter((p) => seenSet.has(String(p._id)));
+
+          if (unseen.length >= 2) {
+            // Unseen properties float to the top
+            finalDecoratedPosts = [...unseen, ...seen];
+          }
+        }
+
+        // Apply seed rotation on the top candidate window to prevent static ordering
+        const windowSize = Math.min(8, finalDecoratedPosts.length);
+        if (windowSize > 2) {
+          const shift = (refreshSeed || Math.floor(Date.now() / 15000)) % (windowSize - 1) + 1;
+          const topWindow = finalDecoratedPosts.slice(0, windowSize);
+          const rotated = [...topWindow.slice(shift), ...topWindow.slice(0, shift)];
+          finalDecoratedPosts = [...rotated, ...finalDecoratedPosts.slice(windowSize)];
+        }
+      } catch (rotationErr) {
+        logger.warn("Feed refresh rotation error:", rotationErr?.message);
+      }
+    }
+
+    // Record top posts as seen in Redis so next pull-to-refresh continues rotating
+    if (currentUserId && finalDecoratedPosts.length > 0) {
+      try {
+        const now = Date.now();
+        const topToMark = finalDecoratedPosts.slice(0, 10).map((p) => ({
+          score: now,
+          value: String(p._id),
+        }));
+        await redisClient.zAdd(`personalization:seen:${currentUserId}`, topToMark);
+        await redisClient.expire(`personalization:seen:${currentUserId}`, 86400);
+      } catch {}
     }
 
     const responseData = {
