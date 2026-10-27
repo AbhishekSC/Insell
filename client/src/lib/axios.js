@@ -77,6 +77,11 @@ axiosInstance.interceptors.response.use(
 
       try {
         const storedRefreshToken = getRefreshToken();
+        // If there is no refresh token in storage, don't make a pointless request
+        if (!storedRefreshToken) {
+          return Promise.reject(error);
+        }
+
         // The endpoint accepts refresh token in body or in httpOnly cookie
         const res = await axios.post(
           `${API_BASE}/auth/refresh`,

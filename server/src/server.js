@@ -7,6 +7,8 @@ import { testCloudinaryConnection } from "./config/cloudinary.js";
 import { connectToRedis, closeRedisConnection } from "./config/redisClient.config.js";
 import { initNotificationWorker, closeNotificationQueue } from "./queues/notification.queue.js";
 import { initEngagementSyncWorker, closeEngagementSyncQueue } from "./queues/engagementSync.queue.js";
+import { initPostIngestionWorker, closePostIngestionQueue } from "./queues/postIngestion.queue.js";
+import { initRecommendationWorker, closeRecommendationQueue } from "./queues/recommendation.queue.js";
 import { initTelemetry } from "./services/telemetry.service.js";
 
 let httpServer = null;
@@ -36,6 +38,8 @@ async function shutdown(signal) {
       closeRedisConnection(),
       closeNotificationQueue(),
       closeEngagementSyncQueue(),
+      closePostIngestionQueue(),
+      closeRecommendationQueue(),
     ]);
   } catch (error) {
     logger.error(`Error during shutdown: ${error.message}`, { stack: error.stack });
@@ -78,6 +82,8 @@ async function startServer() {
       initTelemetry();
       initNotificationWorker();
       await initEngagementSyncWorker();
+      initPostIngestionWorker();
+      await initRecommendationWorker();
       await connectQueue();
       logger.info(`Server is running on port ${PORT}`);
     }).on("error", (err) => {

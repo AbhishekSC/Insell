@@ -19,12 +19,15 @@ import {
   Flame,
   Handshake,
   Heart,
+  HelpCircle,
   Home,
   IndianRupee,
   Loader2,
+  LocateFixed,
   Map,
   MapPin,
   Navigation,
+  Newspaper,
   Target,
   Maximize,
   MessageCircle,
@@ -442,6 +445,7 @@ export default function MarketplacePage() {
       return res.data?.data?.friends || [];
     },
     enabled: !!authUser,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Fetch unread notification count (all types) — shared key with AppShell.jsx's identical query
@@ -485,29 +489,6 @@ export default function MarketplacePage() {
 
   // Total unread count for badges (includes all notification types + friend requests)
   const totalUnreadCount = activityNotifications + messageRequests + incomingRequests.length;
-
-  // Fetch personalized recommendations — used both for the sidebar widget
-  // (first 3) and interleaved into the main "For You" feed (see feedItems).
-  const { data: personalizedRecommendations = [] } = useQuery({
-    queryKey: ["personalizedRecommendations"],
-    queryFn: async () => {
-      if (!authUser) return [];
-      const res = await axiosInstance.get("/personalization/recommendations?limit=12");
-      return res.data?.data?.recommendations || [];
-    },
-    enabled: !!authUser,
-  });
-
-  // Fetch trending locations for the sidebar
-  const { data: trendingLocations = [] } = useQuery({
-    queryKey: ["trendingLocations"],
-    queryFn: async () => {
-      if (!authUser) return [];
-      const res = await axiosInstance.get("/personalization/trending-locations?limit=5");
-      return res.data?.data?.trendingLocations || [];
-    },
-    enabled: !!authUser,
-  });
 
   // Mark notifications as read when visiting chat, activity, or connections section
   useEffect(() => {
@@ -840,26 +821,6 @@ export default function MarketplacePage() {
 
   // Trending Near You — real properties, not a static list, ranked by
   // proximity + how fast they're gaining engagement. A fresh GPS fix (when
-  // the user has granted it) is passed through so "near you" means where
-  // they actually are right now, not just their saved profile city.
-  // Also used both for the sidebar widget (first 4) and interleaved into the
-  // main "For You" feed (see feedItems).
-  const { data: trendingNearYou = [] } = useQuery({
-    queryKey: ["trendingNearYou", liveLocation?.lat, liveLocation?.lon],
-    queryFn: async () => {
-      if (!authUser) return [];
-      const params = { limit: 10 };
-      if (liveLocation?.lat && liveLocation?.lon) {
-        params.lat = liveLocation.lat;
-        params.lon = liveLocation.lon;
-      }
-      const res = await axiosInstance.get("/personalization/trending-near-you", { params });
-      return res.data?.data?.properties || [];
-    },
-    enabled: !!authUser,
-    staleTime: 60_000,
-  });
-
   // On opening Near Me: silently re-capture only if the saved fix isn't
   // fresh AND geolocation is already granted. Never prompts on its own —
   // that's what the 📍 button and the "Update location" link are for.
@@ -943,7 +904,13 @@ export default function MarketplacePage() {
     // is being captured. With a saved location we query straight away and
     // just re-query when a fresher fix lands (the queryKey carries coords).
     enabled: Boolean(authUser?._id) && !(isNearMe && !liveLocation?.lat && liveLocStatus === "locating"),
+    staleTime: 60 * 1000,
   });
+
+  // Determines whether the primary property feed has completed its initial load.
+  // Secondary widgets (recommendations, ads, trending, stats, news) are deferred
+  // until isFeedLoaded is true so the feed has 100% of the browser's HTTP connections.
+  const isFeedLoaded = Boolean(data?.pages?.length);
 
   // Infinite scroll implementation
   const observerRef = useRef(null);
@@ -1046,6 +1013,46 @@ export default function MarketplacePage() {
       }));
   }, [activeCategory, appliedFilters, authUser?.city, data]);
 
+  // Deferred secondary queries: fire ONLY after the primary propertyFeed is loaded
+  // to avoid choking the browser's 6-connection HTTP limit during initial load.
+  const { data: personalizedRecommendations = [] } = useQuery({
+    queryKey: ["personalizedRecommendations"],
+    queryFn: async () => {
+      if (!authUser) return [];
+      const res = await axiosInstance.get("/personalization/recommendations?limit=12");
+      return res.data?.data?.recommendations || [];
+    },
+    enabled: Boolean(authUser && isFeedLoaded),
+    staleTime: 3 * 60 * 1000,
+  });
+
+  const { data: trendingLocations = [] } = useQuery({
+    queryKey: ["trendingLocations"],
+    queryFn: async () => {
+      if (!authUser) return [];
+      const res = await axiosInstance.get("/personalization/trending-locations?limit=5");
+      return res.data?.data?.trendingLocations || [];
+    },
+    enabled: Boolean(authUser && isFeedLoaded),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: trendingNearYou = [] } = useQuery({
+    queryKey: ["trendingNearYou", liveLocation?.lat, liveLocation?.lon],
+    queryFn: async () => {
+      if (!authUser) return [];
+      const params = { limit: 10 };
+      if (liveLocation?.lat && liveLocation?.lon) {
+        params.lat = liveLocation.lat;
+        params.lon = liveLocation.lon;
+      }
+      const res = await axiosInstance.get("/personalization/trending-near-you", { params });
+      return res.data?.data?.properties || [];
+    },
+    enabled: Boolean(authUser && isFeedLoaded),
+    staleTime: 60_000,
+  });
+
   // Fetch active sponsored advertisements for the feed
   const targetCityForAds = appliedFilters?.city || authUser?.city || "";
   const targetIntentForAds = activeCategory === "Buy" || activeCategory === "Rent" ? activeCategory : undefined;
@@ -1062,6 +1069,7 @@ export default function MarketplacePage() {
       });
       return res.data?.data?.ads || [];
     },
+    enabled: Boolean(isFeedLoaded),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -1177,7 +1185,7 @@ export default function MarketplacePage() {
       const response = await axiosInstance.get("/posts/latest");
       return response.data?.data || null;
     },
-    enabled: Boolean(authUser?._id) && !search.trim(),
+    enabled: Boolean(authUser?._id && isFeedLoaded && !search.trim()),
     refetchInterval: 30000,
     staleTime: 0,
   });
@@ -1539,8 +1547,9 @@ export default function MarketplacePage() {
       // published post into the feed cache — a draft only shows up in
       // "My Drafts" (fetched separately).
       if (data?.status === "PUBLISHED") {
-        queryClient.setQueryData(["propertyFeed", activeCategory, search, searchType, searchAuthorId, queryListingType || "all", queryPropertyType || "all"], (oldData) => {
-          if (!oldData) return oldData;
+        // Prepend the new post across all active propertyFeed queries so author immediately sees it at top in 0ms
+        queryClient.setQueriesData({ queryKey: ["propertyFeed"] }, (oldData) => {
+          if (!oldData?.pages?.[0]) return oldData;
 
           const newPost = {
             ...data,
@@ -1555,15 +1564,19 @@ export default function MarketplacePage() {
             pages: [
               {
                 ...oldData.pages[0],
-                posts: [newPost, ...oldData.pages[0].posts],
+                posts: [newPost, ...(oldData.pages[0].posts || [])],
               },
               ...oldData.pages.slice(1),
             ],
-         };
+          };
         });
 
-        // Also invalidate to ensure data consistency
+        // Invalidate feed and my posts to ensure complete server sync
         queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
+        queryClient.invalidateQueries({ queryKey: ["myPosts"] });
+        toast.success("Post published successfully! It is now live at the top of your feed.");
+      } else {
+        toast.success("Draft saved successfully!");
       }
 
       // Covers both directions: a draft that just got published should
@@ -1762,7 +1775,8 @@ export default function MarketplacePage() {
       const res = await axiosInstance.get("/role-stats");
       return res.data?.data || null;
     },
-    enabled: !!authUser,
+    enabled: Boolean(authUser && isFeedLoaded),
+    staleTime: 5 * 60 * 1000,
     refetchInterval: 60000, // Refetch every minute
   });
 
@@ -1817,6 +1831,7 @@ export default function MarketplacePage() {
       const response = await axiosInstance.get(`/news/trending${cityParam}`);
       return response.data;
     },
+    enabled: Boolean(isFeedLoaded),
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
     refetchOnWindowFocus: false,
   });
@@ -2290,7 +2305,9 @@ export default function MarketplacePage() {
                     <PropertyPostCard
                       key={post._id}
                       post={post}
-                      className={isFlatmate ? (postType === "FLATMATE_OFFER" ? "ring-2 ring-success/30" : "ring-2 ring-warning/30") : ""}
+                      className={`${
+                        isFlatmate ? (postType === "FLATMATE_OFFER" ? "ring-2 ring-success/30" : "ring-2 ring-warning/30") : ""
+                      } ${selectedForComparison.includes(post._id) ? "border-primary ring-2 ring-primary/20" : "border-base-200"}`.trim()}
                       isOwnPost={Boolean(authUser?._id && post.author?._id && String(authUser._id) === String(post.author._id))}
                       onBoost={(p) => setBoostTargetPost(p)}
                       onEdit={(p, opts) => handleEditPost(p, opts)}
@@ -2589,7 +2606,6 @@ export default function MarketplacePage() {
                       savesCount={post.savesCount || 0}
                       onContact={() => handleContactClick(post)}
                       onOpenPost={() => navigate(`/property/${post._id}`)}
-                      className={selectedForComparison.includes(post._id) ? 'border-primary ring-2 ring-primary/20' : 'border-base-200'}
                     />
                   );
                 })}
@@ -3015,8 +3031,20 @@ export default function MarketplacePage() {
                   <p className="mt-2 text-sm text-base-content/70">
                     {composerResult === "DRAFT"
                       ? "Find it under My Drafts on your profile whenever you're ready to publish."
-                      : "Your post is now live and discoverable."}
+                      : "Your post is now live and visible at the top of your marketplace feed."}
                   </p>
+                  <div className="mt-4 flex justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetComposer();
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className="btn btn-sm rounded-xl border-none bg-primary px-5 font-bold text-white shadow-none hover:bg-primary/90"
+                    >
+                      View in Feed
+                    </button>
+                  </div>
                 </div>
               ) : stepKey === "type" ? (
                 <div>

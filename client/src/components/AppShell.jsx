@@ -9,7 +9,6 @@ import {
   Command,
   Filter,
   Flag,
-  Handshake,
   HelpCircle,
   Home,
   House,
@@ -60,10 +59,7 @@ function notifyBrowser(title, body) {
 }
 
 // Mirrors MarketplacePage's own LEFT_NAV_ITEMS exactly (same labels, icons,
-// and order) so the bottom nav is identical everywhere in the app, not just
-// on the Marketplace page itself. Items with a `section` key open the same
-// embedded hub tab Marketplace's own nav uses; Map View has no hub
-// equivalent (Marketplace's own nav also sends it to the standalone route).
+// and order) for desktop navigation.
 const navItems = [
   { to: "/marketplace", label: "Marketplace", icon: Home, section: "marketplace" },
   { to: "/marketplace?section=activity", label: "Activity", icon: Bell, section: "activity" },
@@ -77,19 +73,36 @@ const navItems = [
 
 const ADMIN_NAV_ITEM = { to: "/admin", label: "Admin", icon: ShieldCheck };
 
-// The mobile bottom nav only has room for a handful of static (non-scrolling)
-// slots — these five are the ones used often enough to earn one. Everything
-// else in navItems shows up in the hamburger menu instead (see
-// mobileOverflowNavItems below).
+const DRAWER_FEATURES = [
+  // Discovery & Trends
+  { to: "/recommended", label: "Recommended for You", icon: Sparkles },
+  { to: "/trending-localities", label: "Trending Localities", icon: TrendingUp },
+  { to: "/news", label: "Trending News", icon: Newspaper },
+
+  // Network & Communication
+  { to: "/marketplace?section=connections", label: "Connections", icon: Users, section: "connections" },
+  { to: "/marketplace?section=call", label: "Calls", icon: Phone, section: "call" },
+];
+
+// The mobile bottom nav mirrors the 5 mobile tabs exactly.
 const MOBILE_PRIMARY_NAV_TOS = new Set([
   "/marketplace",
+  "/marketplace?section=communities",
   "/map-view",
   "/marketplace?section=chat",
-  "/marketplace?section=connections",
-  "/marketplace?section=call",
+  "/marketplace?section=profile",
+  "/profile",
 ]);
 
-function isNavItemActive(item, location) {
+function isNavItemActive(item, location, authUser) {
+  if (item.section === "profile") {
+    const isOwnProfile = Boolean(authUser?._id && location.pathname === `/users/${authUser._id}`);
+    return (
+      isOwnProfile ||
+      location.pathname === "/profile" ||
+      (location.pathname === "/marketplace" && new URLSearchParams(location.search).get("section") === "profile")
+    );
+  }
   if (item.section) {
     if (location.pathname !== "/marketplace") return false;
     const activeSection = new URLSearchParams(location.search).get("section") || "marketplace";
@@ -470,7 +483,9 @@ function UserMenu({
               className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
               onClick={() => {
                 setIsDropdownOpen(false);
-                navigate(`/users/${authUser?._id}`);
+                if (authUser?._id) {
+                  navigate(`/users/${authUser._id}`);
+                }
               }}
             >
               <UserCircle className="size-4 text-base-content/60" />
@@ -504,7 +519,7 @@ function UserMenu({
               }}
             >
               <HelpCircle className="size-4 text-base-content/60" />
-              How to use this app
+              Help & Guide
             </button>
             <button
               type="button"
@@ -739,9 +754,11 @@ export default function AppShell({
   const authUser = authData?.data?.user || authData?.data || null;
   const isAdmin = Boolean(authUser?.isAdmin);
   const visibleNavItems = isAdmin ? [...navItems, ADMIN_NAV_ITEM] : navItems;
-  const mobileOverflowNavItems = visibleNavItems.filter(
-    (item) => !MOBILE_PRIMARY_NAV_TOS.has(item.to) && item.section !== "activity"
-  );
+  const mobileDrawerItems = useMemo(() => {
+    const items = [...DRAWER_FEATURES];
+    if (isAdmin) items.push(ADMIN_NAV_ITEM);
+    return items;
+  }, [isAdmin]);
 
   const { data: liveUsersCount } = useQuery({
     queryKey: ["adminLiveUsersCount"],
@@ -1144,17 +1161,6 @@ export default function AppShell({
 
                     {mobileUserMenuOpen && (
                       <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-base-300 bg-base-100 shadow-lg">
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
-                          onClick={() => {
-                            setMobileUserMenuOpen(false);
-                            navigate(`/users/${authUser?._id}`);
-                          }}
-                        >
-                          <UserCircle className="size-4 text-base-content/60" />
-                          View Profile
-                        </button>
                         <NotificationMenuItem
                           pushUiState={pushUiState}
                           onEnable={enableNotifications}
@@ -1200,7 +1206,7 @@ export default function AppShell({
               <nav className="hidden max-w-full flex-nowrap items-center gap-1 overflow-x-auto rounded-2xl border border-base-300/80 bg-base-100/75 p-1.5 md:flex">
                 {visibleNavItems.map((item) => {
                   const Icon = item.icon;
-                  const active = isNavItemActive(item, location);
+                  const active = isNavItemActive(item, location, authUser);
 
                   return (
                     <Link key={item.to} to={item.to} className={`btn btn-sm relative rounded-xl ${active ? "btn-primary" : "btn-ghost"}`}>
@@ -1239,17 +1245,6 @@ export default function AppShell({
 
                   {mobileUserMenuOpen && (
                     <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-base-300 bg-base-100 shadow-lg">
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
-                        onClick={() => {
-                          setMobileUserMenuOpen(false);
-                          navigate(`/users/${authUser?._id}`);
-                        }}
-                      >
-                        <UserCircle className="size-4 text-base-content/60" />
-                        View Profile
-                      </button>
                       <NotificationMenuItem
                         pushUiState={pushUiState}
                         onEnable={enableNotifications}
@@ -1278,7 +1273,7 @@ export default function AppShell({
                         }}
                       >
                         <HelpCircle className="size-4 text-base-content/60" />
-                        How to use this app
+                        Help & Guide
                       </button>
                       <button
                         type="button"
@@ -1341,6 +1336,8 @@ export default function AppShell({
         <MobileBottomNav
           isMarketplaceShell={isMarketplaceShell}
           connectionsCount={incomingRequests.length}
+          unreadChatCount={unreadCount}
+          authUser={authUser}
         />
       )}
 
@@ -1368,75 +1365,38 @@ export default function AppShell({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-2">
-              {mobileOverflowNavItems.map((item) => {
+            <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+              {mobileDrawerItems.map((item) => {
                 const Icon = item.icon;
-                const active = isNavItemActive(item, location);
+                const active = isNavItemActive(item, location, authUser);
                 let badgeCount = 0;
-                if (item.to === "/activity") badgeCount = totalNotificationCount;
+                if (item.to === "/activity" || item.section === "activity") {
+                  badgeCount = totalNotificationCount;
+                } else if (item.section === "connections" || item.label === "Connections") {
+                  badgeCount = incomingRequests.length;
+                } else if (item.section === "chat" || item.label === "Chat") {
+                  badgeCount = unreadCount;
+                }
 
                 return (
-                  <Fragment key={item.to}>
-                    <Link
-                      to={item.to}
-                      onClick={() => setShowMobileMenu(false)}
-                      className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${
-                        active ? "bg-primary/10 text-primary" : "text-base-content/70 hover:bg-base-200"
-                      }`}
-                    >
-                      <Icon className="size-5" />
-                      {item.label}
-                      {badgeCount > 0 ? (
-                        <span className="ml-auto flex size-5 items-center justify-center rounded-full bg-error text-[10px] font-bold text-white">
-                          {badgeCount > 9 ? "9+" : badgeCount}
-                        </span>
-                      ) : null}
-                    </Link>
-                    {item.section === "communities" ? (
-                      <>
-                        <Link
-                          to="/deals"
-                          onClick={() => setShowMobileMenu(false)}
-                          className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-base-content/70 hover:bg-base-200"
-                        >
-                          <Handshake className="size-5" />
-                          My Deals
-                        </Link>
-                        <Link
-                          to="/saved-searches"
-                          onClick={() => setShowMobileMenu(false)}
-                          className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-base-content/70 hover:bg-base-200"
-                        >
-                          <Bell className="size-5" />
-                          Saved Searches
-                        </Link>
-                        <Link
-                          to="/recommended"
-                          onClick={() => setShowMobileMenu(false)}
-                          className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-base-content/70 hover:bg-base-200"
-                        >
-                          <Sparkles className="size-5" />
-                          Recommended for You
-                        </Link>
-                        <Link
-                          to="/trending-localities"
-                          onClick={() => setShowMobileMenu(false)}
-                          className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-base-content/70 hover:bg-base-200"
-                        >
-                          <TrendingUp className="size-5" />
-                          Trending Localities
-                        </Link>
-                        <Link
-                          to="/news"
-                          onClick={() => setShowMobileMenu(false)}
-                          className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-base-content/70 hover:bg-base-200"
-                        >
-                          <Newspaper className="size-5" />
-                          Trending News
-                        </Link>
-                      </>
+                  <Link
+                    key={item.label}
+                    to={item.to}
+                    onClick={() => setShowMobileMenu(false)}
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-primary/10 text-primary font-semibold"
+                        : "text-base-content/75 hover:bg-base-200 hover:text-base-content"
+                    }`}
+                  >
+                    <Icon className="size-5 shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                    {badgeCount > 0 ? (
+                      <span className="ml-auto flex size-5 shrink-0 items-center justify-center rounded-full bg-error text-[10px] font-bold text-white">
+                        {badgeCount > 9 ? "9+" : badgeCount}
+                      </span>
                     ) : null}
-                  </Fragment>
+                  </Link>
                 );
               })}
             </div>
@@ -1459,7 +1419,7 @@ export default function AppShell({
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-base-content/70 hover:bg-base-200"
               >
                 <HelpCircle className="size-5" />
-                How to use this app
+                Help & Guide
               </Link>
               <button
                 type="button"

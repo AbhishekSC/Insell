@@ -250,14 +250,30 @@ export default function UserProfilePage() {
     },
   });
 
+  const profileUser = profileData?.user || null;
+  const stats = profileData?.stats || { postsCount: 0 };
+  const relationship = profileData?.relationship || { isSelf: false, connectionStatus: "none" };
+  const isOwnProfile = relationship.isSelf;
+  const mutualFriends = profileData?.mutualFriends || relationship?.mutualFriends || { count: 0, preview: [] };
+
   const { data: connectionsData, isLoading: isConnectionsLoading, isError: isConnectionsError, error: connectionsError } = useQuery({
     queryKey: ["userFriends", userId],
-    enabled: Boolean(userId) && Boolean(connectionsModalTitle),
+    enabled: Boolean(userId) && Boolean(connectionsModalTitle) && connectionsModalTitle !== "Mutual Connections",
     retry: false,
     queryFn: async () => {
       const response = await axiosInstance.get(`/users/${userId}/friends`);
       return response.data?.data?.friends || [];
     },
+  });
+
+  const { data: mutualConnectionsData, isLoading: isMutualConnectionsLoading } = useQuery({
+    queryKey: ["userMutualFriends", userId],
+    enabled: Boolean(userId) && connectionsModalTitle === "Mutual Connections",
+    queryFn: async () => {
+      const response = await axiosInstance.get(`/users/${userId}/mutual-friends`);
+      return response.data?.data?.mutualFriends || [];
+    },
+    initialData: mutualFriends.preview?.length ? mutualFriends.preview : undefined,
   });
 
   const connectionsForbidden = isConnectionsError && connectionsError?.response?.status === 403;
@@ -271,11 +287,6 @@ export default function UserProfilePage() {
     },
   });
   const userReviews = reviewsData?.reviews || [];
-
-  const profileUser = profileData?.user || null;
-  const stats = profileData?.stats || { postsCount: 0 };
-  const relationship = profileData?.relationship || { isSelf: false, connectionStatus: "none" };
-  const isOwnProfile = relationship.isSelf;
 
   const [boostTargetPost, setBoostTargetPost] = useState(null);
   const [verifyAddressTargetPost, setVerifyAddressTargetPost] = useState(null);
@@ -367,13 +378,17 @@ export default function UserProfilePage() {
   });
 
   const posts = useMemo(
-    () => (postsData?.pages || []).flatMap((page) => page.posts || []),
+    () =>
+      (postsData?.pages || [])
+        .flatMap((page) => page.posts || [])
+        .slice()
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()),
     [postsData]
   );
 
   const { data: bookmarksData, isLoading: isBookmarksLoading, hasNextPage: hasNextBookmarkPage, fetchNextPage: fetchNextBookmarkPage, isFetchingNextPage: isFetchingNextBookmarkPage } = useInfiniteQuery({
     queryKey: ["userBookmarks", userId],
-    enabled: Boolean(userId),
+    enabled: Boolean(userId) && Boolean(isOwnProfile) && activeTab === "bookmarks",
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams();
       if (typeof pageParam === "object" && pageParam !== null) {
@@ -813,6 +828,41 @@ export default function UserProfilePage() {
                 {cityLabel}
               </p>
               <p className="mt-1 text-sm text-base-content/70">{profileUser.bio?.trim() || "No bio added yet."}</p>
+
+              {/* Instagram-Style Mutual Social Proof */}
+              {!isOwnProfile && relationship.connectionStatus !== "friends" && mutualFriends.count > 0 && (
+                <div
+                  className="mt-2.5 flex items-center gap-2 cursor-pointer text-xs text-base-content/75 hover:text-base-content"
+                  onClick={() => setConnectionsModalTitle("Mutual Connections")}
+                >
+                  <div className="flex shrink-0 items-center -space-x-1.5">
+                    {mutualFriends.preview.slice(0, 2).map((mUser, idx) => (
+                      <div
+                        key={mUser._id || idx}
+                        className="size-5 overflow-hidden rounded-full ring-2 ring-base-100 bg-primary/10"
+                      >
+                        {mUser.profilePic ? (
+                          <img
+                            src={mUser.profilePic}
+                            alt={mUser.fullName || ""}
+                            className="size-full object-cover"
+                          />
+                        ) : (
+                          <span className="grid size-full place-items-center text-[9px] font-bold text-primary">
+                            {(mUser.fullName || "U").charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="truncate">
+                    Followed by <span className="font-semibold text-base-content">{mutualFriends.preview[0]?.fullName}</span>
+                    {mutualFriends.count > 1 ? (
+                      <> and <span className="font-semibold text-base-content">{mutualFriends.count - 1} other{mutualFriends.count - 1 === 1 ? "" : "s"}</span></>
+                    ) : null}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="mt-3 flex gap-2">{renderProfileActions("flex-1")}</div>
@@ -868,6 +918,41 @@ export default function UserProfilePage() {
                 <p className="mt-2 line-clamp-2 text-sm text-base-content/70">
                   {profileUser.bio?.trim() || "No bio added yet."}
                 </p>
+
+                {/* Instagram-Style Mutual Social Proof */}
+                {!isOwnProfile && relationship.connectionStatus !== "friends" && mutualFriends.count > 0 && (
+                  <div
+                    className="mt-2.5 flex items-center justify-center sm:justify-start gap-2 cursor-pointer text-xs text-base-content/75 hover:text-base-content"
+                    onClick={() => setConnectionsModalTitle("Mutual Connections")}
+                  >
+                    <div className="flex shrink-0 items-center -space-x-1.5">
+                      {mutualFriends.preview.slice(0, 2).map((mUser, idx) => (
+                        <div
+                          key={mUser._id || idx}
+                          className="size-5 overflow-hidden rounded-full ring-2 ring-base-100 bg-primary/10"
+                        >
+                          {mUser.profilePic ? (
+                            <img
+                              src={mUser.profilePic}
+                              alt={mUser.fullName || ""}
+                              className="size-full object-cover"
+                            />
+                          ) : (
+                            <span className="grid size-full place-items-center text-[9px] font-bold text-primary">
+                              {(mUser.fullName || "U").charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="truncate">
+                      Followed by <span className="font-semibold text-base-content">{mutualFriends.preview[0]?.fullName}</span>
+                      {mutualFriends.count > 1 ? (
+                        <> and <span className="font-semibold text-base-content">{mutualFriends.count - 1} other{mutualFriends.count - 1 === 1 ? "" : "s"}</span></>
+                      ) : null}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2064,14 +2149,28 @@ export default function UserProfilePage() {
       <CompareFloatingBar selected={selectedForComparison} />
       <FullscreenMediaViewer src={selectedImage} onClose={() => setSelectedImage(null)} />
 
-      {/* Followers / Following Modal */}
+      {/* Followers / Following / Mutual Modal */}
       <UserListModal
         isOpen={Boolean(connectionsModalTitle)}
         onClose={() => setConnectionsModalTitle(null)}
         title={connectionsModalTitle}
-        users={connectionsData}
-        isLoading={isConnectionsLoading}
-        emptyMessage={connectionsForbidden ? "Only friends can view this list." : "Nobody here yet."}
+        users={
+          connectionsModalTitle === "Mutual Connections"
+            ? (mutualConnectionsData || mutualFriends.preview || [])
+            : (connectionsData || [])
+        }
+        isLoading={
+          connectionsModalTitle === "Mutual Connections"
+            ? isMutualConnectionsLoading && !(mutualFriends.preview?.length)
+            : isConnectionsLoading
+        }
+        emptyMessage={
+          connectionsModalTitle === "Mutual Connections"
+            ? "No mutual connections found."
+            : connectionsForbidden
+              ? "Only friends can view this list."
+              : "Nobody here yet."
+        }
       />
 
       {/* Avatar Preview — full-size photo, own profile or friends only */}

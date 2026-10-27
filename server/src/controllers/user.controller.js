@@ -10,6 +10,7 @@ export {
   updateMyProfile,
   getUserPublicProfile,
   getUserFriendsList,
+  getMutualFriendsList,
   updateUserLocation,
   updateWorkLocation,
   updateDigestPreference,

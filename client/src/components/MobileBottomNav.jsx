@@ -1,34 +1,67 @@
 import { Link, useLocation } from "react-router";
-import { Home, Map, MessageCircle, Phone, Users } from "lucide-react";
+import { Home, Map, MessageCircle, UserCircle, Users } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useStreamContext } from "../context/StreamProvider";
 
 const NAV_ITEMS = [
   { to: "/marketplace", label: "Marketplace", icon: Home, section: "marketplace" },
-  { to: "/map-view", label: "Map View", icon: Map },
-  { to: "/marketplace?section=chat", label: "Messages", icon: MessageCircle, section: "chat" },
-  { to: "/marketplace?section=connections", label: "Connections", icon: Users, section: "connections" },
-  { to: "/marketplace?section=call", label: "Calls", icon: Phone, section: "call" },
+  { to: "/marketplace?section=communities", label: "Communities", icon: Users, section: "communities" },
+  { to: "/map-view", label: "Map", icon: Map },
+  { to: "/marketplace?section=chat", label: "Chat", icon: MessageCircle, section: "chat" },
+  { to: "/marketplace?section=profile", label: "Profile", icon: UserCircle, section: "profile" },
 ];
 
-function isItemActive(item, location) {
-  if (item.section) {
-    if (location.pathname !== "/marketplace") return false;
-    const activeSection = new URLSearchParams(location.search).get("section") || "marketplace";
-    return activeSection === item.section;
+function isItemActive(item, location, user) {
+  const params = new URLSearchParams(location.search);
+  const activeSection = params.get("section") || "marketplace";
+
+  if (item.section === "marketplace") {
+    return location.pathname === "/marketplace" && (!params.get("section") || activeSection === "marketplace");
+  }
+  if (item.section === "communities") {
+    return (
+      (location.pathname === "/marketplace" && activeSection === "communities") ||
+      location.pathname.startsWith("/community") ||
+      location.pathname.startsWith("/discover-communities") ||
+      location.pathname.startsWith("/requested-communities")
+    );
+  }
+  if (item.to === "/map-view") {
+    return location.pathname === "/map-view";
+  }
+  if (item.section === "chat") {
+    return (
+      (location.pathname === "/marketplace" && activeSection === "chat") ||
+      location.pathname.startsWith("/chat")
+    );
+  }
+  if (item.section === "profile") {
+    const isOwnProfile = Boolean(user?._id && location.pathname === `/users/${user._id}`);
+    return (
+      isOwnProfile ||
+      location.pathname === "/profile" ||
+      (location.pathname === "/marketplace" && activeSection === "profile")
+    );
   }
   return location.pathname === item.to;
 }
 
-// Single source of truth for the mobile bottom nav — used by AppShell (every
-// marketplace-hub page) and by pages that render outside AppShell entirely,
-// like the full-screen Map View. Extracted after a bug where AppShell's own
-// inline copy compared badge paths against the wrong URLs (`/chat` instead
-// of `/marketplace?section=chat`), silently breaking two badges — a second,
-// separately-maintained copy for Map View would risk the exact same drift.
+// Single source of truth for the mobile bottom nav — mirrors the native mobile app tabs
+// exactly: Marketplace, Communities, Map, Chat, Profile.
 export default function MobileBottomNav({
   isMarketplaceShell = true,
-  connectionsCount = 0,
+  unreadChatCount,
+  authUser: propAuthUser,
 }) {
   const location = useLocation();
+  const { unreadCount: streamUnreadCount } = useStreamContext() || {};
+
+  const { data: authData } = useQuery({
+    queryKey: ["authUser"],
+    staleTime: 1000 * 60 * 5,
+  });
+  const user = propAuthUser || authData?.data?.user || authData?.data || null;
+  const unreadMessages = unreadChatCount !== undefined ? unreadChatCount : (streamUnreadCount || 0);
 
   return (
     <nav
@@ -38,27 +71,51 @@ export default function MobileBottomNav({
     >
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
-        const active = isItemActive(item, location);
+        const active = isItemActive(item, location, user);
         let badgeCount = 0;
         const badgeColor = "bg-error";
-        if (item.to === "/marketplace?section=connections") badgeCount = connectionsCount;
+
+        if (item.section === "chat") {
+          badgeCount = unreadMessages;
+        }
+
+        const isProfileItem = item.section === "profile";
+        const hasAvatar = isProfileItem && Boolean(user?.profilePic || user?.fullName);
+        const targetTo = isProfileItem && user?._id ? `/users/${user._id}` : item.to;
 
         return (
           <Link
             key={item.to}
-            to={item.to}
-            className={`flex min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-medium ${
+            to={targetTo}
+            className={`flex min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-medium transition-colors ${
               active
-                ? isMarketplaceShell
-                  ? "text-primary"
-                  : "text-primary"
-                : isMarketplaceShell
-                  ? "text-base-content/60"
-                  : "text-base-content/60"
+                ? "text-primary"
+                : "text-base-content/60 hover:text-base-content"
             }`}
           >
             <div className="relative">
-              <Icon className="size-5" />
+              {hasAvatar ? (
+                <div
+                  className={`size-6 rounded-full overflow-hidden border ${
+                    active ? "border-primary ring-2 ring-primary/40" : "border-base-content/25"
+                  }`}
+                >
+                  {user.profilePic ? (
+                    <img
+                      src={user.profilePic}
+                      alt={user.fullName || "Profile"}
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <span className="grid size-full place-items-center bg-primary/15 text-[10px] font-bold text-primary">
+                      {(user.fullName || "U").charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <Icon className="size-5" />
+              )}
+
               {badgeCount > 0 ? (
                 <span className={`absolute -right-2 -top-1 flex size-4 items-center justify-center rounded-full text-[9px] font-bold text-white ${badgeColor}`}>
                   {badgeCount > 9 ? "9+" : badgeCount}

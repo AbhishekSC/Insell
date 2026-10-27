@@ -297,7 +297,8 @@ export async function getRecommendedUsers(req, res) {
       }
     }
 
-    const baseMatch = {
+    // When searching explicitly with a query, allow universal search (friends, non-friends, self)
+    const baseMatch = query ? {} : {
       _id: { $nin: [...excludedUserIds] },
     };
 
@@ -533,6 +534,13 @@ export async function acceptFriendRequest(req, res) {
       $addToSet: { friends: friendRequest.sender },
     });
     await Promise.all([invalidateDiscoverCache(friendRequest.sender), invalidateDiscoverCache(friendRequest.receiver)]);
+    try {
+      const { invalidateUserSocialGraph } = await import("../controllers/propertyPost.controller.js");
+      await Promise.all([
+        invalidateUserSocialGraph(friendRequest.sender),
+        invalidateUserSocialGraph(friendRequest.receiver),
+      ]);
+    } catch {}
 
     logger.info(
       `Friend request ID: ${requestId} accepted by User ID: ${currentUserId}`
@@ -1129,6 +1137,60 @@ export async function getUserFriendsList(req, res) {
   }
 }
 
+export async function getMutualFriendsList(req, res) {
+  try {
+    const { id: targetUserId } = req.params;
+    const currentUserId = req.user._id;
+
+    if (!targetUserId) {
+      return sendErrorResponse(res, 400, "User ID is required");
+    }
+
+    const [currentUser, targetUser] = await Promise.all([
+      User.findById(currentUserId).select("friends").lean(),
+      User.findById(targetUserId).select("friends").lean(),
+    ]);
+
+    if (!targetUser) {
+      return sendErrorResponse(res, 404, "User not found");
+    }
+
+    const targetFriendSet = new Set((targetUser.friends || []).map(String));
+    const mutualFriendIds = (currentUser?.friends || []).filter((id) =>
+      targetFriendSet.has(String(id))
+    );
+
+    if (mutualFriendIds.length === 0) {
+      return sendSuccessResponse(res, 200, "Mutual friends fetched successfully", {
+        mutualFriends: [],
+        count: 0,
+      });
+    }
+
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const mutualFriends = await User.find({ _id: { $in: mutualFriendIds } })
+      .select("fullName profilePic city primaryRole activeRole isOwnerVerified")
+      .limit(limit)
+      .lean();
+
+    return sendSuccessResponse(res, 200, "Mutual friends fetched successfully", {
+      mutualFriends: mutualFriends.map((u) => ({
+        _id: String(u._id),
+        fullName: u.fullName || "User",
+        profilePic: u.profilePic || "",
+        city: u.city || "",
+        primaryRole: u.primaryRole || "",
+        activeRole: u.activeRole || "",
+        isOwnerVerified: Boolean(u.isOwnerVerified),
+      })),
+      count: mutualFriends.length,
+    });
+  } catch (error) {
+    logger.error("Error fetching mutual friends list:", error);
+    return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
 export async function getUserPublicProfile(req, res) {
   try {
     const { id: targetUserId } = req.params;
@@ -1140,7 +1202,7 @@ export async function getUserPublicProfile(req, res) {
 
     const user = await User.findById(targetUserId)
       .select(
-        "fullName bio profilePic city primaryRole activeRole userRoles preferredLocalities propertyTypePreferences listingIntent budgetMin budgetMax createdAt isVerified isOwnerVerified ratingAvg ratingCount"
+        "fullName bio profilePic city primaryRole activeRole userRoles preferredLocalities propertyTypePreferences listingIntent budgetMin budgetMax createdAt isVerified isOwnerVerified ratingAvg ratingCount friends"
       )
       .lean();
 
@@ -1148,33 +1210,37 @@ export async function getUserPublicProfile(req, res) {
       return sendErrorResponse(res, 404, "User not found");
     }
 
-    const postsCount = await PropertyPost.countDocuments({
-      author: targetUserId,
-      ...publishedPostFilter,
-    });
+    const targetFriends = Array.isArray(user.friends) ? user.friends : [];
+    delete user.friends;
 
-    const targetUser = await User.findById(targetUserId).select("friends").lean();
-    const followersCount = targetUser?.friends?.length || 0;
-    const followingCount = targetUser?.friends?.length || 0;
+    const followersCount = targetFriends.length;
+    const followingCount = targetFriends.length;
 
-    const currentUser = await User.findById(currentUserId).select("friends").lean();
+    // Run independent database counts & queries concurrently
+    const [postsCount, currentUser, savedCount, userPosts] = await Promise.all([
+      PropertyPost.countDocuments({
+        author: targetUserId,
+        ...publishedPostFilter,
+      }),
+      User.findById(currentUserId).select("friends").lean(),
+      PropertyPost.countDocuments({
+        savedBy: targetUserId,
+        ...publishedPostFilter,
+      }),
+      PropertyPost.find({
+        author: targetUserId,
+        ...publishedPostFilter,
+      }).select("likesCount").lean(),
+    ]);
 
-    // Get saved posts count (bookmarked by the user)
-    const savedPosts = await PropertyPost.find({
-      savedBy: targetUserId,
-      ...publishedPostFilter,
-    }).lean();
-    const savedCount = savedPosts.length;
-
-    // Get total likes count for user's posts
-    const userPosts = await PropertyPost.find({
-      author: targetUserId,
-      ...publishedPostFilter,
-    }).select("likesCount").lean();
     const likesCount = userPosts.reduce((sum, post) => sum + (post.likesCount || 0), 0);
 
     const isSelf = String(currentUserId) === String(targetUserId);
     let connectionStatus = "none";
+    let mutualFriends = {
+      count: 0,
+      preview: [],
+    };
 
     logger.debug("Profile check", { currentUserId, targetUserId, isSelf });
 
@@ -1182,6 +1248,28 @@ export async function getUserPublicProfile(req, res) {
       const isFriend = (currentUser?.friends || []).some(
         (friendId) => String(friendId) === String(targetUserId)
       );
+
+      // Compute Instagram-style mutual friends
+      const targetFriendIds = new Set(targetFriends.map((id) => String(id)));
+      const mutualFriendIds = (currentUser?.friends || [])
+        .map((id) => String(id))
+        .filter((id) => targetFriendIds.has(id));
+
+      if (mutualFriendIds.length > 0) {
+        const previewUsers = await User.find({ _id: { $in: mutualFriendIds.slice(0, 3) } })
+          .select("fullName profilePic isOwnerVerified")
+          .lean();
+
+        mutualFriends = {
+          count: mutualFriendIds.length,
+          preview: previewUsers.map((u) => ({
+            _id: String(u._id),
+            fullName: u.fullName || "User",
+            profilePic: u.profilePic || "",
+            isOwnerVerified: Boolean(u.isOwnerVerified),
+          })),
+        };
+      }
 
       if (isFriend) {
         connectionStatus = "friends";
@@ -1219,7 +1307,9 @@ export async function getUserPublicProfile(req, res) {
       relationship: {
         isSelf,
         connectionStatus,
+        mutualFriends,
       },
+      mutualFriends,
     });
   } catch (error) {
     logger.error("Error fetching user public profile:", error);
