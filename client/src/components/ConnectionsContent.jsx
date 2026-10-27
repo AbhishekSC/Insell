@@ -77,7 +77,6 @@ export default function ConnectionsContent({ onOpenMessages }) {
   // Friends query
   const {
     data: friendsData,
-    isLoading: friendsLoading,
     isRefetching: friendsRefetching,
     refetch: refetchFriends,
   } = useQuery({
@@ -89,7 +88,6 @@ export default function ConnectionsContent({ onOpenMessages }) {
   // Incoming connection requests
   const {
     data: incomingData,
-    isLoading: incomingLoading,
     isRefetching: incomingRefetching,
     refetch: refetchIncoming,
   } = useQuery({
@@ -102,7 +100,6 @@ export default function ConnectionsContent({ onOpenMessages }) {
   // Outgoing connection requests
   const {
     data: outgoingData,
-    isLoading: outgoingLoading,
     isRefetching: outgoingRefetching,
     refetch: refetchOutgoing,
   } = useQuery({
@@ -114,7 +111,6 @@ export default function ConnectionsContent({ onOpenMessages }) {
   // Message requests notifications
   const {
     data: notificationsData,
-    isLoading: notificationsLoading,
     refetch: refetchNotifications,
   } = useQuery({
     queryKey: ["notifications", "message_request"],

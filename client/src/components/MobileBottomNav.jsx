@@ -50,7 +50,6 @@ function isItemActive(item, location, user) {
 // exactly: Marketplace, Communities, Map, Chat, Profile.
 export default function MobileBottomNav({
   isMarketplaceShell = true,
-  connectionsCount = 0,
   unreadChatCount,
   authUser: propAuthUser,
 }) {
