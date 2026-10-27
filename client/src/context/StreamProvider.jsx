@@ -123,8 +123,12 @@ export function StreamProvider({ children }) {
   const { data: authData } = useQuery({
     queryKey: ["authUser"],
     queryFn: async () => {
-      const response = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
-      return response.data;
+      try {
+        const response = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
+        return response.data;
+      } catch {
+        return null;
+      }
     },
     retry: false,
     staleTime: 1000 * 60 * 5,

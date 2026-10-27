@@ -501,18 +501,12 @@ export async function getPropertyFeed(req, res) {
         const cachedRaw = await redisClient.get(sharedCacheKey);
         if (cachedRaw) {
           const { posts: rawPosts, total } = JSON.parse(cachedRaw);
-          let userReportedIds = new Set();
-          if (currentUserId) {
-            const myReports = await PostReport.find({ reporter: currentUserId }).select("post").lean();
-            if (myReports.length > 0) {
-              userReportedIds = new Set(myReports.map((r) => String(r.post)));
-            }
-          }
+          const userReportedIds = currentUserId ? await getUserReportedPostIds(currentUserId) : new Set();
           const visiblePosts = userReportedIds.size > 0
             ? rawPosts.filter((p) => !userReportedIds.has(String(p._id)))
             : rawPosts;
           const decoratedPosts = await attachSocialProof(
-            await Promise.all(visiblePosts.map((p) => decorateForUser(p, currentUserId))),
+            await batchDecoratePosts(visiblePosts, currentUserId),
             currentUserId
           );
           logger.info("Shared cache hit for property feed");
@@ -543,7 +537,7 @@ export async function getPropertyFeed(req, res) {
         if (cachedData) {
           const parsed = JSON.parse(cachedData);
           if (parsed.posts) {
-            parsed.posts = await Promise.all(parsed.posts.map((p) => decorateForUser(p, currentUserId)));
+            parsed.posts = await batchDecoratePosts(parsed.posts, currentUserId);
           }
           logger.info("User cache hit for property feed");
           return sendSuccessResponse(res, 200, "Property feed retrieved (cached)", parsed);
@@ -572,10 +566,9 @@ export async function getPropertyFeed(req, res) {
 
     let reportedPostIds = new Set();
     if (currentUserId) {
-      const myReports = await PostReport.find({ reporter: currentUserId }).select("post").lean();
-      if (myReports.length > 0) {
-        reportedPostIds = new Set(myReports.map((report) => String(report.post)));
-        filter._id = { $nin: myReports.map((report) => report.post) };
+      reportedPostIds = await getUserReportedPostIds(currentUserId);
+      if (reportedPostIds.size > 0) {
+        filter._id = { $nin: Array.from(reportedPostIds).map((id) => new mongoose.Types.ObjectId(id)) };
       }
     }
 
@@ -743,19 +736,54 @@ export async function getPropertyFeed(req, res) {
       }
     }
 
-    // Apply personalization for "for you" category — only computed for page 1,
-    // since getPersonalizedRecommendations always returns the same top-N and
-    // isn't paginated; running it on later pages would just repeat page 1's picks.
+    // Apply personalization for "for you" category — only computed for page 1.
+    // Fast path: serves from pre-computed Redis Sorted Set candidate pool (<2ms).
+    // Fallback: calculates live via PersonalizationService and enqueues background precomputation.
     let personalizedPosts = [];
     if (category === "for you" && currentUserId && page === 1) {
       try {
-        personalizedPosts = await PersonalizationService.getPersonalizedRecommendations(currentUserId, limit);
-        personalizedPosts = await Promise.all(personalizedPosts.map((post) => decorateForUser(post, currentUserId)));
-        personalizedPosts = personalizedPosts.map((p) => ({ ...p, personalizationScore: p.personalizationScore }));
-        personalizedPosts = await attachSocialProof(personalizedPosts, currentUserId);
+        const candidateKey = `user:${currentUserId}:feed_candidates`;
+        let precomputedIds = [];
+        try {
+          precomputedIds = await redisClient.zRange(candidateKey, 0, limit - 1, { REV: true });
+        } catch {}
+
+        if (Array.isArray(precomputedIds) && precomputedIds.length > 0) {
+          const candidateDocs = await PropertyPost.find({
+            _id: { $in: precomputedIds.map((id) => new mongoose.Types.ObjectId(id)) },
+            isDeleted: { $ne: true },
+            isBlocked: { $ne: true },
+          })
+            .populate(
+              "author",
+              "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate"
+            )
+            .lean();
+
+          if (candidateDocs.length > 0) {
+            const idOrderMap = new Map(precomputedIds.map((id, idx) => [String(id), idx]));
+            candidateDocs.sort(
+              (a, b) => (idOrderMap.get(String(a._id)) ?? 999) - (idOrderMap.get(String(b._id)) ?? 999)
+            );
+            personalizedPosts = await batchDecoratePosts(candidateDocs, currentUserId);
+            personalizedPosts = await attachSocialProof(personalizedPosts, currentUserId);
+            logger.info(`⚡ [PersonalizedFeed] Served ${personalizedPosts.length} posts from pre-computed Redis candidates`);
+          }
+        }
+
+        // Fallback: If precomputed candidate pool is not yet populated, compute live and enqueue background refresh
+        if (personalizedPosts.length === 0) {
+          personalizedPosts = await PersonalizationService.getPersonalizedRecommendations(currentUserId, limit);
+          personalizedPosts = await batchDecoratePosts(personalizedPosts, currentUserId);
+          personalizedPosts = personalizedPosts.map((p) => ({ ...p, personalizationScore: p.personalizationScore }));
+          personalizedPosts = await attachSocialProof(personalizedPosts, currentUserId);
+
+          import("../queues/recommendation.queue.js")
+            .then(({ enqueueUserRecommendationPrecompute }) => enqueueUserRecommendationPrecompute(currentUserId))
+            .catch(() => {});
+        }
       } catch (error) {
         logger.error("Personalization error, falling back to standard feed:", error);
-        // Continue with standard feed if personalization fails
       }
     }
 
@@ -799,15 +827,23 @@ export async function getPropertyFeed(req, res) {
 
     // Apply cursor-based filter if cursor is provided
     const queryFilter = { ...filter };
+    const isProfileFeed = Boolean(authorId);
+
     if (hasCursor) {
       // Boosted posts are promoted at the top of the feed (page 1).
       // On subsequent cursor pages, serve remaining listings chronologically without duplicating boosted posts.
-      queryFilter.isBoosted = { $ne: true };
+      if (!isProfileFeed) {
+        queryFilter.isBoosted = { $ne: true };
+      }
       queryFilter._id = { $lt: new mongoose.Types.ObjectId(cursor) };
     }
 
+    const sortOption = isProfileFeed
+      ? { createdAt: -1, _id: -1 }
+      : (hasCursor ? { createdAt: -1, _id: -1 } : { isBoosted: -1, createdAt: -1 });
+
     const feedQuery = PropertyPost.find(queryFilter)
-      .sort(hasCursor ? { createdAt: -1, _id: -1 } : { isBoosted: -1, createdAt: -1 })
+      .sort(sortOption)
       .limit(limit)
       .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate");
 
@@ -820,10 +856,8 @@ export async function getPropertyFeed(req, res) {
       PropertyPost.countDocuments(filter),
     ]);
 
-    // Read live engagement and views from Redis for each post (falls back to MongoDB)
-    const postsWithEngagement = await Promise.all(
-      posts.map((p) => decorateForUser(p, currentUserId))
-    );
+    // Read live engagement and views from Redis in a single pipeline round trip
+    const postsWithEngagement = await batchDecoratePosts(posts, currentUserId);
 
     const decoratedPosts = await attachSocialProof(
       postsWithEngagement,
@@ -837,7 +871,8 @@ export async function getPropertyFeed(req, res) {
     // personalizedPosts is intentionally empty past page 1 (see above) — so
     // bucketing every page here would return an empty `posts` array on page 2+
     // even though pagination.totalPages still claims more pages exist.
-    if (category === "for you" && page === 1) {
+    // NOTE: Profile feeds (isProfileFeed) are strictly chronological timelines and skip "for you" bucketing.
+    if (category === "for you" && page === 1 && !isProfileFeed) {
       const now = new Date();
       const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
@@ -862,8 +897,39 @@ export async function getPropertyFeed(req, res) {
         return true;
       });
 
-      // Priority sort within the feed: Boosted posts first, then Address-Verified listings (+weightage), then recency
-      combinedPosts.sort((a, b) => {
+      // Freshness Guarantee:
+      // 1. Boosted posts (paid sponsor priority) always lead.
+      // 2. Brand-New Posts (created within the last 24h OR authored by the current user)
+      //    are guaranteed top chronological positions (strictly newest first: createdAt: -1).
+      // 3. Mature Inventory (> 24h old) is ranked below fresh posts with address verification weightage
+      //    and live session momentum (CTR prediction) to personalize discovery without burying fresh listings.
+      const nowMs = Date.now();
+      const FRESH_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours freshness window
+
+      const freshPosts = [];
+      const maturePosts = [];
+
+      for (const p of combinedPosts) {
+        const pCreated = new Date(p.createdAt || 0).getTime();
+        const pAuthorId = typeof p.author === "object" ? p.author?._id : p.author;
+        const isOwn = currentUserId && String(pAuthorId) === currentUserId;
+        if (isOwn || (nowMs - pCreated) <= FRESH_WINDOW_MS) {
+          freshPosts.push(p);
+        } else {
+          maturePosts.push(p);
+        }
+      }
+
+      // Fresh listings: Boosted first, then strictly newest first (createdAt: -1)
+      freshPosts.sort((a, b) => {
+        if (Boolean(a.isBoosted) !== Boolean(b.isBoosted)) {
+          return a.isBoosted ? -1 : 1;
+        }
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      });
+
+      // Mature inventory: Boosted first, then verified listings, then recency
+      maturePosts.sort((a, b) => {
         if (Boolean(a.isBoosted) !== Boolean(b.isBoosted)) {
           return a.isBoosted ? -1 : 1;
         }
@@ -885,11 +951,13 @@ export async function getPropertyFeed(req, res) {
         return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
       });
 
-      // Apply Live Session-Momentum Live Adaptation (TikTok/Reels style)
-      let finalForYouPosts = combinedPosts;
-      if (currentUserId) {
-        finalForYouPosts = await CardCTRService.applySessionMomentum(combinedPosts, currentUserId);
+      // Apply Live Session-Momentum to mature posts (preserving fresh posts at the top!)
+      let rankedMaturePosts = maturePosts;
+      if (currentUserId && maturePosts.length > 0) {
+        rankedMaturePosts = await CardCTRService.applySessionMomentum(maturePosts, currentUserId);
       }
+
+      let finalForYouPosts = [...freshPosts, ...rankedMaturePosts];
 
       // On pull-to-refresh: apply Instagram-style seen demotion & dynamic rotation (Page 1 only)
       if (isRefresh && page === 1 && currentUserId && finalForYouPosts.length > 3) {
@@ -1104,6 +1172,163 @@ export function sanitizePriceHistory(history, currentPrice) {
   return deduped;
 }
 
+export async function getUserReportedPostIds(userId) {
+  if (!userId) return new Set();
+  const cacheKey = `user:${userId}:reported_posts`;
+  try {
+    const exists = await redisClient.exists(cacheKey);
+    if (exists) {
+      const ids = await redisClient.sMembers(cacheKey);
+      return new Set(ids.filter((id) => id !== "__init__"));
+    }
+    const reports = await PostReport.find({ reporter: userId }).select("post").lean();
+    const idStrings = reports.map((r) => String(r.post));
+    const toAdd = idStrings.length > 0 ? idStrings : ["__init__"];
+    await redisClient.sAdd(cacheKey, toAdd);
+    await redisClient.expire(cacheKey, 86400); // 24h
+    return new Set(idStrings);
+  } catch (err) {
+    logger.warn("Error reading reported posts cache:", err?.message);
+    const reports = await PostReport.find({ reporter: userId }).select("post").lean();
+    return new Set(reports.map((r) => String(r.post)));
+  }
+}
+
+export async function getUserSocialGraph(userId) {
+  if (!userId) return { viewer: null, friends: new Set(), communityIds: new Set() };
+  const cacheKey = `user:${userId}:social_graph`;
+  try {
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      const data = JSON.parse(cached);
+      return {
+        viewer: data.viewer,
+        friends: new Set(data.friends || []),
+        communityIds: new Set(data.communityIds || []),
+      };
+    }
+  } catch (err) {
+    logger.warn("Error reading social graph cache:", err?.message);
+  }
+
+  const User = (await import("../models/User.model.js")).default;
+  const me = await User.findById(userId).select("friends communities workLocation").lean();
+  const friendsArr = (me?.friends || []).map(String);
+  const communitiesArr = (me?.communities || []).map(String);
+
+  try {
+    await redisClient.setEx(
+      cacheKey,
+      300, // 5 min TTL
+      JSON.stringify({
+        viewer: me,
+        friends: friendsArr,
+        communityIds: communitiesArr,
+      })
+    );
+  } catch {}
+
+  return {
+    viewer: me,
+    friends: new Set(friendsArr),
+    communityIds: new Set(communitiesArr),
+  };
+}
+
+export async function invalidateUserSocialGraph(userId) {
+  if (!userId) return;
+  try {
+    await redisClient.del(`user:${userId}:social_graph`);
+  } catch {}
+}
+
+export async function batchDecoratePosts(posts, currentUserId) {
+  if (!Array.isArray(posts) || posts.length === 0) return [];
+  const uid = currentUserId ? String(currentUserId) : null;
+
+  try {
+    const multi = redisClient.multi();
+    for (const post of posts) {
+      const pid = String(post._id);
+      const likeKey = `post:${pid}:liked_by`;
+      const saveKey = `post:${pid}:saved_by`;
+      const viewsKey = `post:${pid}:views`;
+
+      multi.zCard(likeKey);
+      multi.zScore(likeKey, "__empty__");
+      if (uid) multi.zScore(likeKey, uid);
+
+      multi.zCard(saveKey);
+      multi.zScore(saveKey, "__empty__");
+      if (uid) multi.zScore(saveKey, uid);
+
+      multi.get(viewsKey);
+    }
+
+    const results = await multi.exec();
+    if (!results || results.length === 0) {
+      return Promise.all(posts.map((p) => decorateForUser(p, uid)));
+    }
+
+    const stride = uid ? 7 : 5;
+    return posts.map((post, idx) => {
+      let offset = idx * stride;
+
+      let rawLikeCount = Number(results[offset++]) || 0;
+      const likeSentinel = results[offset++];
+      if (likeSentinel !== null && likeSentinel !== undefined && Number(likeSentinel) === 0) {
+        rawLikeCount = Math.max(0, rawLikeCount - 1);
+      }
+      let isLikedByMe = false;
+      if (uid) {
+        const likeScore = results[offset++];
+        isLikedByMe = likeScore !== null && likeScore !== undefined;
+      }
+
+      let rawSaveCount = Number(results[offset++]) || 0;
+      const saveSentinel = results[offset++];
+      if (saveSentinel !== null && saveSentinel !== undefined && Number(saveSentinel) === 0) {
+        rawSaveCount = Math.max(0, rawSaveCount - 1);
+      }
+      let isSavedByMe = false;
+      if (uid) {
+        const saveScore = results[offset++];
+        isSavedByMe = saveScore !== null && saveScore !== undefined;
+      }
+
+      const cachedViews = results[offset++];
+      let viewCount = Number(post.viewCount || 0);
+      if (cachedViews !== null && cachedViews !== undefined) {
+        viewCount = parseInt(cachedViews, 10) || 0;
+      }
+
+      const likedBy = Array.isArray(post.likedBy) ? post.likedBy.map(String) : [];
+      const savedBy = Array.isArray(post.savedBy) ? post.savedBy.map(String) : [];
+      const isBoostActive = Boolean(
+        post.isBoosted &&
+        post.boostExpiresAt &&
+        new Date(post.boostExpiresAt).getTime() > Date.now()
+      );
+
+      return {
+        ...post,
+        isBoosted: isBoostActive,
+        boostExpiresAt: post.boostExpiresAt,
+        boostCount: post.boostCount || 0,
+        likesCount: rawLikeCount > 0 ? rawLikeCount : likedBy.length,
+        savesCount: rawSaveCount > 0 ? rawSaveCount : savedBy.length,
+        viewCount,
+        isLikedByMe: uid ? isLikedByMe : false,
+        isSavedByMe: uid ? isSavedByMe : false,
+        priceHistory: sanitizePriceHistory(post.priceHistory, post.price),
+      };
+    });
+  } catch (err) {
+    logger.warn("Pipeline batch decorate error, falling back to individual calls:", err?.message);
+    return Promise.all(posts.map((p) => decorateForUser(p, uid)));
+  }
+}
+
 async function decorateForUser(post, currentUserId) {
   const likedBy = Array.isArray(post.likedBy) ? post.likedBy.map(String) : [];
   const savedBy = Array.isArray(post.savedBy) ? post.savedBy.map(String) : [];
@@ -1172,10 +1397,10 @@ async function attachSocialProof(posts, currentUserId) {
   let viewer = null;
 
   if (currentUserId) {
-    const me = await User.findById(currentUserId).select("friends communities workLocation").lean();
-    viewer = me;
-    friends = new Set((me?.friends || []).map(String));
-    communityIds = new Set((me?.communities || []).map(String));
+    const graph = await getUserSocialGraph(currentUserId);
+    viewer = graph.viewer;
+    friends = graph.friends;
+    communityIds = graph.communityIds;
   }
 
   // Batch fetch appreciation forecasts for distinct locations
@@ -1599,15 +1824,18 @@ export async function createPropertyPost(req, res) {
 
     await invalidateDiscoverCache(userId);
 
+    // Offload post enrichment, geo indexing, and hot city cache invalidation to BullMQ background worker
+    try {
+      const { enqueuePostEnrichment } = await import("../queues/postIngestion.queue.js");
+      await enqueuePostEnrichment(post._id, post.city);
+    } catch {}
+
     // Invalidate property feed cache
     try {
       const keys = await redisClient.keys("property:feed:*");
       if (keys.length > 0) {
         await redisClient.del(keys);
         logger.info(`Invalidated ${keys.length} property feed cache entries`);
-      }
-      if (post.city) {
-        await invalidateHotCityCache(post.city);
       }
     } catch (cacheError) {
       logger.warn("Redis cache invalidation error:", cacheError);
@@ -1633,8 +1861,13 @@ export async function createPropertyPost(req, res) {
 //   2. everyone who liked/saved it (generic, throttled, drops only)
 // Those already reached via (1) are skipped in (2).
 export async function handlePriceChangeFanout(post, oldPrice) {
-  const alertedUserIds = await notifyTriggeredPriceAlerts(post, oldPrice);
-  await notifyPriceChange(post, oldPrice, new Set(alertedUserIds.map(String)));
+  try {
+    const { enqueuePriceDropFanout } = await import("../queues/postIngestion.queue.js");
+    await enqueuePriceDropFanout(post, oldPrice);
+  } catch {
+    const alertedUserIds = await notifyTriggeredPriceAlerts(post, oldPrice);
+    await notifyPriceChange(post, oldPrice, new Set(alertedUserIds.map(String)));
+  }
 }
 
 // A drop only matters to a casual watcher if it's non-trivial — a ₹5k nudge
@@ -2859,8 +3092,7 @@ export async function incrementViewCount(req, res) {
     // High-speed in-memory increment via Redis INCR (~1ms, zero MongoDB writes on hot path)
     const viewCount = await incrementViewCountRedis(postId, post.viewCount || 0);
 
-    // In background, ensure MongoDB stays synced and feed cache is purged
-    PropertyPost.updateOne({ _id: postId }, { $set: { viewCount } }).catch(() => {});
+    // MongoDB write is handled asynchronously in bulk via BullMQ engagement sync worker
     if (userId) {
       User.updateOne(
         { _id: userId },
@@ -2881,11 +3113,6 @@ export async function incrementViewCount(req, res) {
         })
         .catch(() => {});
     }
-    try {
-      const feedKeys = await redisClient.keys("property:feed:*");
-      if (feedKeys.length > 0) await redisClient.del(feedKeys);
-    } catch {}
-
     return sendSuccessResponse(res, 200, "View count incremented", {
       viewCount,
     });
@@ -3042,6 +3269,16 @@ export async function reportPost(req, res) {
         reasonCode,
         description: String(description || "").trim().slice(0, 1000),
       });
+
+      // Keep user's reported posts Redis cache synchronized (only append if already cached)
+      try {
+        const cacheKey = `user:${userId}:reported_posts`;
+        const exists = await redisClient.exists(cacheKey);
+        if (exists) {
+          await redisClient.sAdd(cacheKey, String(postId));
+          await redisClient.expire(cacheKey, 86400);
+        }
+      } catch {}
     } catch (error) {
       if (error.code === 11000) {
         return sendErrorResponse(res, 400, "You've already reported this post");

@@ -85,11 +85,8 @@ function App() {
           return null;
         }
 
-        if (err?.response?.status === 401) {
-          return null;
-        }
-
-        throw err;
+        // Any 401/400 or failed verification cleanly means user is unauthenticated
+        return null;
       }
     },
     retry: false,

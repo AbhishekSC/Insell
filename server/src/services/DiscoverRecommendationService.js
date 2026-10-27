@@ -30,8 +30,27 @@ function profileCompletion(user) {
   return Math.round((fields.filter(Boolean).length / 5) * 100);
 }
 
-function reasonFor({ sameCity, mutualCount, verified, rating, activeToday, interestMatch, trending, recentlyJoined, commentMatch, distance, searchMatch, likedMatch, savedMatch, budgetMatch, intentMatch }) {
+const ROLE_COMPATIBILITY = {
+  buyer: ["seller", "owner", "landlord", "broker", "agent", "builder"],
+  tenant: ["owner", "landlord", "broker", "agent"],
+  renter: ["owner", "landlord", "broker", "agent"],
+  seller: ["buyer", "investor", "broker", "agent"],
+  owner: ["tenant", "renter", "buyer", "broker", "agent", "investor"],
+  landlord: ["tenant", "renter", "buyer", "broker", "agent"],
+  investor: ["broker", "agent", "builder", "seller", "owner"],
+  broker: ["buyer", "seller", "owner", "landlord", "tenant", "investor"],
+  agent: ["buyer", "seller", "owner", "landlord", "tenant", "investor"],
+  builder: ["buyer", "investor", "broker", "agent"],
+};
+
+function reasonFor({ isSelf, isFriend, isPendingSent, isPendingReceived, roleMatchText, localityMatchText, sameCity, mutualCount, verified, rating, activeToday, interestMatch, trending, recentlyJoined, commentMatch, distance, searchMatch, likedMatch, savedMatch, budgetMatch, intentMatch }) {
+  if (isSelf) return "";
+  if (isFriend) return "Connected in your network";
+  if (isPendingSent) return "Connection request sent";
+  if (isPendingReceived) return "Sent you a connection request";
   if (mutualCount > 0) return `${mutualCount} mutual connection${mutualCount === 1 ? "" : "s"}`;
+  if (localityMatchText) return localityMatchText;
+  if (roleMatchText) return roleMatchText;
   if (intentMatch) return "Complementary listing intent";
   if (budgetMatch > 10) return "Compatible budget range";
   if (likedMatch) return "Similar property preferences";
@@ -40,10 +59,10 @@ function reasonFor({ sameCity, mutualCount, verified, rating, activeToday, inter
   if (commentMatch) return "Similar comment interests";
   if (distance !== null && distance !== undefined) return `Within ${Math.round(distance)} km`;
   if (sameCity) return "Based in your city";
-  if (verified) return "Verified professional";
+  if (verified) return "Verified property owner";
   if (rating >= 4.8) return "Highly rated professional";
-  if (trending) return "Trending this week";
-  if (activeToday) return "Recently active";
+  if (trending) return "Active marketplace member";
+  if (activeToday) return "Active today";
   if (interestMatch) return "Shared property interests";
   if (recentlyJoined) return "New member on NearMySpace";
   return "Recommended for your network";
@@ -73,6 +92,12 @@ function matchesFilter(candidate, filter, city, profession, verified, nearby) {
   const searchRole = key.replace(/s$/, "");
   if (searchRole === "agent" || searchRole === "broker") {
     return candidateRole.includes("agent") || candidateRole.includes("broker");
+  }
+  if (searchRole === "owner" || searchRole === "landlord") {
+    return candidateRole.includes("owner") || candidateRole.includes("landlord");
+  }
+  if (searchRole === "tenant" || searchRole === "renter") {
+    return candidateRole.includes("tenant") || candidateRole.includes("renter");
   }
   return candidateRole.includes(searchRole);
 }
@@ -108,14 +133,29 @@ export async function getDiscoverRecommendations(currentUserId, query = {}) {
   const myFriendsMap = new Map(myFriends.map((f) => [String(f._id), { _id: String(f._id), fullName: f.fullName, profilePic: f.profilePic }]));
 
   const pendingRequests = await FriendRequest.find({ status: "pending", $or: [{ sender: currentUserId }, { receiver: currentUserId }] }).select("sender receiver").lean();
+  const outgoingPendingIds = new Set(pendingRequests.filter((r) => String(r.sender) === currentId).map((r) => String(r.receiver)));
+  const incomingPendingIds = new Set(pendingRequests.filter((r) => String(r.receiver) === currentId).map((r) => String(r.sender)));
+  const friendIdSet = new Set(friendIds);
+
   const excluded = new Set([currentId, ...friendIds]);
   pendingRequests.forEach((request) => { excluded.add(String(request.sender)); excluded.add(String(request.receiver)); });
 
   const search = String(query.q || "").trim();
-  const baseQuery = { _id: { $nin: [...excluded] } };
+  // When a search query is provided, allow searching across ALL users (friends, non-friends, and self)
+  const baseQuery = search ? {} : { _id: { $nin: [...excluded] } };
   if (search) {
-    const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-    baseQuery.$or = [{ fullName: regex }, { city: regex }, { primaryRole: regex }, { activeRole: regex }, { preferredLocalities: regex }, { propertyTypePreferences: regex }];
+    const escapedQuery = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(escapedQuery, "i");
+    baseQuery.$or = [
+      { fullName: regex },
+      { city: regex },
+      { homeBase: regex },
+      { location: regex },
+      { primaryRole: regex },
+      { activeRole: regex },
+      { preferredLocalities: regex },
+      { propertyTypePreferences: regex },
+    ];
   }
 
   const candidates = await User.find(baseQuery).select("fullName profilePic city homeBase location primaryRole activeRole friends propertyTypePreferences preferredLocalities isVerified isOwnerVerified profileCompletion responseRate createdAt updatedAt commentAnalytics locationDetails").limit(MAX_CANDIDATES).lean();
@@ -225,17 +265,35 @@ export async function getDiscoverRecommendations(currentUserId, query = {}) {
   };
 
   const ranked = candidates.map((user) => {
+    const candidateId = String(user._id);
+    const isSelf = candidateId === currentId;
+    const isFriend = friendIdSet.has(candidateId);
+    const isPendingSent = outgoingPendingIds.has(candidateId);
+    const isPendingReceived = incomingPendingIds.has(candidateId);
+    const relationshipState = isSelf
+      ? "self"
+      : isFriend
+        ? "friend"
+        : isPendingSent
+          ? "pending_sent"
+          : isPendingReceived
+            ? "pending_received"
+            : "none";
+
     const stats = statsByAuthor.get(String(user._id)) || {};
     const city = user.city || user.homeBase || user.location || "";
     const sameCity = Boolean(currentCity && normalized(city) === currentCity);
-    const mutualFriendIds = (user.friends || []).map(String).filter((id) => friendIds.includes(id));
+    const mutualFriendIds = isSelf
+      ? []
+      : (user.friends || []).map(String).filter((id) => friendIds.includes(id));
     const mutualConnections = mutualFriendIds.length;
     const mutualConnectionUsers = mutualFriendIds
       .map((id) => myFriendsMap.get(id))
       .filter(Boolean)
       .slice(0, 3);
     const completion = Number(user.profileCompletion) || profileCompletion(user);
-    const verified = Boolean(user.isVerified);
+    // Distinct from isVerified (email/OTP check). Verified badge represents document/owner verification.
+    const verified = Boolean(user.isOwnerVerified);
     const rating = Number(user.averageRating || user.rating || 0);
     const activeToday = now - new Date(user.updatedAt || user.createdAt).getTime() < 24 * 60 * 60 * 1000;
     const activeThisWeek = now - new Date(user.updatedAt || user.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000;
@@ -338,11 +396,117 @@ export async function getDiscoverRecommendations(currentUserId, query = {}) {
     const distanceScore = nearby && distance !== Infinity 
       ? Math.max(0, 50 - (distance / radiusKm) * 50) 
       : 0;
+
+    // High-Intent Persona/Role Compatibility Matching
+    const myRole = normalized(currentUser.activeRole || currentUser.primaryRole || "");
+    const candidateRole = normalized(user.activeRole || user.primaryRole || "");
+    let roleScore = 0;
+    let roleMatchText = "";
+    if (myRole && candidateRole) {
+      const compatibleRoles = ROLE_COMPATIBILITY[myRole] || [];
+      if (compatibleRoles.some((r) => candidateRole.includes(r))) {
+        roleScore = 35;
+        if (myRole.includes("buyer") && (candidateRole.includes("seller") || candidateRole.includes("owner"))) {
+          roleMatchText = "Verified property seller for your purchase";
+        } else if (myRole.includes("tenant") && (candidateRole.includes("owner") || candidateRole.includes("landlord"))) {
+          roleMatchText = "Property owner looking for tenants";
+        } else if (myRole.includes("owner") && (candidateRole.includes("tenant") || candidateRole.includes("renter"))) {
+          roleMatchText = "Prospective tenant for your property";
+        } else if (myRole.includes("investor")) {
+          roleMatchText = "Commercial / investment partner";
+        } else {
+          roleMatchText = "Complementary real estate partner";
+        }
+      }
+    }
+
+    // Locality Hyper-Focus Matching (preferredLocalities overlap)
+    const myLocalities = (currentUser.preferredLocalities || []).map(normalized).filter(Boolean);
+    const candidateLocalities = (user.preferredLocalities || []).map(normalized).filter(Boolean);
+    const sharedLocalities = myLocalities.filter((l) => candidateLocalities.includes(l));
+    let localityScore = 0;
+    let localityMatchText = "";
+    if (sharedLocalities.length > 0) {
+      localityScore = Math.min(30, sharedLocalities.length * 15);
+      const locName = (user.preferredLocalities || []).find((l) => normalized(l) === sharedLocalities[0]) || sharedLocalities[0];
+      localityMatchText = `Active in ${locName}`;
+    }
+
+    // Social Graph Clustering (Stronger proof for mutual connections)
+    const mutualScore = mutualConnections >= 5 ? 45 : mutualConnections >= 2 ? 30 : mutualConnections === 1 ? 20 : 0;
+
+    // Verified Owner Trust Boost
+    const verifiedScore = verified ? 25 : 0;
+
+    // Active Poster Bonus (posted a property within the last 14 days)
+    const recentPosterScore = Number(stats.listingsCount || 0) > 0 && stats.lastPostAt && (now - new Date(stats.lastPostAt).getTime() < 14 * 24 * 60 * 60 * 1000) ? 20 : 0;
+
+    // Search query relevancy bonus: prefix / exact match ranks highest
+    let searchBonus = 0;
+    if (search) {
+      const q = search.toLowerCase();
+      const name = (user.fullName || "").toLowerCase();
+      if (name === q) searchBonus = 160;
+      else if (name.startsWith(q)) searchBonus = 100;
+      else if (name.includes(q)) searchBonus = 60;
+      else searchBonus = 30;
+      if (isSelf) searchBonus += 50; // Ensure self appears prominently when user searches own name
+      if (isFriend) searchBonus += 30; // Existing friends rank near the top for name searches
+    }
     
-    const score = (sameCity ? 40 : 0) + (mutualConnections >= 15 ? 35 : mutualConnections >= 5 ? 20 : mutualConnections ? 10 : 0) + (activeToday ? 20 : activeThisWeek ? 10 : 0) + (completion >= 100 ? 15 : completion >= 80 ? 10 : completion >= 60 ? 5 : 0) + (verified ? 15 : 0) + (rating >= 4.8 ? 15 : rating >= 4.5 ? 10 : 0) + Math.min(10, Number(stats.listingsCount || 0)) + (interestMatch ? 12 : 0) + (recentlyJoined ? 10 : 0) + (Number(user.responseRate || 0) >= 80 ? 10 : 0) + commentScore + distanceScore + searchKeywordMatch + searchLocationMatch + likedPropertyMatch + savedPropertyMatch + likedLocationMatch + savedLocationMatch + budgetMatchScore + intentCompatibilityScore;
+    const score = (sameCity ? 30 : 0) + mutualScore + (activeToday ? 20 : activeThisWeek ? 10 : 0) + (completion >= 100 ? 15 : completion >= 80 ? 10 : completion >= 60 ? 5 : 0) + verifiedScore + (rating >= 4.8 ? 15 : rating >= 4.5 ? 10 : 0) + Math.min(15, Number(stats.listingsCount || 0) * 2) + recentPosterScore + roleScore + localityScore + (interestMatch ? 12 : 0) + (recentlyJoined ? 10 : 0) + (Number(user.responseRate || 0) >= 80 ? 10 : 0) + commentScore + distanceScore + searchKeywordMatch + searchLocationMatch + likedPropertyMatch + savedPropertyMatch + likedLocationMatch + savedLocationMatch + budgetMatchScore + intentCompatibilityScore + searchBonus;
     
-    return { ...user, city, listingsCount: Number(stats.listingsCount || 0), engagementScore: Number(stats.engagement || 0), profileCompletion: completion, rating, verified, mutualConnections, mutualConnectionUsers, sameCity, activeToday, recentlyJoined, trending, distance, recommendationScore: score, recommendationReason: reasonFor({ sameCity, mutualCount: mutualConnections, verified, rating, activeToday, interestMatch, trending, recentlyJoined, commentMatch: commentScore > 0, distance: nearby && distance !== Infinity ? distance : null, searchMatch: searchKeywordMatch > 0 || searchLocationMatch > 0, likedMatch: likedPropertyMatch > 0 || likedLocationMatch > 0, savedMatch: savedPropertyMatch > 0 || savedLocationMatch > 0, budgetMatch: budgetMatchScore, intentMatch: intentCompatibilityScore > 10 }) };
-  }).filter((candidate) => candidate !== null && candidate.profileCompletion >= 30 && now - new Date(candidate.updatedAt || candidate.createdAt).getTime() < 365 * 24 * 60 * 60 * 1000)
+    return {
+      ...user,
+      city,
+      listingsCount: Number(stats.listingsCount || 0),
+      engagementScore: Number(stats.engagement || 0),
+      profileCompletion: completion,
+      rating,
+      verified,
+      mutualConnections,
+      mutualConnectionUsers,
+      sameCity,
+      activeToday,
+      recentlyJoined,
+      trending,
+      distance,
+      isSelf,
+      isFriend,
+      isPendingSent,
+      isPendingReceived,
+      relationshipState,
+      recommendationScore: score,
+      recommendationReason: reasonFor({
+        isSelf,
+        isFriend,
+        isPendingSent,
+        isPendingReceived,
+        roleMatchText,
+        localityMatchText,
+        sameCity,
+        mutualCount: mutualConnections,
+        verified,
+        rating,
+        activeToday,
+        interestMatch,
+        trending,
+        recentlyJoined,
+        commentMatch: commentScore > 0,
+        distance: nearby && distance !== Infinity ? distance : null,
+        searchMatch: searchKeywordMatch > 0 || searchLocationMatch > 0,
+        likedMatch: likedPropertyMatch > 0 || likedLocationMatch > 0,
+        savedMatch: savedPropertyMatch > 0 || savedLocationMatch > 0,
+        budgetMatch: budgetMatchScore,
+        intentMatch: intentCompatibilityScore > 10,
+      }),
+    };
+  }).filter((candidate) => {
+    if (!candidate) return false;
+    // When universal search is active, do not discard users with low completion or older account age
+    if (search) return true;
+    return candidate.profileCompletion >= 30 && now - new Date(candidate.updatedAt || candidate.createdAt).getTime() < 365 * 24 * 60 * 60 * 1000;
+  })
     .filter((candidate) => matchesFilter(candidate, query.filter, query.city, query.profession, query.verified, query.nearby))
     .sort((a, b) => b.recommendationScore - a.recommendationScore || b.engagementScore - a.engagementScore);
 

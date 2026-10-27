@@ -12,6 +12,7 @@ import {
   updateMyProfile,
   getUserPublicProfile,
   getUserFriendsList,
+  getMutualFriendsList,
   updateUserLocation,
   updateWorkLocation,
   updateDigestPreference,
@@ -38,6 +39,7 @@ router.get("/friends", getMyFriends);
 router.get("/connections", getMyFriends);
 router.get("/:id/profile", getUserPublicProfile);
 router.get("/:id/friends", getUserFriendsList);
+router.get("/:id/mutual-friends", getMutualFriendsList);
 router.patch("/profile", uploadProfileImage.single("profileImage"), updateMyProfile);
 router.patch("/account", uploadProfileImage.single("profileImage"), updateMyProfile);
 router.patch("/location", updateUserLocation);

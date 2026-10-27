@@ -48,6 +48,7 @@ export function clearAuthTokens() {
   try {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem("NEARMPSPACE_WEB_CACHE_V1");
   } catch {
     // Ignore.
   }

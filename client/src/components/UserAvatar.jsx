@@ -50,7 +50,7 @@ export default function UserAvatar({
     return (
       <Link
         to={`/users/${finalUserId}`}
-        className="inline-block"
+        className="inline-block shrink-0"
         onClick={(event) => {
           event.stopPropagation();
           if (onClick) onClick();
@@ -61,5 +61,9 @@ export default function UserAvatar({
     );
   }
 
-  return avatarContent;
+  return (
+    <div className="inline-block shrink-0" onClick={onClick}>
+      {avatarContent}
+    </div>
+  );
 }

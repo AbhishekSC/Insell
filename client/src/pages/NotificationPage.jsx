@@ -49,19 +49,19 @@ function IncomingRequest({ request, onAccept, onReject, busy }) {
   const sender = request?.sender;
 
   return (
-    <article className="notification-request-card">
-      <UserAvatar src={sender?.profilePic} name={sender?.fullName || "User"} sizeClass="size-12" className="ring-2 ring-success/15" />
-      <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-1 truncate text-sm font-bold">
-          <span className="truncate">{sender?.fullName || "Unknown user"}</span>
+    <article className="notification-request-card min-w-0 w-full overflow-hidden">
+      <UserAvatar src={sender?.profilePic} name={sender?.fullName || "User"} sizeClass="size-12" className="ring-2 ring-success/15 shrink-0" />
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <p className="flex min-w-0 items-center gap-1 text-sm font-bold">
+          <span className="min-w-0 truncate" title={sender?.fullName || "Unknown user"}>{sender?.fullName || "Unknown user"}</span>
           {sender?.isOwnerVerified && <BadgeCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />}
         </p>
         <MarketProfile user={sender} />
-        <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-base-content/50"><MapPin className="size-3" />{sender?.city || sender?.homeBase || sender?.location || "City not set"}</p>
+        <p className="mt-1 inline-flex max-w-full min-w-0 items-center gap-1 text-[11px] text-base-content/50 truncate"><MapPin className="size-3 shrink-0" /><span className="truncate">{sender?.city || sender?.homeBase || sender?.location || "City not set"}</span></p>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
         <button type="button" className="btn btn-ghost btn-sm btn-circle text-base-content/60" onClick={() => onReject(request._id)} disabled={busy} aria-label={`Decline ${sender?.fullName || "request"}`}><X className="size-4" /></button>
-        <button type="button" className="btn btn-success btn-sm rounded-xl" onClick={() => onAccept(request._id)} disabled={busy}><Check className="size-4" />Accept</button>
+        <button type="button" className="btn btn-success btn-sm rounded-xl whitespace-nowrap" onClick={() => onAccept(request._id)} disabled={busy}><Check className="size-4 shrink-0" />Accept</button>
       </div>
     </article>
   );
@@ -69,25 +69,25 @@ function IncomingRequest({ request, onAccept, onReject, busy }) {
 
 function RecommendationCard({ user, onSend, busy }) {
   return (
-    <article className="notification-person-card">
-      <div className="flex items-start gap-3">
-        <UserAvatar src={user?.profilePic} name={user?.fullName || "User"} sizeClass="size-11" className="ring-2 ring-primary/10" />
-        <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1 truncate text-sm font-bold">
-            <span className="truncate">{user?.fullName || "Unknown user"}</span>
+    <article className="notification-person-card min-w-0 w-full overflow-hidden">
+      <div className="flex min-w-0 items-start gap-3">
+        <UserAvatar src={user?.profilePic} name={user?.fullName || "User"} sizeClass="size-11" className="ring-2 ring-primary/10 shrink-0" />
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <p className="flex min-w-0 items-center gap-1 text-sm font-bold">
+            <span className="min-w-0 truncate" title={user?.fullName || "Unknown user"}>{user?.fullName || "Unknown user"}</span>
             {user?.isOwnerVerified && <BadgeCheck className="size-3.5 shrink-0 text-primary" aria-label="Verified Owner" />}
           </p>
           <MarketProfile user={user} />
-          <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-base-content/50"><MapPin className="size-3" />{user?.city || user?.homeBase || user?.location || "City not set"}</p>
+          <p className="mt-1 inline-flex max-w-full min-w-0 items-center gap-1 text-[11px] text-base-content/50 truncate"><MapPin className="size-3 shrink-0" /><span className="truncate">{user?.city || user?.homeBase || user?.location || "City not set"}</span></p>
           {user?.recommendationReason && (
-            <p className="mt-1.5 text-[10px] text-primary font-medium flex items-center gap-1">
-              <Sparkles className="size-3" />
-              {user.recommendationReason}
+            <p className="mt-1.5 text-[10px] text-primary font-medium flex min-w-0 items-center gap-1 truncate">
+              <Sparkles className="size-3 shrink-0" />
+              <span className="truncate">{user.recommendationReason}</span>
             </p>
           )}
         </div>
       </div>
-      <button type="button" className="btn btn-primary btn-sm mt-4 w-full rounded-xl" onClick={() => onSend(user._id)} disabled={busy}><UserRoundPlus className="size-4" />Connect</button>
+      <button type="button" className="btn btn-primary btn-sm mt-4 w-full rounded-xl whitespace-nowrap" onClick={() => onSend(user._id)} disabled={busy}><UserRoundPlus className="size-4 shrink-0" />Connect</button>
     </article>
   );
 }
