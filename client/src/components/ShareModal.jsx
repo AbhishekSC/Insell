@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { X, Copy, Check, Search, MessageCircle, Facebook, Send, Loader2, BadgeCheck } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import { useFriends } from "../hooks/useFriends";

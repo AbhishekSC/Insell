@@ -836,10 +836,8 @@ export default function MarketplacePage() {
     const lastPage = data.pages[data.pages.length - 1];
     const current = Number(lastPage?.pagination?.page || 1);
     const total = Number(lastPage?.pagination?.totalPages || 1);
-    const nextCursor = lastPage?.pagination?.nextCursor;
     const hasMore = lastPage?.pagination?.hasMore ?? (current < total);
     if (!hasMore) return;
-    const nextParam = { page: current + 1, cursor: nextCursor || undefined };
     queryClient.prefetchInfiniteQuery({
       queryKey: [
         "propertyFeed", activeCategory, search, searchType, searchAuthorId,

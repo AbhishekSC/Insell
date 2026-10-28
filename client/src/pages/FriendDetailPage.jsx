@@ -1,10 +1,8 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Loader2, MapPin, BadgeCheck } from "lucide-react";
 import { Link, useParams } from "react-router";
 import AppShell from "../components/AppShell";
 import UserAvatar from "../components/UserAvatar";
-import axiosInstance from "../lib/axios";
 import { useFriends } from "../hooks/useFriends";
 
 export default function FriendDetailPage() {
