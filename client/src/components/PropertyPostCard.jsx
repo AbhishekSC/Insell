@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   Heart,
@@ -114,7 +114,7 @@ function GalleryImage({ src, alt, onDoubleClick }) {
 // as slots/callbacks — this component only owns the structural shell:
 // media (author + location overlay, slide counter), the like/comment/share/
 // save action bar, and a full-width contact CTA.
-export default function PropertyPostCard({
+export default React.memo(function PropertyPostCard({
   post,
   media = [],
   onDoubleClickMedia,
@@ -501,8 +501,12 @@ export default function PropertyPostCard({
                 onClick={onOpenLikes ? stop(onOpenLikes) : undefined}
                 title="View who liked this post"
               >
-                {post.socialProof.avatar && (
+                {post.socialProof.avatar ? (
                   <img src={post.socialProof.avatar} alt="" className="size-4 rounded-full object-cover ring-1 ring-white/30" />
+                ) : (
+                  <div className="size-4 rounded-full bg-primary/60 ring-1 ring-white/30 grid place-items-center text-[8px] font-bold text-white">
+                    {post.socialProof.fullName?.[0] || "U"}
+                  </div>
                 )}
                 <span className="truncate text-[11px]">
                   Liked by <span className="font-semibold text-white">{post.socialProof.fullName}</span>
@@ -819,8 +823,12 @@ export default function PropertyPostCard({
             className="flex items-center gap-1.5 text-left text-xs text-base-content/75 hover:opacity-85"
             onClick={onOpenLikes ? stop(onOpenLikes) : undefined}
           >
-            {post.socialProof.avatar && (
+            {post.socialProof.avatar ? (
               <img src={post.socialProof.avatar} alt="" className="size-4 rounded-full object-cover" />
+            ) : (
+              <div className="size-4 rounded-full bg-primary/60 grid place-items-center text-[8px] font-bold text-white">
+                {post.socialProof.fullName?.[0] || "U"}
+              </div>
             )}
             <span className="truncate">
               Liked by <span className="font-semibold text-base-content">{post.socialProof.fullName}</span>
@@ -904,4 +912,15 @@ export default function PropertyPostCard({
       </div>
     </article>
   );
-}
+}, (prev, next) => {
+  return prev.post?._id === next.post?._id
+    && prev.isLiked === next.isLiked
+    && prev.likesCount === next.likesCount
+    && prev.isSaved === next.isSaved
+    && prev.savesCount === next.savesCount
+    && prev.commentsCount === next.commentsCount
+    && prev.viewsCount === next.viewsCount
+    && prev.className === next.className
+    && prev.isOwnPost === next.isOwnPost
+    && prev.media === next.media;
+});

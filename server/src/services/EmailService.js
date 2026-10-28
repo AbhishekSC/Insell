@@ -1,6 +1,6 @@
 import axios from "axios";
 import { logger } from "../utils/logger.js";
-import { enqueueNotification } from "../queues/notification.queue.js";
+import { enqueueGenericEmail } from "../jobs/producers/email.producer.js";
 
 const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
@@ -66,8 +66,8 @@ export async function sendVerificationEmail(email, code, userName) {
     };
 
     try {
-      await enqueueNotification("EMAIL", { email, subject, htmlContent: html });
-      logger.info(`✅ Verification email enqueued to BullMQ for ${email}`);
+      await enqueueGenericEmail(email, subject, html);
+      logger.info(`Verification email enqueued for ${email}`);
       return { success: true };
     } catch (queueError) {
       logger.warn("Failed to enqueue verification email, sending directly:", queueError?.message);
@@ -77,7 +77,7 @@ export async function sendVerificationEmail(email, code, userName) {
           'Content-Type': 'application/json',
         },
       });
-      logger.info(`✅ Verification email sent directly to ${email}`, { messageId: response.data?.messageId });
+      logger.info(`Verification email sent directly to ${email}`, { messageId: response.data?.messageId });
       return { success: true, messageId: response.data?.messageId };
     }
   } catch (error) {
@@ -145,8 +145,8 @@ export async function sendWelcomeEmail(email, userName) {
     };
 
     try {
-      await enqueueNotification("EMAIL", { email, subject, htmlContent: html });
-      logger.info(`✅ Welcome email enqueued to BullMQ for ${email}`);
+      await enqueueGenericEmail(email, subject, html);
+      logger.info(`Welcome email enqueued for ${email}`);
       return { success: true };
     } catch (queueError) {
       logger.warn("Failed to enqueue welcome email, sending directly:", queueError?.message);

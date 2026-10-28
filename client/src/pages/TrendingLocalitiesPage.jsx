@@ -26,7 +26,7 @@ export default function TrendingLocalitiesPage() {
   };
 
   return (
-    <AppShell hideHero title="Trending Localities" subtitle="Popular areas other buyers and renters are searching">
+    <AppShell hideHero hideMobileHeader title="Trending Localities" subtitle="Popular areas other buyers and renters are searching">
       <div className="mx-auto max-w-3xl px-4 py-6 pb-24">
         <div className="mb-6 flex items-center gap-4 rounded-2xl bg-gradient-to-r from-primary to-secondary p-5 text-white shadow-sm">
           <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-white/15">

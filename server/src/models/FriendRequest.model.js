@@ -22,6 +22,8 @@ const friendRequestSchema = new mongoose.Schema(
 );
 
 friendRequestSchema.index({ sender: 1, receiver: 1 });
+friendRequestSchema.index({ receiver: 1, status: 1 });
+friendRequestSchema.index({ sender: 1, status: 1 });
 
 const FriendRequest = mongoose.model("FriendRequest", friendRequestSchema);
 

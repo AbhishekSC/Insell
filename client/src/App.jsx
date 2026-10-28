@@ -6,7 +6,7 @@ import AccountBlockedModal from "./components/AccountBlockedModal";
 import AppToaster from "./components/AppToaster";
 import BrandLoader from "./components/BrandLoader";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import axiosInstance from "./lib/axios";
 import posthog, { isPostHogEnabled } from "./lib/posthog";
 import Sentry, { isSentryEnabled } from "./lib/sentry";
@@ -120,6 +120,18 @@ function App() {
   useEffect(() => {
     if (!isPostHogEnabled()) return;
     posthog.capture("$pageview", { $current_url: window.location.href });
+  }, [location.pathname]);
+
+  // Scroll to top on forward navigation for pages that don't manage their own
+  // scroll restoration. The marketplace feed handles its own via
+  // useScrollRestoration (which also sets history.scrollRestoration = "manual").
+  const prevPathRef = useRef(location.pathname);
+  useEffect(() => {
+    const prev = prevPathRef.current;
+    prevPathRef.current = location.pathname;
+    const selfRestored = ["/marketplace", "/community"];
+    if (selfRestored.some((p) => location.pathname.startsWith(p))) return;
+    if (prev !== location.pathname) window.scrollTo(0, 0);
   }, [location.pathname]);
 
   if (isLoading) {

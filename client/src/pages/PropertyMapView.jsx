@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, memo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { MapContainer, TileLayer, Marker, Popup, Tooltip, Circle, Polyline, useMap } from "react-leaflet";
-import { MapPin, Bed, Bath, Square, Building2, Home, Filter, X, SlidersHorizontal, GraduationCap, Hospital, Train, ShoppingBag, Trees, ChevronDown, ArrowLeft, Search, LocateFixed, Loader2 } from "lucide-react";
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, Circle, Polyline, useMap, useMapEvents } from "react-leaflet";
+import { MapPin, Bed, Bath, Square, Home, X, SlidersHorizontal, GraduationCap, Hospital, Train, ShoppingBag, Trees, ChevronDown, ArrowLeft, Search, LocateFixed, Loader2 } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useQuery } from "@tanstack/react-query";
@@ -58,26 +58,51 @@ const youAreHereIcon = L.divIcon({
   iconAnchor: [10, 10],
 });
 
-// Small teardrop pin. Price + details live in a hover tooltip / click popup
-// instead of a fat always-on price pill (which overlapped badly when zoomed
-// out). Selected property gets a distinct colour.
-const createPinIcon = (isSelected = false) => {
-  const fill = isSelected ? "#f59e0b" : "#2563eb";
-  return L.divIcon({
-    className: "property-pin",
+// Compact price formatter for map pins — "25L", "1.2Cr", etc.
+function formatPinPrice(price) {
+  if (!price) return "₹ ?";
+  if (price >= 1_00_00_000) {
+    const cr = price / 1_00_00_000;
+    return `₹${cr % 1 === 0 ? cr.toFixed(0) : cr.toFixed(1)}Cr`;
+  }
+  if (price >= 1_00_000) {
+    const lakh = price / 1_00_000;
+    return `₹${lakh % 1 === 0 ? lakh.toFixed(0) : lakh.toFixed(1)}L`;
+  }
+  if (price >= 1000) return `₹${(price / 1000).toFixed(0)}K`;
+  return `₹${price}`;
+}
+
+// Price-pill pin — shows the price directly on the map as a compact badge.
+// Color-coded: blue for Sale, emerald for Rent, amber for selected.
+const PIN_COLORS = { Buy: "#2563eb", Rent: "#059669", default: "#2563eb" };
+const PIN_SELECTED = "#f59e0b";
+const pinIconCache = new Map();
+
+function createPricePinIcon(price, listingType, isSelected = false) {
+  const bg = isSelected ? PIN_SELECTED : (PIN_COLORS[listingType] || PIN_COLORS.default);
+  const label = formatPinPrice(price);
+  const cacheKey = `${label}-${bg}`;
+  if (pinIconCache.has(cacheKey)) return pinIconCache.get(cacheKey);
+
+  const icon = L.divIcon({
+    className: "price-pin",
     html: `
-      <svg width="26" height="34" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg">
-        <path d="M13 0C5.82 0 0 5.82 0 13c0 9.75 13 21 13 21s13-11.25 13-21C26 5.82 20.18 0 13 0z"
-          fill="${fill}" stroke="#ffffff" stroke-width="2"/>
-        <circle cx="13" cy="13" r="4.5" fill="#ffffff"/>
-      </svg>
+      <div style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;">
+        <div style="background:${bg};color:#fff;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.25);border:1.5px solid rgba(255,255,255,.9);line-height:1.2;letter-spacing:-.2px;">
+          ${label}
+        </div>
+        <div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:5px solid ${bg};margin-top:-1px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.15));"></div>
+      </div>
     `,
-    iconSize: [26, 34],
-    iconAnchor: [13, 34],
+    iconSize: [0, 0],
+    iconAnchor: [0, 28],
     popupAnchor: [0, -30],
     tooltipAnchor: [0, -30],
   });
-};
+  if (!isSelected) pinIconCache.set(cacheKey, icon);
+  return icon;
+}
 
 // Amenity marker icons
 const AMENITY_CONFIG = {
@@ -110,7 +135,7 @@ const AMENITY_CONFIG = {
 
 const createAmenityIcon = (type) => {
   const config = AMENITY_CONFIG[type] || AMENITY_CONFIG.schools;
-  
+
   return L.divIcon({
     className: "amenity-marker",
     html: `
@@ -125,15 +150,66 @@ const createAmenityIcon = (type) => {
   });
 };
 
-function MapViewUpdater({ center, zoom }) {
+const AMENITY_MIN_ZOOM = 14;
+
+function MapViewUpdater({ center, zoom, onMapClick, onZoomEnd }) {
   const map = useMap();
   useEffect(() => {
     if (center) {
       map.setView(center, zoom);
     }
   }, [center, zoom, map]);
+  useMapEvents({
+    click: () => { onMapClick?.(); },
+    zoomend: () => { onZoomEnd?.(map.getZoom()); },
+  });
   return null;
 }
+
+const PropertyMarker = memo(function PropertyMarker({ property, isSelected, isMobile, onSelect, onNavigate }) {
+  const handler = useMemo(() => ({ click: () => onSelect(property) }), [property, onSelect]);
+  return (
+    <Marker
+      position={[property.latitude, property.longitude]}
+      icon={createPricePinIcon(property.price, property.listingType, isSelected)}
+      eventHandlers={handler}
+    >
+      {!isMobile && (
+        <Tooltip direction="top" offset={[0, -6]} opacity={1} className="pin-price-tooltip">
+          {(property.locality || property.city) && (
+            <span className="text-[10px] text-base-content/60">
+              {property.locality || property.city}
+            </span>
+          )}
+          {property.bedrooms > 0 && (
+            <span className="text-[10px] text-base-content/60">
+              {property.locality || property.city ? " · " : ""}{property.bedrooms} BHK
+            </span>
+          )}
+        </Tooltip>
+      )}
+      {isMobile && (
+        <Popup maxWidth={170} minWidth={20} closeButton={false} className="map-mini-popup">
+          <button
+            type="button"
+            onClick={() => onNavigate(`/property/${property._id}`)}
+            className="block whitespace-nowrap p-0.5 text-left leading-tight"
+          >
+            <span className="block text-sm font-bold text-primary">
+              {!property.price ? "Price on request" : new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(property.price)}
+            </span>
+            {(property.locality || property.city) && (
+              <span className="block text-[11px] text-base-content/60">
+                {property.locality || property.city}
+              </span>
+            )}
+            <span className="mt-0.5 block text-[11px] font-semibold text-primary">View details ›</span>
+          </button>
+        </Popup>
+      )}
+    </Marker>
+  );
+});
 
 export default function PropertyMapView() {
   const navigate = useNavigate();
@@ -168,10 +244,13 @@ export default function PropertyMapView() {
   // to actually filter which properties are shown).
   const [searchQuery, setSearchQuery] = useState("");
   const [searchSelection, setSearchSelection] = useState(null);
+  const [searchHighlight, setSearchHighlight] = useState(-1);
   const [selectedProperty, setSelectedProperty] = useState(null);
   // Separate from selectedProperty on purpose: closing the selected-property
   // card shouldn't also wipe the amenity markers/radius off the map.
   const [amenitiesAnchor, setAmenitiesAnchor] = useState(null);
+  const [currentZoom, setCurrentZoom] = useState(5);
+  const handleZoomEnd = useCallback((z) => setCurrentZoom(z), []);
 
   // On phones we don't open the big Leaflet popup — first tap on a pin shows a
   // compact price tooltip, a second tap on the same pin opens the detail page.
@@ -196,6 +275,8 @@ export default function PropertyMapView() {
       const response = await axiosInstance.get("/posts?limit=100");
       return response.data?.data || { posts: [] };
     },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   // Fetch location suggestions from API with debouncing
@@ -223,7 +304,9 @@ export default function PropertyMapView() {
       return response.data?.data || [];
     },
     enabled: debouncedQuery.length >= 2,
-    retry: false, // Don't retry on rate limit errors
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: false,
   });
 
   // When deep-linked from a post's "Live Location" button, fetch that exact
@@ -255,6 +338,8 @@ export default function PropertyMapView() {
       return { items: response.data?.data || [], radius: response.data?.radius || 2000 };
     },
     enabled: !!amenitiesAnchor?.latitude && !!amenitiesAnchor?.longitude,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     retry: 1,
   });
   const amenitiesData = amenitiesResult?.items;
@@ -329,8 +414,12 @@ export default function PropertyMapView() {
     }
 
     if (properties.length === 0) {
-      // Frame on the user's own location if we have one, else the country.
       return myPoint ? { center: myPoint, zoom: 12 } : { center: [20.5937, 78.9629], zoom: 5 };
+    }
+
+    const noFiltersActive = !locationFilters.state && !locationFilters.city;
+    if (noFiltersActive && myPoint) {
+      return { center: myPoint, zoom: 12 };
     }
 
     // If state is selected, try to find state center
@@ -365,10 +454,10 @@ export default function PropertyMapView() {
     return { center: [avgLat, avgLng], zoom: 10 };
   }, [properties, locationFilters.state, locationFilters.city, searchSelection, focusPropertyId, deepLinkedProperty, data?.posts, myPoint]);
 
-  // Update map center when filters change
   useEffect(() => {
     setMapCenter(mapView.center);
     setMapZoom(mapView.zoom);
+    setCurrentZoom(mapView.zoom);
   }, [mapView]);
 
 
@@ -381,10 +470,15 @@ export default function PropertyMapView() {
     }).format(price);
   };
 
-  const handleMarkerClick = (property) => {
+  const handleMarkerClick = useCallback((property) => {
     setMapCenter([property.latitude, property.longitude]);
     setSelectedProperty(property);
     setAmenitiesAnchor(property);
+  }, []);
+
+  const handleMapClick = () => {
+    setSelectedProperty(null);
+    setAmenitiesAnchor(null);
   };
 
   // Deep-linked from a post's "Live Location" button (?propertyId=...) — once
@@ -491,7 +585,7 @@ export default function PropertyMapView() {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            <MapViewUpdater center={mapCenter} zoom={mapZoom} />
+            <MapViewUpdater center={mapCenter} zoom={mapZoom} onMapClick={handleMapClick} onZoomEnd={handleZoomEnd} />
 
             {/* Searched place — a soft circle over roughly the area the user
                 searched for, so "these pins belong to Indore" reads visually
@@ -551,103 +645,16 @@ export default function PropertyMapView() {
               </>
             )}
 
-            {properties.map((property) => {
-              const isSel = selectedProperty?._id === property._id;
-              return (
-              <Marker
+            {properties.map((property) => (
+              <PropertyMarker
                 key={property._id}
-                position={[property.latitude, property.longitude]}
-                icon={createPinIcon(isSel)}
-                eventHandlers={{ click: () => handleMarkerClick(property) }}
-              >
-                {!isMobile && (
-                  <Tooltip direction="top" offset={[0, -6]} opacity={1} className="pin-price-tooltip">
-                    <span className="font-bold text-primary">{formatPrice(property.price)}</span>
-                    {(property.locality || property.city) && (
-                      <span className="block text-[10px] text-base-content/60">
-                        {property.locality || property.city}
-                      </span>
-                    )}
-                  </Tooltip>
-                )}
-                <Popup
-                  maxWidth={isMobile ? 170 : 200}
-                  minWidth={isMobile ? 20 : 50}
-                  closeButton={!isMobile}
-                  className={isMobile ? "map-mini-popup" : "custom-popup"}
-                >
-                  {isMobile ? (
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/property/${property._id}`)}
-                      className="block whitespace-nowrap p-0.5 text-left leading-tight"
-                    >
-                      <span className="block text-sm font-bold text-primary">{formatPrice(property.price)}</span>
-                      {(property.locality || property.city) && (
-                        <span className="block text-[11px] text-base-content/60">
-                          {property.locality || property.city}
-                        </span>
-                      )}
-                      <span className="mt-0.5 block text-[11px] font-semibold text-primary">View details ›</span>
-                    </button>
-                  ) : (
-                  <div className="p-0 w-[172px]">
-                    {property.mediaUrls?.[0] && (
-                      <img
-                        src={property.mediaUrls[0]}
-                        alt={property.title}
-                        className="w-full h-20 object-cover rounded-t-lg"
-                      />
-                    )}
-                    <div className="p-2">
-                      <h3 className="text-xs font-bold text-base-content mb-1 line-clamp-2">
-                        {property.title || "Property"}
-                      </h3>
-                      <p className="text-sm font-bold text-primary mb-1.5">
-                        {formatPrice(property.price)}
-                      </p>
-                      <div className="flex items-center gap-1 text-[11px] text-base-content/70 mb-1.5">
-                        <MapPin className="size-3 text-base-content/50 shrink-0" />
-                        <span className="truncate">{property.city || "City"}</span>
-                        {property.locality && <span className="truncate">· {property.locality}</span>}
-                      </div>
-                      <div className="flex items-center gap-2 text-[11px] text-base-content/70 mb-2 flex-wrap">
-                        {property.bedrooms > 0 && (
-                          <span className="flex items-center gap-1">
-                            <Bed className="size-3 text-base-content/50" />
-                            {property.bedrooms} BHK
-                          </span>
-                        )}
-                        {property.bathrooms > 0 && (
-                          <span className="flex items-center gap-1">
-                            <Bath className="size-3 text-base-content/50" />
-                            {property.bathrooms}
-                          </span>
-                        )}
-                        {property.areaSqft > 0 && (
-                          <span className="flex items-center gap-1">
-                            <Square className="size-3 text-base-content/50" />
-                            {property.areaSqft.toLocaleString()} sqft
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          navigate(`/property/${property._id}`);
-                        }}
-                        className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs bg-primary text-white rounded-full font-semibold shadow-lg shadow-primary/20 hover:bg-primary hover:shadow-xl transition-all duration-200"
-                      >
-                        <Home className="size-3" />
-                        View Details
-                      </button>
-                    </div>
-                  </div>
-                  )}
-                </Popup>
-              </Marker>
-              );
-            })}
+                property={property}
+                isSelected={selectedProperty?._id === property._id}
+                isMobile={isMobile}
+                onSelect={handleMarkerClick}
+                onNavigate={navigate}
+              />
+            ))}
 
             {/* Deep-linked property that isn't in the map's 100-item list —
                 render its marker so "Live Location" always lands on a pin. */}
@@ -655,21 +662,23 @@ export default function PropertyMapView() {
               && !properties.some((p) => p._id === deepLinkedProperty._id) && (
               <Marker
                 position={[deepLinkedProperty.latitude, deepLinkedProperty.longitude]}
-                icon={createPinIcon(true)}
+                icon={createPricePinIcon(deepLinkedProperty.price, deepLinkedProperty.listingType, true)}
                 eventHandlers={{ click: () => handleMarkerClick(deepLinkedProperty) }}
               >
-                {!isMobile && (
+                {!isMobile && (deepLinkedProperty.locality || deepLinkedProperty.city) && (
                   <Tooltip direction="top" offset={[0, -6]} opacity={1} className="pin-price-tooltip">
-                    <span className="font-bold text-primary">{formatPrice(deepLinkedProperty.price)}</span>
+                    <span className="text-[10px] text-base-content/60">
+                      {deepLinkedProperty.locality || deepLinkedProperty.city}
+                    </span>
                   </Tooltip>
                 )}
-                <Popup
-                  maxWidth={isMobile ? 170 : 200}
-                  minWidth={isMobile ? 20 : 50}
-                  closeButton={!isMobile}
-                  className={isMobile ? "map-mini-popup" : undefined}
-                >
-                  {isMobile ? (
+                {isMobile && (
+                  <Popup
+                    maxWidth={170}
+                    minWidth={20}
+                    closeButton={false}
+                    className="map-mini-popup"
+                  >
                     <button
                       type="button"
                       onClick={() => navigate(`/property/${deepLinkedProperty._id}`)}
@@ -683,69 +692,46 @@ export default function PropertyMapView() {
                       )}
                       <span className="mt-0.5 block text-[11px] font-semibold text-primary">View details ›</span>
                     </button>
-                  ) : (
-                  <div className="p-2 w-[172px]">
-                    <h3 className="text-xs font-bold text-base-content mb-1 line-clamp-2">{deepLinkedProperty.title || "Property"}</h3>
-                    <p className="text-sm font-bold text-primary mb-1">{formatPrice(deepLinkedProperty.price)}</p>
-                    {distanceToFocusKm != null && (
-                      <p className="text-[11px] font-semibold" style={{ color: YOU_ARE_HERE_COLOR }}>{formatKm(distanceToFocusKm)} from you</p>
-                    )}
-                    <button
-                      onClick={(e) => { e.preventDefault(); navigate(`/property/${deepLinkedProperty._id}`); }}
-                      className="mt-1.5 w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs bg-primary text-white rounded-full font-semibold"
-                    >
-                      <Home className="size-3" /> View Details
-                    </button>
-                  </div>
-                  )}
-                </Popup>
+                  </Popup>
+                )}
               </Marker>
             )}
 
-            {/* Amenity Markers — tied to amenitiesAnchor, not selectedProperty, so
-                these stay on the map even after the property card is closed */}
-            {amenitiesAnchor && amenitiesData?.map((amenity) => (
+            {/* Amenity Markers — only visible at street zoom (≥14) to reduce clutter
+                when zoomed out. Tied to amenitiesAnchor, not selectedProperty. */}
+            {amenitiesAnchor && currentZoom >= AMENITY_MIN_ZOOM && amenitiesData?.map((amenity) => {
+              const emoji = amenity.type === 'schools' ? '🏫' : amenity.type === 'hospitals' ? '🏥' : amenity.type === 'metro' ? '🚇' : amenity.type === 'parks' ? '🌳' : '🏬';
+              const proximityColor = amenity.distance < 500 ? '#16a34a' : amenity.distance < 1000 ? '#2563eb' : '#6b7280';
+              return (
               <Marker
                 key={`amenity-${amenity.id}`}
                 position={[amenity.lat, amenity.lng]}
                 icon={createAmenityIcon(amenity.type)}
               >
-                <Popup maxWidth={280}>
-                  <div className="p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-2xl">
-                        {amenity.type === 'schools' ? '🏫' : amenity.type === 'hospitals' ? '🏥' : amenity.type === 'metro' ? '🚇' : amenity.type === 'parks' ? '🌳' : '🏬'}
-                      </span>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-base-content text-sm">{amenity.name}</h4>
-                        <p className="text-xs text-base-content/70">
-                          {AMENITY_CONFIG[amenity.type]?.label}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-base-200">
-                      <p className="text-xs text-base-content/60">
-                        <MapPin className="size-3 inline mr-1" />
-                        {amenity.distance}m away
-                      </p>
-                      <span className="text-xs font-medium text-primary">
-                        {amenity.distance < 500 ? 'Very Close' : amenity.distance < 1000 ? 'Close' : 'Nearby'}
-                      </span>
-                    </div>
-                  </div>
-                </Popup>
+                {/* Desktop: hover tooltip. Mobile: tap popup (tooltips don't fire on touch). */}
+                {isMobile ? (
+                  <Popup maxWidth={180} minWidth={80} closeButton={false} className="amenity-tip-popup">
+                    <span className="text-[11px] font-semibold">{emoji} {amenity.name}</span>
+                    <span className="text-[10px] font-semibold" style={{ color: proximityColor }}> · {amenity.distance}m</span>
+                  </Popup>
+                ) : (
+                  <Tooltip direction="top" offset={[0, -18]} opacity={1} className="amenity-tip">
+                    <span className="text-[11px] font-semibold">{emoji} {amenity.name}</span>
+                    <span className="text-[10px] font-semibold" style={{ color: proximityColor }}> · {amenity.distance}m</span>
+                  </Tooltip>
+                )}
               </Marker>
-            ))}
+              );
+            })}
 
-            {/* Amenities search radius — tied to amenitiesAnchor so it persists
-                after the selected-property card is closed */}
-            {amenitiesAnchor?.latitude && amenitiesAnchor?.longitude && (
+            {/* Amenities search radius — warm orange, distinct from the blue city/search circle */}
+            {amenitiesAnchor?.latitude && amenitiesAnchor?.longitude && currentZoom >= AMENITY_MIN_ZOOM && (
               <Circle
                 center={[amenitiesAnchor.latitude, amenitiesAnchor.longitude]}
                 radius={amenitiesResult?.radius || 2000}
                 pathOptions={{
-                  color: '#4f46e5',
-                  fillColor: '#4f46e5',
+                  color: '#f59e0b',
+                  fillColor: '#f59e0b',
                   fillOpacity: 0.06,
                   weight: 1.5,
                   dashArray: '6 6'
@@ -753,28 +739,30 @@ export default function PropertyMapView() {
               />
             )}
 
-            {/* Search radius circles for location filters */}
+            {/* City filter radius — teal, distinct from search circle (blue) and amenity circle (orange) */}
             {locationFilters.city && (
               <Circle
                 center={mapView.center}
-                radius={5000} // 5km radius for city search
+                radius={5000}
                 pathOptions={{
-                  color: '#6366f1',
-                  fillColor: '#6366f1',
-                  fillOpacity: 0.1,
-                  weight: 2
+                  color: '#0d9488',
+                  fillColor: '#0d9488',
+                  fillOpacity: 0.07,
+                  weight: 2,
+                  dashArray: '8 6'
                 }}
               />
             )}
             {locationFilters.state && !locationFilters.city && (
               <Circle
                 center={mapView.center}
-                radius={50000} // 50km radius for state search
+                radius={50000}
                 pathOptions={{
                   color: '#8b5cf6',
                   fillColor: '#8b5cf6',
                   fillOpacity: 0.05,
-                  weight: 2
+                  weight: 2,
+                  dashArray: '8 6'
                 }}
               />
             )}
@@ -807,9 +795,37 @@ export default function PropertyMapView() {
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
                     setSearchSelection(null);
+                    setSearchHighlight(-1);
                   }}
                   onFocus={() => setShowSuggestions({ ...showSuggestions, area: true })}
                   onBlur={() => setTimeout(() => setShowSuggestions({ ...showSuggestions, area: false }), 200)}
+                  onKeyDown={(e) => {
+                    const items = locationSuggestions?.slice(0, 10) || [];
+                    if (!items.length) return;
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setSearchHighlight((prev) => (prev + 1) % items.length);
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setSearchHighlight((prev) => (prev <= 0 ? items.length - 1 : prev - 1));
+                    } else if (e.key === "Enter" && searchHighlight >= 0 && searchHighlight < items.length) {
+                      e.preventDefault();
+                      const loc = items[searchHighlight];
+                      setSearchQuery(loc.locality || loc.name);
+                      setSearchSelection({
+                        lat: loc.lat,
+                        lng: loc.lng,
+                        zoom: loc.locality ? 14 : loc.city ? 12 : 8,
+                        radiusMeters: searchAreaRadiusMeters(loc),
+                        label: loc.locality || loc.name,
+                      });
+                      setShowSuggestions({ ...showSuggestions, area: false });
+                      setSearchHighlight(-1);
+                    } else if (e.key === "Escape") {
+                      setShowSuggestions({ ...showSuggestions, area: false });
+                      setSearchHighlight(-1);
+                    }
+                  }}
                   placeholder="Search city, locality or area"
                   className="min-w-0 flex-1 bg-transparent text-sm text-base-content placeholder:text-base-content/50 focus:outline-none"
                 />
@@ -831,11 +847,12 @@ export default function PropertyMapView() {
               {showSuggestions.area && searchQuery && (
                 <div className="absolute z-50 mt-1.5 w-full max-h-60 overflow-y-auto rounded-xl border border-base-300 bg-base-100 shadow-lg">
                   {locationSuggestions && locationSuggestions.length > 0 ? (
-                    locationSuggestions.slice(0, 10).map((loc) => (
+                    locationSuggestions.slice(0, 10).map((loc, idx) => (
                       <button
                         key={loc.displayName}
                         type="button"
                         onMouseDown={(e) => e.preventDefault()}
+                        onMouseEnter={() => setSearchHighlight(idx)}
                         onClick={() => {
                           setSearchQuery(loc.locality || loc.name);
                           setSearchSelection({
@@ -846,8 +863,9 @@ export default function PropertyMapView() {
                             label: loc.locality || loc.name,
                           });
                           setShowSuggestions({ ...showSuggestions, area: false });
+                          setSearchHighlight(-1);
                         }}
-                        className="w-full px-3.5 py-2.5 text-left text-sm transition-colors hover:bg-base-200"
+                        className={`w-full px-3.5 py-2.5 text-left text-sm transition-colors ${idx === searchHighlight ? "bg-primary/10 text-primary" : "hover:bg-base-200"}`}
                       >
                         {loc.locality || loc.name}{loc.city ? `, ${loc.city}` : ""}
                       </button>
@@ -906,27 +924,28 @@ export default function PropertyMapView() {
             </div>
           )}
 
-          {/* Selected Property Badge — the marker's own Popup already shows
-              image/title/price/View Details on mobile, so this richer
-              amenities panel is desktop-only to avoid a redundant second card */}
-          {selectedProperty && (
-            <div className="hidden sm:block bg-base-100/95 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2 sm:px-4 sm:py-3 border border-base-300 w-full sm:max-w-xs">
-              <div className="flex items-start gap-2 sm:gap-3">
+          {/* Selected Property Card — desktop only; mobile uses the Leaflet Popup on the pin */}
+          {selectedProperty && !isMobile && (
+            <div className="bg-base-100/95 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2.5 border border-base-300 w-full max-w-[280px] sm:max-w-xs">
+              <div className="flex items-start gap-2.5">
                 {selectedProperty.mediaUrls?.[0] && (
                   <img
                     src={selectedProperty.mediaUrls[0]}
                     alt={selectedProperty.title}
-                    className="w-9 h-9 sm:w-12 sm:h-12 object-cover rounded-lg"
+                    className="size-11 sm:size-14 object-cover rounded-lg shrink-0"
                   />
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] sm:text-xs text-base-content/60 mb-0.5 sm:mb-1">Selected Property</p>
                   <h4 className="text-xs sm:text-sm font-semibold text-base-content truncate">{selectedProperty.title || "Property"}</h4>
-                  <div className="flex items-center gap-2">
-                    <p className="text-[11px] sm:text-xs text-primary font-medium">{formatPrice(selectedProperty.price)}</p>
+                  <p className="text-xs sm:text-sm text-primary font-bold">{formatPrice(selectedProperty.price)}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    {(selectedProperty.locality || selectedProperty.city) && (
+                      <span className="text-[10px] text-base-content/60 truncate">
+                        {selectedProperty.locality || selectedProperty.city}
+                      </span>
+                    )}
                     {distanceToFocusKm != null && selectedProperty?._id === focusProperty?._id && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
-                        <MapPin className="size-2.5" />
+                      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold" style={{ color: YOU_ARE_HERE_COLOR }}>
                         {formatKm(distanceToFocusKm)} away
                       </span>
                     )}
@@ -934,48 +953,72 @@ export default function PropertyMapView() {
                 </div>
                 <button
                   onClick={() => setSelectedProperty(null)}
-                  className="text-base-content/50 hover:text-base-content/70"
+                  className="text-base-content/40 hover:text-base-content/70 shrink-0"
                 >
                   <X className="size-4" />
                 </button>
               </div>
-              {amenitiesLoading && (
-                <div className="mt-3 pt-3 border-t border-base-200">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-primary rounded-full animate-pulse" />
-                    <p className="text-xs text-base-content/60">Loading nearby amenities...</p>
+
+              {/* Quick stats row */}
+              <div className="flex items-center gap-3 mt-2 text-[11px] text-base-content/70">
+                {selectedProperty.bedrooms > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Bed className="size-3 text-base-content/50" />
+                    {selectedProperty.bedrooms} BHK
+                  </span>
+                )}
+                {selectedProperty.bathrooms > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Bath className="size-3 text-base-content/50" />
+                    {selectedProperty.bathrooms}
+                  </span>
+                )}
+                {selectedProperty.areaSqft > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Square className="size-3 text-base-content/50" />
+                    {selectedProperty.areaSqft.toLocaleString()} sqft
+                  </span>
+                )}
+              </div>
+
+              {/* Amenities — compact, desktop only */}
+              <div className="hidden sm:block">
+                {amenitiesLoading && (
+                  <div className="mt-2 pt-2 border-t border-base-200">
+                    <div className="flex items-center gap-2">
+                      <div className="size-2.5 bg-primary rounded-full animate-pulse" />
+                      <p className="text-[11px] text-base-content/60">Loading amenities...</p>
+                    </div>
                   </div>
-                </div>
-              )}
-              {!amenitiesLoading && amenitiesError && (
-                <div className="mt-3 pt-3 border-t border-base-200">
-                  <p className="text-xs text-error">Couldn't load nearby amenities. Try again in a moment.</p>
-                </div>
-              )}
-              {!amenitiesLoading && !amenitiesError && amenitiesData?.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-base-200">
-                  <p className="text-xs text-base-content/60 mb-2">{amenitiesData.length} amenities within {amenitiesRadiusKm}km</p>
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
-                    {amenitiesData.slice(0, 5).map((amenity) => (
-                      <div key={amenity.id} className="flex items-center gap-2 text-xs">
-                        <span>
-                          {amenity.type === 'schools' ? '🏫' : amenity.type === 'hospitals' ? '🏥' : amenity.type === 'metro' ? '🚇' : amenity.type === 'parks' ? '🌳' : '🏬'}
-                        </span>
-                        <span className="truncate text-base-content">{amenity.name}</span>
-                        <span className="text-base-content/50 ml-auto">{amenity.distance}m</span>
-                      </div>
-                    ))}
-                    {amenitiesData.length > 5 && (
-                      <p className="text-xs text-base-content/50">+{amenitiesData.length - 5} more</p>
-                    )}
+                )}
+                {!amenitiesLoading && !amenitiesError && amenitiesData?.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-base-200">
+                    <p className="text-[10px] text-base-content/50 mb-1">{amenitiesData.length} amenities within {amenitiesRadiusKm}km</p>
+                    <div className="space-y-0.5 max-h-24 overflow-y-auto">
+                      {amenitiesData.slice(0, 3).map((amenity) => (
+                        <div key={amenity.id} className="flex items-center gap-1.5 text-[11px]">
+                          <span className="text-xs">
+                            {amenity.type === 'schools' ? '🏫' : amenity.type === 'hospitals' ? '🏥' : amenity.type === 'metro' ? '🚇' : amenity.type === 'parks' ? '🌳' : '🏬'}
+                          </span>
+                          <span className="truncate text-base-content/70">{amenity.name}</span>
+                          <span className="text-base-content/40 ml-auto shrink-0">{amenity.distance}m</span>
+                        </div>
+                      ))}
+                      {amenitiesData.length > 3 && (
+                        <p className="text-[10px] text-base-content/40">+{amenitiesData.length - 3} more</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-              {!amenitiesLoading && !amenitiesError && amenitiesData?.length === 0 && (
-                <div className="mt-3 pt-3 border-t border-base-200">
-                  <p className="text-xs text-base-content/50">No amenities found within {amenitiesRadiusKm}km.</p>
-                </div>
-              )}
+                )}
+              </div>
+
+              <button
+                onClick={() => navigate(`/property/${selectedProperty._id}`)}
+                className="mt-2 w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs bg-primary text-white rounded-full font-semibold shadow-sm hover:shadow-md transition-all"
+              >
+                <Home className="size-3" />
+                View Details
+              </button>
             </div>
           )}
 
@@ -1050,8 +1093,18 @@ export default function PropertyMapView() {
           </div>
         )}
 
+        {/* Pin color legend — bottom-left, just above mobile bottom nav */}
+        <div className="absolute bottom-2 left-4 z-[1000] flex items-center gap-2 rounded-lg border border-base-300 bg-base-100/95 px-2.5 py-1.5 shadow-lg backdrop-blur-sm sm:bottom-4">
+          <span className="flex items-center gap-1 text-[10px] font-medium text-base-content/70">
+            <span className="inline-block size-2.5 rounded-sm" style={{ background: "#2563eb" }} />Sale
+          </span>
+          <span className="flex items-center gap-1 text-[10px] font-medium text-base-content/70">
+            <span className="inline-block size-2.5 rounded-sm" style={{ background: "#059669" }} />Rent
+          </span>
+        </div>
+
         {/* Filter + live-location — compact floating buttons, bottom-right */}
-        <div className="absolute bottom-4 right-4 z-[1000] flex flex-col gap-2">
+        <div className="absolute bottom-2 right-4 z-[1000] flex flex-col gap-2 sm:bottom-4">
           <button
             type="button"
             onClick={handleLocateMe}

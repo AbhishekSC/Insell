@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Camera, Link2, MapPin, Phone, BadgeCheck, Sparkles, UploadCloud, UserCircle, Briefcase } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
+import { useAuthUser } from "../hooks/useAuthUser";
 import LocationPicker from "./LocationPicker";
 import EmailVerification from "./EmailVerification";
 import OwnerVerificationCard from "./OwnerVerificationCard";
@@ -10,15 +11,7 @@ import ReferralCard from "./ReferralCard";
 
 export default function ProfileContent() {
   const queryClient = useQueryClient();
-  const { data: authData } = useQuery({
-    queryKey: ["authUser"],
-    queryFn: async () => {
-      const response = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
-      return response.data;
-    },
-    staleTime: 0,
-    refetchOnMount: "always",
-  });
+  const { data: authData } = useAuthUser({ staleTime: 0, refetchOnMount: "always" });
   const authUser = authData?.data?.user || authData?.data || null;
   const availableRoles = Array.isArray(authUser?.userRoles) && authUser.userRoles.length > 0
     ? authUser.userRoles

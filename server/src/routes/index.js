@@ -1,12 +1,12 @@
 import express from "express";
 
-import authRoutes from "./auth.routes.js";
-import userRoutes from "./user.routes.js";
-import chatRoutes from "./chat.routes.js";
-import sessionRoutes from "./session.routes.js";
-import communityRoutes from "./community.routes.js";
-import propertyPostRoutes from "./propertyPost.routes.js";
-import expenseRoutes from "./expense.routes.js";
+import authRoutes from "./auth.route.js";
+import userRoutes from "./user.route.js";
+import chatRoutes from "./chat.route.js";
+import sessionRoutes from "./session.route.js";
+import communityRoutes from "./community.route.js";
+import propertyPostRoutes from "./propertyPost.route.js";
+import expenseRoutes from "./expense.route.js";
 import notificationRoutes from "./notification.route.js";
 import commentRoutes from "./comment.routes.js";
 import newsRoutes from "./news.route.js";
@@ -65,7 +65,6 @@ router.use("/admin", adminRoutes);
 router.use("/offers", offerRoutes);
 router.use("/visits", visitRequestRoutes);
 router.use("/deals", dealRoutes);
-router.use("/api/deals", dealRoutes);
 router.use("/reviews", reviewRoutes);
 router.use("/feedback", feedbackRoutes);
 router.use("/public", publicListingRoutes);

@@ -2,6 +2,7 @@ import express from "express";
 import {
   createNotification,
   getNotifications,
+  getBadgeCounts,
   markAsRead,
   markAllAsRead,
   handleMessageRequest,
@@ -16,6 +17,9 @@ router.use(requireVerified);
 
 // Create notification
 router.post("/", createNotification);
+
+// Consolidated badge counts (replaces 3 separate polling calls)
+router.get("/badge-counts", getBadgeCounts);
 
 // Get notifications for current user
 router.get("/", getNotifications);

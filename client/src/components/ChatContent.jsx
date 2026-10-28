@@ -27,6 +27,8 @@ import toast from "react-hot-toast";
 import UserAvatar from "./UserAvatar";
 import axiosInstance from "../lib/axios";
 import { useStreamContext } from "../context/StreamProvider";
+import { useAuthUser } from "../hooks/useAuthUser";
+import { useFriends } from "../hooks/useFriends";
 
 const EMPTY_FRIENDS = [];
 
@@ -102,24 +104,11 @@ export default function ChatContent({ deepLinkUserId } = {}) {
   const { streamClient: chatClient, streamReady, streamConnecting, currentUserId, videoClient, startVideoCallWithUser, videoBusy } = useStreamContext();
   const navigateToCall = useNavigate();
 
-  const { data: authData } = useQuery({
-    queryKey: ["authUser"],
-    queryFn: async () => {
-      const response = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
-      return response.data;
-    },
-    staleTime: 1000 * 60 * 5,
-  });
+  const { data: authData } = useAuthUser();
 
   const authUser = authData?.data?.user || authData?.data || null;
 
-  const { data: friendsData, isLoading } = useQuery({
-    queryKey: ["friends"],
-    queryFn: async () => {
-      const response = await axiosInstance.get("/users/friends");
-      return response.data?.data?.friends || [];
-    },
-  });
+  const { data: friendsData, isLoading } = useFriends();
 
   const friends = friendsData ?? EMPTY_FRIENDS;
   const friendIds = useMemo(() => friends.map((friend) => friend._id), [friends]);
@@ -135,7 +124,7 @@ export default function ChatContent({ deepLinkUserId } = {}) {
       return response.data?.data?.presence || {};
     },
     enabled: friendIds.length > 0,
-    refetchInterval: 10000,
+    refetchInterval: 30000,
   });
   const presenceByFriendId = callPresenceData || {};
 
@@ -330,7 +319,7 @@ export default function ChatContent({ deepLinkUserId } = {}) {
       return liveParticipants > 0 && !details?.call?.ended_at;
     },
     enabled: Boolean(videoClient && oneToOneCallRoomId),
-    refetchInterval: 5000,
+    refetchInterval: 15000,
     retry: false,
   });
 

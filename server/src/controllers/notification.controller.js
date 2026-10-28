@@ -13,8 +13,6 @@ export const createNotification = async (req, res) => {
     const { recipientId, type, message, propertyPostId, messageRequestId, actualMessage } = req.body;
     const actorId = req.user._id;
 
-    console.log("Creating notification:", { recipientId, type, message, actorId });
-
     if (!recipientId || !type || !message) {
       return res.status(400).json({
         success: false,
@@ -33,7 +31,6 @@ export const createNotification = async (req, res) => {
       requestStatus: type === "message_request" ? "pending" : undefined,
     });
 
-    console.log("Notification created successfully:", notification._id);
     logger.info(`Notification created: ${notification._id} for recipient ${recipientId}`);
 
     res.status(201).json({
@@ -42,7 +39,6 @@ export const createNotification = async (req, res) => {
       data: notification,
     });
   } catch (error) {
-    console.error("Error creating notification:", error);
     logger.error("Error creating notification:", error);
     res.status(500).json({
       success: false,
@@ -57,8 +53,6 @@ export const getNotifications = async (req, res) => {
   try {
     const userId = req.user._id;
     const { unreadOnly, type } = req.query;
-
-    console.log("Fetching notifications for user:", userId, { unreadOnly, type });
 
     const filter = { recipient: userId };
 
@@ -109,12 +103,6 @@ export const getNotifications = async (req, res) => {
       ? await Notification.countDocuments({ recipient: userId, read: false, ...typeCondition })
       : await getUnreadNotificationCount(userId);
 
-    console.log("Notifications found:", notifications.length, "Unread count:", unreadCount);
-    if (notifications.length > 0) {
-      console.log("Sample notification:", notifications[0]);
-      console.log("Sample notification actor:", notifications[0]?.actor);
-    }
-
     res.status(200).json({
       success: true,
       data: {
@@ -123,13 +111,38 @@ export const getNotifications = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching notifications:", error);
     logger.error("Error fetching notifications:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch notifications",
-      error: error.message,
     });
+  }
+};
+
+export const getBadgeCounts = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const [activityCount, messageRequestCount, friendRequestCount] = await Promise.all([
+      getUnreadNotificationCount(userId),
+      Notification.countDocuments({ recipient: userId, read: false, type: "message_request" }),
+      (async () => {
+        const FriendRequest = (await import("../models/FriendRequest.model.js")).default;
+        return FriendRequest.countDocuments({ receiver: userId, status: "pending" });
+      })(),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        activityCount,
+        messageRequestCount,
+        friendRequestCount,
+      },
+    });
+  } catch (error) {
+    logger.error("Error fetching badge counts:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch badge counts" });
   }
 };
 

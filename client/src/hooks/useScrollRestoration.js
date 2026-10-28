@@ -1,53 +1,56 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
+
+// Disable the browser's own scroll restoration — we handle it ourselves.
+if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
+  window.history.scrollRestoration = "manual";
+}
 
 // Remembers the window scroll position for a given `key` and restores it the
 // next time a component using this hook mounts with `ready === true`.
 //
 // Built for the marketplace feed: tapping a card navigates away and unmounts
 // the page, and coming back would otherwise dump the user at the top of a
-// feed they'd scrolled halfway through. The saved offset lives in
-// sessionStorage (per tab, cleared when the tab closes) keyed by the feed's
-// filter signature, so switching category/search doesn't cross-restore.
+// feed they'd scrolled halfway through.
 //
-// The infinite-scroll wrinkle: on remount the list may render its rows over
-// several frames as React Query replays cached pages, so a single
-// scrollTo() fires before the page is tall enough. We re-apply it over a
-// short burst of animation frames until the position sticks or we give up.
+// Key insight: on unmount, reading window.scrollY is unreliable — React may
+// have already torn down the tall feed DOM and replaced it with a short
+// loader, collapsing scrollY to 0. So we track the last-known position in a
+// ref (updated on every scroll event) and save THAT on unmount.
 //
 // Pass `key = null` to disable (e.g. when the feed isn't the visible view).
 export function useScrollRestoration(key, ready) {
   const storageKey = key ? `feed-scroll:${key}` : null;
   const restoredForKey = useRef(null);
+  const lastScrollY = useRef(0);
 
-  // Persist on scroll (rAF-throttled) and once more on unmount.
+  // Track scroll position continuously via a ref.
   useEffect(() => {
     if (!storageKey) return undefined;
+    lastScrollY.current = window.scrollY;
     let ticking = false;
-    const save = () => {
+    const onScroll = () => {
       if (ticking) return;
       ticking = true;
       requestAnimationFrame(() => {
+        lastScrollY.current = window.scrollY;
         try {
-          sessionStorage.setItem(storageKey, String(Math.round(window.scrollY)));
-        } catch {
-          /* private mode / storage disabled — restoration just won't happen */
-        }
+          sessionStorage.setItem(storageKey, String(Math.round(lastScrollY.current)));
+        } catch { /* ignore */ }
         ticking = false;
       });
     };
-    window.addEventListener("scroll", save, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
-      window.removeEventListener("scroll", save);
-      try {
-        sessionStorage.setItem(storageKey, String(Math.round(window.scrollY)));
-      } catch {
-        /* ignore */
+      window.removeEventListener("scroll", onScroll);
+      const pos = Math.round(lastScrollY.current);
+      if (pos > 0) {
+        try { sessionStorage.setItem(storageKey, String(pos)); } catch { /* ignore */ }
       }
     };
   }, [storageKey]);
 
-  // Restore once per key, after the feed has content to scroll within.
-  useEffect(() => {
+  // Restore once per key — useLayoutEffect so it runs before the paint.
+  useLayoutEffect(() => {
     if (!storageKey || !ready || restoredForKey.current === storageKey) return undefined;
 
     let saved = NaN;
@@ -61,22 +64,50 @@ export function useScrollRestoration(key, ready) {
       return undefined;
     }
 
-    let frame = 0;
-    let attempts = 0;
-    const apply = () => {
-      attempts += 1;
+    let done = false;
+    const finish = () => { done = true; restoredForKey.current = storageKey; };
+
+    const tryScroll = () => {
+      if (done) return;
       const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
       const target = Math.max(0, Math.min(saved, maxScroll));
       window.scrollTo(0, target);
-      // Keep retrying while the page is still growing under us (more rows
-      // mounting) and we haven't reached the target yet.
-      if (window.scrollY < saved - 4 && attempts < 25) {
-        frame = requestAnimationFrame(apply);
-      } else {
-        restoredForKey.current = storageKey;
+      if (Math.abs(window.scrollY - saved) < 5 || target >= maxScroll - 5) {
+        finish();
       }
     };
-    frame = requestAnimationFrame(apply);
-    return () => cancelAnimationFrame(frame);
+
+    tryScroll();
+    if (done) return undefined;
+
+    const observer = new MutationObserver(() => {
+      requestAnimationFrame(tryScroll);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    let frameCount = 0;
+    let frameId = 0;
+    const frameRetry = () => {
+      frameCount++;
+      tryScroll();
+      if (!done && frameCount < 60) {
+        frameId = requestAnimationFrame(frameRetry);
+      }
+    };
+    frameId = requestAnimationFrame(frameRetry);
+
+    const timeout = setTimeout(() => {
+      tryScroll();
+      finish();
+      observer.disconnect();
+      cancelAnimationFrame(frameId);
+    }, 4000);
+
+    return () => {
+      finish();
+      observer.disconnect();
+      cancelAnimationFrame(frameId);
+      clearTimeout(timeout);
+    };
   }, [storageKey, ready]);
 }

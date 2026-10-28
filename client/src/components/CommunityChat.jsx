@@ -5,6 +5,7 @@ import { ArrowLeft, Calendar, Camera, Check, Crown, LogOut, Loader2, Menu, Phone
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router";
 import axiosInstance from "../lib/axios";
+import { useFriends } from "../hooks/useFriends";
 import { useStreamContext } from "../context/StreamProvider";
 
 // Scheduled calls are deliberately IST-only, not "whatever timezone this
@@ -213,14 +214,7 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
   const memberAddRequests = useMemo(() => circle?.memberAddRequests || [], [circle?.memberAddRequests]);
 
   // Friends who aren't already a member or already invited — only friends can be added
-  const { data: friends = [] } = useQuery({
-    queryKey: ["friends"],
-    queryFn: async () => {
-      const res = await axiosInstance.get("/users/friends");
-      return res.data?.data?.friends || [];
-    },
-    enabled: Boolean(authUser?._id) && showAddMemberModal,
-  });
+  const { data: friends = [] } = useFriends({ enabled: Boolean(authUser?._id) && showAddMemberModal });
 
   const inviteOptions = useMemo(() => {
     const memberSet = new Set(memberIds);
@@ -437,7 +431,7 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
             aria-label={circle?.photo ? "View community photo" : undefined}
           >
             {circle?.photo ? (
-              <img src={circle.photo} alt={community.name} className="h-full w-full object-cover" />
+              <img src={circle.photo} alt={community.name} loading="lazy" className="h-full w-full object-cover" />
             ) : (
               <div className="grid h-full w-full place-items-center">{community.name?.charAt(0) || "C"}</div>
             )}
@@ -684,7 +678,7 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
                 >
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-primary font-semibold">
                     {member.profilePic ? (
-                      <img src={member.profilePic} alt={member.fullName} className="h-full w-full object-cover" />
+                      <img src={member.profilePic} alt={member.fullName} loading="lazy" className="h-full w-full object-cover" />
                     ) : (
                       member.fullName?.charAt(0) || "U"
                     )}
@@ -810,7 +804,7 @@ export default function CommunityChat({ community, onBack, autoJoinCall, autoJoi
                     >
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-primary text-sm font-semibold">
                         {friend.profilePic ? (
-                          <img src={friend.profilePic} alt={friend.fullName} className="h-full w-full object-cover" />
+                          <img src={friend.profilePic} alt={friend.fullName} loading="lazy" className="h-full w-full object-cover" />
                         ) : (
                           friend.fullName?.charAt(0) || "U"
                         )}

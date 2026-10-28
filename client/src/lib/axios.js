@@ -115,6 +115,17 @@ axiosInstance.interceptors.response.use(
       }
     }
 
+    // Retry once on 429 (rate-limited) after the server's Retry-After delay
+    if (status === 429 && !originalRequest._rateLimitRetry) {
+      originalRequest._rateLimitRetry = true;
+      const retryAfter = error.response?.data?.retryAfter
+        || parseInt(error.response?.headers?.["retry-after"], 10)
+        || 2;
+      const delay = Math.min(retryAfter, 10) * 1000;
+      await new Promise((r) => setTimeout(r, delay));
+      return axiosInstance(originalRequest);
+    }
+
     // Blocked-account errors get a dedicated modal
     const isAccountBlocked = error.response?.data?.missingFields?.code === "ACCOUNT_BLOCKED";
     const isSilenced = error.config?.skipErrorToast;

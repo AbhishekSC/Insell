@@ -80,6 +80,7 @@ commentSchema.index({ post: 1, createdAt: -1 });
 commentSchema.index({ author: 1, createdAt: -1 });
 commentSchema.index({ intent: 1 });
 commentSchema.index({ author: 1, intent: 1 });
+commentSchema.index({ parentComment: 1, createdAt: -1 });
 
 const Comment = mongoose.model("Comment", commentSchema);
 

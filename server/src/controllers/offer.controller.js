@@ -451,6 +451,7 @@ export async function respondToOffer(req, res) {
       await session.endSession();
     }
 
+    // Accept notification is critical — send inline so the buyer sees it immediately.
     await NotificationService.send({
       recipientId: counterpartyId,
       actorId: userId,
@@ -461,45 +462,29 @@ export async function respondToOffer(req, res) {
       channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
     });
 
-    // Every other buyer who had an active offer on this post finds out the
-    // property's no longer available, instead of their offer just silently
-    // sitting there forever.
-    for (const other of declinedOffers) {
-      await NotificationService.send({
-        recipientId: other.buyer,
-        actorId: userId,
-        type: "offer_declined",
-        title: `"${acceptedOffer.post.title}" is no longer available`,
-        message: `The owner accepted another offer on "${acceptedOffer.post.title}" — your offer of ${formatMoney(other.currentPrice)} is now closed`,
-        data: { propertyPost: acceptedOffer.post._id, offer: other._id },
-        channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
-      });
-    }
+    // Everything else (decline notifications, Stream chat, friend connect, deal creation)
+    // is offloaded to the fanout queue so the HTTP response isn't blocked.
+    import("../jobs/producers/fanout.producer.js")
+      .then(({ enqueueOfferAccepted }) =>
+        enqueueOfferAccepted({
+          offerId: acceptedOffer._id,
+          postId: acceptedOffer.post._id,
+          buyerId: String(acceptedOffer.buyer),
+          sellerId: String(acceptedOffer.owner),
+          declinedOfferBuyerIds: declinedOffers.map((o) => String(o.buyer)),
+          streamChannelData: {
+            userId1: String(acceptedOffer.buyer),
+            userId2: String(acceptedOffer.owner),
+            message: `🤝 Offer accepted on "${acceptedOffer.post.title}" at ${formatMoney(acceptedOffer.currentPrice)} — let's connect and continue!`,
+          },
+        })
+      )
+      .catch((e) => logger.warn("Failed to enqueue offer-accepted fanout (non-fatal):", e?.message));
 
-    await sendSystemMessageToDirectChannel(
-      acceptedOffer.buyer,
-      acceptedOffer.owner,
-      `🤝 Offer accepted on "${acceptedOffer.post.title}" at ${formatMoney(acceptedOffer.currentPrice)} — let's connect and continue!`
-    );
-
-    // The Messages tab only lists existing friends/connections — completely
-    // separate from Stream channel membership. Without this, the system
-    // message above lands in a real channel that neither party can actually
-    // find in their normal Messages list unless they were already friends.
-    // An accepted offer is a stronger mutual signal than a friend request,
-    // so connect them the same way accepting a friend request does.
-    await User.findByIdAndUpdate(acceptedOffer.buyer, { $addToSet: { friends: acceptedOffer.owner } });
-    await User.findByIdAndUpdate(acceptedOffer.owner, { $addToSet: { friends: acceptedOffer.buyer } });
-
-    // Open the closing tracker (agreed → docs → agreement → payment → …).
-    // Best-effort — the accept already succeeded; a missing Deal is created
-    // lazily on the first read of /deals/post/:postId anyway.
-    try {
-      const { ensureDealForOffer } = await import("./deal.controller.js");
-      await ensureDealForOffer(acceptedOffer._id);
-    } catch (e) {
-      logger.error("Failed to open deal for accepted offer (non-fatal):", e);
-    }
+    // Open the closing tracker — best-effort, fire-and-forget.
+    import("./deal.controller.js")
+      .then(({ ensureDealForOffer }) => ensureDealForOffer(acceptedOffer._id))
+      .catch((e) => logger.error("Failed to open deal for accepted offer (non-fatal):", e));
 
     return sendSuccessResponse(res, 200, "Offer accepted", { offer: acceptedOffer });
   } catch (error) {
@@ -513,31 +498,46 @@ export async function respondToOffer(req, res) {
 // forever pointing at a post that's no longer live. An already-accepted
 // offer is left untouched: it represents a completed deal, not an open one.
 export async function closeActiveOffersForPost(postId, actorId) {
-  const activeOffers = await Offer.find({ post: postId, status: { $in: ACTIVE_STATUSES } });
+  const activeOffers = await Offer.find({ post: postId, status: { $in: ACTIVE_STATUSES } }).lean();
   if (activeOffers.length === 0) return;
 
-  for (const offer of activeOffers) {
-    offer.status = "declined";
-    offer.lastActionBy = actorId || offer.owner;
-    offer.history.push({
-      price: offer.currentPrice,
-      message: "This listing was taken down",
-      actorRole: "owner",
-      by: actorId || offer.owner,
-      action: "decline",
-    });
-    await offer.save();
+  const actor = actorId || activeOffers[0].owner;
+  await Offer.bulkWrite(
+    activeOffers.map((offer) => ({
+      updateOne: {
+        filter: { _id: offer._id },
+        update: {
+          $set: { status: "declined", lastActionBy: actor },
+          $push: {
+            history: {
+              price: offer.currentPrice,
+              message: "This listing was taken down",
+              actorRole: "owner",
+              by: actor,
+              action: "decline",
+            },
+          },
+        },
+      },
+    })),
+    { ordered: false }
+  );
 
-    await NotificationService.send({
-      recipientId: offer.buyer,
-      actorId: actorId || offer.owner,
-      type: "offer_declined",
-      title: "A listing you offered on was taken down",
-      message: `The listing you made an offer of ${formatMoney(offer.currentPrice)} on is no longer available`,
-      data: { propertyPost: postId, offer: offer._id },
-      channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
-    }).catch((error) => {
-      logger.error("Failed to notify buyer of listing takedown (non-fatal):", error);
+  import("../jobs/producers/fanout.producer.js")
+    .then(({ enqueueCloseActiveOffers }) => enqueueCloseActiveOffers(postId, null))
+    .catch(() => {
+      Promise.allSettled(
+        activeOffers.map((offer) =>
+          NotificationService.send({
+            recipientId: offer.buyer,
+            actorId: actor,
+            type: "offer_declined",
+            title: "A listing you offered on was taken down",
+            message: `The listing you made an offer of ${formatMoney(offer.currentPrice)} on is no longer available`,
+            data: { propertyPost: postId, offer: offer._id },
+            channels: [NotificationChannel.IN_APP, NotificationChannel.REALTIME, NotificationChannel.FIREBASE],
+          })
+        )
+      );
     });
-  }
 }

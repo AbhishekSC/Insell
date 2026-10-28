@@ -349,6 +349,7 @@ propertyPostSchema.index({ status: 1, visibility: 1, isDeleted: 1, isBlocked: 1,
 propertyPostSchema.index({ author: 1, isDeleted: 1, createdAt: -1 });
 // Compound index for admin property verification queue lookups
 propertyPostSchema.index({ "postMeta.residential.electricityBillStatus": 1, isDeleted: 1 });
+propertyPostSchema.index({ savedBy: 1 });
 
 propertyPostSchema.plugin(cdnMediaPlugin, { fields: [{ field: "mediaUrls", preset: "property" }] });
 

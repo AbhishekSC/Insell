@@ -15,6 +15,7 @@ import {
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import axiosInstance from "../lib/axios";
+import { useFriends } from "../hooks/useFriends";
 import { guidedCallModes, normalizeText, useLocalStorageState } from "../lib/dashboardMvp";
 
 export default function SessionsPage() {
@@ -24,14 +25,7 @@ export default function SessionsPage() {
   const authUser = authData?.data?.user || authData?.data || null;
   const previousInviteCountRef = useRef(0);
 
-  const { data: friends = [] } = useQuery({
-    queryKey: ["friends"],
-    queryFn: async () => {
-      const response = await axiosInstance.get("/users/friends");
-      return response.data?.data?.friends || [];
-    },
-    enabled: Boolean(authUser?._id),
-  });
+  const { data: friends = [] } = useFriends({ enabled: Boolean(authUser?._id) });
 
   const { data: users = [] } = useQuery({
     queryKey: ["users"],

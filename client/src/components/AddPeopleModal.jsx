@@ -5,6 +5,7 @@ import { Check, Loader2, Search, BadgeCheck, UserPlus, X } from "lucide-react";
 import toast from "react-hot-toast";
 import UserAvatar from "./UserAvatar";
 import axiosInstance from "../lib/axios";
+import { useFriends } from "../hooks/useFriends";
 import { useStreamContext } from "../context/StreamProvider";
 
 const EMPTY_FRIENDS = [];
@@ -33,14 +34,7 @@ export default function AddPeopleModal({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
-  const { data: friendsData, isLoading } = useQuery({
-    queryKey: ["friends"],
-    enabled: isOpen,
-    queryFn: async () => {
-      const response = await axiosInstance.get("/users/friends");
-      return response.data?.data?.friends || [];
-    },
-  });
+  const { data: friendsData, isLoading } = useFriends({ enabled: isOpen });
 
   const friends = friendsData ?? EMPTY_FRIENDS;
 

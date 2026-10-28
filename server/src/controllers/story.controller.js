@@ -331,7 +331,11 @@ export const deleteStory = async (req, res) => {
     await Story.findByIdAndDelete(storyId);
 
     const publicId = extractPublicIdFromUrl(story.mediaUrl);
-    if (publicId) await deleteFromCloudinary(publicId);
+    if (publicId) {
+      import("../jobs/producers/cleanup.producer.js")
+        .then(({ enqueueMediaCleanup }) => enqueueMediaCleanup([publicId]))
+        .catch(() => deleteFromCloudinary(publicId).catch(() => {}));
+    }
 
     logger.info(`Story ${storyId} deleted by user ${userId}`);
 
@@ -367,13 +371,21 @@ export const cleanupExpiredStories = async (req, res) => {
       .limit(500)
       .lean();
 
-    let cleaned = 0;
-    for (const story of expired) {
-      const publicId = extractPublicIdFromUrl(story.mediaUrl);
-      if (publicId) await deleteFromCloudinary(publicId);
-      await Story.deleteOne({ _id: story._id });
-      cleaned += 1;
+    if (expired.length) {
+      try {
+        const { enqueueStoryCleanup } = await import("../jobs/producers/cleanup.producer.js");
+        await enqueueStoryCleanup(expired.map((s) => ({ _id: s._id, mediaUrl: s.mediaUrl })));
+      } catch {
+        const cleanedIds = [];
+        for (const story of expired) {
+          const publicId = extractPublicIdFromUrl(story.mediaUrl);
+          if (publicId) await deleteFromCloudinary(publicId);
+          cleanedIds.push(story._id);
+        }
+        if (cleanedIds.length) await Story.deleteMany({ _id: { $in: cleanedIds } });
+      }
     }
+    const cleaned = expired.length;
 
     logger.info(`Story cleanup: removed ${cleaned} expired stories and their Cloudinary media`);
     res.status(200).json({ success: true, data: { cleaned } });

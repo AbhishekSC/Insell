@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useAuthUser } from "../hooks/useAuthUser";
+import { useFriends } from "../hooks/useFriends";
 import {
   Channel,
   Chat,
@@ -39,24 +41,11 @@ export default function ChatPage() {
   const processedDirectChatIds = useRef(new Set());
   const { streamClient: chatClient, streamReady, streamConnecting, currentUserId, unreadCount } = useStreamContext();
 
-  const { data: authData } = useQuery({
-    queryKey: ["authUser"],
-    queryFn: async () => {
-      const response = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
-      return response.data;
-    },
-    staleTime: 1000 * 60 * 5,
-  });
+  const { data: authData } = useAuthUser();
 
   const authUser = authData?.data?.user || authData?.data || null;
 
-  const { data: friendsData, isLoading } = useQuery({
-    queryKey: ["friends"],
-    queryFn: async () => {
-      const response = await axiosInstance.get("/users/friends");
-      return response.data?.data?.friends || [];
-    },
-  });
+  const { data: friendsData, isLoading } = useFriends();
 
   const friends = friendsData ?? EMPTY_FRIENDS;
 

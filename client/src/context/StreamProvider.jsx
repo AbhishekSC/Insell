@@ -5,6 +5,7 @@ import { StreamVideoClient } from "@stream-io/video-react-sdk";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router";
 import axiosInstance from "../lib/axios";
+import { useAuthUser } from "../hooks/useAuthUser";
 import PersistentCallOverlay from "../components/PersistentCallOverlay";
 
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
@@ -120,19 +121,7 @@ export function StreamProvider({ children }) {
       .catch(() => {});
   }, [activeVideoCall]);
 
-  const { data: authData } = useQuery({
-    queryKey: ["authUser"],
-    queryFn: async () => {
-      try {
-        const response = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
-        return response.data;
-      } catch {
-        return null;
-      }
-    },
-    retry: false,
-    staleTime: 1000 * 60 * 5,
-  });
+  const { data: authData } = useAuthUser();
 
   const authUser = authData?.data?.user || authData?.data || null;
 

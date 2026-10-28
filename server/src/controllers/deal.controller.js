@@ -1050,11 +1050,13 @@ export async function removeDealAttachment(req, res) {
 
     await Deal.updateOne({ _id: id }, { $pull: { attachments: { _id: attId } } });
 
-    // Free the Cloudinary asset — best effort.
     try {
-      const { deleteFromCloudinary, extractPublicIdFromUrl } = await import("../config/cloudinary.js");
+      const { extractPublicIdFromUrl } = await import("../config/cloudinary.js");
       const publicId = extractPublicIdFromUrl(att.url);
-      if (publicId) await deleteFromCloudinary(publicId);
+      if (publicId) {
+        const { enqueueMediaCleanup } = await import("../jobs/producers/cleanup.producer.js");
+        await enqueueMediaCleanup([publicId]);
+      }
     } catch (e) {
       logger.warn("deal attachment cloudinary cleanup failed (non-fatal):", e?.message);
     }
@@ -1088,25 +1090,11 @@ export async function nudgeStalledDeals(req, res) {
       .limit(200)
       .lean();
 
-    let nudged = 0;
-    for (const deal of stalled) {
-      const stage = stagesFor(deal).find((s) => s.key === deal.currentStage)?.label || deal.currentStage;
-      const days = Math.round((Date.now() - new Date(deal.updatedAt).getTime()) / 86400000);
-      const title = deal.pendingStage ? `A step is waiting on you` : `Your deal hasn't moved in ${days} days`;
-      const msg = `"${deal.post?.title || "your deal"}" has been at "${stage}" for ${days} days — everything on track?`;
-      for (const recipientId of [deal.buyer, deal.owner]) {
-        await NotificationService.send({
-          recipientId, actorId: null, type: "deal_updated", title, message: msg,
-          data: { propertyPost: deal.post?._id || deal.post, deal: deal._id },
-          channels: CHANNELS,
-        }).catch(() => {});
-      }
-      // updateOne with timestamps:false — nudging is a reminder, not deal
-      // activity, so it shouldn't reset the "stalled" clock.
-      await Deal.updateOne({ _id: deal._id }, { $set: { lastNudgedAt: new Date() } }, { timestamps: false });
-      nudged += 1;
+    if (stalled.length) {
+      const { enqueueDealNudge } = await import("../jobs/producers/fanout.producer.js");
+      await enqueueDealNudge(stalled.map((d) => d._id));
     }
-    return sendSuccessResponse(res, 200, "Stalled deals swept", { checked: stalled.length, nudged });
+    return sendSuccessResponse(res, 200, "Stalled deals swept", { checked: stalled.length, nudged: stalled.length });
   } catch (error) {
     logger.error("Error in nudgeStalledDeals:", error);
     return sendErrorResponse(res, 500, "Sweep failed");

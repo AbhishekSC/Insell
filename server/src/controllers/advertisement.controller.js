@@ -172,19 +172,24 @@ export const getActiveAdvertisements = async (req, res) => {
       .limit(50)
       .lean();
 
-    // Frequency capping check & scoring
     const userKey = getUserIdentifier(req);
-    const scoredAds = [];
+    const today = getTodayDateString();
+    const impressionKeys = ads.map((ad) => `ad:freq:${userKey}:${ad._id}:${today}`);
+    let impressionCounts;
+    try {
+      const results = await Promise.all(impressionKeys.map((k) => redisClient.get(k)));
+      impressionCounts = results.map((val) => Number.parseInt(val, 10) || 0);
+    } catch {
+      impressionCounts = ads.map(() => 0);
+    }
 
-    for (const ad of ads) {
+    const scoredAds = [];
+    for (let i = 0; i < ads.length; i++) {
+      const ad = ads[i];
       const cap = ad.frequencyCap || 3;
-      const viewsToday = await getImpressionCount(userKey, ad._id);
+      const viewsToday = impressionCounts[i];
       if (viewsToday < cap) {
-        const score = calculateAdScore({
-          ad,
-          userCity: city,
-          viewsToday,
-        });
+        const score = calculateAdScore({ ad, userCity: city, viewsToday });
         scoredAds.push({ ad, score });
       }
     }

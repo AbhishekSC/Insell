@@ -3,7 +3,6 @@ import VisitUsage from "../models/VisitUsage.model.js";
 import PropertyPost from "../models/PropertyPost.model.js";
 import User from "../models/User.model.js";
 import { sendErrorResponse, sendSuccessResponse } from "../utils/responseHandler.js";
-import { sendGenericEmail } from "../utils/emailClient.js";
 import { logger } from "../utils/logger.js";
 import { planFor, istDayBucket, nextIstMidnight } from "../config/plans.js";
 import * as NotificationService from "../services/NotificationService.js";
@@ -204,7 +203,7 @@ export async function respondToVisitRequest(req, res) {
       visit.status = "CANCELLED";
       visit.history.push({ action: "cancel", actorRole, by: userId, message, requestId });
       await visit.save();
-      await notify(counterpartyId, userId, "visit_cancelled", `${req.user.fullName} cancelled the visit`, `${req.user.fullName} cancelled the visit for "${visit.post.title}"`, visit, req.user.fullName);
+      notify(counterpartyId, userId, "visit_cancelled", `${req.user.fullName} cancelled the visit`, `${req.user.fullName} cancelled the visit for "${visit.post.title}"`, visit, req.user.fullName).catch((e) => logger.warn("visit cancel notify failed (non-fatal):", e?.message));
       return sendSuccessResponse(res, 200, "Visit cancelled", { visit });
     }
 
@@ -214,7 +213,7 @@ export async function respondToVisitRequest(req, res) {
       visit.status = "DECLINED";
       visit.history.push({ action: "decline", actorRole, by: userId, message, requestId });
       await visit.save();
-      await notify(counterpartyId, userId, "visit_declined", `${req.user.fullName} declined the visit`, `${req.user.fullName} declined the visit for "${visit.post.title}"`, visit, req.user.fullName);
+      notify(counterpartyId, userId, "visit_declined", `${req.user.fullName} declined the visit`, `${req.user.fullName} declined the visit for "${visit.post.title}"`, visit, req.user.fullName).catch((e) => logger.warn("visit decline notify failed (non-fatal):", e?.message));
       return sendSuccessResponse(res, 200, "Visit declined", { visit });
     }
 
@@ -257,7 +256,7 @@ export async function respondToVisitRequest(req, res) {
       visit.lastActionBy = userId;
       visit.history.push({ action: "confirm", actorRole, by: userId, slot, message, requestId });
       await visit.save();
-      await notify(counterpartyId, userId, "visit_confirmed", `Visit confirmed for ${fmtSlot(slot)}`, `${req.user.fullName} confirmed the visit for "${visit.post.title}" on ${fmtSlot(slot)}`, visit, req.user.fullName);
+      notify(counterpartyId, userId, "visit_confirmed", `Visit confirmed for ${fmtSlot(slot)}`, `${req.user.fullName} confirmed the visit for "${visit.post.title}" on ${fmtSlot(slot)}`, visit, req.user.fullName).catch((e) => logger.warn("visit confirm notify failed (non-fatal):", e?.message));
       // Both sides get an email once — fire-and-forget, outside any txn.
       sendVisitConfirmationEmails(visit, slot).catch((e) => logger.error("visit confirmation email failed (non-fatal):", e));
       return sendSuccessResponse(res, 200, "Visit confirmed", { visit });
@@ -272,7 +271,7 @@ export async function respondToVisitRequest(req, res) {
     visit.lastActionBy = userId;
     visit.history.push({ action: "propose", actorRole, by: userId, slots: newSlots, message, requestId });
     await visit.save();
-    await notify(counterpartyId, userId, "visit_rescheduled", `${req.user.fullName} proposed a new time`, `${req.user.fullName} proposed new times for "${visit.post.title}" — ${newSlots.map(fmtSlot).join(" or ")}`, visit, req.user.fullName);
+    notify(counterpartyId, userId, "visit_rescheduled", `${req.user.fullName} proposed a new time`, `${req.user.fullName} proposed new times for "${visit.post.title}" — ${newSlots.map(fmtSlot).join(" or ")}`, visit, req.user.fullName).catch((e) => logger.warn("visit reschedule notify failed (non-fatal):", e?.message));
     return sendSuccessResponse(res, 200, "New times proposed", { visit });
   } catch (error) {
     logger.error("Error responding to visit request:", error);
@@ -326,9 +325,9 @@ async function sendVisitConfirmationEmails(visit, slot) {
   ]);
   const property = visit.post?.title || "the property";
   const when = fmtSlot(slot);
-  const jobs = [];
+  const emails = [];
   if (requester?.email) {
-    jobs.push(sendGenericEmail({
+    emails.push({
       email: requester.email,
       subject: `Visit confirmed — ${property}`,
       htmlContent: visitEmailHtml({
@@ -337,10 +336,10 @@ async function sendVisitConfirmationEmails(visit, slot) {
         body: `Your visit for <strong>${property}</strong> is confirmed. The owner is expecting you at the time below.`,
         when, mode: visit.mode, property,
       }),
-    }));
+    });
   }
   if (owner?.email) {
-    jobs.push(sendGenericEmail({
+    emails.push({
       email: owner.email,
       subject: `Visit confirmed — ${property}`,
       htmlContent: visitEmailHtml({
@@ -349,9 +348,12 @@ async function sendVisitConfirmationEmails(visit, slot) {
         body: `${requester?.fullName || "A buyer"} will visit <strong>${property}</strong> at the time below.`,
         when, mode: visit.mode, property,
       }),
-    }));
+    });
   }
-  await Promise.allSettled(jobs);
+  if (emails.length) {
+    const { enqueueVisitConfirmationEmail } = await import("../jobs/producers/email.producer.js");
+    await enqueueVisitConfirmationEmail(emails);
+  }
 }
 
 // GET /visits/posts/:postId/visits — owner sees all, requester sees own.

@@ -25,6 +25,6 @@ export function lqipUrl(url) {
 
 // A right-sized, auto-format/quality version of the card image instead of the
 // full-resolution upload. Width is a hint; Cloudinary keeps aspect ratio.
-export function cardImageUrl(url, width = 900) {
+export function cardImageUrl(url, width = 600) {
   return withTransform(url, `w_${width},c_limit,q_auto,f_auto`) || url;
 }

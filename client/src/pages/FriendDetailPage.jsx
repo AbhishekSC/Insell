@@ -5,17 +5,12 @@ import { Link, useParams } from "react-router";
 import AppShell from "../components/AppShell";
 import UserAvatar from "../components/UserAvatar";
 import axiosInstance from "../lib/axios";
+import { useFriends } from "../hooks/useFriends";
 
 export default function FriendDetailPage() {
   const { friendId } = useParams();
 
-  const { data: friendsData, isLoading } = useQuery({
-    queryKey: ["friends"],
-    queryFn: async () => {
-      const response = await axiosInstance.get("/users/friends");
-      return response.data?.data?.friends || [];
-    },
-  });
+  const { data: friendsData, isLoading } = useFriends();
 
   const friends = friendsData || [];
 

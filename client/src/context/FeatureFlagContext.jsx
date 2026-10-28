@@ -1,14 +1,12 @@
 import { createContext, useContext } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
+import { useAuthUser } from "../hooks/useAuthUser";
 
 const FeatureFlagContext = createContext({});
 
 export function FeatureFlagProvider({ children }) {
-  const { data: authData } = useQuery({
-    queryKey: ["authUser"],
-    staleTime: 1000 * 60 * 5,
-  });
+  const { data: authData } = useAuthUser();
 
   const user = authData?.data?.user || authData?.data || null;
 
