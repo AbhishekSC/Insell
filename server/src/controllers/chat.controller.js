@@ -38,55 +38,72 @@ export async function getStreamToken(req, res) {
 export async function getPrioritizedConversations(req, res) {
   try {
     const currentUserId = req.user._id;
-    
-    // Get current user with friends list
-    const currentUser = await User.findById(currentUserId).select('friends').lean();
-    const friendIds = currentUser?.friends?.map(id => String(id)) || [];
-    
-    // Get all users (in production, this would be actual conversations from Stream)
-    // For now, we'll return a prioritized list of potential connections
-    const allUsers = await User.find({
-      _id: { $ne: currentUserId }
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const skip = (page - 1) * limit;
+
+    const currentUser = await User.findById(currentUserId).select("friends").lean();
+    const friendIds = currentUser?.friends || [];
+
+    const verifiedRoles = ["Broker", "Seller", "Landlord"];
+
+    let friendAndVerified = [];
+    let friendOnly = [];
+    let verifiedNonFriend = [];
+
+    if (friendIds.length) {
+      const [facetResult] = await User.aggregate([
+        {
+          $match: {
+            _id: { $in: friendIds, $ne: currentUserId },
+          },
+        },
+        { $project: { fullName: 1, profilePic: 1, activeRole: 1, primaryRole: 1, city: 1 } },
+        {
+          $facet: {
+            friendAndVerified: [
+              { $match: { $or: [{ activeRole: { $in: verifiedRoles } }, { primaryRole: { $in: verifiedRoles } }] } },
+            ],
+            friendOnly: [
+              { $match: { activeRole: { $nin: verifiedRoles }, primaryRole: { $nin: verifiedRoles } } },
+            ],
+          },
+        },
+      ]);
+      friendAndVerified = facetResult?.friendAndVerified || [];
+      friendOnly = facetResult?.friendOnly || [];
+    }
+
+    const seenIds = [
+      ...friendAndVerified.map((u) => u._id),
+      ...friendOnly.map((u) => u._id),
+      currentUserId,
+    ];
+
+    verifiedNonFriend = await User.find({
+      _id: { $nin: seenIds },
+      $or: [{ activeRole: { $in: verifiedRoles } }, { primaryRole: { $in: verifiedRoles } }],
     })
-      .select('fullName profilePic activeRole primaryRole city')
+      .select("fullName profilePic activeRole primaryRole city")
+      .limit(limit)
       .lean();
-    
-    // Calculate priority score for each user
-    const prioritizedUsers = allUsers.map(user => {
-      const userId = String(user._id);
-      const isFriend = friendIds.includes(userId);
-      const isVerified = ['Broker', 'Seller', 'Landlord'].includes(user.activeRole || user.primaryRole);
-      
-      let priorityScore = 0;
-      let priorityLevel = 'normal';
-      
-      // Priority scoring
-      if (isFriend && isVerified) {
-        priorityScore = 100;
-        priorityLevel = 'high';
-      } else if (isFriend) {
-        priorityScore = 70;
-        priorityLevel = 'medium';
-      } else if (isVerified) {
-        priorityScore = 50;
-        priorityLevel = 'medium';
-      }
-      
-      return {
-        ...user,
-        priorityScore,
-        priorityLevel,
-        isFriend,
-        isVerified
-      };
-    });
-    
-    // Sort by priority score
-    const sortedUsers = prioritizedUsers.sort((a, b) => b.priorityScore - a.priorityScore);
-    
+
+    const tag = (users, score, level, isFriend, isVerified) =>
+      users.map((u) => ({ ...u, priorityScore: score, priorityLevel: level, isFriend, isVerified }));
+
+    const sorted = [
+      ...tag(friendAndVerified, 100, "high", true, true),
+      ...tag(friendOnly, 70, "medium", true, false),
+      ...tag(verifiedNonFriend, 50, "medium", false, true),
+    ];
+
+    const paged = sorted.slice(skip, skip + limit);
+
     return sendSuccessResponse(res, {
-      conversations: sortedUsers,
-      total: sortedUsers.length
+      conversations: paged,
+      total: sorted.length,
+      page,
+      limit,
     });
   } catch (error) {
     logger.error("Error getting prioritized conversations:", error);

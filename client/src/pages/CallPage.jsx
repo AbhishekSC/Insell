@@ -18,6 +18,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import AppShell from "../components/AppShell";
 import UserAvatar from "../components/UserAvatar";
 import axiosInstance from "../lib/axios";
+import { useFriends } from "../hooks/useFriends";
 import { useStreamContext } from "../context/StreamProvider";
 
 const EMPTY_FRIENDS = [];
@@ -43,13 +44,7 @@ export default function CallPage() {
     videoBusy,
   } = useStreamContext();
 
-  const { data: friendsData, isLoading } = useQuery({
-    queryKey: ["friends"],
-    queryFn: async () => {
-      const response = await axiosInstance.get("/users/friends");
-      return response.data?.data?.friends || [];
-    },
-  });
+  const { data: friendsData, isLoading } = useFriends();
 
   const friends = friendsData ?? EMPTY_FRIENDS;
   const friendIds = useMemo(() => friends.map((friend) => friend._id), [friends]);

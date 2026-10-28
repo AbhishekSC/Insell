@@ -44,7 +44,7 @@ export default function StoriesBar() {
       const response = await axiosInstance.get("/stories");
       return response.data?.data?.stories || [];
     },
-    refetchInterval: 8000, // Poll frequently so new stories from other users show up without a manual reload
+    refetchInterval: 60000,
     refetchOnWindowFocus: true,
   });
 
@@ -634,7 +634,7 @@ function SaveToHighlightModal({ storyId, authorId, onClose }) {
                     >
                       <div className="size-11 shrink-0 overflow-hidden rounded-full border border-base-300 bg-base-200">
                         {highlight.coverImage && (
-                          <img src={highlight.coverImage} alt={highlight.title} className="h-full w-full object-cover" />
+                          <img src={highlight.coverImage} alt={highlight.title} loading="lazy" className="h-full w-full object-cover" />
                         )}
                       </div>
                       <span className="flex-1 truncate text-sm font-medium text-base-content">{highlight.title}</span>

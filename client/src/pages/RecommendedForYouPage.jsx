@@ -74,7 +74,7 @@ export default function RecommendedForYouPage() {
   const visible = recommendations.filter((p) => !hidden.has(String(p._id)));
 
   return (
-    <AppShell hideHero title="Recommended for You" subtitle="Listings near you, matched to what you've been looking at">
+    <AppShell hideHero hideMobileHeader title="Recommended for You" subtitle="Listings near you, matched to what you've been looking at">
       <div className="mx-auto max-w-3xl px-4 py-6 pb-24">
         <div className="mb-6 flex items-center gap-4 rounded-2xl bg-gradient-to-r from-primary to-secondary p-5 text-white shadow-sm">
           <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-white/15">

@@ -48,6 +48,7 @@ const connectToMongoDB = async () => {
 
   try {
     mongoose.set("strictQuery", false);
+    mongoose.set("maxTimeMS", 30000);
     if (process.env.MONGOOSE_DEBUG === "true") {
       mongoose.set("debug", (collectionName, methodName, ...methodArgs) => {
         try {

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
+import { useAuthUser } from "./useAuthUser";
 import { reverseGeocode, ipLocate } from "../utils/geolocation";
 
 const FRESH_MS = 60 * 60 * 1000; // 1 hour
@@ -23,15 +24,7 @@ export function useLiveLocation() {
   const [status, setStatus] = useState("idle"); // idle | locating | denied | error
   const [permission, setPermission] = useState(null); // "granted" | "prompt" | "denied" | null
 
-  const { data: authData } = useQuery({
-    queryKey: ["authUser"],
-    queryFn: async () => {
-      const res = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
-      return res.data;
-    },
-    staleTime: 1000 * 60 * 5,
-    retry: false,
-  });
+  const { data: authData } = useAuthUser();
   const authUser = authData?.data?.user || authData?.data || null;
   const ld = authUser?.locationDetails || null;
 

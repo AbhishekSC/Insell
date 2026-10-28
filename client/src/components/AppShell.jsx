@@ -1,13 +1,16 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuthUser } from "../hooks/useAuthUser";
 import {
+  ArrowLeft,
   Bell,
   BellOff,
   BellRing,
   ChevronDown,
   Command,
   Filter,
+  Flame,
   Flag,
   HelpCircle,
   Home,
@@ -76,6 +79,7 @@ const ADMIN_NAV_ITEM = { to: "/admin", label: "Admin", icon: ShieldCheck };
 const DRAWER_FEATURES = [
   // Discovery & Trends
   { to: "/recommended", label: "Recommended for You", icon: Sparkles },
+  { to: "/trending-near-you", label: "Trending Near You", icon: Flame },
   { to: "/trending-localities", label: "Trending Localities", icon: TrendingUp },
   { to: "/news", label: "Trending News", icon: Newspaper },
 
@@ -459,10 +463,26 @@ function UserMenu({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isDropdownOpen]);
 
   return (
     <div className="hidden shrink-0 items-center gap-2 lg:flex">
-      <div className="relative">
+      <div className="relative" ref={menuRef}>
         <button
           type="button"
           className="btn btn-ghost h-11 min-w-[180px] max-w-[260px] rounded-xl border border-base-300 bg-base-100 px-2.5 hover:bg-base-200"
@@ -718,6 +738,7 @@ export default function AppShell({
   const [marketSearch, setMarketSearch] = useState(marketplaceSearch);
   const [searchFocused, setSearchFocused] = useState(false);
   const [mobileUserMenuOpen, setMobileUserMenuOpen] = useState(false);
+  const mobileMenuRef = useRef(null);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [searchHistory, setSearchHistory] = useState([]);
@@ -730,6 +751,21 @@ export default function AppShell({
   const searchInputRef = useRef(null);
   const searchDebounceRef = useRef(null);
 
+  useEffect(() => {
+    if (!mobileUserMenuOpen) return;
+    const handleClickOutside = (e) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target)) {
+        setMobileUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [mobileUserMenuOpen]);
+
   // The notification panel is an overlay, not a route — navigating to a
   // different marketplace section (Chat/Connections/etc. via the bottom nav)
   // only changes the ?section= query param on the same /marketplace route,
@@ -739,18 +775,7 @@ export default function AppShell({
     setShowNotificationPanel(false);
   }, [location.pathname, location.search]);
 
-  const { data: authData } = useQuery({
-    queryKey: ["authUser"],
-    queryFn: async () => {
-      try {
-        const res = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
-        return res.data;
-      } catch {
-        return null;
-      }
-    },
-    staleTime: 1000 * 60 * 5,
-  });
+  const { data: authData } = useAuthUser();
   const authUser = authData?.data?.user || authData?.data || null;
   const isAdmin = Boolean(authUser?.isAdmin);
   const visibleNavItems = isAdmin ? [...navItems, ADMIN_NAV_ITEM] : navItems;
@@ -838,7 +863,7 @@ export default function AppShell({
         </div>
       ));
 
-      queryClient.invalidateQueries({ queryKey: ["activityNotifications"] });
+      queryClient.invalidateQueries({ queryKey: ["badgeCounts"] });
     }).then((unsub) => {
       unsubscribe = unsub;
     });
@@ -892,13 +917,11 @@ export default function AppShell({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isMarketplaceShell]);
 
-  const { data: incomingRequests = [] } = useQuery({
-    // Shared key with MarketplacePage.jsx's identical query — same endpoint,
-    // same data, so they coalesce into one fetch instead of two independent ones.
-    queryKey: ["incomingRequests"],
+  const { data: badgeCounts = { activityCount: 0, messageRequestCount: 0, friendRequestCount: 0 } } = useQuery({
+    queryKey: ["badgeCounts"],
     queryFn: async () => {
-      const response = await axiosInstance.get("/users/friend-requests");
-      return response.data?.data?.incomingRequests || [];
+      const response = await axiosInstance.get("/notifications/badge-counts");
+      return response.data?.data || { activityCount: 0, messageRequestCount: 0, friendRequestCount: 0 };
     },
     enabled: Boolean(authUser?._id),
     staleTime: 10000,
@@ -906,34 +929,12 @@ export default function AppShell({
     refetchIntervalInBackground: true,
   });
 
-  const { data: activityNotifications = 0 } = useQuery({
-    // Shared key with MarketplacePage.jsx's identical query.
-    queryKey: ["activityNotifications"],
-    queryFn: async () => {
-      const response = await axiosInstance.get("/notifications?unreadOnly=true");
-      return response.data?.data?.unreadCount || 0;
-    },
-    enabled: Boolean(authUser?._id),
-    staleTime: 10000,
-    refetchInterval: 15000,
-    refetchIntervalInBackground: true,
-  });
-
-  const { data: messageRequests = 0 } = useQuery({
-    // Shared key with MarketplacePage.jsx's identical query.
-    queryKey: ["messageRequests"],
-    queryFn: async () => {
-      const response = await axiosInstance.get("/notifications?type=message_request&unreadOnly=true");
-      return response.data?.data?.unreadCount || 0;
-    },
-    enabled: Boolean(authUser?._id),
-    staleTime: 10000,
-    refetchInterval: 15000,
-    refetchIntervalInBackground: true,
-  });
+  const activityNotifications = badgeCounts.activityCount;
+  const messageRequests = badgeCounts.messageRequestCount;
+  const incomingRequestsCount = badgeCounts.friendRequestCount;
 
   // Unified notification count for bell icon (all types)
-  const totalNotificationCount = activityNotifications + messageRequests + incomingRequests.length;
+  const totalNotificationCount = activityNotifications + messageRequests + incomingRequestsCount;
 
   const { data: marketplaceUnreadCount = 0 } = useQuery({
     queryKey: ["marketplaceUnreadCount", currentUserId],
@@ -958,7 +959,7 @@ export default function AppShell({
   });
 
   useEffect(() => {
-    const currentCount = incomingRequests.length;
+    const currentCount = incomingRequestsCount;
     const previousCount = previousRequestCountRef.current;
 
     if (previousCount > 0 && currentCount > previousCount) {
@@ -969,7 +970,7 @@ export default function AppShell({
     }
 
     previousRequestCountRef.current = currentCount;
-  }, [incomingRequests.length]);
+  }, [incomingRequestsCount]);
 
   const { mutate: logout, isPending } = useMutation({
     mutationFn: async () => {
@@ -1034,7 +1035,7 @@ export default function AppShell({
     >
       <header
         ref={headerRef}
-        className={`${hideMobileHeader ? "hidden xl:block " : ""}z-30 ${autoHideHeaderOnScroll ? "fixed inset-x-0 top-0 xl:sticky" : "sticky top-0"} ${isMarketplaceShell ? "border-b border-base-300 bg-base-100/95 backdrop-blur" : "border-b border-base-300/70 bg-base-100/75 backdrop-blur-2xl"} ${
+        className={`${hideMobileHeader ? (onMarketplaceSearchChange ? "hidden xl:block " : "hidden ") : ""}z-30 ${autoHideHeaderOnScroll ? "fixed inset-x-0 top-0 xl:sticky" : "sticky top-0"} ${isMarketplaceShell ? "border-b border-base-300 bg-base-100/95 backdrop-blur" : "border-b border-base-300/70 bg-base-100/75 backdrop-blur-2xl"} ${
           autoHideHeaderOnScroll
             ? `transition-transform duration-300 ease-out will-change-transform xl:!translate-y-0 ${headerHiddenByScroll ? "-translate-y-full" : "translate-y-0"}`
             : ""
@@ -1149,7 +1150,7 @@ export default function AppShell({
                     ) : null}
                   </button>
 
-                  <div className="relative">
+                  <div className="relative" ref={mobileMenuRef}>
                     <button
                       type="button"
                       className="btn btn-ghost btn-circle btn-sm border border-base-300 bg-base-100 hover:bg-base-200"
@@ -1215,8 +1216,8 @@ export default function AppShell({
                       {item.to === "/activity" && totalNotificationCount > 0 ? (
                         <span className="badge badge-error badge-xs absolute -right-1 -top-1">{totalNotificationCount > 9 ? "9+" : totalNotificationCount}</span>
                       ) : null}
-                      {item.to === "/connections" && incomingRequests.length > 0 ? (
-                        <span className="badge badge-error badge-xs absolute -right-1 -top-1">{incomingRequests.length > 9 ? "9+" : incomingRequests.length}</span>
+                      {item.to === "/connections" && incomingRequestsCount > 0 ? (
+                        <span className="badge badge-error badge-xs absolute -right-1 -top-1">{incomingRequestsCount > 9 ? "9+" : incomingRequestsCount}</span>
                       ) : null}
                       {item.to === "/chat" && (unreadCount + messageRequests) > 0 ? (
                         <span className="badge badge-secondary badge-xs absolute -right-1 -top-1">{(unreadCount + messageRequests) > 9 ? "9+" : (unreadCount + messageRequests)}</span>
@@ -1230,7 +1231,7 @@ export default function AppShell({
               </nav>
 
               <div className="ml-auto flex shrink-0 items-center gap-2.5">
-                <div className="relative">
+                <div className="relative" ref={mobileMenuRef}>
                   <button
                     type="button"
                     className="btn btn-ghost h-9 min-w-[140px] max-w-[200px] rounded-xl border border-base-300 bg-base-100 px-2.5 hover:bg-base-200"
@@ -1314,13 +1315,28 @@ export default function AppShell({
         <div className="xl:hidden" style={{ height: headerHeight }} />
       )}
 
+      {/* Clean back + title bar when the full header is hidden (standalone pages) */}
+      {hideMobileHeader && title && !onMarketplaceSearchChange && (
+        <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-base-300 bg-base-100/95 backdrop-blur px-4 py-3">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="grid size-9 place-items-center rounded-full hover:bg-base-200 active:bg-base-300 transition-colors"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="size-5 text-base-content" />
+          </button>
+          <h1 className="text-lg font-bold text-base-content truncate">{title}</h1>
+        </div>
+      )}
+
       <main
-        className={`mx-auto w-full ${hideMobileHeader ? "px-0 pt-0 xl:px-4 xl:pt-6" : "px-4 pt-6 sm:px-6"} ${isMarketplaceShell ? "max-w-[1440px]" : "max-w-7xl"} ${
+        className={`mx-auto w-full ${hideMobileHeader ? (onMarketplaceSearchChange ? "px-0 pt-0 xl:px-4 xl:pt-6" : "px-0 pt-0") : "px-4 pt-6 sm:px-6"} ${isMarketplaceShell ? "max-w-[1440px]" : "max-w-7xl"} ${
           lockPageScroll ? "xl:flex xl:h-[calc(100dvh-4.75rem)] xl:flex-col xl:overflow-hidden" : "pb-24 md:pb-8"
         }`}
       >
         {!hideHero ? (
-          <section className={`glass-wrap mb-5 p-5 sm:p-6 ${hideMobileHeader ? "hidden xl:block" : ""}`}>
+          <section className={`glass-wrap mb-5 p-5 sm:p-6 ${hideMobileHeader ? (onMarketplaceSearchChange ? "hidden xl:block" : "hidden") : ""}`}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <h1 className="hero-title break-words text-2xl sm:text-3xl md:text-4xl">{title}</h1>
               {actions ? <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:justify-end">{actions}</div> : null}
@@ -1335,7 +1351,7 @@ export default function AppShell({
       {!hideBottomNav && (
         <MobileBottomNav
           isMarketplaceShell={isMarketplaceShell}
-          connectionsCount={incomingRequests.length}
+          connectionsCount={incomingRequestsCount}
           unreadChatCount={unreadCount}
           authUser={authUser}
         />
@@ -1373,7 +1389,7 @@ export default function AppShell({
                 if (item.to === "/activity" || item.section === "activity") {
                   badgeCount = totalNotificationCount;
                 } else if (item.section === "connections" || item.label === "Connections") {
-                  badgeCount = incomingRequests.length;
+                  badgeCount = incomingRequestsCount;
                 } else if (item.section === "chat" || item.label === "Chat") {
                   badgeCount = unreadCount;
                 }

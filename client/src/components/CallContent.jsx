@@ -17,6 +17,7 @@ import toast from "react-hot-toast";
 import { useNavigate, useSearchParams } from "react-router";
 import UserAvatar from "./UserAvatar";
 import axiosInstance from "../lib/axios";
+import { useFriends } from "../hooks/useFriends";
 import { useStreamContext } from "../context/StreamProvider";
 
 const EMPTY_FRIENDS = [];
@@ -42,13 +43,7 @@ export default function CallContent() {
     videoBusy,
   } = useStreamContext();
 
-  const { data: friendsData, isLoading } = useQuery({
-    queryKey: ["friends"],
-    queryFn: async () => {
-      const response = await axiosInstance.get("/users/friends");
-      return response.data?.data?.friends || [];
-    },
-  });
+  const { data: friendsData, isLoading } = useFriends();
 
   const friends = friendsData ?? EMPTY_FRIENDS;
   const friendIds = useMemo(() => friends.map((friend) => friend._id), [friends]);
@@ -60,7 +55,7 @@ export default function CallContent() {
       return response.data?.data?.presence || {};
     },
     enabled: friendIds.length > 0,
-    refetchInterval: 10000,
+    refetchInterval: 30000,
   });
   const presenceByFriendId = presenceData || {};
 
@@ -110,7 +105,7 @@ export default function CallContent() {
   const { data: activeCallsData = [], isFetching: activeCallsFetching, refetch: refetchActiveCalls } = useQuery({
     queryKey: ["activeVideoCalls", currentUserId],
     enabled: Boolean(videoClient && currentUserId),
-    refetchInterval: 5000,
+    refetchInterval: 15000,
     queryFn: async () => {
       if (!videoClient || !currentUserId) {
         return [];

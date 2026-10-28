@@ -2,13 +2,9 @@ import "dotenv/config";
 import app from "./app.js";
 import { logger } from "./utils/logger.js";
 import { connectToMongoDB, closeMongoConnection } from "./config/db.config.js";
-import { connectQueue } from "./config/queue.config.js";
 import { testCloudinaryConnection } from "./config/cloudinary.js";
 import { connectToRedis, closeRedisConnection } from "./config/redisClient.config.js";
-import { initNotificationWorker, closeNotificationQueue } from "./queues/notification.queue.js";
-import { initEngagementSyncWorker, closeEngagementSyncQueue } from "./queues/engagementSync.queue.js";
-import { initPostIngestionWorker, closePostIngestionQueue } from "./queues/postIngestion.queue.js";
-import { initRecommendationWorker, closeRecommendationQueue } from "./queues/recommendation.queue.js";
+import { initAllWorkers, shutdownAllWorkers } from "./jobs/index.js";
 import { initTelemetry } from "./services/telemetry.service.js";
 
 let httpServer = null;
@@ -36,10 +32,7 @@ async function shutdown(signal) {
     await Promise.allSettled([
       closeMongoConnection(),
       closeRedisConnection(),
-      closeNotificationQueue(),
-      closeEngagementSyncQueue(),
-      closePostIngestionQueue(),
-      closeRecommendationQueue(),
+      shutdownAllWorkers(),
     ]);
   } catch (error) {
     logger.error(`Error during shutdown: ${error.message}`, { stack: error.stack });
@@ -80,11 +73,7 @@ async function startServer() {
 
     httpServer = app.listen(PORT, async () => {
       initTelemetry();
-      initNotificationWorker();
-      await initEngagementSyncWorker();
-      initPostIngestionWorker();
-      await initRecommendationWorker();
-      await connectQueue();
+      await initAllWorkers();
       logger.info(`Server is running on port ${PORT}`);
     }).on("error", (err) => {
       if (err.code === "EADDRINUSE") {

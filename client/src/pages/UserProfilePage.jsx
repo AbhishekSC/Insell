@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuthUser } from "../hooks/useAuthUser";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -203,6 +204,22 @@ export default function UserProfilePage() {
   const [recentlyViewed, setRecentlyViewed] = useState([]);
   const [showVerification, setShowVerification] = useState(false);
   const [menuOpenPostId, setMenuOpenPostId] = useState(null);
+
+  useEffect(() => {
+    if (!menuOpenPostId) return;
+    const handleClickOutside = (e) => {
+      if (!e.target.closest("[data-post-menu]")) {
+        setMenuOpenPostId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [menuOpenPostId]);
+
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [postToDelete, setPostToDelete] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -229,16 +246,7 @@ export default function UserProfilePage() {
     setActiveTab("posts");
   }, [userId]);
 
-  // Also populates the shared ["authUser"] cache entry that other components
-  // read via queryClient.getQueryData.
-  const { data: authData } = useQuery({
-    queryKey: ["authUser"],
-    queryFn: async () => {
-      const res = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
-      return res.data;
-    },
-    staleTime: 1000 * 60 * 5,
-  });
+  const { data: authData } = useAuthUser();
   const authUser = authData?.data?.user || authData?.data || null;
 
   const { data: profileData, isLoading: isProfileLoading, isError } = useQuery({
@@ -1237,7 +1245,7 @@ export default function UserProfilePage() {
                                 }
                                 menu={
                                   isOwnProfile ? (
-                                    <div className="relative">
+                                    <div className="relative" data-post-menu>
                                       <button
                                         type="button"
                                         className="btn btn-xs btn-circle border-none bg-transparent text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
@@ -1301,7 +1309,7 @@ export default function UserProfilePage() {
                                       )}
                                     </div>
                                   ) : (
-                                    <div className="relative">
+                                    <div className="relative" data-post-menu>
                                       <button
                                         type="button"
                                         className="btn btn-xs btn-circle border-none bg-transparent text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
@@ -1465,7 +1473,7 @@ export default function UserProfilePage() {
                                 }
                                 menu={
                                   !isOwnPost ? (
-                                    <div className="relative">
+                                    <div className="relative" data-post-menu>
                                       <button
                                         type="button"
                                         className="btn btn-xs btn-circle border-none bg-transparent text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"

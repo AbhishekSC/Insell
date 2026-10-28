@@ -1,5 +1,6 @@
 import PropertyPost from "../models/PropertyPost.model.js";
 import User from "../models/User.model.js";
+import redisClient from "../config/redisClient.config.js";
 import { logger } from "../utils/logger.js";
 import {
   executeNaturalSearch,
@@ -24,140 +25,55 @@ export async function getSearchSuggestions(req, res) {
       });
     }
 
+    const cacheKey = `search:suggest:${query.toLowerCase().trim()}`;
+    try {
+      const cached = await redisClient.get(cacheKey);
+      if (cached) {
+        return res.status(200).json({ success: true, data: JSON.parse(cached) });
+      }
+    } catch {}
+
     const searchRegex = new RegExp(query, 'i');
+    const publishedMatch = { status: "PUBLISHED", visibility: "PUBLIC" };
 
-    // Get location suggestions from published properties
-    const locationSuggestions = await PropertyPost.aggregate([
-      {
-        $match: {
-          status: "PUBLISHED",
-          visibility: "PUBLIC",
-          $or: [
-            { city: searchRegex },
-            { location: searchRegex }
-          ]
-        }
-      },
-      {
-        $group: {
-          _id: { $ifNull: ["$city", "$location"] },
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { count: -1 }
-      },
-      {
-        $limit: 5
-      },
-      {
-        $project: {
-          _id: 0,
-          type: "location",
-          value: "$_id",
-          count: 1
-        }
-      }
-    ]);
-
-    // Get property type suggestions
-    const typeSuggestions = await PropertyPost.aggregate([
-      {
-        $match: {
-          status: "PUBLISHED",
-          visibility: "PUBLIC",
-          propertyType: searchRegex
-        }
-      },
-      {
-        $group: {
-          _id: "$propertyType",
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { count: -1 }
-      },
-      {
-        $limit: 3
-      },
-      {
-        $project: {
-          _id: 0,
-          type: "propertyType",
-          value: "$_id",
-          count: 1
-        }
-      }
-    ]);
-
-    // Get builder/author suggestions
-    const authorSuggestions = await PropertyPost.aggregate([
-      {
-        $match: {
-          status: "PUBLISHED",
-          visibility: "PUBLIC"
-        }
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "author",
-          foreignField: "_id",
-          as: "authorData"
-        }
-      },
-      {
-        $unwind: "$authorData"
-      },
-      {
-        $match: {
-          "authorData.fullName": searchRegex
-        }
-      },
-      {
-        $group: {
-          _id: "$author",
-          fullName: { $first: "$authorData.fullName" },
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { count: -1 }
-      },
-      {
-        $limit: 3
-      },
-      {
-        $project: {
-          _id: 0,
-          type: "author",
-          value: "$fullName",
-          authorId: { $toString: "$_id" },
-          count: 1
-        }
-      }
+    const [locationSuggestions, typeSuggestions, authorSuggestions] = await Promise.all([
+      PropertyPost.aggregate([
+        { $match: { ...publishedMatch, $or: [{ city: searchRegex }, { location: searchRegex }] } },
+        { $group: { _id: { $ifNull: ["$city", "$location"] }, count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 5 },
+        { $project: { _id: 0, type: "location", value: "$_id", count: 1 } },
+      ]),
+      PropertyPost.aggregate([
+        { $match: { ...publishedMatch, propertyType: searchRegex } },
+        { $group: { _id: "$propertyType", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 3 },
+        { $project: { _id: 0, type: "propertyType", value: "$_id", count: 1 } },
+      ]),
+      User.find({ fullName: searchRegex, isBlocked: { $ne: true } })
+        .select("fullName")
+        .limit(3)
+        .lean()
+        .then((users) => users.map((u) => ({ type: "author", value: u.fullName, authorId: String(u._id), count: 1 }))),
     ]);
 
     const suggestions = [
       ...locationSuggestions,
       ...typeSuggestions,
-      ...authorSuggestions
+      ...authorSuggestions,
     ];
 
     const categories = [
       { type: "location", label: "Locations", count: locationSuggestions.length },
       { type: "propertyType", label: "Property Types", count: typeSuggestions.length },
-      { type: "author", label: "Builders", count: authorSuggestions.length }
+      { type: "author", label: "Builders", count: authorSuggestions.length },
     ].filter(cat => cat.count > 0);
 
-    res.status(200).json({
-      success: true,
-      data: {
-        suggestions,
-        categories
-      }
-    });
+    const responseData = { suggestions, categories };
+    redisClient.set(cacheKey, JSON.stringify(responseData), "EX", 300).catch(() => {});
+
+    res.status(200).json({ success: true, data: responseData });
   } catch (error) {
     logger.error("Error getting search suggestions:", error);
     res.status(500).json({

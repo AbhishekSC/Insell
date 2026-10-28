@@ -196,9 +196,10 @@ function ActivityItem({ activity, onNavigateToPost, isOwnActivity = false, onRes
                 }}
               >
                 {activity.post.mediaUrls?.[0] && (
-                  <img 
-                    src={activity.post.mediaUrls[0]} 
-                    alt="Post" 
+                  <img
+                    src={activity.post.mediaUrls[0]}
+                    alt="Post"
+                    loading="lazy"
                     className="size-12 rounded-lg object-cover"
                   />
                 )}
@@ -322,8 +323,7 @@ export default function ActivityContent({ onNavigateToPost }) {
       toast.success("All notifications marked as read");
       queryClient.invalidateQueries({ queryKey: ["notificationsCount"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      queryClient.invalidateQueries({ queryKey: ["activityNotifications"] });
-      queryClient.invalidateQueries({ queryKey: ["messageRequests"] });
+      queryClient.invalidateQueries({ queryKey: ["badgeCounts"] });
     },
     onError: () => {
       toast.error("Failed to mark notifications as read");

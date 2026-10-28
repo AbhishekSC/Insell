@@ -44,8 +44,9 @@ export async function sendVerificationCode(userId) {
     } catch (emailError) {
       logger.error(`❌ Failed to send verification email, falling back to console log:`, emailError);
       // Fallback to console logging if email fails
-      logger.info(`📧 Verification code for ${user.email}: ${verificationCode} (expires at ${expiresAt})`);
-      console.log(`📧 VERIFICATION CODE for ${user.email}: ${verificationCode}`);
+      if (process.env.NODE_ENV !== "production") {
+        logger.info(`Verification code for ${user.email}: ${verificationCode} (expires at ${expiresAt})`);
+      }
     }
 
     return {

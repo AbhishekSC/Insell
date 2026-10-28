@@ -6,6 +6,8 @@ import { Crown, FolderOpen, MessageSquare, Paperclip, Send, BadgeCheck, Users, V
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import axiosInstance from "../lib/axios";
+import { useAuthUser } from "../hooks/useAuthUser";
+import { useFriends } from "../hooks/useFriends";
 import { useStreamContext } from "../context/StreamProvider";
 
 
@@ -64,15 +66,7 @@ export default function CommunityDetailPage() {
   const { communityId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: authData, isLoading: authLoading } = useQuery({
-    queryKey: ["authUser"],
-    queryFn: async () => {
-      const response = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
-      return response.data;
-    },
-    staleTime: 1000 * 60 * 5,
-    retry: false,
-  });
+  const { data: authData, isLoading: authLoading } = useAuthUser();
   const authUser = authData?.data?.user || authData?.data || null;
   const { startGroupVideoCall, videoBusy, streamClient, streamReady } = useStreamContext();
 
@@ -85,14 +79,7 @@ export default function CommunityDetailPage() {
   const [communityChannel, setCommunityChannel] = useState(null);
   const [showDestroyModal, setShowDestroyModal] = useState(false);
 
-  const { data: friends = [] } = useQuery({
-    queryKey: ["friends"],
-    queryFn: async () => {
-      const response = await axiosInstance.get("/users/friends");
-      return response.data?.data?.friends || [];
-    },
-    enabled: Boolean(authUser?._id),
-  });
+  const { data: friends = [] } = useFriends({ enabled: Boolean(authUser?._id) });
 
   const { data: communityDetail, isLoading } = useQuery({
     queryKey: ["communityDetail", communityId],
@@ -159,7 +146,7 @@ export default function CommunityDetailPage() {
     const handleNewMessage = (event) => {
       if (event.message?.custom_type === "community_destroyed") {
         toast.error(event.message.text || "This community has been deleted by the admin.");
-        queryClient.invalidateQueries({ queryKey: ["communityData"] });
+        queryClient.invalidateQueries({ queryKey: ["communities"] });
         navigate("/community");
       }
     };
@@ -178,7 +165,7 @@ export default function CommunityDetailPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["communityDetail", communityId] });
-      queryClient.invalidateQueries({ queryKey: ["communityData"] });
+      queryClient.invalidateQueries({ queryKey: ["communities"] });
       setInviteMemberIds([]);
       toast.success("Invites sent.");
     },
@@ -194,7 +181,7 @@ export default function CommunityDetailPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["communityDetail", communityId] });
-      queryClient.invalidateQueries({ queryKey: ["communityData"] });
+      queryClient.invalidateQueries({ queryKey: ["communities"] });
       setInviteMemberIds([]);
       toast.success("Request sent to admin for approval.");
     },
@@ -213,7 +200,7 @@ export default function CommunityDetailPage() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["communityDetail", communityId] });
-      queryClient.invalidateQueries({ queryKey: ["communityData"] });
+      queryClient.invalidateQueries({ queryKey: ["communities"] });
       toast.success(variables.action === "accept" ? "Member request approved." : "Member request declined.");
     },
     onError: (error) => {
@@ -227,7 +214,7 @@ export default function CommunityDetailPage() {
       return response.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["communityData"] });
+      queryClient.invalidateQueries({ queryKey: ["communities"] });
       toast.success("You left the community.");
       navigate("/community");
     },
@@ -243,7 +230,7 @@ export default function CommunityDetailPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["communityDetail", communityId] });
-      queryClient.invalidateQueries({ queryKey: ["communityData"] });
+      queryClient.invalidateQueries({ queryKey: ["communities"] });
       toast.success("Member removed.");
     },
     onError: (error) => {
@@ -258,7 +245,7 @@ export default function CommunityDetailPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["communityDetail", communityId] });
-      queryClient.invalidateQueries({ queryKey: ["communityData"] });
+      queryClient.invalidateQueries({ queryKey: ["communities"] });
       setNewOwnerId("");
       setShowTransferConfirm(false);
       toast.success("Ownership transferred.");
@@ -293,7 +280,7 @@ export default function CommunityDetailPage() {
       return response.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["communityData"] });
+      queryClient.invalidateQueries({ queryKey: ["communities"] });
       setShowDestroyModal(false);
       toast.success("Community destroyed.");
       navigate("/community");

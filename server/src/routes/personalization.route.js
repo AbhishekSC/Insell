@@ -1,4 +1,5 @@
 import express from "express";
+import { logger } from "../utils/logger.js";
 import PersonalizationService from "../services/PersonalizationService.js";
 import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler.js";
 import { verifyUser, requireVerified } from "../middlewares/auth.middleware.js";
@@ -25,7 +26,7 @@ router.get("/recommendations", verifyUser, requireVerified, async (req, res) => 
       count: recommendations.length
     });
   } catch (error) {
-    console.error("Error in recommendations endpoint:", error);
+    logger.error("Error in recommendations endpoint:", error);
     return sendErrorResponse(res, 500, "Failed to get recommendations");
   }
 });
@@ -47,7 +48,7 @@ router.post("/events", verifyUser, requireVerified, async (req, res) => {
     const result = await PersonalizationService.recordRecoEvents(req.user._id, events);
     return sendSuccessResponse(res, 200, "Events recorded", result);
   } catch (error) {
-    console.error("Error in reco events endpoint:", error);
+    logger.error("Error in reco events endpoint:", error);
     return sendErrorResponse(res, 500, "Failed to record events");
   }
 });
@@ -118,7 +119,7 @@ router.get("/trending-locations", verifyUser, requireVerified, async (req, res) 
       count: trendingLocations.length
     });
   } catch (error) {
-    console.error("Error in trending locations endpoint:", error);
+    logger.error("Error in trending locations endpoint:", error);
     return sendErrorResponse(res, 500, "Failed to get trending locations");
   }
 });
@@ -142,7 +143,7 @@ router.get("/trending-localities", verifyUser, requireVerified, async (req, res)
       count: trendingLocalities.length
     });
   } catch (error) {
-    console.error("Error in trending localities endpoint:", error);
+    logger.error("Error in trending localities endpoint:", error);
     return sendErrorResponse(res, 500, "Failed to get trending localities");
   }
 });
@@ -177,7 +178,7 @@ router.get("/trending-near-you", verifyUser, requireVerified, async (req, res) =
       source: result.source,
     });
   } catch (error) {
-    console.error("Error in trending-near-you endpoint:", error);
+    logger.error("Error in trending-near-you endpoint:", error);
     return sendErrorResponse(res, 500, "Failed to get trending properties near you");
   }
 });
@@ -197,7 +198,7 @@ router.post("/cf/rebuild", verifyUser, requireVerified, async (req, res) => {
     const result = await rebuildEmbeddings();
     return sendSuccessResponse(res, 200, "CF embeddings rebuilt", result);
   } catch (error) {
-    console.error("Error rebuilding CF embeddings:", error);
+    logger.error("Error rebuilding CF embeddings:", error);
     return sendErrorResponse(res, 500, "Failed to rebuild CF embeddings");
   }
 });
@@ -217,7 +218,7 @@ router.get("/forecast", async (req, res) => {
     const forecast = await getAppreciationForecast(city, locality);
     return sendSuccessResponse(res, 200, "Appreciation forecast fetched successfully", { forecast });
   } catch (error) {
-    console.error("Error in appreciation forecast endpoint:", error);
+    logger.error("Error in appreciation forecast endpoint:", error);
     return sendErrorResponse(res, 500, "Failed to get appreciation forecast");
   }
 });

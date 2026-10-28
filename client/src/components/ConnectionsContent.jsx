@@ -21,6 +21,8 @@ import toast from "react-hot-toast";
 import { Link } from "react-router";
 import UserAvatar from "./UserAvatar";
 import axiosInstance from "../lib/axios";
+import { useAuthUser } from "../hooks/useAuthUser";
+import { useFriends } from "../hooks/useFriends";
 
 const EMPTY_LIST = [];
 
@@ -65,13 +67,7 @@ export default function ConnectionsContent({ onOpenMessages }) {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Auth User
-  const { data: authData } = useQuery({
-    queryKey: ["authUser"],
-    queryFn: async () => (await axiosInstance.get("/auth/verify", { skipErrorToast: true })).data,
-    retry: false,
-    staleTime: 1000 * 60 * 5,
-  });
+  const { data: authData } = useAuthUser();
   const authUser = authData?.data?.user || authData?.data || null;
 
   // Friends query
@@ -79,10 +75,7 @@ export default function ConnectionsContent({ onOpenMessages }) {
     data: friendsData,
     isRefetching: friendsRefetching,
     refetch: refetchFriends,
-  } = useQuery({
-    queryKey: ["friends"],
-    queryFn: async () => (await axiosInstance.get("/users/friends")).data?.data?.friends || [],
-  });
+  } = useFriends();
   const friendsList = friendsData ?? EMPTY_LIST;
 
   // Incoming connection requests
@@ -93,7 +86,7 @@ export default function ConnectionsContent({ onOpenMessages }) {
   } = useQuery({
     queryKey: ["incomingRequests"],
     queryFn: async () => (await axiosInstance.get("/users/friend-requests")).data?.data?.incomingRequests || [],
-    refetchInterval: 15000,
+    refetchInterval: 60000,
   });
   const incomingRequests = incomingData ?? EMPTY_LIST;
 

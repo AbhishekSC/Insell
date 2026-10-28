@@ -106,6 +106,19 @@ function linearRegression(x, y) {
  * @param {string} [locality] — optional locality within the city
  * @returns {Promise<Object>} — { annualizedRate, monthlySlope, currentPsf, projectedPsf12m, confidence }
  */
+export async function getCachedForecastOrRecompute(city, locality = null) {
+  if (!city) return null;
+  const key = cacheKey(city, locality);
+  try {
+    const cached = await redisClient.get(key);
+    if (cached) return JSON.parse(cached);
+  } catch {}
+  import("../jobs/producers/ingestion.producer.js")
+    .then(({ enqueuePostEnrichment }) => enqueuePostEnrichment(`forecast:${key}`, city))
+    .catch(() => {});
+  return null;
+}
+
 export async function getAppreciationForecast(city, locality = null) {
   if (!city) return null;
 
@@ -298,18 +311,24 @@ export async function getInvestorScore(property, forecast = null) {
  */
 export async function batchGetForecasts(locations = []) {
   const results = new Map();
-  const uniqueKeys = new Set();
+  const unique = new Map();
 
   for (const loc of locations) {
     const key = `${String(loc.city || "").toLowerCase()}:${String(loc.locality || "").toLowerCase()}`;
-    if (uniqueKeys.has(key)) continue;
-    uniqueKeys.add(key);
+    if (!unique.has(key)) unique.set(key, loc);
+  }
 
-    try {
-      const forecast = await getAppreciationForecast(loc.city, loc.locality);
-      results.set(key, forecast);
-    } catch (err) {
-      logger.warn(`[APPRECIATION] Failed to get forecast for ${key}: ${err.message}`);
+  const entries = [...unique.entries()];
+  const settled = await Promise.allSettled(
+    entries.map(([, loc]) => getAppreciationForecast(loc.city, loc.locality))
+  );
+
+  for (let i = 0; i < entries.length; i++) {
+    const [key] = entries[i];
+    if (settled[i].status === "fulfilled") {
+      results.set(key, settled[i].value);
+    } else {
+      logger.warn(`[APPRECIATION] Failed to get forecast for ${key}: ${settled[i].reason?.message}`);
       results.set(key, null);
     }
   }

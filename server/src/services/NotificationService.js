@@ -5,7 +5,7 @@ import { pushRealtimeNotification } from "./stream.service.js";
 import { sendPushNotification } from "./firebase.service.js";
 import { sendGenericEmail } from "../utils/emailClient.js";
 import { deriveWebPath } from "./notificationRouting.js";
-import { enqueueNotification } from "../queues/notification.queue.js";
+import { enqueueNotification } from "../jobs/producers/notification.producer.js";
 import { incrementUnreadNotificationCount } from "./notificationCache.service.js";
 
 export const NotificationChannel = {

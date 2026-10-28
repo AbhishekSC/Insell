@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuthUser } from "../hooks/useAuthUser";
 import {
   AlertTriangle,
   ArrowUpDown,
@@ -282,15 +283,7 @@ export default function PropertyDetailPage() {
   const isNeighborhoodVibeEnabled = useFeatureFlag("neighborhood_vibe_score");
   const isAiValuationEnabled = useFeatureFlag("ai_property_valuation");
 
-  const { data: authData } = useQuery({
-    queryKey: ["authUser"],
-    queryFn: async () => {
-      const response = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
-      return response.data;
-    },
-    staleTime: 1000 * 60 * 5,
-    retry: false,
-  });
+  const { data: authData } = useAuthUser();
   const authUser = authData?.data?.user || authData?.data || null;
 
   // Short polling so a price change, offer, or accept from the other side
@@ -303,7 +296,7 @@ export default function PropertyDetailPage() {
       return res.data?.data?.post;
     },
     enabled: !!id,
-    refetchInterval: 6000,
+    refetchInterval: 15000,
   });
 
   const sellerId = postData?.author?._id;
@@ -452,7 +445,7 @@ export default function PropertyDetailPage() {
       return res.data?.data?.offer || null;
     },
     enabled: Boolean(id && authUser?._id && postData && !isOwnerForQueries),
-    refetchInterval: 6000,
+    refetchInterval: 15000,
   });
 
   // Owner's incoming offers on this post.
@@ -463,7 +456,7 @@ export default function PropertyDetailPage() {
       return res.data?.data?.offers || [];
     },
     enabled: Boolean(id && isOwnerForQueries),
-    refetchInterval: 6000,
+    refetchInterval: 15000,
   });
 
   // The closing tracker — exists once an offer on this post has been accepted.
@@ -902,7 +895,7 @@ export default function PropertyDetailPage() {
                   }`}
                   onClick={() => setCarouselIndex(idx)}
                 >
-                  <img src={img} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                  <img src={img} alt={`Thumbnail ${idx + 1}`} loading="lazy" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
@@ -1672,7 +1665,7 @@ export default function PropertyDetailPage() {
                     <div className="size-20 rounded-full bg-gradient-to-br from-primary to-secondary p-0.5">
                       <div className="size-full rounded-full bg-base-100 p-0.5">
                         {postData.author?.profilePic ? (
-                          <img src={postData.author.profilePic} alt={postData.author.fullName} className="w-full h-full rounded-full object-cover" />
+                          <img src={postData.author.profilePic} alt={postData.author.fullName} loading="lazy" className="w-full h-full rounded-full object-cover" />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center bg-base-200 rounded-full">
                             <span className="text-2xl font-bold text-base-content/70">{postData.author?.fullName?.charAt(0) || "U"}</span>

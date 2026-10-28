@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { X, Copy, Check, Search, MessageCircle, Facebook, Send, Loader2, BadgeCheck } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
+import { useFriends } from "../hooks/useFriends";
 import { trackRecoEvent } from "../lib/recoEvents";
 import { useStreamContext } from "../context/StreamProvider";
 import UserAvatar from "./UserAvatar";
@@ -14,14 +14,7 @@ export default function ShareModal({ isOpen, onClose, postUrl, postTitle, postId
   const [isSending, setIsSending] = useState(false);
   const { streamClient, currentUserId } = useStreamContext();
 
-  const { data: friends, isLoading: isLoadingFriends } = useQuery({
-    queryKey: ["friends"],
-    enabled: isOpen,
-    queryFn: async () => {
-      const response = await axiosInstance.get("/users/friends");
-      return response.data?.data?.friends || [];
-    },
-  });
+  const { data: friends, isLoading: isLoadingFriends } = useFriends({ enabled: isOpen });
 
   const filteredFriends = useMemo(() => {
     const list = friends || [];

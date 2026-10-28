@@ -18,19 +18,6 @@ import { cloudinaryInstance, extractPublicIdFromUrl } from "../config/cloudinary
 // already uses (there's no dedicated verified-broker flag yet, just role).
 const VERIFIED_ROLES = ["Broker", "Seller", "Landlord"];
 
-// Bulk Notification insert can outgrow a single write; chunk to stay safe.
-const NOTIFICATION_INSERT_CHUNK_SIZE = 1000;
-// Realtime pushes are one Stream API call each — cap concurrency so a huge
-// broadcast doesn't fire thousands of requests at once.
-const REALTIME_PUSH_CONCURRENCY = 25;
-
-async function pushRealtimeInBatches(userIds, eventType) {
-  for (let i = 0; i < userIds.length; i += REALTIME_PUSH_CONCURRENCY) {
-    const batch = userIds.slice(i, i + REALTIME_PUSH_CONCURRENCY);
-    await Promise.allSettled(batch.map((id) => pushRealtimeNotification(id, eventType)));
-  }
-}
-
 const ADMIN_POST_FIELDS =
   "title price city listingType propertyType mediaUrls author status isDeleted isBlocked blockedAt blockedBy blockReasonCode blockNote createdAt";
 
@@ -584,21 +571,6 @@ export const createAnnouncement = async (req, res) => {
       return sendErrorResponse(res, 400, "No users match this segment");
     }
 
-    const now = new Date();
-    const notificationDocs = recipientIds.map((recipientId) => ({
-      recipient: recipientId,
-      actor: adminId,
-      type: "admin_announcement",
-      message,
-      image: image || undefined,
-      createdAt: now,
-      updatedAt: now,
-    }));
-
-    for (let i = 0; i < notificationDocs.length; i += NOTIFICATION_INSERT_CHUNK_SIZE) {
-      await Notification.insertMany(notificationDocs.slice(i, i + NOTIFICATION_INSERT_CHUNK_SIZE));
-    }
-
     const announcement = await Announcement.create({
       message,
       image: image || undefined,
@@ -607,11 +579,20 @@ export const createAnnouncement = async (req, res) => {
       recipientCount: recipientIds.length,
     });
 
-    // Best-effort — notifications already exist in Mongo, so a failed push
-    // just means recipients pick it up on next load instead of instantly.
-    pushRealtimeInBatches(recipientIds, "admin_announcement").catch((error) => {
-      logger.error("Error pushing realtime announcement (non-fatal):", error);
-    });
+    const now = new Date();
+    const { enqueueBroadcast } = await import("../jobs/producers/fanout.producer.js");
+    enqueueBroadcast({
+      recipientIds: recipientIds.map(String),
+      notification: {
+        actor: adminId,
+        type: "admin_announcement",
+        message,
+        image: image || undefined,
+        createdAt: now,
+        updatedAt: now,
+      },
+      realtimeEvent: "admin_announcement",
+    }).catch((err) => logger.warn("Failed to enqueue broadcast (non-fatal):", err?.message));
 
     logger.info(`Announcement sent by admin ${adminId} to ${recipientIds.length} users`);
 

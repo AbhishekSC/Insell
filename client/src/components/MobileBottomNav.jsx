@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router";
 import { Home, Map, MessageCircle, UserCircle, Users } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { useStreamContext } from "../context/StreamProvider";
+import { useAuthUser } from "../hooks/useAuthUser";
 
 const NAV_ITEMS = [
   { to: "/marketplace", label: "Marketplace", icon: Home, section: "marketplace" },
@@ -56,10 +56,7 @@ export default function MobileBottomNav({
   const location = useLocation();
   const { unreadCount: streamUnreadCount } = useStreamContext() || {};
 
-  const { data: authData } = useQuery({
-    queryKey: ["authUser"],
-    staleTime: 1000 * 60 * 5,
-  });
+  const { data: authData } = useAuthUser();
   const user = propAuthUser || authData?.data?.user || authData?.data || null;
   const unreadMessages = unreadChatCount !== undefined ? unreadChatCount : (streamUnreadCount || 0);
 

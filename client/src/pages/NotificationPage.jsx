@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuthUser } from "../hooks/useAuthUser";
+import { useFriends } from "../hooks/useFriends";
 import {
   Bell,
   Check,
@@ -103,10 +105,7 @@ export default function NotificationPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const { data: friendsData, isLoading: friendsLoading } = useQuery({
-    queryKey: ["friends"],
-    queryFn: async () => (await axiosInstance.get("/users/friends")).data?.data?.friends || [],
-  });
+  const { data: friendsData, isLoading: friendsLoading } = useFriends();
   const { data: incomingData, isLoading: incomingLoading } = useQuery({
     queryKey: ["incomingRequests"],
     queryFn: async () => (await axiosInstance.get("/users/friend-requests")).data?.data?.incomingRequests || [],
@@ -124,12 +123,7 @@ export default function NotificationPage() {
     },
     placeholderData: (previousData) => previousData,
   });
-  const { data: authData } = useQuery({
-    queryKey: ["authUser"],
-    queryFn: async () => (await axiosInstance.get("/auth/verify", { skipErrorToast: true })).data,
-    retry: false,
-    staleTime: 1000 * 60 * 5,
-  });
+  const { data: authData } = useAuthUser();
 
   const friends = friendsData ?? EMPTY_LIST;
   const incomingRequests = incomingData ?? EMPTY_LIST;

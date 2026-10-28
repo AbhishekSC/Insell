@@ -40,7 +40,7 @@ import { cloudinaryInstance } from "../config/cloudinary.js";
 import { centroidForCity } from "../utils/cityCentroids.js";
 import {
   batchGetForecasts,
-  getAppreciationForecast,
+  getCachedForecastOrRecompute,
 } from "../services/AppreciationForecastService.js";
 import { calculateDealProbability } from "../services/DealProbabilityService.js";
 import CardCTRService from "../services/CardCTRService.js";
@@ -778,7 +778,7 @@ export async function getPropertyFeed(req, res) {
           personalizedPosts = personalizedPosts.map((p) => ({ ...p, personalizationScore: p.personalizationScore }));
           personalizedPosts = await attachSocialProof(personalizedPosts, currentUserId);
 
-          import("../queues/recommendation.queue.js")
+          import("../jobs/producers/ingestion.producer.js")
             .then(({ enqueueUserRecommendationPrecompute }) => enqueueUserRecommendationPrecompute(currentUserId))
             .catch(() => {});
         }
@@ -811,14 +811,25 @@ export async function getPropertyFeed(req, res) {
     }
 
     async function getVerifiedUserIds() {
-      const User = (await import("../models/User.model.js")).default;
+      const CACHE_KEY = "verified_user_ids";
+      const CACHE_TTL = 300; // 5 minutes
+      try {
+        const cached = await redisClient.get(CACHE_KEY);
+        if (cached) return JSON.parse(cached);
+      } catch (_) {}
+
       const verifiedUsers = await User.find({
         $or: [
           { activeRole: { $in: ["Broker", "Seller", "Landlord"] } },
           { primaryRole: { $in: ["Broker", "Seller", "Landlord"] } },
         ],
       }).select("_id").lean();
-      return verifiedUsers.map(u => String(u._id));
+      const ids = verifiedUsers.map(u => String(u._id));
+
+      try {
+        await redisClient.setEx(CACHE_KEY, CACHE_TTL, JSON.stringify(ids));
+      } catch (_) {}
+      return ids;
     }
 
     if (category === "near me") {
@@ -851,10 +862,21 @@ export async function getPropertyFeed(req, res) {
       feedQuery.skip(skip);
     }
 
-    const [posts, total] = await Promise.all([
-      feedQuery.lean(),
-      PropertyPost.countDocuments(filter),
-    ]);
+    // For cursor-based pagination (infinite scroll), skip the expensive
+    // countDocuments — fetch limit+1 to detect hasMore instead.
+    let posts, total;
+    if (hasCursor) {
+      feedQuery.limit(limit + 1);
+      const rawPosts = await feedQuery.lean();
+      const hasMore = rawPosts.length > limit;
+      posts = hasMore ? rawPosts.slice(0, limit) : rawPosts;
+      total = hasMore ? (page * limit) + 1 : ((page - 1) * limit) + posts.length;
+    } else {
+      [posts, total] = await Promise.all([
+        feedQuery.lean(),
+        PropertyPost.countDocuments(filter),
+      ]);
+    }
 
     // Read live engagement and views from Redis in a single pipeline round trip
     const postsWithEngagement = await batchDecoratePosts(posts, currentUserId);
@@ -1392,26 +1414,22 @@ async function attachSocialProof(posts, currentUserId) {
   if (!Array.isArray(posts) || posts.length === 0) return posts;
   const User = (await import("../models/User.model.js")).default;
 
-  let friends = new Set();
-  let communityIds = new Set();
-  let viewer = null;
-
-  if (currentUserId) {
-    const graph = await getUserSocialGraph(currentUserId);
-    viewer = graph.viewer;
-    friends = graph.friends;
-    communityIds = graph.communityIds;
-  }
-
-  // Batch fetch appreciation forecasts for distinct locations
+  // Kick off social graph + forecasts in parallel (both are cached/fast).
   const locations = [];
   for (const p of posts) {
     if (p.city) locations.push({ city: p.city, locality: p.locality });
   }
-  const forecastMap = await batchGetForecasts(locations);
+  const [graphResult, forecastMap] = await Promise.all([
+    currentUserId ? getUserSocialGraph(currentUserId) : null,
+    batchGetForecasts(locations),
+  ]);
+
+  const friends = graphResult?.friends ?? new Set();
+  const communityIds = graphResult?.communityIds ?? new Set();
+  const viewer = graphResult?.viewer ?? null;
 
   // ── 1. Friend likes (existing logic) ────────────────────────────────
-  const picks = new Map(); // postId -> friendLikerId
+  const picks = new Map();
   const wanted = new Set();
   for (const p of posts) {
     const friendLiker = (p.likedBy || [])
@@ -1422,54 +1440,38 @@ async function attachSocialProof(posts, currentUserId) {
     wanted.add(friendLiker);
   }
 
-  // ── 2. Friend views (from viewedPosts on friend profiles) ──────────
-  // Check which friends have this post in their viewedPosts
-  const friendViewersMap = new Map(); // postId -> [{ name, avatar }]
-  if (friends.size > 0) {
-    const friendIds = [...friends];
-    const friendsWhoViewed = await User.find(
-      { _id: { $in: friendIds } },
-      { "viewedPosts.post": 1, fullName: 1, profilePic: 1 }
-    ).lean();
+  // ── 2 & 3. Friend views + community saves — run in parallel ────────
+  const postIds = posts.map((p) => p._id);
+  const friendViewersMap = new Map();
+  const communitySavesMap = new Map();
 
-    for (const f of friendsWhoViewed) {
-      const viewedPostIds = (f.viewedPosts || []).map((v) => String(v.post));
-      for (const p of posts) {
-        const pid = String(p._id);
-        if (viewedPostIds.includes(pid)) {
-          if (!friendViewersMap.has(pid)) friendViewersMap.set(pid, []);
-          friendViewersMap.get(pid).push({
-            name: (f.fullName || "A connection").split(" ")[0],
-            avatar: f.profilePic || null,
-          });
-        }
-      }
-    }
+  const [friendViewRows, commSaveRows] = await Promise.all([
+    friends.size > 0
+      ? User.aggregate([
+          { $match: { _id: { $in: [...friends] }, "viewedPosts.post": { $in: postIds } } },
+          { $project: { fullName: 1, profilePic: 1, viewedPosts: { $filter: { input: "$viewedPosts", as: "v", cond: { $in: ["$$v.post", postIds] } } } } },
+          { $unwind: "$viewedPosts" },
+          { $group: { _id: "$viewedPosts.post", viewers: { $push: { name: "$fullName", avatar: "$profilePic" } } } },
+        ])
+      : [],
+    communityIds.size > 0
+      ? User.aggregate([
+          { $match: { communities: { $in: [...communityIds] }, savedPosts: { $in: postIds } } },
+          { $project: { matched: { $setIntersection: ["$savedPosts", postIds] } } },
+          { $unwind: "$matched" },
+          { $group: { _id: "$matched", count: { $sum: 1 } } },
+        ])
+      : [],
+  ]);
+
+  for (const row of friendViewRows) {
+    friendViewersMap.set(String(row._id), row.viewers.map((v) => ({
+      name: (v.name || "A connection").split(" ")[0],
+      avatar: v.avatar || null,
+    })));
   }
-
-  // ── 3. Community saves ──────────────────────────────────────────────
-  // Count how many users who saved this post are in the viewer's communities
-  const communitySavesMap = new Map(); // postId -> count
-  if (communityIds.size > 0) {
-    // Find community members who saved any of these posts
-    const communityMembers = await User.find(
-      { communities: { $in: [...communityIds] } },
-      { savedPosts: 1 }
-    ).lean();
-
-    const memberSavedSet = new Set();
-    for (const m of communityMembers) {
-      for (const sp of (m.savedPosts || [])) {
-        memberSavedSet.add(String(sp));
-      }
-    }
-
-    for (const p of posts) {
-      const pid = String(p._id);
-      if (memberSavedSet.has(pid)) {
-        communitySavesMap.set(pid, (communitySavesMap.get(pid) || 0) + 1);
-      }
-    }
+  for (const row of commSaveRows) {
+    communitySavesMap.set(String(row._id), row.count);
   }
 
   // ── 4. City velocity ────────────────────────────────────────────────
@@ -1504,53 +1506,37 @@ async function attachSocialProof(posts, currentUserId) {
     }
   }
 
-  // ── Resolve friend liker profiles ───────────────────────────────────
-  const likers = wanted.size > 0
-    ? await User.find({ _id: { $in: [...wanted] } }).select("fullName profilePic isOwnerVerified").lean()
-    : [];
+  // ── Resolve friend liker profiles + real inquiries — in parallel ─────
+  const postObjectIds = posts.map((p) => p._id).filter(Boolean);
+  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const [likers, visitStats, offerStats] = await Promise.all([
+    wanted.size > 0
+      ? User.find({ _id: { $in: [...wanted] } }).select("fullName profilePic isOwnerVerified").lean()
+      : [],
+    postObjectIds.length > 0
+      ? VisitRequest.aggregate([
+          { $match: { post: { $in: postObjectIds }, createdAt: { $gte: oneWeekAgo } } },
+          { $group: { _id: "$post", today: { $sum: { $cond: [{ $gte: ["$createdAt", oneDayAgo] }, 1, 0] } }, week: { $sum: 1 } } },
+        ]).catch(() => [])
+      : [],
+    postObjectIds.length > 0
+      ? Offer.aggregate([
+          { $match: { post: { $in: postObjectIds }, createdAt: { $gte: oneWeekAgo } } },
+          { $group: { _id: "$post", today: { $sum: { $cond: [{ $gte: ["$createdAt", oneDayAgo] }, 1, 0] } }, week: { $sum: 1 } } },
+        ]).catch(() => [])
+      : [],
+  ]);
+
   const byId = new Map(likers.map((u) => [String(u._id), u]));
 
-  // ── 5. Real inquiries aggregation (Visits + Offers) ──────────────────
-  const postObjectIds = posts.map((p) => p._id).filter(Boolean);
   const realInquiriesTodayMap = new Map();
   const realInquiriesWeekMap = new Map();
-
-  if (postObjectIds.length > 0) {
-    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-    try {
-      const [visitStats, offerStats] = await Promise.all([
-        VisitRequest.aggregate([
-          { $match: { post: { $in: postObjectIds }, createdAt: { $gte: oneWeekAgo } } },
-          {
-            $group: {
-              _id: "$post",
-              today: { $sum: { $cond: [{ $gte: ["$createdAt", oneDayAgo] }, 1, 0] } },
-              week: { $sum: 1 },
-            },
-          },
-        ]),
-        Offer.aggregate([
-          { $match: { post: { $in: postObjectIds }, createdAt: { $gte: oneWeekAgo } } },
-          {
-            $group: {
-              _id: "$post",
-              today: { $sum: { $cond: [{ $gte: ["$createdAt", oneDayAgo] }, 1, 0] } },
-              week: { $sum: 1 },
-            },
-          },
-        ]),
-      ]);
-
-      for (const item of [...visitStats, ...offerStats]) {
-        const pid = String(item._id);
-        realInquiriesTodayMap.set(pid, (realInquiriesTodayMap.get(pid) || 0) + (item.today || 0));
-        realInquiriesWeekMap.set(pid, (realInquiriesWeekMap.get(pid) || 0) + (item.week || 0));
-      }
-    } catch (e) {
-      logger.warn("attachSocialProof inquiries aggregation error:", e?.message);
-    }
+  for (const item of [...visitStats, ...offerStats]) {
+    const pid = String(item._id);
+    realInquiriesTodayMap.set(pid, (realInquiriesTodayMap.get(pid) || 0) + (item.today || 0));
+    realInquiriesWeekMap.set(pid, (realInquiriesWeekMap.get(pid) || 0) + (item.week || 0));
   }
 
   return posts.map((p) => {
@@ -1673,7 +1659,7 @@ async function getNearMeFeed(req, res, { filter, page, limit, skip, currentUserI
         { $limit: 300 },
       ]);
 
-      const decoratedRows = await Promise.all(rows.map((post) => decorateForUser(post, currentUserId)));
+      const decoratedRows = await batchDecoratePosts(rows, currentUserId);
       const scored = decoratedRows
         .map((post, i) => {
           const distanceKm = rows[i].distanceMeters / 1000;
@@ -1826,7 +1812,7 @@ export async function createPropertyPost(req, res) {
 
     // Offload post enrichment, geo indexing, and hot city cache invalidation to BullMQ background worker
     try {
-      const { enqueuePostEnrichment } = await import("../queues/postIngestion.queue.js");
+      const { enqueuePostEnrichment } = await import("../jobs/producers/ingestion.producer.js");
       await enqueuePostEnrichment(post._id, post.city);
     } catch {}
 
@@ -1862,8 +1848,8 @@ export async function createPropertyPost(req, res) {
 // Those already reached via (1) are skipped in (2).
 export async function handlePriceChangeFanout(post, oldPrice) {
   try {
-    const { enqueuePriceDropFanout } = await import("../queues/postIngestion.queue.js");
-    await enqueuePriceDropFanout(post, oldPrice);
+    const { enqueuePriceDropFanout } = await import("../jobs/producers/ingestion.producer.js");
+    await enqueuePriceDropFanout(post._id, oldPrice);
   } catch {
     const alertedUserIds = await notifyTriggeredPriceAlerts(post, oldPrice);
     await notifyPriceChange(post, oldPrice, new Set(alertedUserIds.map(String)));
@@ -2493,11 +2479,16 @@ export async function getMyPropertyPosts(req, res) {
       return sendErrorResponse(res, 401, "Authentication required");
     }
 
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 50));
     const posts = await PropertyPost.find({
       author: userId,
       isDeleted: { $ne: true },
     })
       .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .select("title price city locality listingType propertyType status mediaUrls createdAt updatedAt isBoosted boostExpiresAt areaSqft bedrooms bathrooms furnishing author visibility")
       .populate(
         "author",
         "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified"
@@ -2603,7 +2594,7 @@ export async function getPropertyPostById(req, res) {
             isBlocked: { $ne: true },
           })
         : Promise.resolve(0),
-      post.city ? getAppreciationForecast(post.city, post.locality).catch(() => null) : null,
+      post.city ? getCachedForecastOrRecompute(post.city, post.locality) : null,
     ]);
 
     const dealProbability = calculateDealProbability(post, authorCopy);

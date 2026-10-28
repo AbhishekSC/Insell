@@ -922,6 +922,33 @@
 	background: oklch(var(--b2)) !important;
 }
 
+/* Map View — divIcon resets (Leaflet adds a white bg/border by default) */
+.price-pin,
+.you-are-here-marker,
+.amenity-marker,
+.distance-label,
+.price-pin {
+	display: flex;
+	justify-content: center;
+}
+.price-pin > div {
+	transition: transform 0.15s ease;
+}
+.price-pin:hover > div {
+	transform: scale(1.1);
+}
+
+/* Smooth fade-in when markers appear on the map */
+.price-pin,
+.amenity-marker {
+	animation: pin-in 0.25s ease-out;
+}
+@keyframes pin-in {
+	from { opacity: 0; transform: scale(0.7) translateY(6px); }
+	to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+
 /* Map View — price tooltip on the small property pins */
 .leaflet-tooltip.pin-price-tooltip {
 	background: oklch(var(--b1));
@@ -942,6 +969,22 @@
 	cursor: pointer;
 }
 
+/* Map View — compact amenity tooltip on hover */
+.leaflet-tooltip.amenity-tip {
+	background: oklch(var(--b1));
+	color: oklch(var(--bc));
+	border: 1px solid oklch(var(--b3) / 0.7);
+	border-radius: 6px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	padding: 3px 7px;
+	font-size: 11px;
+	line-height: 1.2;
+	white-space: nowrap;
+}
+.leaflet-tooltip.amenity-tip::before {
+	border-top-color: oklch(var(--b3) / 0.7);
+}
+
 /* Map View — compact mobile popup on a property pin (price + locality only) */
 .leaflet-popup.map-mini-popup .leaflet-popup-content-wrapper {
 	border-radius: 12px;
@@ -956,6 +999,24 @@
 }
 .leaflet-popup.map-mini-popup .leaflet-popup-tip {
 	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+/* Map View — compact mobile popup on an amenity marker (tap to see) */
+.leaflet-popup.amenity-tip-popup .leaflet-popup-content-wrapper {
+	border-radius: 8px;
+	padding: 0;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.leaflet-popup.amenity-tip-popup .leaflet-popup-content {
+	margin: 5px 8px;
+	min-width: 0;
+	width: auto !important;
+	line-height: 1.2;
+	white-space: nowrap;
+	font-size: 11px;
+}
+.leaflet-popup.amenity-tip-popup .leaflet-popup-tip {
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 /* App error/notification toast card entrance (see src/lib/errorService.jsx) */

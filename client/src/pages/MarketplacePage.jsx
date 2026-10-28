@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowLeft,
   BadgeCheck,
   Bell,
   Bookmark,
@@ -49,18 +50,18 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import BoostPropertyModal from "../components/BoostPropertyModal";
-import ShareModal from "../components/ShareModal";
-import PostLikesModal from "../components/PostLikesModal";
+const BoostPropertyModal = React.lazy(() => import("../components/BoostPropertyModal"));
+const ShareModal = React.lazy(() => import("../components/ShareModal"));
+const PostLikesModal = React.lazy(() => import("../components/PostLikesModal"));
 import PropertyPostCard from "../components/PropertyPostCard";
 import ClampedCaption from "../components/ClampedCaption";
 import CompareToggleButton from "../components/CompareToggleButton";
 import CompareFloatingBar from "../components/CompareFloatingBar";
-import FullscreenMediaViewer from "../components/FullscreenMediaViewer";
+const FullscreenMediaViewer = React.lazy(() => import("../components/FullscreenMediaViewer"));
 import ScrollTopButton from "../components/ScrollTopButton";
 import { useScrollRestoration } from "../hooks/useScrollRestoration";
 import { getCuratedCardBadges, getPropertyInfoBadges } from "../lib/propertyDetailBadges";
-import VerifyAddressModal from "../components/VerifyAddressModal";
+const VerifyAddressModal = React.lazy(() => import("../components/VerifyAddressModal"));
 import { getPriceContextBadges } from "../lib/priceContextBadges";
 import PreferencePrompt from "../components/PreferencePrompt";
 import LocationPrompt from "../components/LocationPrompt";
@@ -73,27 +74,26 @@ import { getPostTypeConfig } from "../config/postTypeConfig";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { useLiveLocation } from "../hooks/useLiveLocation";
 import { toggleCompareSelection } from "../lib/compareSelection";
-import ReportPostModal from "../components/ReportPostModal";
+const ReportPostModal = React.lazy(() => import("../components/ReportPostModal"));
 import { getCustomBadgeClasses } from "../lib/badgeColors";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import CommentSection from "../components/CommentSection";
-import ChatContent from "../components/ChatContent";
-import ConnectionsContent from "../components/ConnectionsContent";
-import CallContent from "../components/CallContent";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
-import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
-import ProfileContent from "../components/ProfileContent";
-import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
-import ActivityContent from "../components/ActivityContent";
-import CommunitiesContent from "../components/CommunitiesContent";
-import CommunityChat from "../components/CommunityChat";
+const ChatContent = React.lazy(() => import("../components/ChatContent"));
+const ConnectionsContent = React.lazy(() => import("../components/ConnectionsContent"));
+const CallContent = React.lazy(() => import("../components/CallContent"));
+const LazyLocationPicker = React.lazy(() => import("../components/LocationPickerMap"));
+const ProfileContent = React.lazy(() => import("../components/ProfileContent"));
+const ConfirmDeleteModal = React.lazy(() => import("../components/ConfirmDeleteModal"));
+const ActivityContent = React.lazy(() => import("../components/ActivityContent"));
+const CommunitiesContent = React.lazy(() => import("../components/CommunitiesContent"));
+const CommunityChat = React.lazy(() => import("../components/CommunityChat"));
 import RoleBasedPropertyCard from "../components/RoleBasedPropertyCard";
 import RoleBasedFilters from "../components/RoleBasedFilters";
 import StoriesBar from "../components/StoriesBar";
-import RoleBasedDashboard from "../components/RoleBasedDashboard";
+const RoleBasedDashboard = React.lazy(() => import("../components/RoleBasedDashboard"));
 import axiosInstance from "../lib/axios";
+import { useFriends } from "../hooks/useFriends";
 import { uploadPropertyMedia } from "../lib/cloudinaryUpload";
 import { getAutoDetectedCity, reverseGeocode } from "../utils/geolocation";
 import posthog, { isPostHogEnabled } from "../lib/posthog";
@@ -436,59 +436,26 @@ export default function MarketplacePage() {
     };
   }, [postMenuAnchor]);
 
-  // Fetch friends data
-  const { data: friendsData } = useQuery({
-    queryKey: ["friends"],
+  const { data: friendsData } = useFriends({ enabled: !!authUser });
+
+  // Read badge counts from shared cache (AppShell polls this at 15s)
+  const { data: badgeCounts = { activityCount: 0, messageRequestCount: 0, friendRequestCount: 0 } } = useQuery({
+    queryKey: ["badgeCounts"],
     queryFn: async () => {
-      if (!authUser) return [];
-      const res = await axiosInstance.get("/users/friends");
-      return res.data?.data?.friends || [];
+      if (!authUser) return { activityCount: 0, messageRequestCount: 0, friendRequestCount: 0 };
+      const res = await axiosInstance.get("/notifications/badge-counts");
+      return res.data?.data || { activityCount: 0, messageRequestCount: 0, friendRequestCount: 0 };
     },
     enabled: !!authUser,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30000,
   });
 
-  // Fetch unread notification count (all types) — shared key with AppShell.jsx's identical query
-  const { data: activityNotifications = 0 } = useQuery({
-    queryKey: ["activityNotifications"],
-    queryFn: async () => {
-      if (!authUser) return 0;
-      const res = await axiosInstance.get("/notifications?unreadOnly=true");
-      return res.data?.data?.unreadCount || 0;
-    },
-    enabled: !!authUser,
-    staleTime: 10000,
-    refetchInterval: 15000,
-  });
-
-  // Fetch message requests count — shared key with AppShell.jsx's identical query
-  const { data: messageRequests = 0 } = useQuery({
-    queryKey: ["messageRequests"],
-    queryFn: async () => {
-      if (!authUser) return 0;
-      const res = await axiosInstance.get("/notifications?type=message_request&unreadOnly=true");
-      return res.data?.data?.unreadCount || 0;
-    },
-    enabled: !!authUser,
-    staleTime: 10000,
-    refetchInterval: 15000,
-  });
-
-  // Fetch incoming connection requests — shared key with AppShell.jsx's identical query
-  const { data: incomingRequests = [] } = useQuery({
-    queryKey: ["incomingRequests"],
-    queryFn: async () => {
-      if (!authUser) return [];
-      const res = await axiosInstance.get("/users/friend-requests");
-      return res.data?.data?.incomingRequests || [];
-    },
-    enabled: !!authUser,
-    staleTime: 10000,
-    refetchInterval: 15000,
-  });
+  const activityNotifications = badgeCounts.activityCount;
+  const messageRequests = badgeCounts.messageRequestCount;
+  const incomingRequestsCount = badgeCounts.friendRequestCount;
 
   // Total unread count for badges (includes all notification types + friend requests)
-  const totalUnreadCount = activityNotifications + messageRequests + incomingRequests.length;
+  const totalUnreadCount = activityNotifications + messageRequests + incomingRequestsCount;
 
   // Mark notifications as read when visiting chat, activity, or connections section
   useEffect(() => {
@@ -496,9 +463,7 @@ export default function MarketplacePage() {
       const markNotificationsAsRead = async () => {
         try {
           await axiosInstance.patch("/notifications/read-all");
-          queryClient.invalidateQueries({ queryKey: ["activityNotifications"] });
-          queryClient.invalidateQueries({ queryKey: ["messageRequests"] });
-          queryClient.invalidateQueries({ queryKey: ["incomingRequests"] });
+          queryClient.invalidateQueries({ queryKey: ["badgeCounts"] });
         } catch (error) {
           console.error("Failed to mark notifications as read:", error);
         }
@@ -554,8 +519,7 @@ export default function MarketplacePage() {
 
       // Invalidate notification queries to update counts
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      queryClient.invalidateQueries({ queryKey: ["activityNotifications"] });
-      queryClient.invalidateQueries({ queryKey: ["messageRequests"] });
+      queryClient.invalidateQueries({ queryKey: ["badgeCounts"] });
 
       // TODO: Create actual message/chat entry
       console.log("Sending contact message:", {
@@ -708,52 +672,6 @@ export default function MarketplacePage() {
   const [, setLoadingSuggestions] = useState(false);
   const mapRef = useRef(null);
   const geocodeTimeoutRef = useRef(null);
-
-  // Fix Leaflet default marker icon issue
-  useEffect(() => {
-    delete L.Icon.Default.prototype._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-    });
-  }, []);
-
-  // Custom marker component with drag and click
-  function DraggableMarker({ position, onPositionChange }) {
-    const [markerPosition, setMarkerPosition] = useState(position);
-    const markerRef = useRef(null);
-
-    useMapEvents({
-      click(e) {
-        const { lat, lng } = e.latlng;
-        setMarkerPosition([lat, lng]);
-        onPositionChange(lat, lng);
-      },
-    });
-
-    useEffect(() => {
-      if (markerRef.current && position[0] !== markerPosition[0] || position[1] !== markerPosition[1]) {
-        setMarkerPosition(position);
-      }
-    }, [position]);
-
-    return (
-      <Marker
-        position={markerPosition}
-        draggable={true}
-        ref={markerRef}
-        eventHandlers={{
-          dragend(e) {
-            const marker = e.target;
-            const position = marker.getLatLng();
-            setMarkerPosition([position.lat, position.lng]);
-            onPositionChange(position.lat, position.lng);
-          },
-        }}
-      />
-    );
-  }
 
   // Handle position change from map
   const handleMapPositionChange = useCallback((lat, lng) => {
@@ -911,6 +829,56 @@ export default function MarketplacePage() {
   // Secondary widgets (recommendations, ads, trending, stats, news) are deferred
   // until isFeedLoaded is true so the feed has 100% of the browser's HTTP connections.
   const isFeedLoaded = Boolean(data?.pages?.length);
+
+  // Prefetch next page so it's ready before the user scrolls to the sentinel
+  useEffect(() => {
+    if (!data?.pages?.length || !hasNextPage) return;
+    const lastPage = data.pages[data.pages.length - 1];
+    const current = Number(lastPage?.pagination?.page || 1);
+    const total = Number(lastPage?.pagination?.totalPages || 1);
+    const hasMore = lastPage?.pagination?.hasMore ?? (current < total);
+    if (!hasMore) return;
+    queryClient.prefetchInfiniteQuery({
+      queryKey: [
+        "propertyFeed", activeCategory, search, searchType, searchAuthorId,
+        queryListingType || "all", queryPropertyType || "all",
+        nearMeCoords ? `${nearMeCoords.lat.toFixed(3)},${nearMeCoords.lon.toFixed(3)}` : "no-geo",
+      ],
+      queryFn: async ({ pageParam }) => {
+        const params = new URLSearchParams();
+        if (typeof pageParam === "object" && pageParam !== null) {
+          if (pageParam.cursor) params.set("cursor", pageParam.cursor);
+          params.set("page", String(pageParam.page || 1));
+        } else {
+          params.set("page", String(pageParam || 1));
+        }
+        params.set("limit", "12");
+        const isNaturalQuery = /\b(bhk|bedroom|under|below|less than|near|lakh|lac|cr|crore|rent|between|with|garden|pool|gym)\b/i.test(search.trim());
+        let response;
+        if (search.trim() && isNaturalQuery && searchType !== 'author') {
+          response = await axiosInstance.get(`/search/natural?q=${encodeURIComponent(search.trim())}&page=${params.get("page") || 1}&limit=12`);
+        } else {
+          if (searchType === 'author' && searchAuthorId) params.set("authorId", searchAuthorId);
+          else if (search.trim()) params.set("q", search.trim());
+          if (queryListingType) params.set("listingType", queryListingType);
+          if (queryPropertyType) params.set("propertyType", queryPropertyType);
+          if (activeCategory && activeCategory !== "For You") {
+            params.set("category", activeCategory.toLowerCase());
+          }
+          if (isNearMe && nearMeCoords) {
+            params.set("lat", String(nearMeCoords.lat));
+            params.set("lon", String(nearMeCoords.lon));
+            if (nearMeCoords.accuracy) params.set("accuracy", String(nearMeCoords.accuracy));
+          }
+          response = await axiosInstance.get(`/posts?${params.toString()}`);
+        }
+        return response.data?.data || { posts: [], pagination: { page: 1, totalPages: 1 } };
+      },
+      initialPageParam: { page: 1, cursor: undefined },
+      pages: current + 1,
+      staleTime: 60 * 1000,
+    });
+  }, [data?.pages?.length, hasNextPage]);
 
   // Infinite scroll implementation
   const observerRef = useRef(null);
@@ -1991,7 +1959,7 @@ export default function MarketplacePage() {
     <AppShell
       hideHero
       lockPageScroll={activeSection === "chat" || (activeSection === "communities" && Boolean(selectedCommunity))}
-      hideMobileHeader={activeSection === "chat" || (activeSection === "communities" && Boolean(selectedCommunity))}
+      hideMobileHeader={activeSection !== "marketplace"}
       autoHideHeaderOnScroll={activeSection === "marketplace"}
       title="Marketplace"
       subtitle="Social-first discovery"
@@ -2033,7 +2001,7 @@ export default function MarketplacePage() {
                 if (section === "activity") {
                   badgeCount = totalUnreadCount; // Total unread notifications
                 } else if (section === "connections") {
-                  badgeCount = incomingRequests.length; // Connection requests
+                  badgeCount = incomingRequestsCount; // Connection requests
                 } else if (section === "chat") {
                   badgeCount = messageRequests; // Message requests
                 }
@@ -2616,39 +2584,74 @@ export default function MarketplacePage() {
             {/* Infinite scroll sentinel */}
             <div ref={loadMoreRef} className="py-4">
               {isFetchingNextPage && (
-                <div className="flex items-center justify-center">
-                  <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                  <span className="ml-2 text-sm text-base-content/60">Loading more posts...</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-2">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="animate-pulse rounded-2xl border border-base-200 bg-base-100 overflow-hidden">
+                      <div className="h-60 bg-base-300/60" />
+                      <div className="p-4 space-y-3">
+                        <div className="h-4 w-3/4 rounded bg-base-300/60" />
+                        <div className="h-3 w-1/2 rounded bg-base-300/40" />
+                        <div className="flex gap-4 pt-2">
+                          <div className="h-3 w-16 rounded bg-base-300/40" />
+                          <div className="h-3 w-16 rounded bg-base-300/40" />
+                          <div className="h-3 w-16 rounded bg-base-300/40" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
               </>
-            ) : activeSection === "activity" ? (
-              <ActivityContent onNavigateToPost={(postId) => {
-                navigate(`/property/${postId}`);
-              }} />
-            ) : activeSection === "communities" ? (
-              selectedCommunity ? (
-                <CommunityChat
-                  community={selectedCommunity}
-                  onBack={() => setSelectedCommunity(null)}
-                  autoJoinCall={autoJoinCall && String(selectedCommunity?._id) === String(deepLinkCircleId)}
-                  autoJoinCallId={autoJoinCallId}
-                />
-              ) : (
-                <CommunitiesContent
-                  onOpenChat={(community) => setSelectedCommunity(community)}
-                />
-              )
-            ) : activeSection === "chat" ? (
-              <ChatContent deepLinkUserId={searchParams.get("userId")} />
-            ) : activeSection === "connections" ? (
-              <ConnectionsContent onOpenMessages={() => setActiveSection("chat")} />
-            ) : activeSection === "call" ? (
-              <CallContent />
-            ) : activeSection === "profile" ? (
-              <ProfileContent />
-            ) : null}
+            ) : (
+              <>
+                {/* Mobile-only section header — back + title, matching native app pattern */}
+                {!(activeSection === "chat" || (activeSection === "communities" && selectedCommunity)) && (
+                  <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-base-300 bg-base-100/95 backdrop-blur px-4 py-3 xl:hidden">
+                    <button
+                      type="button"
+                      onClick={() => { searchParams.delete("section"); navigate("/marketplace", { replace: true }); }}
+                      className="grid size-9 place-items-center rounded-full hover:bg-base-200 active:bg-base-300 transition-colors"
+                      aria-label="Back to Marketplace"
+                    >
+                      <ArrowLeft className="size-5 text-base-content" />
+                    </button>
+                    <h1 className="text-lg font-bold text-base-content truncate">
+                      {{ activity: "Activity", communities: "Communities", connections: "Connections & People", call: "Calls", profile: "Edit Profile" }[activeSection] || activeSection}
+                    </h1>
+                  </div>
+                )}
+                <Suspense fallback={<div className="flex items-center justify-center h-40 text-base-content/50 text-sm">Loading…</div>}>
+                  {activeSection === "activity" ? (
+                    <ActivityContent onNavigateToPost={(postId) => {
+                      navigate(`/property/${postId}`);
+                    }} />
+                  ) : activeSection === "communities" ? (
+                    selectedCommunity ? (
+                      <CommunityChat
+                        community={selectedCommunity}
+                        onBack={() => setSelectedCommunity(null)}
+                        autoJoinCall={autoJoinCall && String(selectedCommunity?._id) === String(deepLinkCircleId)}
+                        autoJoinCallId={autoJoinCallId}
+                      />
+                    ) : (
+                      <CommunitiesContent
+                        onOpenChat={(community) => setSelectedCommunity(community)}
+                      />
+                    )
+                  ) : activeSection === "chat" ? (
+                    <ChatContent deepLinkUserId={searchParams.get("userId")} />
+                  ) : activeSection === "connections" ? (
+                    <ConnectionsContent onOpenMessages={() => setActiveSection("chat")} />
+                  ) : activeSection === "call" ? (
+                    <CallContent />
+                  ) : activeSection === "profile" ? (
+                    <ProfileContent />
+                  ) : null}
+                </Suspense>
+              </>
+
+            )}
           </main>
 
           {activeSection === "marketplace" ? (
@@ -2914,7 +2917,11 @@ export default function MarketplacePage() {
 
       <CompareFloatingBar selected={selectedForComparison} />
 
-      <FullscreenMediaViewer src={selectedImage} onClose={() => setSelectedImage(null)} />
+      {selectedImage && (
+        <Suspense fallback={null}>
+          <FullscreenMediaViewer src={selectedImage} onClose={() => setSelectedImage(null)} />
+        </Suspense>
+      )}
 
       {isComposerOpen ? (
         <div className="fixed inset-0 z-50 bg-black/35" onClick={resetComposer}>
@@ -3374,22 +3381,16 @@ export default function MarketplacePage() {
                     </label>
                     <div className="sm:col-span-2">
                       <div className="relative h-64 rounded-lg overflow-hidden bg-base-200 border border-base-300">
-                        <MapContainer
-                          key={draft.latitude && draft.longitude ? `${draft.latitude}-${draft.longitude}` : "default"}
-                          center={draft.latitude && draft.longitude ? [draft.latitude, draft.longitude] : DEFAULT_MAP_CENTER}
-                          zoom={draft.latitude && draft.longitude ? 13 : 5}
-                          style={{ height: '100%', width: '100%' }}
-                          ref={mapRef}
-                        >
-                          <TileLayer
-                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                          />
-                          <DraggableMarker
+                        <Suspense fallback={<div className="flex items-center justify-center h-full text-base-content/50 text-sm">Loading map…</div>}>
+                          <LazyLocationPicker
+                            key={draft.latitude && draft.longitude ? `${draft.latitude}-${draft.longitude}` : "default"}
+                            center={draft.latitude && draft.longitude ? [draft.latitude, draft.longitude] : DEFAULT_MAP_CENTER}
+                            zoom={draft.latitude && draft.longitude ? 13 : 5}
                             position={draft.latitude && draft.longitude ? [draft.latitude, draft.longitude] : DEFAULT_MAP_CENTER}
                             onPositionChange={handleMapPositionChange}
+                            mapRef={mapRef}
                           />
-                        </MapContainer>
+                        </Suspense>
                         <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-md text-xs text-base-content/70">
                           Click or drag pin to set location
                         </div>
@@ -3549,13 +3550,15 @@ export default function MarketplacePage() {
       ) : null}
 
       {draftToDelete ? (
-        <ConfirmDeleteModal
-          title="Delete this draft?"
-          description={`"${draftToDelete.title || "Untitled draft"}" will be permanently deleted. This can't be undone.`}
-          isPending={deletingDraft}
-          onConfirm={() => deleteDraft(draftToDelete._id)}
-          onClose={() => setDraftToDelete(null)}
-        />
+        <Suspense fallback={null}>
+          <ConfirmDeleteModal
+            title="Delete this draft?"
+            description={`"${draftToDelete.title || "Untitled draft"}" will be permanently deleted. This can't be undone.`}
+            isPending={deletingDraft}
+            onConfirm={() => deleteDraft(draftToDelete._id)}
+            onClose={() => setDraftToDelete(null)}
+          />
+        </Suspense>
       ) : null}
 
       {selectedPostForComments ? (
@@ -3662,50 +3665,61 @@ export default function MarketplacePage() {
         </div>
       )}
 
-      {/* Share Modal */}
-      <ShareModal
-        isOpen={showShareModal}
-        onClose={() => {
-          setShowShareModal(false);
-          setPostToShare(null);
-        }}
-        postUrl={postToShare ? `${window.location.origin}/p/${postToShare._id}` : ""}
-        postTitle={postToShare?.title || "Property"}
-        postId={postToShare?._id}
-        postImage={postToShare ? normalizeMedia(postToShare)[0] : ""}
-      />
+      <Suspense fallback={null}>
+        {showShareModal && (
+          <ShareModal
+            isOpen={showShareModal}
+            onClose={() => {
+              setShowShareModal(false);
+              setPostToShare(null);
+            }}
+            postUrl={postToShare ? `${window.location.origin}/p/${postToShare._id}` : ""}
+            postTitle={postToShare?.title || "Property"}
+            postId={postToShare?._id}
+            postImage={postToShare ? normalizeMedia(postToShare)[0] : ""}
+          />
+        )}
 
-      <PostLikesModal
-        postId={likesModalPostId}
-        open={Boolean(likesModalPostId)}
-        onClose={() => setLikesModalPostId(null)}
-      />
+        {likesModalPostId && (
+          <PostLikesModal
+            postId={likesModalPostId}
+            open={Boolean(likesModalPostId)}
+            onClose={() => setLikesModalPostId(null)}
+          />
+        )}
 
-      <ReportPostModal
-        isOpen={Boolean(reportTargetPost)}
-        isPending={isReportPending}
-        isSubmitted={reportSubmitted}
-        onCancel={() => setReportTargetPost(null)}
-        onConfirm={({ reasonCode, description }) =>
-          submitPostReport({ postId: reportTargetPost._id, reasonCode, description })
-        }
-        onDone={() => {
-          setReportTargetPost(null);
-          setReportSubmitted(false);
-        }}
-      />
+        {reportTargetPost && (
+          <ReportPostModal
+            isOpen={Boolean(reportTargetPost)}
+            isPending={isReportPending}
+            isSubmitted={reportSubmitted}
+            onCancel={() => setReportTargetPost(null)}
+            onConfirm={({ reasonCode, description }) =>
+              submitPostReport({ postId: reportTargetPost._id, reasonCode, description })
+            }
+            onDone={() => {
+              setReportTargetPost(null);
+              setReportSubmitted(false);
+            }}
+          />
+        )}
 
-      <BoostPropertyModal
-        isOpen={Boolean(boostTargetPost)}
-        post={boostTargetPost}
-        onClose={() => setBoostTargetPost(null)}
-      />
+        {boostTargetPost && (
+          <BoostPropertyModal
+            isOpen={Boolean(boostTargetPost)}
+            post={boostTargetPost}
+            onClose={() => setBoostTargetPost(null)}
+          />
+        )}
 
-      <VerifyAddressModal
-        isOpen={Boolean(verifyAddressTargetPost)}
-        post={verifyAddressTargetPost}
-        onClose={() => setVerifyAddressTargetPost(null)}
-      />
+        {verifyAddressTargetPost && (
+          <VerifyAddressModal
+            isOpen={Boolean(verifyAddressTargetPost)}
+            post={verifyAddressTargetPost}
+            onClose={() => setVerifyAddressTargetPost(null)}
+          />
+        )}
+      </Suspense>
 
       {postMenuAnchor &&
         createPortal(

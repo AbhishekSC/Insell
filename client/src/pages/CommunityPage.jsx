@@ -5,6 +5,8 @@ import { Bell, Crown, MessageSquare, Plus, Search, BadgeCheck, Users, Video } fr
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import axiosInstance from "../lib/axios";
+import { useAuthUser } from "../hooks/useAuthUser";
+import { useFriends } from "../hooks/useFriends";
 import { useStreamContext } from "../context/StreamProvider";
 
 function formatDateTime(value) {
@@ -19,29 +21,14 @@ function formatDateTime(value) {
 
 export default function CommunityPage() {
   const queryClient = useQueryClient();
-  const { data: authData } = useQuery({
-    queryKey: ["authUser"],
-    queryFn: async () => {
-      const response = await axiosInstance.get("/auth/verify", { skipErrorToast: true });
-      return response.data;
-    },
-    staleTime: 1000 * 60 * 5,
-    retry: false,
-  });
+  const { data: authData } = useAuthUser();
   const authUser = authData?.data?.user || authData?.data || null;
   const { streamClient, currentUserId } = useStreamContext();
 
-  const { data: friends = [] } = useQuery({
-    queryKey: ["friends"],
-    queryFn: async () => {
-      const response = await axiosInstance.get("/users/friends");
-      return response.data?.data?.friends || [];
-    },
-    enabled: Boolean(authUser?._id),
-  });
+  const { data: friends = [] } = useFriends({ enabled: Boolean(authUser?._id) });
 
   const { data: communityData } = useQuery({
-    queryKey: ["communityData"],
+    queryKey: ["communities"],
     queryFn: async () => {
       const response = await axiosInstance.get("/community");
       return response.data?.data || {};
@@ -97,7 +84,7 @@ export default function CommunityPage() {
       return response.data?.data?.circle;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["communityData"] });
+      queryClient.invalidateQueries({ queryKey: ["communities"] });
       setCircleForm({ name: "", topic: "Travel Spanish", memberIds: [] });
       setShowCreateModal(false);
       toast.success("Community created. You are the admin.");
@@ -113,7 +100,7 @@ export default function CommunityPage() {
       return response.data?.data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["communityData"] });
+      queryClient.invalidateQueries({ queryKey: ["communities"] });
       toast.success(variables.action === "accept" ? "Joined community." : "Invite declined.");
     },
     onError: (error) => {
@@ -127,7 +114,7 @@ export default function CommunityPage() {
       return response.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["communityData"] });
+      queryClient.invalidateQueries({ queryKey: ["communities"] });
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || "Failed to mark notification as read");
@@ -140,7 +127,7 @@ export default function CommunityPage() {
       return response.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["communityData"] });
+      queryClient.invalidateQueries({ queryKey: ["communities"] });
       toast.success("Join request sent to admin.");
     },
     onError: (error) => {
@@ -154,7 +141,7 @@ export default function CommunityPage() {
       return response.data?.data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["communityData"] });
+      queryClient.invalidateQueries({ queryKey: ["communities"] });
       toast.success(variables.action === "accept" ? "Join request accepted." : "Join request declined.");
     },
     onError: (error) => {

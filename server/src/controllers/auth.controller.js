@@ -9,7 +9,7 @@ import {
   sendErrorResponse,
   sendSuccessResponse,
 } from "../utils/responseHandler.js";
-import { publishToQueue } from "../config/queue.config.js";
+import { enqueueWelcomeEmail } from "../jobs/producers/email.producer.js";
 import User from "../models/User.model.js";
 import MobileDetail from "../models/MobileDetail.model.js";
 import passport from "../config/googleAuth.config.js";
@@ -26,7 +26,7 @@ const authService = new AuthService({
   userRepository: new UserRepository(),
   tokenIssuer: generateAccessToken,
   streamUpdater: UpdateStreamUser,
-  queuePublisher: publishToQueue,
+  queuePublisher: ({ email, name }) => enqueueWelcomeEmail(email, name),
   tokenBlacklistService: addTokenBlacklist,
 });
 

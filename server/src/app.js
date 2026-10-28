@@ -15,6 +15,8 @@ import { generateSitemapXml } from "./controllers/sitemap.controller.js";
 import { logger } from "./utils/logger.js";
 import { errorHandler, notFoundHandler } from "./middlewares/errorHandler.js";
 import { requestIdMiddleware } from "./middlewares/requestId.middleware.js";
+import { cacheControl } from "./middlewares/cacheControl.middleware.js";
+import { globalRateLimiter } from "./middlewares/globalRateLimiter.middleware.js";
 import { telemetryMiddleware } from "./services/telemetry.service.js";
 import passport from "./config/googleAuth.config.js";
 import Sentry, { isSentryEnabled } from "./config/sentry.config.js";
@@ -114,7 +116,9 @@ app.use((req, res, next) => {
   });
   next();
 });
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+app.use(cacheControl);
 app.use(cookieParser());
 
 // Session configuration for Passport.
@@ -195,8 +199,8 @@ app.get("/sitemap.xml", generateSitemapXml);
 // /api/v1 is the versioned prefix new clients (mobile) use going forward;
 // the unprefixed /api mount stays aliased to the same router so the web
 // client keeps working unchanged during the transition.
-app.use("/api/v1", routes);
-app.use("/api", routes);
+app.use("/api/v1", globalRateLimiter, routes);
+app.use("/api", globalRateLimiter, routes);
 app.use(notFoundHandler);
 if (isSentryEnabled()) {
   Sentry.setupExpressErrorHandler(app);

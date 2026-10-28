@@ -7,7 +7,6 @@ export function notFoundHandler(_req, res) {
 
 export function errorHandler(error, _req, res, _next) {
   const statusCode = Number(error?.statusCode || 500);
-  const message = error?.message || "Internal Server Error";
   const details = error?.details || {};
 
   if (statusCode >= 500) {
@@ -15,13 +14,15 @@ export function errorHandler(error, _req, res, _next) {
       stack: error?.stack,
       details,
     });
-  } else {
-    logger.warn("Handled request error", {
-      statusCode,
-      message,
-      details,
-    });
+    return sendErrorResponse(res, statusCode, "Internal Server Error");
   }
+
+  const message = error?.message || "Internal Server Error";
+  logger.warn("Handled request error", {
+    statusCode,
+    message,
+    details,
+  });
 
   return sendErrorResponse(res, statusCode, message, details);
 }

@@ -1,8 +1,9 @@
 import express from "express";
+import { logger } from "../utils/logger.js";
 import { sendVerificationCode, verifyCode, checkVerificationStatus } from "../services/VerificationService.js";
 import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler.js";
 import { verifyUser } from "../middlewares/auth.middleware.js";
-import { verificationRateLimiter } from "../middleware/rateLimiter.js";
+import { verificationRateLimiter } from "../middlewares/rateLimiter.js";
 
 const router = express.Router();
 
@@ -22,7 +23,7 @@ router.post("/send-code", verifyUser, verificationRateLimiter, async (req, res) 
       expiresAt: result.expiresAt,
     });
   } catch (error) {
-    console.error("Error sending verification code:", error);
+    logger.error("Error sending verification code:", error);
     return sendErrorResponse(res, 500, "Failed to send verification code");
   }
 });
@@ -49,7 +50,7 @@ router.post("/verify", verifyUser, async (req, res) => {
       isVerified: result.isVerified,
     });
   } catch (error) {
-    console.error("Error verifying code:", error);
+    logger.error("Error verifying code:", error);
     const message = error.message || "Failed to verify code";
     return sendErrorResponse(res, 400, message);
   }
@@ -69,7 +70,7 @@ router.get("/status", verifyUser, async (req, res) => {
 
     return sendSuccessResponse(res, 200, "Verification status fetched", result);
   } catch (error) {
-    console.error("Error checking verification status:", error);
+    logger.error("Error checking verification status:", error);
     return sendErrorResponse(res, 500, "Failed to check verification status");
   }
 });
