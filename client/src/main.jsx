@@ -96,7 +96,7 @@ createRoot(document.getElementById("root")).render(
                     const queryKey = query.queryKey;
                     if (!Array.isArray(queryKey)) return false;
                     const key = String(queryKey[0]);
-                    if (key === "streamToken" || key === "activeVideoCalls" || key === "call") {
+                    if (key === "streamToken" || key === "activeVideoCalls" || key === "call" || key === "propertyFeed") {
                       return false;
                     }
                     return query.state.status === "success";
