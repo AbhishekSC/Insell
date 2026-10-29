@@ -206,8 +206,6 @@ export default function UserProfilePage() {
   const [showVerification, setShowVerification] = useState(false);
   const [menuOpenPostId, setMenuOpenPostId] = useState(null);
   const [menuAnchorRect, setMenuAnchorRect] = useState(null);
-  const menuPostRef = useCallback(() => {}, []);
-
   const openPostMenu = useCallback((postId, event) => {
     event.stopPropagation();
     if (menuOpenPostId === postId) {

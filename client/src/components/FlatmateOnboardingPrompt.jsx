@@ -76,7 +76,7 @@ export default function FlatmateOnboardingPrompt({ authUser }) {
   if (!authUser?._id || dismissed || hasProfile) return null;
 
   const dismiss = () => {
-    try { localStorage.setItem(DISMISS_KEY, "1"); } catch {}
+    try { localStorage.setItem(DISMISS_KEY, "1"); } catch { /* storage unavailable */ }
     setDismissed(true);
   };
 
@@ -150,7 +150,7 @@ export function WorkLocationNudge({ authUser }) {
     try {
       const count = getWorkNudgeCount() + 1;
       localStorage.setItem(WORK_NUDGE_KEY, String(count));
-    } catch {}
+    } catch { /* storage unavailable */ }
     setDismissed(true);
   };
 
