@@ -229,6 +229,21 @@ export async function updateMyProfile(req, res) {
       updatePayload.profilePic = profilePicUrl;
     }
 
+    if (body.flatmateProfile && typeof body.flatmateProfile === "object") {
+      const fp = body.flatmateProfile;
+      const allowed = ["gender", "ageGroup", "occupation", "foodPreference", "smoking", "drinking", "pets", "workSchedule", "cleanliness", "noisePreference", "budgetMin", "budgetMax", "preferredCity"];
+      const cleaned = {};
+      for (const key of allowed) {
+        if (fp[key] !== undefined) {
+          cleaned[key] = typeof fp[key] === "number" ? fp[key] : String(fp[key] || "").trim();
+        }
+      }
+      if (typeof fp.budgetMin === "number") cleaned.budgetMin = Math.max(0, fp.budgetMin);
+      if (typeof fp.budgetMax === "number") cleaned.budgetMax = Math.max(0, fp.budgetMax);
+      cleaned.updatedAt = new Date();
+      updatePayload.flatmateProfile = cleaned;
+    }
+
     if (Object.keys(updatePayload).length === 0) {
       return sendErrorResponse(res, 400, "No profile fields provided");
     }

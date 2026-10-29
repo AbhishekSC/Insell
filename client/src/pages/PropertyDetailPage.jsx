@@ -28,6 +28,7 @@ import {
   Flag,
   Flame,
   GraduationCap,
+  Handshake,
   Heart,
   Home,
   Layers,
@@ -645,6 +646,12 @@ export default function PropertyDetailPage() {
   const hasProjectData = Boolean(project.projectName || project.launchDate || project.reraNumber || project.brochureUrl);
   const hasInvestmentData = Boolean(investment.thesis);
 
+  const postTypeUpper = String(postData.postType || "").toUpperCase();
+  const isFlatmatePost = postTypeUpper === "FLATMATE_OFFER" || postTypeUpper === "FLATMATE_SEEKING";
+  const isOfferType = postTypeUpper === "FLATMATE_OFFER";
+  const fm = flatMeta.flatmate || {};
+  const fmMatchScore = postData.flatmateMatchScore;
+
   const reraNumber = project.reraNumber || flatMeta.reraNumber || "";
   const reraVerified = Boolean(flatMeta.reraVerified);
   const projectStatus = flatMeta.projectStatus || "";
@@ -936,9 +943,43 @@ export default function PropertyDetailPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-                      <span className="rounded-full bg-base-200 px-2.5 py-0.5 text-xs font-medium text-base-content/70">
-                        {String(postData.listingType || "").toLowerCase() === "rent" || postData.postType === "PROPERTY_RENT" ? "For Rent" : titleCase(postData.postType)}
-                      </span>
+                      {isFlatmatePost ? (
+                        <>
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                            isOfferType
+                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                              : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                          }`}>
+                            <Users className="size-3.5" />
+                            {isOfferType ? "Looking for Roommate" : "Need a Room"}
+                          </span>
+                          {fm.genderPreference && fm.genderPreference !== "Any" && (
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                              fm.genderPreference.toLowerCase() === "male"
+                                ? "bg-blue-500/10 text-blue-700 dark:text-blue-400"
+                                : fm.genderPreference.toLowerCase() === "female"
+                                  ? "bg-pink-500/10 text-pink-700 dark:text-pink-400"
+                                  : "bg-base-200 text-base-content/70"
+                            }`}>
+                              {fm.genderPreference} only
+                            </span>
+                          )}
+                          {fmMatchScore != null && (
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                              fmMatchScore >= 75 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                                : fmMatchScore >= 55 ? "bg-primary/10 text-primary"
+                                  : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                            }`}>
+                              <Handshake className="size-3.5" />
+                              {fmMatchScore}% match
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="rounded-full bg-base-200 px-2.5 py-0.5 text-xs font-medium text-base-content/70">
+                          {String(postData.listingType || "").toLowerCase() === "rent" || postData.postType === "PROPERTY_RENT" ? "For Rent" : titleCase(postData.postType)}
+                        </span>
+                      )}
                       {(() => {
                         const transit = extractTransitPill(postData);
                         if (!transit) return null;
@@ -1342,6 +1383,39 @@ export default function PropertyDetailPage() {
                       </div>
                     ))}
                   </div>
+                </Section>
+              )}
+
+              {/* Flatmate details — for FLATMATE_OFFER / FLATMATE_SEEKING posts */}
+              {isFlatmatePost && (
+                <Section title={isOfferType ? "Room Details" : "What I'm Looking For"} icon={Users}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <InfoRow label="Room type" value={fm.roomType} />
+                    <InfoRow label="Occupancy" value={fm.occupancy > 1 ? `${fm.occupancy}-sharing` : fm.occupancy === 1 ? "Single" : null} />
+                    <InfoRow label="Furnishing" value={fm.furnishing} />
+                    <InfoRow label="Rent per person" value={fm.rentPerPerson ? `₹${Number(fm.rentPerPerson).toLocaleString("en-IN")}/mo` : null} />
+                    <InfoRow label="Budget range" value={
+                      (fm.budgetMin || fm.budgetMax)
+                        ? `₹${Number(fm.budgetMin || 0).toLocaleString("en-IN")} – ₹${Number(fm.budgetMax || 0).toLocaleString("en-IN")}`
+                        : null
+                    } />
+                    <InfoRow label="Deposit" value={fm.depositAmount ? `₹${Number(fm.depositAmount).toLocaleString("en-IN")}` : null} />
+                    <InfoRow label="Available from" value={fm.availableFrom} />
+                    <InfoRow label="Gender preference" value={fm.genderPreference} />
+                    <InfoRow label="Food preference" value={fm.foodPreference} />
+                    <InfoRow label="Smoking" value={fm.smoking} />
+                    <InfoRow label="Drinking" value={fm.drinking} />
+                    <InfoRow label="Occupation" value={fm.occupation} />
+                  </div>
+                  {(fm.targetAudience?.length > 0 || fm.lifestyleTags?.length > 0 || fm.amenityTags?.length > 0) && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {[...(fm.targetAudience || []), ...(fm.lifestyleTags || []), ...(fm.amenityTags || [])].map((tag) => (
+                        <span key={tag} className="inline-flex items-center rounded-full border border-base-300 px-2.5 py-0.5 text-xs font-medium text-base-content/70">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </Section>
               )}
 

@@ -184,6 +184,7 @@ export const FIELD_DEFS = {
   seekerBudgetMax: { label: "Budget max (₹/month)", kind: FIELD_KIND.NUMBER },
   preferredLocalities: { label: "Preferred areas", kind: FIELD_KIND.TEXT, placeholder: "e.g. Indiranagar, Koramangala, HSR" },
   groupSize: { label: "Group size (if teaming up)", kind: FIELD_KIND.NUMBER },
+  hideContact: { label: "Hide contact (message-only via connections)", kind: FIELD_KIND.BOOLEAN },
 
   // --- builder project ---
   projectName: { label: "Project name", kind: FIELD_KIND.TEXT },
@@ -360,6 +361,7 @@ export const POST_TYPE_CONFIG = {
       "amenityTags",
       "collegeName",
       "workplaceName",
+      "hideContact",
     ],
     card: ["roomType", "rentPerPerson"],
     allowedListingTypes: ["Rent"],
@@ -374,8 +376,8 @@ export const POST_TYPE_CONFIG = {
       "lifestyleTags",
       "collegeName",
       "workplaceName",
-      "preferredLocalities",
       "groupSize",
+      "hideContact",
     ],
     card: ["seekerBudgetMax"],
     allowedListingTypes: ["Rent"],

@@ -134,6 +134,7 @@ const FlatmateMetaSchema = new mongoose.Schema(
     budgetMax: Number,
     preferredLocalities: [String],
     groupSize: Number,
+    hideContact: { type: Boolean, default: false },
   },
   subOpts
 );

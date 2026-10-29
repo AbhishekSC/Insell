@@ -74,13 +74,14 @@ function formatPinPrice(price) {
 }
 
 // Price-pill pin — shows the price directly on the map as a compact badge.
-// Color-coded: blue for Sale, emerald for Rent, amber for selected.
-const PIN_COLORS = { Buy: "#2563eb", Rent: "#059669", default: "#2563eb" };
+// Color-coded: blue for Sale, emerald for Rent, purple for Looking for Roommate, pink for Need a Room, amber for selected.
+const PIN_COLORS = { Buy: "#2563eb", Rent: "#059669", FLATMATE_OFFER: "#7c3aed", FLATMATE_SEEKING: "#db2777", default: "#2563eb" };
 const PIN_SELECTED = "#f59e0b";
 const pinIconCache = new Map();
 
-function createPricePinIcon(price, listingType, isSelected = false) {
-  const bg = isSelected ? PIN_SELECTED : (PIN_COLORS[listingType] || PIN_COLORS.default);
+function createPricePinIcon(price, listingType, isSelected = false, postType = "") {
+  const flatmateColor = postType === "FLATMATE_OFFER" || postType === "FLATMATE_SEEKING" ? PIN_COLORS[postType] : null;
+  const bg = isSelected ? PIN_SELECTED : (flatmateColor || PIN_COLORS[listingType] || PIN_COLORS.default);
   const label = formatPinPrice(price);
   const cacheKey = `${label}-${bg}`;
   if (pinIconCache.has(cacheKey)) return pinIconCache.get(cacheKey);
@@ -171,7 +172,7 @@ const PropertyMarker = memo(function PropertyMarker({ property, isSelected, isMo
   return (
     <Marker
       position={[property.latitude, property.longitude]}
-      icon={createPricePinIcon(property.price, property.listingType, isSelected)}
+      icon={createPricePinIcon(property.price, property.listingType, isSelected, property.postType)}
       eventHandlers={handler}
     >
       {!isMobile && (
@@ -188,25 +189,45 @@ const PropertyMarker = memo(function PropertyMarker({ property, isSelected, isMo
           )}
         </Tooltip>
       )}
-      {isMobile && (
-        <Popup maxWidth={170} minWidth={20} closeButton={false} className="map-mini-popup">
+      {isMobile && (() => {
+        const pt = String(property.postType || "").toUpperCase();
+        const isFm = pt === "FLATMATE_OFFER" || pt === "FLATMATE_SEEKING";
+        const fmMeta = property.postMeta?.flatmate || {};
+        const gp = fmMeta.genderPreference;
+        return (
+        <Popup maxWidth={190} minWidth={20} closeButton={false} className="map-mini-popup">
           <button
             type="button"
             onClick={() => onNavigate(`/property/${property._id}`)}
             className="block whitespace-nowrap p-0.5 text-left leading-tight"
           >
+            {isFm && (
+              <span className={`inline-block text-[9px] font-semibold px-1 py-0.5 rounded mb-0.5 ${
+                pt === "FLATMATE_OFFER" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+              }`}>
+                {pt === "FLATMATE_OFFER" ? "Roommate" : "Need Room"}
+              </span>
+            )}
             <span className="block text-sm font-bold text-primary">
               {!property.price ? "Price on request" : new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(property.price)}
             </span>
-            {(property.locality || property.city) && (
-              <span className="block text-[11px] text-base-content/60">
-                {property.locality || property.city}
-              </span>
-            )}
+            <div className="flex items-center gap-1">
+              {isFm && gp && gp !== "Any" && (
+                <span className={`inline-block text-[9px] font-medium px-1 py-0.5 rounded-full ${
+                  gp.toLowerCase() === "male" ? "bg-blue-500/10 text-blue-700 dark:text-blue-400" : gp.toLowerCase() === "female" ? "bg-pink-500/10 text-pink-700 dark:text-pink-400" : "bg-base-200 text-base-content/70"
+                }`}>{gp}</span>
+              )}
+              {(property.locality || property.city) && (
+                <span className="text-[11px] text-base-content/60 truncate">
+                  {property.locality || property.city}
+                </span>
+              )}
+            </div>
             <span className="mt-0.5 block text-[11px] font-semibold text-primary">View details ›</span>
           </button>
         </Popup>
-      )}
+        );
+      })()}
     </Marker>
   );
 });
@@ -662,7 +683,7 @@ export default function PropertyMapView() {
               && !properties.some((p) => p._id === deepLinkedProperty._id) && (
               <Marker
                 position={[deepLinkedProperty.latitude, deepLinkedProperty.longitude]}
-                icon={createPricePinIcon(deepLinkedProperty.price, deepLinkedProperty.listingType, true)}
+                icon={createPricePinIcon(deepLinkedProperty.price, deepLinkedProperty.listingType, true, deepLinkedProperty.postType)}
                 eventHandlers={{ click: () => handleMarkerClick(deepLinkedProperty) }}
               >
                 {!isMobile && (deepLinkedProperty.locality || deepLinkedProperty.city) && (
@@ -925,26 +946,59 @@ export default function PropertyMapView() {
           )}
 
           {/* Selected Property Card — desktop only; mobile uses the Leaflet Popup on the pin */}
-          {selectedProperty && !isMobile && (
+          {selectedProperty && !isMobile && (() => {
+            const sp = selectedProperty;
+            const spType = String(sp.postType || "").toUpperCase();
+            const spIsFlatmate = spType === "FLATMATE_OFFER" || spType === "FLATMATE_SEEKING";
+            const spFm = sp.postMeta?.flatmate || {};
+            const spGender = spFm.genderPreference?.toLowerCase();
+            return (
             <div className="bg-base-100/95 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2.5 border border-base-300 w-full max-w-[280px] sm:max-w-xs">
+
               <div className="flex items-start gap-2.5">
-                {selectedProperty.mediaUrls?.[0] && (
+                {sp.mediaUrls?.[0] && (
                   <img
-                    src={selectedProperty.mediaUrls[0]}
-                    alt={selectedProperty.title}
+                    src={sp.mediaUrls[0]}
+                    alt={sp.title}
                     className="size-11 sm:size-14 object-cover rounded-lg shrink-0"
                   />
                 )}
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-xs sm:text-sm font-semibold text-base-content truncate">{selectedProperty.title || "Property"}</h4>
-                  <p className="text-xs sm:text-sm text-primary font-bold">{formatPrice(selectedProperty.price)}</p>
+                  {spIsFlatmate && (
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className={`inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                        spType === "FLATMATE_OFFER"
+                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                          : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                      }`}>
+                        {spType === "FLATMATE_OFFER" ? "Looking for Roommate" : "Need a Room"}
+                      </span>
+                      {spFm.genderPreference && spFm.genderPreference !== "Any" && (
+                        <span className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                          spGender === "male" ? "bg-blue-500/10 text-blue-700 dark:text-blue-400" : spGender === "female" ? "bg-pink-500/10 text-pink-700 dark:text-pink-400" : "bg-base-200 text-base-content/70"
+                        }`}>
+                          {spFm.genderPreference}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <h4 className="text-xs sm:text-sm font-semibold text-base-content truncate">{sp.title || "Property"}</h4>
+                  <p className="text-xs sm:text-sm text-primary font-bold">
+                    {spIsFlatmate
+                      ? spType === "FLATMATE_OFFER"
+                        ? `₹${(spFm.rentPerPerson || sp.price || 0).toLocaleString("en-IN")}/mo`
+                        : spFm.budgetMin && spFm.budgetMax
+                          ? `₹${spFm.budgetMin.toLocaleString("en-IN")} – ₹${spFm.budgetMax.toLocaleString("en-IN")}`
+                          : formatPrice(sp.price)
+                      : formatPrice(sp.price)}
+                  </p>
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                    {(selectedProperty.locality || selectedProperty.city) && (
+                    {(sp.locality || sp.city) && (
                       <span className="text-[10px] text-base-content/60 truncate">
-                        {selectedProperty.locality || selectedProperty.city}
+                        {sp.locality || sp.city}
                       </span>
                     )}
-                    {distanceToFocusKm != null && selectedProperty?._id === focusProperty?._id && (
+                    {distanceToFocusKm != null && sp._id === focusProperty?._id && (
                       <span className="inline-flex items-center gap-0.5 text-[10px] font-bold" style={{ color: YOU_ARE_HERE_COLOR }}>
                         {formatKm(distanceToFocusKm)} away
                       </span>
@@ -961,23 +1015,47 @@ export default function PropertyMapView() {
 
               {/* Quick stats row */}
               <div className="flex items-center gap-3 mt-2 text-[11px] text-base-content/70">
-                {selectedProperty.bedrooms > 0 && (
-                  <span className="flex items-center gap-1">
-                    <Bed className="size-3 text-base-content/50" />
-                    {selectedProperty.bedrooms} BHK
-                  </span>
-                )}
-                {selectedProperty.bathrooms > 0 && (
-                  <span className="flex items-center gap-1">
-                    <Bath className="size-3 text-base-content/50" />
-                    {selectedProperty.bathrooms}
-                  </span>
-                )}
-                {selectedProperty.areaSqft > 0 && (
-                  <span className="flex items-center gap-1">
-                    <Square className="size-3 text-base-content/50" />
-                    {selectedProperty.areaSqft.toLocaleString()} sqft
-                  </span>
+                {spIsFlatmate ? (
+                  <>
+                    {spFm.roomType && (
+                      <span className="flex items-center gap-1">
+                        <Home className="size-3 text-base-content/50" />
+                        {spFm.roomType}{spFm.occupancy > 1 ? ` · ${spFm.occupancy}-share` : ""}
+                      </span>
+                    )}
+                    {spFm.furnishing && (
+                      <span className="flex items-center gap-1">
+                        <Square className="size-3 text-base-content/50" />
+                        {spFm.furnishing}
+                      </span>
+                    )}
+                    {spFm.availableFrom && (
+                      <span className="text-[10px] text-base-content/50">
+                        From {spFm.availableFrom}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {sp.bedrooms > 0 && (
+                      <span className="flex items-center gap-1">
+                        <Bed className="size-3 text-base-content/50" />
+                        {sp.bedrooms} BHK
+                      </span>
+                    )}
+                    {sp.bathrooms > 0 && (
+                      <span className="flex items-center gap-1">
+                        <Bath className="size-3 text-base-content/50" />
+                        {sp.bathrooms}
+                      </span>
+                    )}
+                    {sp.areaSqft > 0 && (
+                      <span className="flex items-center gap-1">
+                        <Square className="size-3 text-base-content/50" />
+                        {sp.areaSqft.toLocaleString()} sqft
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -1013,14 +1091,15 @@ export default function PropertyMapView() {
               </div>
 
               <button
-                onClick={() => navigate(`/property/${selectedProperty._id}`)}
+                onClick={() => navigate(`/property/${sp._id}`)}
                 className="mt-2 w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs bg-primary text-white rounded-full font-semibold shadow-sm hover:shadow-md transition-all"
               >
                 <Home className="size-3" />
                 View Details
               </button>
             </div>
-          )}
+            );
+          })()}
 
         </div>
 
@@ -1100,6 +1179,12 @@ export default function PropertyMapView() {
           </span>
           <span className="flex items-center gap-1 text-[10px] font-medium text-base-content/70">
             <span className="inline-block size-2.5 rounded-sm" style={{ background: "#059669" }} />Rent
+          </span>
+          <span className="flex items-center gap-1 text-[10px] font-medium text-base-content/70">
+            <span className="inline-block size-2.5 rounded-sm" style={{ background: "#7c3aed" }} />Room
+          </span>
+          <span className="flex items-center gap-1 text-[10px] font-medium text-base-content/70">
+            <span className="inline-block size-2.5 rounded-sm" style={{ background: "#db2777" }} />Flatmate
           </span>
         </div>
 

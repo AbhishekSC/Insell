@@ -37,6 +37,7 @@ import Offer from "../models/Offer.model.js";
 import VisitRequest from "../models/VisitRequest.model.js";
 import { closeActiveOffersForPost } from "./offer.controller.js";
 import { cloudinaryInstance } from "../config/cloudinary.js";
+import { calculateFlatmateCompatibility } from "../services/FlatmateCompatibilityService.js";
 import { centroidForCity } from "../utils/cityCentroids.js";
 import {
   batchGetForecasts,
@@ -44,6 +45,66 @@ import {
 } from "../services/AppreciationForecastService.js";
 import { calculateDealProbability } from "../services/DealProbabilityService.js";
 import CardCTRService from "../services/CardCTRService.js";
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Distance + freshness ranking — blends INTO existing sort order (CTR momentum) as a secondary signal
+function applyDistanceAndFreshnessRanking(posts, viewer) {
+  if (!posts || posts.length <= 1) return posts;
+  const viewerLat = viewer?.locationDetails?.latitude || viewer?.workLocation?.latitude;
+  const viewerLon = viewer?.locationDetails?.longitude || viewer?.workLocation?.longitude;
+  const nowMs = Date.now();
+  const len = posts.length;
+
+  return posts
+    .map((p, index) => {
+      // Preserve existing order as the dominant signal (CTR momentum, seen demotion, etc.)
+      const positionBase = (len - index) * 3;
+
+      let rankBonus = 0;
+
+      // Distance boost: closer posts score higher (max +30 pts)
+      if (viewerLat && viewerLon && p.latitude && p.longitude) {
+        const km = haversineKm(viewerLat, viewerLon, p.latitude, p.longitude);
+        rankBonus += km <= 3 ? 30 : km <= 10 ? 20 : km <= 25 ? 10 : km <= 50 ? 5 : 0;
+      }
+
+      // Freshness decay: lose up to 20 pts over 30 days
+      const ageDays = (nowMs - new Date(p.createdAt || 0).getTime()) / 86400000;
+      rankBonus -= Math.min(20, Math.round(ageDays * (20 / 30)));
+
+      // For flatmate posts, factor in compatibility score too
+      if (p.flatmateMatchScore) rankBonus += p.flatmateMatchScore;
+
+      return { ...p, _rankScore: positionBase + rankBonus * 0.4 };
+    })
+    .sort((a, b) => (b._rankScore || 0) - (a._rankScore || 0))
+    .map(({ _rankScore, ...p }) => p);
+}
+
+// Flatmate-only: compatibility scoring
+function scoreFlatmatePosts(posts, viewer, category) {
+  const fp = viewer?.flatmateProfile;
+  let result = posts;
+  if (fp?.updatedAt) {
+    result = posts.map((p) => {
+      if (p.postType === "FLATMATE_OFFER" || p.postType === "FLATMATE_SEEKING") {
+        const score = calculateFlatmateCompatibility(fp, p);
+        return score != null ? { ...p, flatmateMatchScore: score } : p;
+      }
+      return p;
+    });
+  }
+  return result;
+}
 
 const PROPERTY_MEDIA_FOLDER = "property-media";
 const PROPERTY_MEDIA_ALLOWED_FORMATS = "jpg,jpeg,png,webp,gif,mp4,webm,mov,pdf,heic,heif,jfif";
@@ -509,9 +570,21 @@ export async function getPropertyFeed(req, res) {
             await batchDecoratePosts(visiblePosts, currentUserId),
             currentUserId
           );
+          let rankedPosts = decoratedPosts;
+          if (currentUserId) {
+            try {
+              const viewer = await User.findById(currentUserId).select("flatmateProfile locationDetails workLocation").lean();
+              if (decoratedPosts.some((p) => p.postType === "FLATMATE_OFFER" || p.postType === "FLATMATE_SEEKING")) {
+                rankedPosts = scoreFlatmatePosts(decoratedPosts, viewer, category);
+              }
+              if (category !== "near me") {
+                rankedPosts = applyDistanceAndFreshnessRanking(rankedPosts, viewer);
+              }
+            } catch {}
+          }
           logger.info("Shared cache hit for property feed");
           return sendSuccessResponse(res, 200, "Property feed retrieved (cached)", {
-            posts: decoratedPosts,
+            posts: rankedPosts,
             pagination: {
               page,
               limit,
@@ -538,6 +611,17 @@ export async function getPropertyFeed(req, res) {
           const parsed = JSON.parse(cachedData);
           if (parsed.posts) {
             parsed.posts = await batchDecoratePosts(parsed.posts, currentUserId);
+            if (currentUserId) {
+              try {
+                const viewer = await User.findById(currentUserId).select("flatmateProfile locationDetails workLocation").lean();
+                if (parsed.posts.some((p) => p.postType === "FLATMATE_OFFER" || p.postType === "FLATMATE_SEEKING")) {
+                  parsed.posts = scoreFlatmatePosts(parsed.posts, viewer, category);
+                }
+                if (category !== "near me") {
+                  parsed.posts = applyDistanceAndFreshnessRanking(parsed.posts, viewer);
+                }
+              } catch {}
+            }
           }
           logger.info("User cache hit for property feed");
           return sendSuccessResponse(res, 200, "Property feed retrieved (cached)", parsed);
@@ -730,8 +814,11 @@ export async function getPropertyFeed(req, res) {
         case "recent":
           // Show recent posts (already the default sort, no filter needed)
           break;
+        case "rooms":
+          filter.postType = "FLATMATE_OFFER";
+          break;
         case "flatmates":
-          filter.postType = { $in: ["FLATMATE_OFFER", "FLATMATE_SEEKING"] };
+          filter.postType = "FLATMATE_SEEKING";
           break;
       }
     }
@@ -1019,6 +1106,19 @@ export async function getPropertyFeed(req, res) {
         } catch {}
       }
 
+      // Score flatmate posts + apply distance/freshness ranking
+      if (currentUserId) {
+        try {
+          const viewer = await User.findById(currentUserId).select("flatmateProfile locationDetails workLocation").lean();
+          if (finalForYouPosts.some((p) => p.postType === "FLATMATE_OFFER" || p.postType === "FLATMATE_SEEKING")) {
+            finalForYouPosts = scoreFlatmatePosts(finalForYouPosts, viewer, category);
+          }
+          if (category !== "near me") {
+            finalForYouPosts = applyDistanceAndFreshnessRanking(finalForYouPosts, viewer);
+          }
+        } catch {}
+      }
+
       const responseData = {
         posts: finalForYouPosts,
         sections: {
@@ -1095,6 +1195,21 @@ export async function getPropertyFeed(req, res) {
         await redisClient.zAdd(`personalization:seen:${currentUserId}`, topToMark);
         await redisClient.expire(`personalization:seen:${currentUserId}`, 86400);
       } catch {}
+    }
+
+    // Flatmate compatibility + distance/freshness ranking for all posts
+    if (currentUserId) {
+      try {
+        const viewer = await User.findById(currentUserId).select("flatmateProfile locationDetails workLocation").lean();
+        if (finalDecoratedPosts.some((p) => p.postType === "FLATMATE_OFFER" || p.postType === "FLATMATE_SEEKING")) {
+          finalDecoratedPosts = scoreFlatmatePosts(finalDecoratedPosts, viewer, category);
+        }
+        if (category !== "near me") {
+          finalDecoratedPosts = applyDistanceAndFreshnessRanking(finalDecoratedPosts, viewer);
+        }
+      } catch (rankErr) {
+        logger.warn("Feed ranking error:", rankErr?.message);
+      }
     }
 
     const responseData = {
@@ -2599,6 +2714,19 @@ export async function getPropertyPostById(req, res) {
 
     const dealProbability = calculateDealProbability(post, authorCopy);
 
+    // Flatmate compatibility score for detail page
+    let flatmateMatchScore = null;
+    const pt = String(post.postType || "").toUpperCase();
+    if ((pt === "FLATMATE_OFFER" || pt === "FLATMATE_SEEKING") && currentUserId) {
+      try {
+        const viewer = req.user || await User.findById(currentUserId).select("flatmateProfile").lean();
+        const fp = viewer?.flatmateProfile;
+        if (fp?.updatedAt) {
+          flatmateMatchScore = calculateFlatmateCompatibility(fp, post);
+        }
+      } catch {}
+    }
+
     const likesCount = likeEngagement !== null ? likeEngagement.count : (post.likedBy?.length || 0);
     const isLikedByMe = likeEngagement !== null
       ? Boolean(likeEngagement.isEngaged)
@@ -2647,6 +2775,7 @@ export async function getPropertyPostById(req, res) {
         priceHistory: sanitizePriceHistory(post.priceHistory, post.price),
         appreciationForecast: forecast?.annualizedRate ? forecast : null,
         dealProbability,
+        flatmateMatchScore,
       },
     });
   } catch (error) {
