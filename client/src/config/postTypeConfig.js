@@ -165,7 +165,7 @@ export const FIELD_DEFS = {
   requirementPropertyType: { label: "Property preference", kind: FIELD_KIND.SELECT, options: REQUIREMENT_PROPERTY_OPTIONS },
   occupancyPreference: { label: "Occupancy", kind: FIELD_KIND.SELECT, options: OCCUPANCY_OPTIONS },
   genderPreference: { label: "Gender preference", kind: FIELD_KIND.SELECT, options: GENDER_OPTIONS },
-  occupation: { label: "Occupation", kind: FIELD_KIND.SELECT, options: OCCUPATION_OPTIONS },
+  occupation: { label: "Occupation", kind: FIELD_KIND.CHECKBOX_GRID, options: OCCUPATION_OPTIONS },
 
   // --- flatmate ---
   roomType: { label: "Room type", kind: FIELD_KIND.SELECT, options: ROOM_TYPE_OPTIONS },

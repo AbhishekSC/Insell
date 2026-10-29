@@ -1405,7 +1405,7 @@ export default function PropertyDetailPage() {
                     <InfoRow label="Food preference" value={fm.foodPreference} />
                     <InfoRow label="Smoking" value={fm.smoking} />
                     <InfoRow label="Drinking" value={fm.drinking} />
-                    <InfoRow label="Occupation" value={fm.occupation} />
+                    <InfoRow label="Occupation" value={Array.isArray(fm.occupation) ? fm.occupation.join(", ") : fm.occupation} />
                   </div>
                   {(fm.targetAudience?.length > 0 || fm.lifestyleTags?.length > 0 || fm.amenityTags?.length > 0) && (
                     <div className="mt-4 flex flex-wrap gap-2">
@@ -1432,7 +1432,7 @@ export default function PropertyDetailPage() {
                     <InfoRow label="Occupancy preference" value={requirement.occupancyPreference} />
                     <InfoRow label="Gender preference" value={requirement.genderPreference} />
                     <InfoRow label="Tenant type" value={requirement.tenantType} />
-                    <InfoRow label="Occupation" value={requirement.occupation} />
+                    <InfoRow label="Occupation" value={Array.isArray(requirement.occupation) ? requirement.occupation.join(", ") : requirement.occupation} />
                     <InfoRow label="Move-in date" value={formatDate(requirement.moveInDate)} />
                     <InfoRow label="Available from" value={formatDate(requirement.availableFromDate)} />
                     <InfoRow label="Lease duration" value={requirement.leaseDurationMonths ? `${requirement.leaseDurationMonths} months` : null} />

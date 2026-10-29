@@ -39,7 +39,7 @@ const RequirementMetaSchema = new mongoose.Schema(
     amenitiesText: String,
     possessionDate: String,
     tenantType: String,
-    occupation: String,
+    occupation: mongoose.Schema.Types.Mixed,
   },
   subOpts
 );
@@ -134,6 +134,7 @@ const FlatmateMetaSchema = new mongoose.Schema(
     budgetMax: Number,
     preferredLocalities: [String],
     groupSize: Number,
+    occupation: [String],
     hideContact: { type: Boolean, default: false },
   },
   subOpts
