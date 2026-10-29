@@ -5,8 +5,6 @@ import {
   setAuthTokens,
   clearAuthTokens,
 } from "./authToken";
-import { showError } from "./errorService.jsx";
-
 const API_BASE = `${import.meta.env.VITE_API_URL || ""}/api`;
 
 const axiosInstance = axios.create({
@@ -131,7 +129,7 @@ axiosInstance.interceptors.response.use(
     const isSilenced = error.config?.skipErrorToast;
     const componentOwns = [400, 409, 422].includes(status) && !error.config?.forceErrorToast;
     if (!isAccountBlocked && !isSilenced && !componentOwns) {
-      showError(error);
+      import("./errorService.jsx").then(({ showError }) => showError(error));
     }
     return Promise.reject(error);
   }

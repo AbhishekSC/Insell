@@ -752,6 +752,8 @@ export default function MarketplacePage() {
     return () => { cancelled = true; };
   }, [isNearMe, liveLocStatus, liveFreshness, checkLocPermission, refreshLocation]);
 
+  const [feedRefreshSeed, setFeedRefreshSeed] = useState(0);
+
   const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: [
       "propertyFeed", activeCategory, search, searchType, searchAuthorId,
@@ -1183,7 +1185,6 @@ export default function MarketplacePage() {
   // returns the same posts leaves this unchanged, so the comparison against
   // latestFeedPost stays meaningful no matter how often background refetches
   // fire.
-  const [feedRefreshSeed, setFeedRefreshSeed] = useState(0);
   const [feedLoadedAt, setFeedLoadedAt] = useState(null);
   useEffect(() => {
     const firstPagePosts = data?.pages?.[0]?.posts || [];
