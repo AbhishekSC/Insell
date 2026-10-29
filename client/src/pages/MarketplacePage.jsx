@@ -3145,7 +3145,7 @@ export default function MarketplacePage() {
                 <div>
                   <p className="text-sm font-semibold text-base-content/70">What would you like to post? Recommended for {activeRole}</p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    {recommendedPostTypes.map((postType) => {
+                    {recommendedPostTypes.filter((pt) => !(POST_TYPE_DEFINITIONS[pt]?.group === "flatmate")).map((postType) => {
                       const definition = POST_TYPE_DEFINITIONS[postType] || POST_TYPE_DEFINITIONS.PROPERTY_SALE;
                       const isActive = draft.postType === postType;
                       return (

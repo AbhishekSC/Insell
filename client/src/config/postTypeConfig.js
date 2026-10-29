@@ -175,7 +175,7 @@ export const FIELD_DEFS = {
   availableFrom: { label: "Available from", kind: FIELD_KIND.DATE },
   flatmateFurnishing: { label: "Furnishing", kind: FIELD_KIND.SELECT, options: FURNISHING_OPTIONS },
   flatmateGender: { label: "Gender preference", kind: FIELD_KIND.SELECT, options: GENDER_OPTIONS },
-  targetAudience: { label: "Who should apply?", kind: FIELD_KIND.CHECKBOX_GRID, options: TARGET_AUDIENCE_OPTIONS },
+  targetAudience: { label: "Preferred roommate type", kind: FIELD_KIND.CHECKBOX_GRID, options: TARGET_AUDIENCE_OPTIONS },
   lifestyleTags: { label: "Lifestyle & habits", kind: FIELD_KIND.CHECKBOX_GRID, options: LIFESTYLE_TAG_OPTIONS },
   amenityTags: { label: "Amenities included", kind: FIELD_KIND.CHECKBOX_GRID, options: FLATMATE_AMENITY_OPTIONS },
   collegeName: { label: "College / University", kind: FIELD_KIND.TEXT, placeholder: "e.g. PES University, Christ University" },
