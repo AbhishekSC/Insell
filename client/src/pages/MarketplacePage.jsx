@@ -757,6 +757,7 @@ export default function MarketplacePage() {
       "propertyFeed", activeCategory, search, searchType, searchAuthorId,
       queryListingType || "all", queryPropertyType || "all",
       nearMeCoords ? `${nearMeCoords.lat.toFixed(3)},${nearMeCoords.lon.toFixed(3)}` : "no-geo",
+      feedRefreshSeed,
     ],
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams();
@@ -767,6 +768,10 @@ export default function MarketplacePage() {
         params.set("page", String(pageParam || 1));
       }
       params.set("limit", "12");
+      const pageNum = typeof pageParam === "object" ? (pageParam.page || 1) : (pageParam || 1);
+      if (feedRefreshSeed > 0 && pageNum === 1) {
+        params.set("refresh", "true");
+      }
 
       // Handle author-specific search vs natural search vs standard query
       const isNaturalQuery = /\b(bhk|bedroom|under|below|less than|near|lakh|lac|cr|crore|rent|between|with|garden|pool|gym)\b/i.test(search.trim());
@@ -822,7 +827,8 @@ export default function MarketplacePage() {
     // is being captured. With a saved location we query straight away and
     // just re-query when a fresher fix lands (the queryKey carries coords).
     enabled: Boolean(authUser?._id) && !(isNearMe && !liveLocation?.lat && liveLocStatus === "locating"),
-    staleTime: 60 * 1000,
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: true,
   });
 
   // Determines whether the primary property feed has completed its initial load.
@@ -843,6 +849,7 @@ export default function MarketplacePage() {
         "propertyFeed", activeCategory, search, searchType, searchAuthorId,
         queryListingType || "all", queryPropertyType || "all",
         nearMeCoords ? `${nearMeCoords.lat.toFixed(3)},${nearMeCoords.lon.toFixed(3)}` : "no-geo",
+        feedRefreshSeed,
       ],
       queryFn: async ({ pageParam }) => {
         const params = new URLSearchParams();
@@ -1176,6 +1183,7 @@ export default function MarketplacePage() {
   // returns the same posts leaves this unchanged, so the comparison against
   // latestFeedPost stays meaningful no matter how often background refetches
   // fire.
+  const [feedRefreshSeed, setFeedRefreshSeed] = useState(0);
   const [feedLoadedAt, setFeedLoadedAt] = useState(null);
   useEffect(() => {
     const firstPagePosts = data?.pages?.[0]?.posts || [];
@@ -1215,12 +1223,12 @@ export default function MarketplacePage() {
   );
 
   const handleShowNewPosts = () => {
-    queryClient.invalidateQueries({ queryKey: ["propertyFeed"] });
+    setFeedRefreshSeed((s) => s + 1);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const { distance: pullDistance, refreshing: pullRefreshing, threshold: pullThreshold } = usePullToRefresh(
-    () => queryClient.invalidateQueries({ queryKey: ["propertyFeed"] }),
+    () => setFeedRefreshSeed((s) => s + 1),
     { enabled: activeSection === "marketplace" && !isComposerOpen }
   );
 
