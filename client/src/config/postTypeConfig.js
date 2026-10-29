@@ -372,7 +372,6 @@ export const POST_TYPE_CONFIG = {
     essential: ["seekerBudgetMin", "seekerBudgetMax", "moveInDate", "flatmateGender"],
     advanced: [
       "occupation",
-      "targetAudience",
       "lifestyleTags",
       "collegeName",
       "workplaceName",
