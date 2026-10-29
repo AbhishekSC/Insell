@@ -165,7 +165,7 @@ export const FIELD_DEFS = {
   requirementPropertyType: { label: "Property preference", kind: FIELD_KIND.SELECT, options: REQUIREMENT_PROPERTY_OPTIONS },
   occupancyPreference: { label: "Occupancy", kind: FIELD_KIND.SELECT, options: OCCUPANCY_OPTIONS },
   genderPreference: { label: "Gender preference", kind: FIELD_KIND.SELECT, options: GENDER_OPTIONS },
-  occupation: { label: "Occupation", kind: FIELD_KIND.SELECT, options: OCCUPATION_OPTIONS },
+  occupation: { label: "Occupation", kind: FIELD_KIND.CHECKBOX_GRID, options: OCCUPATION_OPTIONS },
 
   // --- flatmate ---
   roomType: { label: "Room type", kind: FIELD_KIND.SELECT, options: ROOM_TYPE_OPTIONS },
@@ -175,7 +175,7 @@ export const FIELD_DEFS = {
   availableFrom: { label: "Available from", kind: FIELD_KIND.DATE },
   flatmateFurnishing: { label: "Furnishing", kind: FIELD_KIND.SELECT, options: FURNISHING_OPTIONS },
   flatmateGender: { label: "Gender preference", kind: FIELD_KIND.SELECT, options: GENDER_OPTIONS },
-  targetAudience: { label: "Who should apply?", kind: FIELD_KIND.CHECKBOX_GRID, options: TARGET_AUDIENCE_OPTIONS },
+  targetAudience: { label: "Preferred roommate type", kind: FIELD_KIND.CHECKBOX_GRID, options: TARGET_AUDIENCE_OPTIONS },
   lifestyleTags: { label: "Lifestyle & habits", kind: FIELD_KIND.CHECKBOX_GRID, options: LIFESTYLE_TAG_OPTIONS },
   amenityTags: { label: "Amenities included", kind: FIELD_KIND.CHECKBOX_GRID, options: FLATMATE_AMENITY_OPTIONS },
   collegeName: { label: "College / University", kind: FIELD_KIND.TEXT, placeholder: "e.g. PES University, Christ University" },
@@ -184,6 +184,7 @@ export const FIELD_DEFS = {
   seekerBudgetMax: { label: "Budget max (₹/month)", kind: FIELD_KIND.NUMBER },
   preferredLocalities: { label: "Preferred areas", kind: FIELD_KIND.TEXT, placeholder: "e.g. Indiranagar, Koramangala, HSR" },
   groupSize: { label: "Group size (if teaming up)", kind: FIELD_KIND.NUMBER },
+  hideContact: { label: "Hide contact (message-only via connections)", kind: FIELD_KIND.BOOLEAN },
 
   // --- builder project ---
   projectName: { label: "Project name", kind: FIELD_KIND.TEXT },
@@ -360,6 +361,7 @@ export const POST_TYPE_CONFIG = {
       "amenityTags",
       "collegeName",
       "workplaceName",
+      "hideContact",
     ],
     card: ["roomType", "rentPerPerson"],
     allowedListingTypes: ["Rent"],
@@ -370,12 +372,11 @@ export const POST_TYPE_CONFIG = {
     essential: ["seekerBudgetMin", "seekerBudgetMax", "moveInDate", "flatmateGender"],
     advanced: [
       "occupation",
-      "targetAudience",
       "lifestyleTags",
       "collegeName",
       "workplaceName",
-      "preferredLocalities",
       "groupSize",
+      "hideContact",
     ],
     card: ["seekerBudgetMax"],
     allowedListingTypes: ["Rent"],

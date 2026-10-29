@@ -42,6 +42,10 @@
 	.no-scrollbar::-webkit-scrollbar {
 		display: none;
 	}
+	.no-scrollbar {
+		-ms-overflow-style: none;
+		scrollbar-width: none;
+	}
 
 	.app-ambient {
 		@apply bg-[radial-gradient(circle_at_14%_18%,hsl(var(--p)/0.14),transparent_40%),radial-gradient(circle_at_84%_10%,hsl(var(--s)/0.14),transparent_38%),radial-gradient(circle_at_80%_86%,hsl(var(--a)/0.12),transparent_42%),linear-gradient(180deg,hsl(var(--b2)),hsl(var(--b1)))];

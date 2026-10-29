@@ -259,6 +259,25 @@ const userSchema = new mongoose.Schema(
       },
       default: null,
     },
+    flatmateProfile: {
+      type: {
+        gender: { type: String, enum: ["Male", "Female", "Other", ""], default: "" },
+        ageGroup: { type: String, enum: ["under25", "25plus", ""], default: "" },
+        occupation: { type: String, enum: ["working", "student", "freelancer", ""], default: "" },
+        foodPreference: { type: String, enum: ["veg", "nonveg", "eggetarian", ""], default: "" },
+        smoking: { type: String, enum: ["yes", "no", "occasionally", ""], default: "" },
+        drinking: { type: String, enum: ["yes", "no", "occasionally", ""], default: "" },
+        pets: { type: String, enum: ["yes", "no", "ok_with_pets", ""], default: "" },
+        workSchedule: { type: String, enum: ["day", "night", "wfh", "flexible", ""], default: "" },
+        cleanliness: { type: String, enum: ["neat", "moderate", "relaxed", ""], default: "" },
+        noisePreference: { type: String, enum: ["quiet", "moderate", "social", ""], default: "" },
+        budgetMin: { type: Number, default: 0 },
+        budgetMax: { type: Number, default: 0 },
+        preferredCity: { type: String, trim: true, default: "" },
+        updatedAt: { type: Date, default: null },
+      },
+      default: () => ({}),
+    },
     // FCM device tokens for push notifications — an array since one user can
     // have multiple open browser sessions/devices at once (multiple open
     // tabs, plus now the mobile app on top of that). Tagged by platform so

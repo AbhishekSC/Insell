@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate, useParams } from "react-router";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthUser } from "../hooks/useAuthUser";
@@ -204,21 +205,23 @@ export default function UserProfilePage() {
   const [recentlyViewed, setRecentlyViewed] = useState([]);
   const [showVerification, setShowVerification] = useState(false);
   const [menuOpenPostId, setMenuOpenPostId] = useState(null);
-
-  useEffect(() => {
-    if (!menuOpenPostId) return;
-    const handleClickOutside = (e) => {
-      if (!e.target.closest("[data-post-menu]")) {
-        setMenuOpenPostId(null);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("touchstart", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
-    };
+  const [menuAnchorRect, setMenuAnchorRect] = useState(null);
+  const openPostMenu = useCallback((postId, event) => {
+    event.stopPropagation();
+    if (menuOpenPostId === postId) {
+      setMenuOpenPostId(null);
+      setMenuAnchorRect(null);
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    setMenuAnchorRect({ top: rect.bottom + 4, left: Math.max(8, rect.right - 176) });
+    setMenuOpenPostId(postId);
   }, [menuOpenPostId]);
+
+  const closePostMenu = useCallback(() => {
+    setMenuOpenPostId(null);
+    setMenuAnchorRect(null);
+  }, []);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [postToDelete, setPostToDelete] = useState(null);
@@ -1245,98 +1248,21 @@ export default function UserProfilePage() {
                                 }
                                 menu={
                                   isOwnProfile ? (
-                                    <div className="relative" data-post-menu>
-                                      <button
-                                        type="button"
-                                        className="btn btn-xs btn-circle border-none bg-transparent text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          setMenuOpenPostId(menuOpenPostId === post._id ? null : post._id);
-                                        }}
-                                      >
-                                        <MoreVertical className="size-3.5" />
-                                      </button>
-                                      {menuOpenPostId === post._id && (
-                                        <div className="absolute right-0 top-full z-10 mt-1 w-44 rounded-xl border border-base-300 bg-base-100 shadow-xl overflow-hidden">
-                                          {!post.isBlocked && (
-                                            <>
-                                              <button
-                                                type="button"
-                                                className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-semibold text-amber-600 hover:bg-amber-50 transition-colors"
-                                                onClick={(event) => {
-                                                  event.stopPropagation();
-                                                  setBoostTargetPost(post);
-                                                  setMenuOpenPostId(null);
-                                                }}
-                                              >
-                                                <Zap className="size-4 fill-amber-500 text-amber-500" />
-                                                {post.isBoosted ? "Boosted (Active)" : "Boost Listing (1 Coin)"}
-                                              </button>
-                                              <div className="border-t border-base-200" />
-                                            </>
-                                          )}
-                                          <button
-                                            type="button"
-                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-base-content hover:bg-base-200 transition-colors"
-                                            onClick={(event) => {
-                                              event.stopPropagation();
-                                              setPostToEdit(post);
-                                              setShowEditModal(true);
-                                              setNewImageFiles([]);
-                                              setNewImagePreviews([]);
-                                              setRemovedImageUrls([]);
-                                              setMenuOpenPostId(null);
-                                            }}
-                                          >
-                                            <Edit2 className="size-4 text-base-content/60" />
-                                            Edit Post
-                                          </button>
-                                          <div className="border-t border-base-200" />
-                                          <button
-                                            type="button"
-                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-error hover:bg-error/10 transition-colors"
-                                            onClick={(event) => {
-                                              event.stopPropagation();
-                                              setPostToDelete(post);
-                                              setShowDeleteModal(true);
-                                              setMenuOpenPostId(null);
-                                            }}
-                                          >
-                                            <Trash2 className="size-4" />
-                                            Delete Post
-                                          </button>
-                                        </div>
-                                      )}
-                                    </div>
+                                    <button
+                                      type="button"
+                                      className="btn btn-xs btn-circle border-none bg-transparent text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
+                                      onClick={(event) => openPostMenu(post._id, event)}
+                                    >
+                                      <MoreVertical className="size-3.5" />
+                                    </button>
                                   ) : (
-                                    <div className="relative" data-post-menu>
-                                      <button
-                                        type="button"
-                                        className="btn btn-xs btn-circle border-none bg-transparent text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          setMenuOpenPostId(menuOpenPostId === post._id ? null : post._id);
-                                        }}
-                                      >
-                                        <MoreVertical className="size-3.5" />
-                                      </button>
-                                      {menuOpenPostId === post._id && (
-                                        <div className="absolute right-0 top-full z-10 mt-1 w-36 rounded-xl border border-base-300 bg-base-100 shadow-xl overflow-hidden">
-                                          <button
-                                            type="button"
-                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-error hover:bg-error/10 transition-colors"
-                                            onClick={(event) => {
-                                              event.stopPropagation();
-                                              setReportTargetPost(post);
-                                              setMenuOpenPostId(null);
-                                            }}
-                                          >
-                                            <Flag className="size-3.5" />
-                                            Report
-                                          </button>
-                                        </div>
-                                      )}
-                                    </div>
+                                    <button
+                                      type="button"
+                                      className="btn btn-xs btn-circle border-none bg-transparent text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
+                                      onClick={(event) => openPostMenu(post._id, event)}
+                                    >
+                                      <MoreVertical className="size-3.5" />
+                                    </button>
                                   )
                                 }
                                 compareControl={
@@ -1473,34 +1399,13 @@ export default function UserProfilePage() {
                                 }
                                 menu={
                                   !isOwnPost ? (
-                                    <div className="relative" data-post-menu>
-                                      <button
-                                        type="button"
-                                        className="btn btn-xs btn-circle border-none bg-transparent text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          setMenuOpenPostId(menuOpenPostId === post._id ? null : post._id);
-                                        }}
-                                      >
-                                        <MoreVertical className="size-3.5" />
-                                      </button>
-                                      {menuOpenPostId === post._id && (
-                                        <div className="absolute right-0 top-full z-10 mt-1 w-36 rounded-xl border border-base-300 bg-base-100 shadow-xl overflow-hidden">
-                                          <button
-                                            type="button"
-                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-error hover:bg-error/10 transition-colors"
-                                            onClick={(event) => {
-                                              event.stopPropagation();
-                                              setReportTargetPost(post);
-                                              setMenuOpenPostId(null);
-                                            }}
-                                          >
-                                            <Flag className="size-3.5" />
-                                            Report
-                                          </button>
-                                        </div>
-                                      )}
-                                    </div>
+                                    <button
+                                      type="button"
+                                      className="btn btn-xs btn-circle border-none bg-transparent text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] hover:opacity-75"
+                                      onClick={(event) => openPostMenu(post._id, event)}
+                                    >
+                                      <MoreVertical className="size-3.5" />
+                                    </button>
                                   ) : null
                                 }
                                 compareControl={
@@ -2299,6 +2204,105 @@ export default function UserProfilePage() {
           setAdToolsPost(null);
         }}
       />
+      {menuOpenPostId && menuAnchorRect && createPortal(
+        <>
+          <div className="fixed inset-0 z-40" onClick={closePostMenu} />
+          {(() => {
+            const menuPost = [...posts, ...(bookmarks || [])].find((p) => p._id === menuOpenPostId);
+            if (!menuPost) return null;
+            const isOwn = String(authUser?._id) === String(menuPost.author?._id);
+            const isFm = String(menuPost.postType || "").toUpperCase() === "FLATMATE_OFFER" || String(menuPost.postType || "").toUpperCase() === "FLATMATE_SEEKING";
+            return (
+              <div
+                className="fixed z-50 w-44 rounded-xl border border-base-300 bg-base-100 py-1 shadow-lg"
+                style={{ top: menuAnchorRect.top, left: menuAnchorRect.left }}
+              >
+                {isOwn ? (
+                  <>
+                    {!menuPost.isBlocked && (
+                      <>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-semibold text-amber-600 hover:bg-amber-50 transition-colors"
+                          onClick={() => { setBoostTargetPost(menuPost); closePostMenu(); }}
+                        >
+                          <Zap className="size-4 fill-amber-500 text-amber-500" />
+                          {menuPost.isBoosted ? "Boosted (Active)" : "Boost Listing (1 Coin)"}
+                        </button>
+                        <div className="border-t border-base-200" />
+                      </>
+                    )}
+                    {isFm && (
+                      <>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-base-content hover:bg-base-200 transition-colors"
+                          onClick={async () => {
+                            const current = Boolean(menuPost.postMeta?.flatmate?.hideContact);
+                            try {
+                              await axiosInstance.put(`/posts/${menuPost._id}`, {
+                                postMeta: { flatmate: { ...menuPost.postMeta?.flatmate, hideContact: !current } },
+                              });
+                              queryClient.invalidateQueries({ queryKey: ["userPosts"] });
+                              queryClient.invalidateQueries({ queryKey: ["userProfile"] });
+                              toast.success(current ? "Contact enabled on this post" : "Contact hidden — viewers can only connect via connections");
+                            } catch {
+                              toast.error("Failed to update");
+                            }
+                            closePostMenu();
+                          }}
+                        >
+                          <Eye className="size-4 text-base-content/60" />
+                          {menuPost.postMeta?.flatmate?.hideContact ? "Show Contact" : "Hide Contact"}
+                        </button>
+                        <div className="border-t border-base-200" />
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-base-content hover:bg-base-200 transition-colors"
+                      onClick={() => {
+                        setPostToEdit(menuPost);
+                        setShowEditModal(true);
+                        setNewImageFiles([]);
+                        setNewImagePreviews([]);
+                        setRemovedImageUrls([]);
+                        closePostMenu();
+                      }}
+                    >
+                      <Edit2 className="size-4 text-base-content/60" />
+                      Edit Post
+                    </button>
+                    <div className="border-t border-base-200" />
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-error hover:bg-error/10 transition-colors"
+                      onClick={() => {
+                        setPostToDelete(menuPost);
+                        setShowDeleteModal(true);
+                        closePostMenu();
+                      }}
+                    >
+                      <Trash2 className="size-4" />
+                      Delete Post
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-error hover:bg-error/10 transition-colors"
+                    onClick={() => { setReportTargetPost(menuPost); closePostMenu(); }}
+                  >
+                    <Flag className="size-3.5" />
+                    Report
+                  </button>
+                )}
+              </div>
+            );
+          })()}
+        </>,
+        document.body
+      )}
     </AppShell>
   );
 }
