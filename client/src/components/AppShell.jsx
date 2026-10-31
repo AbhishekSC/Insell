@@ -1327,7 +1327,8 @@ export default function AppShell({
           >
             <ArrowLeft className="size-5 text-base-content" />
           </button>
-          {title && <h1 className="text-lg font-bold text-base-content truncate">{title}</h1>}
+          {title && <h1 className="min-w-0 flex-1 text-lg font-bold text-base-content truncate">{title}</h1>}
+          {actions && <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>}
         </div>
       )}
 
@@ -1336,7 +1337,7 @@ export default function AppShell({
           lockPageScroll ? "xl:flex xl:h-[calc(100dvh-4.75rem)] xl:flex-col xl:overflow-hidden" : "pb-24 md:pb-8"
         }`}
       >
-        {!hideHero ? (
+        {!hideHero && !showBackButton ? (
           <section className={`glass-wrap mb-5 p-5 sm:p-6 ${hideMobileHeader ? (onMarketplaceSearchChange ? "hidden xl:block" : "hidden") : ""}`}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <h1 className="hero-title break-words text-2xl sm:text-3xl md:text-4xl">{title}</h1>
