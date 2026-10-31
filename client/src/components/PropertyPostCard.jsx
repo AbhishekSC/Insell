@@ -32,7 +32,7 @@ import {
 import PostAuthorLink from "./PostAuthorLink";
 import { useStoryOverlay } from "../context/StoryOverlayContext";
 import { useLiveLocation } from "../hooks/useLiveLocation";
-import { lqipUrl, cardImageUrl } from "../lib/cloudinaryImage";
+import { lqipUrl, cardImageUrl, cardImageSrcSet, CARD_SIZES } from "../lib/cloudinaryImage";
 import axiosInstance from "../lib/axios";
 
 function isVideoUrl(url) {
@@ -93,9 +93,10 @@ function haversineKm(a, b) {
 
 // One image inside the swipeable gallery — blur-up placeholder that fades to
 // the right-sized Cloudinary variant on load.
-function GalleryImage({ src, alt, onDoubleClick }) {
+function GalleryImage({ src, alt, onDoubleClick, priority = false }) {
   const [loaded, setLoaded] = useState(false);
   const lqip = lqipUrl(src);
+  const srcSet = cardImageSrcSet(src);
   useEffect(() => {
     setLoaded(false);
   }, [src]);
@@ -104,10 +105,17 @@ function GalleryImage({ src, alt, onDoubleClick }) {
       {lqip && !loaded && (
         <img src={lqip} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-110 object-cover blur-xl" />
       )}
+      {!lqip && !loaded && (
+        <div className="absolute inset-0 animate-pulse bg-base-300/60" />
+      )}
       <img
         src={cardImageUrl(src)}
+        srcSet={srcSet || undefined}
+        sizes={srcSet ? CARD_SIZES : undefined}
         alt={alt || "Property"}
-        loading="lazy"
+        loading={priority ? "eager" : "lazy"}
+        fetchpriority={priority ? "high" : undefined}
+        decoding={priority ? "sync" : "async"}
         onLoad={() => setLoaded(true)}
         onError={() => setLoaded(true)}
         onDoubleClick={onDoubleClick}
@@ -161,6 +169,7 @@ export default React.memo(function PropertyPostCard({
   matchScore,
   onNotInterested,
   isNewForYou,
+  priority = false,
 }) {
   const navigate = useNavigate();
   const [isMuted, setIsMuted] = useState(true);
@@ -700,7 +709,7 @@ export default React.memo(function PropertyPostCard({
                     onDoubleClick={onDoubleClickMedia}
                   />
                 ) : (
-                  <GalleryImage src={m} alt={post.title} onDoubleClick={onDoubleClickMedia} />
+                  <GalleryImage src={m} alt={post.title} onDoubleClick={onDoubleClickMedia} priority={priority && i === 0} />
                 )}
               </div>
             ))}
@@ -1045,5 +1054,6 @@ export default React.memo(function PropertyPostCard({
     && prev.isOwnPost === next.isOwnPost
     && prev.media === next.media
     && prev.matchScore === next.matchScore
-    && prev.isNewForYou === next.isNewForYou;
+    && prev.isNewForYou === next.isNewForYou
+    && prev.priority === next.priority;
 });

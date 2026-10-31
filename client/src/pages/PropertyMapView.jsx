@@ -291,12 +291,12 @@ export default function PropertyMapView() {
   const amenityFilters = { schools: true, hospitals: true, metro: true, malls: true, parks: true };
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["propertyFeed", "map"],
+    queryKey: ["propertyMapPins"],
     queryFn: async () => {
-      const response = await axiosInstance.get("/posts?limit=100");
+      const response = await axiosInstance.get("/posts/map-pins");
       return response.data?.data || { posts: [] };
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
 

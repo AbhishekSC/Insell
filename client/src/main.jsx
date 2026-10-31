@@ -1,8 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import "stream-chat-react/dist/css/index.css";
-import "@stream-io/video-react-sdk/dist/css/styles.css";
 import App from "./App.jsx";
 import { BrowserRouter } from "react-router";
 import { HelmetProvider } from "react-helmet-async";
@@ -20,6 +18,12 @@ import axiosInstance from "./lib/axios";
 
 initPostHog();
 initSentry();
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
 
 // If this load is the browser landing back from the Google OAuth redirect,
 // persist the token synchronously before anything renders. Doing this inside
