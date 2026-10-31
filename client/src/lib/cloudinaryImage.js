@@ -28,3 +28,14 @@ export function lqipUrl(url) {
 export function cardImageUrl(url, width = 600) {
   return withTransform(url, `w_${width},c_limit,q_auto,f_auto`) || url;
 }
+
+const SRCSET_WIDTHS = [400, 600, 900];
+
+export function cardImageSrcSet(url) {
+  if (!isTransformableCloudinaryImage(url)) return null;
+  return SRCSET_WIDTHS
+    .map((w) => `${withTransform(url, `w_${w},c_limit,q_auto,f_auto`)} ${w}w`)
+    .join(", ");
+}
+
+export const CARD_SIZES = "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 600px";

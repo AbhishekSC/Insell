@@ -3640,4 +3640,44 @@ export async function recordCoverClick(req, res) {
   }
 }
 
+const MAP_PINS_PROJECTION = "_id title price latitude longitude city locality area listingType propertyType postType bedrooms bathrooms mediaUrls postMeta.flatmate.genderPreference postMeta.flatmate.rentPerPerson";
+const MAP_PINS_CACHE_KEY = "property:map-pins";
+const MAP_PINS_CACHE_TTL = 120;
 
+export async function getMapPins(req, res) {
+  try {
+    let pins;
+    try {
+      const cached = await redisClient.get(MAP_PINS_CACHE_KEY);
+      if (cached) {
+        pins = JSON.parse(cached);
+        return sendSuccessResponse(res, 200, "Map pins (cached)", { posts: pins });
+      }
+    } catch (_) {}
+
+    pins = await PropertyPost.find({
+      isDeleted: { $ne: true },
+      isBlocked: { $ne: true },
+      latitude: { $exists: true, $ne: null },
+      longitude: { $exists: true, $ne: null },
+    })
+      .select(MAP_PINS_PROJECTION)
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .lean();
+
+    pins = pins.map((p) => ({
+      ...p,
+      mediaUrls: p.mediaUrls?.length ? [p.mediaUrls[0]] : [],
+    }));
+
+    try {
+      await redisClient.setEx(MAP_PINS_CACHE_KEY, MAP_PINS_CACHE_TTL, JSON.stringify(pins));
+    } catch (_) {}
+
+    return sendSuccessResponse(res, 200, "Map pins", { posts: pins });
+  } catch (error) {
+    logger.error("getMapPins error:", error);
+    return sendErrorResponse(res, 500, "Failed to load map pins");
+  }
+}

@@ -859,8 +859,8 @@ export default function MarketplacePage() {
     // is being captured. With a saved location we query straight away and
     // just re-query when a fresher fix lands (the queryKey carries coords).
     enabled: Boolean(authUser?._id) && !(isNearMe && !liveLocation?.lat && liveLocStatus === "locating"),
-    staleTime: 30 * 1000,
-    refetchOnWindowFocus: true,
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   // Determines whether the primary property feed has completed its initial load.
@@ -2734,6 +2734,7 @@ export default function MarketplacePage() {
                       matchScore={post.matchScore}
                       isNewForYou={activeCategory === "For You" && post.matchScore >= 70 && !post.isLikedByMe && !post.isSavedByMe}
                       onNotInterested={activeCategory === "For You" && !(authUser?._id && post.author?._id && String(authUser._id) === String(post.author._id)) ? () => handleNotInterested(post) : undefined}
+                      priority={feedIndex < 4}
                     />
                   );
                 })}
