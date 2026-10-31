@@ -346,7 +346,7 @@ export function getCuratedCardBadges(post, options = {}) {
       label: spaceType,
       filterValue: spaceType,
       type: "spaceType",
-      className: "bg-base-100 dark:bg-base-200/90 text-base-content/90 font-semibold border border-base-300 dark:border-base-content/20 hover:border-primary/60 hover:text-primary",
+      className: "bg-base-100 dark:bg-base-200/90 text-base-content font-semibold border border-base-300 dark:border-base-content/20 hover:border-primary/60 hover:text-primary",
       priority: 1, // #1 slot
     });
   }
@@ -358,7 +358,7 @@ export function getCuratedCardBadges(post, options = {}) {
       label: `${post.bedrooms} BHK`,
       filterValue: `${post.bedrooms} BHK`,
       type: "specs",
-      className: "bg-base-100 dark:bg-base-200/90 text-base-content/85 font-semibold border border-base-300 dark:border-base-content/20 hover:border-primary/60 hover:text-primary",
+      className: "bg-base-100 dark:bg-base-200/90 text-base-content font-semibold border border-base-300 dark:border-base-content/20 hover:border-primary/60 hover:text-primary",
       priority: 2, // #2 slot
     });
   } else if (land.landArea) {
@@ -367,7 +367,7 @@ export function getCuratedCardBadges(post, options = {}) {
       label: `${land.landArea} ${land.landAreaUnit || "Acre"}`.trim(),
       filterValue: "Land",
       type: "specs",
-      className: "bg-base-100 dark:bg-base-200/90 text-base-content/85 font-semibold border border-base-300 dark:border-base-content/20 hover:border-primary/60 hover:text-primary",
+      className: "bg-base-100 dark:bg-base-200/90 text-base-content font-semibold border border-base-300 dark:border-base-content/20 hover:border-primary/60 hover:text-primary",
       priority: 2,
     });
   } else if (comm.carpetArea) {
@@ -376,7 +376,7 @@ export function getCuratedCardBadges(post, options = {}) {
       label: `${Number(comm.carpetArea)} sqft`,
       filterValue: "Commercial",
       type: "specs",
-      className: "bg-base-100 dark:bg-base-200/90 text-base-content/85 font-semibold border border-base-300 dark:border-base-content/20 hover:border-primary/60 hover:text-primary",
+      className: "bg-base-100 dark:bg-base-200/90 text-base-content font-semibold border border-base-300 dark:border-base-content/20 hover:border-primary/60 hover:text-primary",
       priority: 2,
     });
   }
@@ -642,7 +642,7 @@ export function getPropertyInfoBadges(post, options = {}) {
       label: transitPill.label,
       className: transitPill.isPersonalized
         ? "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 text-[10.5px] font-medium rounded-md px-2 py-0.5"
-        : "bg-base-200/80 text-base-content/85 text-[10.5px] font-medium rounded-md px-2 py-0.5",
+        : "bg-base-200/80 text-base-content dark:text-base-content/85 text-[10.5px] font-medium rounded-md px-2 py-0.5",
     });
   }
 
@@ -691,7 +691,7 @@ export function getPropertyInfoBadges(post, options = {}) {
       addBadge({
         key: "floor",
         label: floorLabel,
-        className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
+        className: "bg-base-200/60 text-base-content dark:text-base-content/80 border border-base-300/40 text-[10.5px] font-normal",
       });
     }
   }
@@ -701,19 +701,19 @@ export function getPropertyInfoBadges(post, options = {}) {
     addBadge({
       key: "sqft",
       label: `${Number(post.areaSqft).toLocaleString("en-IN")} sqft`,
-      className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
+      className: "bg-base-200/60 text-base-content dark:text-base-content/80 border border-base-300/40 text-[10.5px] font-normal",
     });
   } else if (land.landArea && Number(land.landArea) > 0) {
     addBadge({
       key: "landArea",
       label: `${land.landArea} ${land.landAreaUnit || "Acre"}`.trim(),
-      className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
+      className: "bg-base-200/60 text-base-content dark:text-base-content/80 border border-base-300/40 text-[10.5px] font-normal",
     });
   } else if (comm.carpetArea && Number(comm.carpetArea) > 0) {
     addBadge({
       key: "carpetArea",
       label: `${Number(comm.carpetArea).toLocaleString("en-IN")} sqft`,
-      className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
+      className: "bg-base-200/60 text-base-content dark:text-base-content/80 border border-base-300/40 text-[10.5px] font-normal",
     });
   }
 
@@ -722,13 +722,13 @@ export function getPropertyInfoBadges(post, options = {}) {
     addBadge({
       key: "baths",
       label: `${post.bathrooms} Bath${Number(post.bathrooms) > 1 ? "s" : ""}`,
-      className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
+      className: "bg-base-200/60 text-base-content dark:text-base-content/80 border border-base-300/40 text-[10.5px] font-normal",
     });
   } else if (comm.washrooms && Number(comm.washrooms) > 0) {
     addBadge({
       key: "washrooms",
       label: `${comm.washrooms} Washroom${Number(comm.washrooms) > 1 ? "s" : ""}`,
-      className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
+      className: "bg-base-200/60 text-base-content dark:text-base-content/80 border border-base-300/40 text-[10.5px] font-normal",
     });
   }
 
@@ -738,7 +738,7 @@ export function getPropertyInfoBadges(post, options = {}) {
     addBadge({
       key: "age",
       label: age,
-      className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
+      className: "bg-base-200/60 text-base-content dark:text-base-content/80 border border-base-300/40 text-[10.5px] font-normal",
     });
   }
 
@@ -748,7 +748,7 @@ export function getPropertyInfoBadges(post, options = {}) {
     addBadge({
       key: "facing",
       label: `${facing} Facing`,
-      className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
+      className: "bg-base-200/60 text-base-content dark:text-base-content/80 border border-base-300/40 text-[10.5px] font-normal",
     });
   }
 
@@ -769,7 +769,7 @@ export function getPropertyInfoBadges(post, options = {}) {
       addBadge({
         key: `amenity_${item.label}`,
         label: item.label,
-        className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
+        className: "bg-base-200/60 text-base-content dark:text-base-content/80 border border-base-300/40 text-[10.5px] font-normal",
       });
     }
   }
@@ -780,7 +780,7 @@ export function getPropertyInfoBadges(post, options = {}) {
     addBadge({
       key: "furnishing",
       label: furnishing === "Fully Furnished" ? "Furnished" : furnishing,
-      className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
+      className: "bg-base-200/60 text-base-content dark:text-base-content/80 border border-base-300/40 text-[10.5px] font-normal",
     });
   }
 
@@ -790,7 +790,7 @@ export function getPropertyInfoBadges(post, options = {}) {
     addBadge({
       key: "maint",
       label: `₹${Number(maint).toLocaleString("en-IN")}/mo maint.`,
-      className: "bg-base-200/60 text-base-content/70 border border-base-300/40 text-[10.5px] font-normal",
+      className: "bg-base-200/60 text-base-content dark:text-base-content/80 border border-base-300/40 text-[10.5px] font-normal",
     });
   }
 
