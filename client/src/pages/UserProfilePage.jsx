@@ -598,7 +598,7 @@ export default function UserProfilePage() {
 
   if (isProfileLoading) {
     return (
-      <AppShell hideHero lockPageScroll title="Profile" subtitle="Loading profile...">
+      <AppShell hideHero showBackButton lockPageScroll title="Profile" subtitle="Loading profile...">
         <div className="grid min-h-[420px] place-items-center">
           <div className="rounded-2xl border border-base-300 bg-base-100 px-6 py-5 text-center shadow-sm">
             <Loader2 className="mx-auto size-5 animate-spin text-primary" />
@@ -611,7 +611,7 @@ export default function UserProfilePage() {
 
   if (isError || !profileUser) {
     return (
-      <AppShell hideHero lockPageScroll title="Profile" subtitle="User not found">
+      <AppShell hideHero showBackButton lockPageScroll title="Profile" subtitle="User not found">
         <div className="grid min-h-[420px] place-items-center">
           <div className="rounded-2xl border border-base-300 bg-base-100 px-6 py-6 text-center shadow-sm">
             <p className="text-base font-semibold text-base-content">Profile not found</p>
@@ -748,7 +748,7 @@ export default function UserProfilePage() {
   };
 
   return (
-    <AppShell hideHero title="Profile" subtitle={profileUser.fullName || "User profile"}>
+    <AppShell hideHero showBackButton title="Profile" subtitle={profileUser.fullName || "User profile"}>
       <div className="mx-auto max-w-[1440px] px-4 py-0 sm:px-8">
         <div className="flex flex-col gap-6">
           {/* Verification Banner - only show for own profile if not verified */}

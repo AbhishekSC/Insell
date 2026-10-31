@@ -560,7 +560,7 @@ export default function PropertyDetailPage() {
 
   if (isLoading) {
     return (
-      <AppShell>
+      <AppShell showBackButton title="Property Details">
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="loading loading-spinner loading-lg"></div>
         </div>
@@ -570,7 +570,7 @@ export default function PropertyDetailPage() {
 
   if (!postData) {
     return (
-      <AppShell>
+      <AppShell showBackButton title="Property Details">
         <div className="flex items-center justify-center min-h-[50vh]">
           <p className="text-base-content/60">Property not found</p>
         </div>
@@ -745,7 +745,7 @@ export default function PropertyDetailPage() {
   })();
 
   return (
-    <AppShell hideHero>
+    <AppShell hideHero showBackButton title="Property Details">
       <div className="min-h-screen bg-base-200">
         {/* Fullscreen Image Modal */}
         {isFullscreen && (

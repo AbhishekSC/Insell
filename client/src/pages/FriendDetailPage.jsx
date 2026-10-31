@@ -19,7 +19,7 @@ export default function FriendDetailPage() {
 
   if (isLoading) {
     return (
-      <AppShell title="Traveler Detail" subtitle="Loading traveler profile..." lockPageScroll>
+      <AppShell showBackButton title="Traveler Detail" subtitle="Loading traveler profile..." lockPageScroll>
         <div className="grid min-h-[360px] place-items-center">
           <div className="rounded-2xl border border-base-300/80 bg-base-100/90 px-6 py-5 text-center shadow-sm">
             <Loader2 className="mx-auto size-5 animate-spin text-primary" />
@@ -32,7 +32,7 @@ export default function FriendDetailPage() {
 
   if (!selectedFriend) {
     return (
-      <AppShell title="Traveler Detail" subtitle="This profile is available only for users in your friends list." lockPageScroll>
+      <AppShell showBackButton title="Traveler Detail" subtitle="This profile is available only for users in your friends list." lockPageScroll>
         <div className="grid min-h-[360px] place-items-center">
           <div className="rounded-2xl border border-base-300/80 bg-base-100/90 px-6 py-6 text-center shadow-sm">
             <p className="text-base font-semibold text-base-content">Friend not found</p>
@@ -49,6 +49,7 @@ export default function FriendDetailPage() {
 
   return (
     <AppShell
+      showBackButton
       title="Traveler Detail"
       subtitle="Travel profile view for users in your friends list."
       lockPageScroll

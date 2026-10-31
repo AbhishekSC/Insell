@@ -107,6 +107,7 @@ export default function ProgressPage() {
 
   return (
     <AppShell
+      showBackButton
       title="Growth and Progress"
       subtitle="Track trip goals, streaks, and post-call planning improvements in one place."
     >

@@ -844,7 +844,7 @@ export default function ToolkitPage() {
   }, [authUser?._id, historyExpense?.updateHistory, historyOnlyByMe, historyOnlyWithReason]);
 
   return (
-    <AppShell title="Travel Toolkit" subtitle="Clean tools for faster planning, safer connections, and better trip decisions.">
+    <AppShell showBackButton title="Travel Toolkit" subtitle="Clean tools for faster planning, safer connections, and better trip decisions.">
       <div className="mb-4 flex flex-wrap gap-2">
         <button
           type="button"

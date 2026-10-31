@@ -593,6 +593,7 @@ export default function AppShell({
   hideBottomNav = false,
   hideMobileHeader = false,
   autoHideHeaderOnScroll = false,
+  showBackButton = false,
   marketplaceSearch = "",
   onMarketplaceSearchChange,
   onCreateProperty,
@@ -1315,9 +1316,9 @@ export default function AppShell({
         <div className="xl:hidden" style={{ height: headerHeight }} />
       )}
 
-      {/* Clean back + title bar when the full header is hidden (standalone pages) */}
-      {hideMobileHeader && title && !onMarketplaceSearchChange && (
-        <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-base-300 bg-base-100/95 backdrop-blur px-4 py-3">
+      {/* Back + title bar for detail / sub pages */}
+      {(hideMobileHeader || showBackButton) && !onMarketplaceSearchChange && (
+        <div className={`sticky top-0 z-20 flex items-center gap-3 border-b border-base-300 bg-base-100/95 backdrop-blur px-4 py-3 ${isMarketplaceShell ? "max-w-[1440px] mx-auto" : "max-w-7xl mx-auto"}`}>
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -1326,7 +1327,7 @@ export default function AppShell({
           >
             <ArrowLeft className="size-5 text-base-content" />
           </button>
-          <h1 className="text-lg font-bold text-base-content truncate">{title}</h1>
+          {title && <h1 className="text-lg font-bold text-base-content truncate">{title}</h1>}
         </div>
       )}
 

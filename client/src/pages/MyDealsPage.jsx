@@ -31,7 +31,7 @@ export default function MyDealsPage() {
   });
 
   return (
-    <AppShell hideHero title="My Deals" subtitle="Offers you've closed — track them through to registration">
+    <AppShell hideHero showBackButton title="My Deals" subtitle="Offers you've closed — track them through to registration">
       <div className="mx-auto max-w-3xl px-4 py-6 pb-24">
         {isLoading ? (
           <div className="space-y-3">

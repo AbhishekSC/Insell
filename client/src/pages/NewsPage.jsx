@@ -231,7 +231,7 @@ export default function NewsPage() {
     NEWS_CATEGORIES.find((c) => c.id === selectedCategory)?.label || "All Topics";
 
   return (
-    <AppShell hideHero hideMobileHeader title="Property News" subtitle="Market trends, infrastructure updates, and housing policy in one place.">
+    <AppShell hideHero hideMobileHeader showBackButton title="Property News" subtitle="Market trends, infrastructure updates, and housing policy in one place.">
       <div className="mx-auto max-w-7xl px-4 py-8 pb-24">
         {/* Page Header */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

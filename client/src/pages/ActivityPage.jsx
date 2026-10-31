@@ -10,6 +10,7 @@ export default function ActivityPage() {
 
   return (
     <AppShell
+      showBackButton
       title="Activity"
       subtitle="Your recent activity and interactions"
     >

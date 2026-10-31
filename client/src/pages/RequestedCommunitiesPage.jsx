@@ -56,7 +56,7 @@ export default function RequestedCommunitiesPage() {
   });
 
   return (
-    <AppShell hideHero title="Requested" subtitle="Communities you've asked to join, awaiting admin approval">
+    <AppShell hideHero showBackButton title="Requested" subtitle="Communities you've asked to join, awaiting admin approval">
       <div className="mx-auto max-w-5xl px-4 py-6 pb-24">
         {isLoading ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
