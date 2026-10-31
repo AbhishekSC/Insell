@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { Flame, Sparkles, X, MapPin } from "lucide-react";
+import { Flame, Sparkles, X, MapPin, Play } from "lucide-react";
 import { cardImageUrl, lqipUrl } from "../lib/cloudinaryImage";
 import { trackRecoEvent } from "../lib/recoEvents";
+
+function isVideoUrl(url) {
+  if (!url) return false;
+  return /\.(mp4|webm|mov|avi|mkv)(\?.*)?$/i.test(url) || url.includes("/video/upload/");
+}
 
 function formatMoney(value) {
   const n = Number(value || 0);
@@ -100,8 +105,9 @@ export default function FeedSuggestionCard({ suggestionType, data, position, onD
     onDismiss?.(suggestion.id);
   };
 
-  const placeholder = lqipUrl(suggestion.image);
-  const imageSrc = cardImageUrl(suggestion.image, 900);
+  const isVideo = isVideoUrl(suggestion.image);
+  const placeholder = isVideo ? null : lqipUrl(suggestion.image);
+  const imageSrc = isVideo ? suggestion.image : cardImageUrl(suggestion.image, 900);
 
   return (
     <div
@@ -114,7 +120,7 @@ export default function FeedSuggestionCard({ suggestionType, data, position, onD
     >
       {/* ── MEDIA ── */}
       <div className="relative h-[18rem] w-full overflow-hidden bg-base-200">
-        {placeholder && (
+        {!isVideo && placeholder && (
           <img
             src={placeholder}
             alt=""
@@ -122,7 +128,24 @@ export default function FeedSuggestionCard({ suggestionType, data, position, onD
             className={`absolute inset-0 h-full w-full scale-110 object-cover blur-xl transition-opacity duration-300 ${imgLoaded ? "opacity-0" : "opacity-100"}`}
           />
         )}
-        {suggestion.image && (
+        {suggestion.image && isVideo ? (
+          <>
+            <video
+              src={suggestion.image}
+              className="absolute inset-0 h-full w-full object-cover"
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              onLoadedData={() => setImgLoaded(true)}
+            />
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="grid size-12 place-items-center rounded-full bg-black/50 text-white backdrop-blur-sm">
+                <Play className="size-5 fill-white translate-x-0.5" />
+              </div>
+            </div>
+          </>
+        ) : suggestion.image ? (
           <img
             src={imageSrc}
             alt={suggestion.title}
@@ -131,7 +154,7 @@ export default function FeedSuggestionCard({ suggestionType, data, position, onD
             onLoad={() => setImgLoaded(true)}
             className={`absolute inset-0 h-full w-full object-cover transition-all duration-500 group-hover:scale-[1.03] ${imgLoaded ? "opacity-100" : "opacity-0"}`}
           />
-        )}
+        ) : null}
 
         {/* Top scrim */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/50 to-transparent" />

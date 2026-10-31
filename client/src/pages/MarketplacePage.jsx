@@ -938,7 +938,7 @@ export default function MarketplacePage() {
   }, [isFetchingNextPage, hasNextPage, fetchNextPage]);
 
   const posts = useMemo(() => {
-    const allPosts = (data?.pages || []).flatMap((page) => page?.posts || []);
+    const allPosts = (data?.pages || []).flatMap((page) => page?.posts || []).filter((p) => !p.__hidden);
     
     // Check if feed is structured (for "For You" category)
     const isStructured = data?.pages?.[0]?.pagination?.structured;
@@ -1751,8 +1751,29 @@ export default function MarketplacePage() {
         isSavedByMe: Boolean(data.saved),
         ...(typeof data.savesCount === "number" ? { savesCount: data.savesCount } : {}),
       }));
+      if (data.saved) {
+        toast("Saved — we'll show more like this", { icon: "✓", duration: 2000, style: { fontSize: "13px" } });
+      }
     },
   });
+
+  const handleNotInterested = useCallback((post) => {
+    patchPostInFeeds(post._id, () => ({ __hidden: true }));
+    axiosInstance
+      .post("/posts/micro-engagement", {
+        postId: post._id,
+        dwellTimeMs: 0,
+        swipedPhotosCount: 0,
+        engagementType: "not_interested",
+        locality: post.locality || "",
+        postType: post.postType || "",
+        bhk: post.bedrooms || 0,
+        price: post.price || 0,
+        listingType: post.listingType || "",
+      })
+      .catch(() => {});
+    toast("Got it — we'll show fewer like this", { icon: "✓", duration: 2000, style: { fontSize: "13px" } });
+  }, []);
 
   const { mutate: submitPostReport, isPending: isReportPending } = useMutation({
     mutationFn: async ({ postId, reasonCode, description }) => {
@@ -2110,15 +2131,20 @@ export default function MarketplacePage() {
                   <button
                     key={chip}
                     type="button"
-                    className={`btn btn-sm shrink-0 rounded-full border-none ${activeCategory === chip ? "bg-primary/15 text-primary hover:bg-primary/15" : "bg-transparent text-base-content/70 hover:bg-base-200 hover:text-base-content"}`}
+                    className={`btn btn-sm shrink-0 rounded-full transition-all duration-200 ${
+                      activeCategory === chip
+                        ? "bg-primary text-white shadow-md shadow-primary/25 hover:bg-primary scale-[1.02] font-bold"
+                        : "border border-base-300 bg-base-100 text-base-content/70 hover:bg-base-200 hover:text-base-content"
+                    }`}
                     onClick={() => setActiveCategory(chip)}
                   >
+                    {chip === "For You" && <Sparkles className="size-3.5" />}
                     {chip}
                   </button>
                 ))}
                 <button
                   type="button"
-                  className={`btn btn-sm shrink-0 rounded-full border-none ${hasActiveMarketplaceFilters ? "bg-primary/15 text-primary hover:bg-primary/15" : "bg-transparent text-base-content/70 hover:bg-base-200 hover:text-base-content"}`}
+                  className={`btn btn-sm shrink-0 rounded-full transition-all duration-200 ${hasActiveMarketplaceFilters ? "bg-primary text-white shadow-md shadow-primary/25 hover:bg-primary font-bold" : "border border-base-300 bg-base-100 text-base-content/70 hover:bg-base-200 hover:text-base-content"}`}
                   onClick={() => setIsFiltersOpen(true)}
                 >
                   <Filter className="size-4" />
@@ -2253,9 +2279,36 @@ export default function MarketplacePage() {
             )}
 
             {isLoading ? (
-              <div className="mt-4 grid gap-4 xl:grid-cols-2">
-                {[1, 2, 3, 4].map((item) => (
-                  <div key={item} className="h-[420px] animate-pulse rounded-2xl bg-base-200" />
+              <div className="mt-4 grid gap-5 2xl:grid-cols-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="animate-pulse rounded-2xl border border-base-200 bg-base-100 overflow-hidden">
+                    <div className="h-64 bg-base-300/50 relative">
+                      <div className="absolute top-3 left-3 flex items-center gap-2">
+                        <div className="size-8 rounded-full bg-base-300/80" />
+                        <div className="space-y-1">
+                          <div className="h-3 w-24 rounded bg-base-300/80" />
+                          <div className="h-2 w-16 rounded bg-base-300/60" />
+                        </div>
+                      </div>
+                      <div className="absolute top-3 right-3 h-5 w-16 rounded-full bg-base-300/80" />
+                    </div>
+                    <div className="p-4 space-y-3">
+                      <div className="flex items-center gap-6">
+                        <div className="h-4 w-8 rounded bg-base-300/40" />
+                        <div className="h-4 w-8 rounded bg-base-300/40" />
+                        <div className="h-4 w-8 rounded bg-base-300/40" />
+                        <div className="ml-auto h-4 w-8 rounded bg-base-300/40" />
+                      </div>
+                      <div className="h-7 w-2/5 rounded bg-base-300/60" />
+                      <div className="flex gap-2">
+                        <div className="h-5 w-20 rounded-lg bg-base-300/40" />
+                        <div className="h-5 w-16 rounded-lg bg-base-300/40" />
+                        <div className="h-5 w-24 rounded-lg bg-base-300/40" />
+                      </div>
+                      <div className="h-3 w-full rounded bg-base-300/30" />
+                      <div className="h-3 w-3/4 rounded bg-base-300/20" />
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : posts.length === 0 ? (
@@ -2677,6 +2730,10 @@ export default function MarketplacePage() {
                       savesCount={post.savesCount || 0}
                       onContact={isFlatmate && post.postMeta?.flatmate?.hideContact ? undefined : () => handleContactClick(post)}
                       onOpenPost={() => navigate(`/property/${post._id}`)}
+                      feedReasons={post.feedReasons}
+                      matchScore={post.matchScore}
+                      isNewForYou={activeCategory === "For You" && post.matchScore >= 70 && !post.isLikedByMe && !post.isSavedByMe}
+                      onNotInterested={activeCategory === "For You" && !Boolean(authUser?._id && post.author?._id && String(authUser._id) === String(post.author._id)) ? () => handleNotInterested(post) : undefined}
                     />
                   );
                 })}
@@ -2684,21 +2741,21 @@ export default function MarketplacePage() {
               </>
             )}
 
-            {/* Infinite scroll sentinel */}
-            <div ref={loadMoreRef} className="py-4">
+            {/* Infinite scroll sentinel — preloaded 1200px ahead so next page appears seamlessly */}
+            <div ref={loadMoreRef} className="py-2">
               {isFetchingNextPage && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-2">
-                  {[0, 1, 2].map((i) => (
+                <div className="grid gap-5 2xl:grid-cols-2 mt-2">
+                  {[0, 1].map((i) => (
                     <div key={i} className="animate-pulse rounded-2xl border border-base-200 bg-base-100 overflow-hidden">
-                      <div className="h-60 bg-base-300/60" />
+                      <div className="h-56 bg-base-300/40" />
                       <div className="p-4 space-y-3">
-                        <div className="h-4 w-3/4 rounded bg-base-300/60" />
-                        <div className="h-3 w-1/2 rounded bg-base-300/40" />
-                        <div className="flex gap-4 pt-2">
-                          <div className="h-3 w-16 rounded bg-base-300/40" />
-                          <div className="h-3 w-16 rounded bg-base-300/40" />
-                          <div className="h-3 w-16 rounded bg-base-300/40" />
+                        <div className="flex items-center gap-6">
+                          <div className="h-4 w-8 rounded bg-base-300/40" />
+                          <div className="h-4 w-8 rounded bg-base-300/40" />
+                          <div className="ml-auto h-4 w-8 rounded bg-base-300/40" />
                         </div>
+                        <div className="h-6 w-1/3 rounded bg-base-300/50" />
+                        <div className="h-3 w-full rounded bg-base-300/30" />
                       </div>
                     </div>
                   ))}
@@ -2786,11 +2843,15 @@ export default function MarketplacePage() {
                       onClick={() => navigate(`/property/${post.id}`)}
                       className="flex w-full items-center gap-2 rounded-xl border border-base-300 bg-base-100 p-2 text-left hover:bg-base-200"
                     >
-                      <img
-                        src={post.coverImage || "https://placehold.co/64x64?text=NMS"}
-                        alt={post.title}
-                        className="size-11 shrink-0 rounded-lg object-cover"
-                      />
+                      {isVideoUrl(post.coverImage) ? (
+                        <video src={post.coverImage} className="size-11 shrink-0 rounded-lg object-cover" muted preload="metadata" />
+                      ) : (
+                        <img
+                          src={post.coverImage || "https://placehold.co/64x64?text=NMS"}
+                          alt={post.title}
+                          className="size-11 shrink-0 rounded-lg object-cover"
+                        />
+                      )}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <p className="truncate text-xs font-semibold text-base-content">{post.title}</p>
@@ -2901,7 +2962,11 @@ export default function MarketplacePage() {
                           navigate(`/property/${post._id}`);
                         }}
                       >
-                        <img src={post.mediaUrls?.[0] || post.media?.[0]} alt={post.title || "Recommendation"} className="h-12 w-16 rounded-md object-cover" />
+                        {isVideoUrl(post.mediaUrls?.[0] || post.media?.[0]) ? (
+                          <video src={post.mediaUrls?.[0] || post.media?.[0]} className="h-12 w-16 rounded-md object-cover" muted preload="metadata" />
+                        ) : (
+                          <img src={post.mediaUrls?.[0] || post.media?.[0]} alt={post.title || "Recommendation"} className="h-12 w-16 rounded-md object-cover" />
+                        )}
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
                             <p className="truncate text-xs font-semibold text-base-content">{post.title || "Property"}</p>

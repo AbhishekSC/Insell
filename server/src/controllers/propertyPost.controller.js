@@ -450,6 +450,36 @@ function getBestPropertyReason(bestProperty, allProperties) {
   return reasons.length > 0 ? reasons.slice(0, 2).join(", ") : "Best overall match";
 }
 
+function generateFeedReason(post, userCity, userPrefs) {
+  const reasons = [];
+  if (userCity && String(post.city || "").toLowerCase() === userCity.toLowerCase()) {
+    reasons.push("In your city");
+  }
+  if (post.locality && userPrefs?.localities?.includes(post.locality)) {
+    reasons.push(`Matches your area: ${post.locality}`);
+  }
+  const pt = String(post.postType || "").toUpperCase();
+  if (userPrefs?.postTypes?.includes(pt)) {
+    reasons.push("Matches your search history");
+  }
+  if (post.personalizationScore >= 75) {
+    reasons.push("Top pick for you");
+  } else if (post.personalizationScore >= 55) {
+    reasons.push("Good match");
+  }
+  if (Number(post.likesCount || 0) >= 10) {
+    reasons.push("Popular listing");
+  }
+  const daysSince = post.createdAt ? (Date.now() - new Date(post.createdAt).getTime()) / 86400000 : 999;
+  if (daysSince <= 2) {
+    reasons.push("Just listed");
+  }
+  if (post.author?.isOwnerVerified || post.author?.isVerified) {
+    reasons.push("Verified owner");
+  }
+  return reasons.slice(0, 2);
+}
+
 function getMatchReason(property, comparedProperties, userBehavior) {
   const reasons = [];
   
@@ -887,6 +917,21 @@ export async function getPropertyFeed(req, res) {
           import("../jobs/producers/ingestion.producer.js")
             .then(({ enqueueUserRecommendationPrecompute }) => enqueueUserRecommendationPrecompute(currentUserId))
             .catch(() => {});
+        }
+        // Attach feed reasons & match score for UI display
+        if (personalizedPosts.length > 0) {
+          let userPrefs = null;
+          try {
+            userPrefs = await CardCTRService.getPreferenceVector(currentUserId);
+          } catch (err) {
+            logger.warn("Could not load preference vector for feed reasons:", err?.message);
+          }
+          const userCity = req.user?.city || req.user?.homeBase || "";
+          personalizedPosts = personalizedPosts.map((p) => ({
+            ...p,
+            feedReasons: generateFeedReason(p, userCity, userPrefs),
+            matchScore: typeof p.personalizationScore === "number" ? Math.min(99, Math.round(p.personalizationScore)) : null,
+          }));
         }
       } catch (error) {
         logger.error("Personalization error, falling back to standard feed:", error);
@@ -3557,6 +3602,18 @@ export async function recordMicroEngagement(req, res) {
         engagementType,
         meta
       );
+
+      if (engagementType === "not_interested") {
+        try {
+          const suppressKey = `user:${userId}:suppressed_reco`;
+          const existing = await redisClient.get(suppressKey);
+          const ids = existing ? JSON.parse(existing) : [];
+          ids.push(String(postId));
+          await redisClient.setEx(suppressKey, 86400 * 7, JSON.stringify(ids));
+        } catch (err) {
+          logger.warn("Could not suppress post:", err?.message);
+        }
+      }
     }
 
     return sendSuccessResponse(res, 200, "Micro-engagement recorded");
