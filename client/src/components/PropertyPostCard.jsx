@@ -26,6 +26,8 @@ import {
   MapPin,
   Users,
   ExternalLink,
+  ThumbsDown,
+  Info,
 } from "lucide-react";
 import PostAuthorLink from "./PostAuthorLink";
 import { useStoryOverlay } from "../context/StoryOverlayContext";
@@ -147,6 +149,10 @@ export default React.memo(function PropertyPostCard({
   mediaOverlay,
   onBoost,
   isOwnPost,
+  feedReasons,
+  matchScore,
+  onNotInterested,
+  isNewForYou,
 }) {
   const navigate = useNavigate();
   const [isMuted, setIsMuted] = useState(true);
@@ -161,6 +167,9 @@ export default React.memo(function PropertyPostCard({
   const [activeIdx, setActiveIdx] = useState(0);
   const [cardInView, setCardInView] = useState(false);
   const [tapFeedback, setTapFeedback] = useState(null);
+  const [likeAnim, setLikeAnim] = useState(false);
+  const [saveAnim, setSaveAnim] = useState(false);
+  const [showReasons, setShowReasons] = useState(false);
   const cardRef = useRef(null);
   const scrollerRef = useRef(null);
   const videoRefs = useRef([]);
@@ -345,6 +354,24 @@ export default React.memo(function PropertyPostCard({
   const stop = (fn) => (e) => {
     e.stopPropagation();
     fn?.();
+  };
+
+  const handleLikeWithAnim = (e) => {
+    e.stopPropagation();
+    if (!isLiked) {
+      setLikeAnim(true);
+      setTimeout(() => setLikeAnim(false), 500);
+    }
+    onLike?.();
+  };
+
+  const handleSaveWithAnim = (e) => {
+    e.stopPropagation();
+    if (!isSaved) {
+      setSaveAnim(true);
+      setTimeout(() => setSaveAnim(false), 500);
+    }
+    onSave?.();
   };
 
   // ── IMMERSIVE FULL-BLEED REELS LAYOUT (When media is a Video) ──
@@ -573,9 +600,9 @@ export default React.memo(function PropertyPostCard({
                 <button
                   type="button"
                   className="flex items-center gap-1 text-white/90 hover:text-white transition-colors"
-                  onClick={stop(onLike)}
+                  onClick={handleLikeWithAnim}
                 >
-                  <Heart className={`size-[18px] ${isLiked ? "fill-error text-error" : ""}`} />
+                  <Heart className={`size-[18px] transition-transform duration-300 ${isLiked ? "fill-error text-error" : ""} ${likeAnim ? "scale-125" : ""}`} />
                   {likesCount > 0 && <span className="text-xs font-semibold tabular-nums">{likesCount}</span>}
                 </button>
 
@@ -603,9 +630,9 @@ export default React.memo(function PropertyPostCard({
                   <button
                     type="button"
                     className="flex items-center gap-1 text-white/90 hover:text-white transition-colors"
-                    onClick={stop(onSave)}
+                    onClick={handleSaveWithAnim}
                   >
-                    <Bookmark className={`size-[18px] ${isSaved ? "fill-primary text-primary" : ""}`} />
+                    <Bookmark className={`size-[18px] transition-transform duration-300 ${isSaved ? "fill-primary text-primary" : ""} ${saveAnim ? "scale-125" : ""}`} />
                     {savesCount > 0 && <span className="text-xs font-semibold tabular-nums">{savesCount}</span>}
                   </button>
                 )}
@@ -691,6 +718,17 @@ export default React.memo(function PropertyPostCard({
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             <div className="flex items-center gap-1.5">
+              {isNewForYou && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-sm ring-1 ring-violet-300/40 animate-pulse">
+                  <Sparkles className="size-3" />
+                  New for you
+                </span>
+              )}
+              {matchScore != null && matchScore >= 70 && (
+                <span className="rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm">
+                  {matchScore}% match
+                </span>
+              )}
               {post.isBoosted && !post.isBlocked && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-sm ring-1 ring-amber-300/50">
                   <Zap className="size-3 fill-current" />
@@ -823,8 +861,8 @@ export default React.memo(function PropertyPostCard({
         {/* action bar — compact */}
         <div className="flex items-center justify-between text-base-content/70">
           <div className="flex items-center gap-3.5">
-            <button type="button" className={actionBtn} onClick={stop(onLike)}>
-              <Heart className={`size-[18px] ${isLiked ? "fill-error text-error" : ""}`} />
+            <button type="button" className={actionBtn} onClick={handleLikeWithAnim}>
+              <Heart className={`size-[18px] transition-transform duration-300 ${isLiked ? "fill-error text-error" : ""} ${likeAnim ? "scale-125" : ""}`} />
               {likesCount > 0 && <span className="text-xs font-medium tabular-nums">{likesCount}</span>}
             </button>
             <button type="button" className={actionBtn} onClick={stop(onComment)}>
@@ -837,12 +875,25 @@ export default React.memo(function PropertyPostCard({
               </button>
             )}
           </div>
-          {onSave && (
-            <button type="button" className={actionBtn} onClick={stop(onSave)}>
-              <Bookmark className={`size-[18px] ${isSaved ? "fill-primary text-primary" : ""}`} />
-              {savesCount > 0 && <span className="text-xs font-medium tabular-nums">{savesCount}</span>}
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {onNotInterested && (
+              <button
+                type="button"
+                className="text-base-content/30 transition hover:text-error/70"
+                onClick={(e) => { e.stopPropagation(); onNotInterested(); }}
+                title="Not interested"
+                aria-label="Not interested in this post"
+              >
+                <ThumbsDown className="size-[15px]" />
+              </button>
+            )}
+            {onSave && (
+              <button type="button" className={actionBtn} onClick={handleSaveWithAnim}>
+                <Bookmark className={`size-[18px] transition-transform duration-300 ${isSaved ? "fill-primary text-primary" : ""} ${saveAnim ? "scale-125" : ""}`} />
+                {savesCount > 0 && <span className="text-xs font-medium tabular-nums">{savesCount}</span>}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Instagram-style Liked By Line — exact Instagram format */}
@@ -917,6 +968,28 @@ export default React.memo(function PropertyPostCard({
 
         {description}
 
+        {/* "Why you see this" feed reasons */}
+        {Array.isArray(feedReasons) && feedReasons.length > 0 && (
+          <button
+            type="button"
+            className="flex items-center gap-1 text-[10.5px] text-base-content/40 hover:text-base-content/60 transition-colors"
+            onClick={(e) => { e.stopPropagation(); setShowReasons((v) => !v); }}
+          >
+            <Info className="size-3 shrink-0" />
+            <span>{feedReasons[0]}</span>
+            {feedReasons.length > 1 && !showReasons && <span className="ml-0.5">+{feedReasons.length - 1}</span>}
+          </button>
+        )}
+        {showReasons && Array.isArray(feedReasons) && feedReasons.length > 1 && (
+          <div className="flex flex-wrap gap-1.5">
+            {feedReasons.map((r) => (
+              <span key={r} className="inline-flex items-center rounded-md bg-primary/5 px-2 py-0.5 text-[10px] font-medium text-primary/70">
+                {r}
+              </span>
+            ))}
+          </div>
+        )}
+
         {/* meta + contact on one row */}
         {(viewsCount !== undefined || metaLine || onContact) && (
           <div className="mt-auto flex items-center justify-between gap-3">
@@ -951,5 +1024,7 @@ export default React.memo(function PropertyPostCard({
     && prev.viewsCount === next.viewsCount
     && prev.className === next.className
     && prev.isOwnPost === next.isOwnPost
-    && prev.media === next.media;
+    && prev.media === next.media
+    && prev.matchScore === next.matchScore
+    && prev.isNewForYou === next.isNewForYou;
 });
