@@ -134,7 +134,7 @@ export default class AuthService extends BaseService {
   // Promotes a verified PendingSignup into a real User — this is the only
   // point at which a signup actually creates a DB row and a login session.
   async verifySignup({ email, code, res, ...options }) {
-    const { userRepository, tokenIssuer, streamUpdater, queuePublisher } = this.dependencies;
+    const { userRepository, tokenIssuer, streamUpdater } = this.dependencies;
     const cleanEmail = String(email || "").trim().toLowerCase();
     const cleanCode = String(code || "").trim();
 
@@ -260,12 +260,6 @@ export default class AuthService extends BaseService {
     }
 
     try {
-      queuePublisher({ event: "user_logged_in", email: newUser.email, name: newUser.fullName });
-    } catch {
-      // Queue failures should not block auth flow.
-    }
-
-    try {
       await sendWelcomeEmail(newUser.email, newUser.fullName);
     } catch (error) {
       logger.error("Failed to send welcome email:", error);
@@ -332,7 +326,7 @@ export default class AuthService extends BaseService {
   }
 
   async login({ email, password, res, ...options }) {
-    const { userRepository, tokenIssuer, queuePublisher } = this.dependencies;
+    const { userRepository, tokenIssuer } = this.dependencies;
 
     const user = await userRepository.findByEmailWithPassword(email);
     if (!user) {
@@ -348,7 +342,7 @@ export default class AuthService extends BaseService {
   }
 
   async loginUser(user, res, options = {}) {
-    const { tokenIssuer, queuePublisher } = this.dependencies;
+    const { tokenIssuer } = this.dependencies;
 
     if (user.isBlocked) {
       throw new AppError("Your account has been blocked. Contact support for help.", 403, {
@@ -368,12 +362,6 @@ export default class AuthService extends BaseService {
       });
     } catch (error) {
       logger.error("Failed to create refresh token during login:", error);
-    }
-
-    try {
-      queuePublisher({ event: "user_logged_in", email: user.email, name: user.fullName });
-    } catch {
-      // Queue failures should not block auth flow.
     }
 
     return {
