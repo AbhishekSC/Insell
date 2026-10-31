@@ -1773,7 +1773,7 @@ export default function MarketplacePage() {
       })
       .catch(() => {});
     toast("Got it — we'll show fewer like this", { icon: "✓", duration: 2000, style: { fontSize: "13px" } });
-  }, []);
+  }, [patchPostInFeeds]);
 
   const { mutate: submitPostReport, isPending: isReportPending } = useMutation({
     mutationFn: async ({ postId, reasonCode, description }) => {
@@ -2733,7 +2733,7 @@ export default function MarketplacePage() {
                       feedReasons={post.feedReasons}
                       matchScore={post.matchScore}
                       isNewForYou={activeCategory === "For You" && post.matchScore >= 70 && !post.isLikedByMe && !post.isSavedByMe}
-                      onNotInterested={activeCategory === "For You" && !Boolean(authUser?._id && post.author?._id && String(authUser._id) === String(post.author._id)) ? () => handleNotInterested(post) : undefined}
+                      onNotInterested={activeCategory === "For You" && !(authUser?._id && post.author?._id && String(authUser._id) === String(post.author._id)) ? () => handleNotInterested(post) : undefined}
                     />
                   );
                 })}
