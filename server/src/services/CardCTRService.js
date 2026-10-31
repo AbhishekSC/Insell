@@ -575,6 +575,7 @@ class CardCTRService {
     dwell_medium: 0.15,  // 2.5-5s dwell
     swipe: 0.20,
     skip: -0.15,         // <1s scroll-past
+    not_interested: -0.5, // explicit negative signal from user
   };
 
   static async recordWeightedEngagement(userId, postId, engagementType, meta = {}) {
