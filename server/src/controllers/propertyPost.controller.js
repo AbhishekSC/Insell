@@ -2310,6 +2310,18 @@ export async function togglePropertyPostLike(req, res) {
     // High-speed atomic toggle in Redis (~2ms)
     const { active: liked, count: likesCount } = await toggleEngagementRedis(postId, userId, "like");
 
+    // Track weighted engagement for preference learning
+    if (liked) {
+      setImmediate(() => {
+        CardCTRService.recordWeightedEngagement(String(userId), String(postId), "like", {
+          locality: post.locality || post.city || "",
+          postType: post.postType || "",
+          price: post.price || 0,
+          listingType: post.listingType || "",
+        }).catch(() => {});
+      });
+    }
+
     // Asynchronously dispatch notification if liked (zero latency on response)
     const authorId = post.author?._id || post.author;
     if (liked && authorId && String(authorId) !== String(userId)) {
@@ -2376,6 +2388,18 @@ export async function togglePropertyPostSave(req, res) {
 
     // High-speed atomic toggle in Redis (~2ms)
     const { active: saved, count: savesCount } = await toggleEngagementRedis(postId, userId, "save");
+
+    // Track weighted engagement for preference learning (save = strongest signal)
+    if (saved) {
+      setImmediate(() => {
+        CardCTRService.recordWeightedEngagement(String(userId), String(postId), "save", {
+          locality: post.locality || post.city || "",
+          postType: post.postType || "",
+          price: post.price || 0,
+          listingType: post.listingType || "",
+        }).catch(() => {});
+      });
+    }
 
     // Asynchronously dispatch notification if saved
     const authorId = post.author?._id || post.author;
@@ -3511,16 +3535,29 @@ export async function getHotPropertiesFeed(req, res) {
 export async function recordMicroEngagement(req, res) {
   try {
     const userId = req.user?._id;
-    const { postId, dwellTimeMs, swipedPhotosCount } = req.body || {};
+    const { postId, dwellTimeMs, swipedPhotosCount, engagementType, locality, postType, bhk, price, listingType } = req.body || {};
     if (!userId || !postId) {
       return sendErrorResponse(res, 400, "Missing required fields");
     }
+    const meta = { locality, postType, bhk, price, listingType };
+
     await CardCTRService.recordMicroEngagement(
       String(userId),
       String(postId),
       Number(dwellTimeMs) || 0,
-      Number(swipedPhotosCount) || 0
+      Number(swipedPhotosCount) || 0,
+      meta
     );
+
+    if (engagementType) {
+      await CardCTRService.recordWeightedEngagement(
+        String(userId),
+        String(postId),
+        engagementType,
+        meta
+      );
+    }
+
     return sendSuccessResponse(res, 200, "Micro-engagement recorded");
   } catch (error) {
     logger.warn("Error recording micro-engagement:", error.message);

@@ -534,7 +534,7 @@ class CardCTRService {
   /**
    * 9. Micro-Engagement Logging (In-feed dwell & swipes)
    */
-  static async recordMicroEngagement(userId, postId, dwellTimeMs = 0, swipedPhotosCount = 0) {
+  static async recordMicroEngagement(userId, postId, dwellTimeMs = 0, swipedPhotosCount = 0, meta = {}) {
     if (!userId || !postId) return;
     try {
       if (!redisClient) return;
@@ -543,14 +543,133 @@ class CardCTRService {
         postId,
         dwellTimeMs,
         swipedPhotosCount,
+        locality: meta.locality || "",
+        postType: meta.postType || "",
+        bhk: meta.bhk || 0,
+        price: meta.price || 0,
+        listingType: meta.listingType || "",
         at: Date.now(),
       });
-      // Push to recent micro engagements list, cap at 20, 2 hour TTL
       await redisClient.lPush(key, payload);
-      await redisClient.lTrim(key, 0, 19);
+      await redisClient.lTrim(key, 0, 39);
       await redisClient.expire(key, 7200);
+
+      // Update engagement-weighted preference vector
+      if (dwellTimeMs > 0 || swipedPhotosCount > 0) {
+        await CardCTRService.updatePreferenceVector(userId, meta, dwellTimeMs, swipedPhotosCount);
+      }
     } catch (e) {
       logger.warn("Micro-engagement record error:", e.message);
+    }
+  }
+
+  // Engagement type weights: higher weight = stronger interest signal
+  static ENGAGEMENT_WEIGHTS = {
+    save: 1.0,
+    contact: 0.85,
+    share: 0.75,
+    visit_request: 0.70,
+    like: 0.45,
+    click: 0.35,
+    dwell_long: 0.30,   // >5s dwell
+    dwell_medium: 0.15,  // 2.5-5s dwell
+    swipe: 0.20,
+    skip: -0.15,         // <1s scroll-past
+  };
+
+  static async recordWeightedEngagement(userId, postId, engagementType, meta = {}) {
+    if (!userId || !postId || !engagementType) return;
+    try {
+      if (!redisClient) return;
+      const weight = CardCTRService.ENGAGEMENT_WEIGHTS[engagementType] ?? 0.1;
+      const key = `user:eng_weighted:${userId}`;
+      const payload = JSON.stringify({
+        postId,
+        type: engagementType,
+        weight,
+        locality: meta.locality || "",
+        postType: meta.postType || "",
+        bhk: meta.bhk || 0,
+        price: meta.price || 0,
+        listingType: meta.listingType || "",
+        at: Date.now(),
+      });
+      await redisClient.lPush(key, payload);
+      await redisClient.lTrim(key, 0, 99);
+      await redisClient.expire(key, 86400);
+
+      await CardCTRService.updatePreferenceVector(userId, meta, 0, 0, weight);
+    } catch (e) {
+      logger.warn("Weighted engagement record error:", e.message);
+    }
+  }
+
+  static async updatePreferenceVector(userId, meta, dwellTimeMs = 0, swipedPhotos = 0, engagementWeight = 0) {
+    try {
+      if (!redisClient) return;
+      const key = `user:pref_vector:${userId}`;
+      const raw = await redisClient.get(key);
+      const vector = raw ? JSON.parse(raw) : {
+        localities: {},
+        postTypes: {},
+        bhkPrefs: {},
+        priceSum: 0,
+        priceCount: 0,
+        listingTypes: {},
+        totalSignals: 0,
+      };
+
+      // Compute signal strength from dwell/swipe/engagement
+      let signal = engagementWeight;
+      if (dwellTimeMs > 5000) signal += 0.30;
+      else if (dwellTimeMs > 2500) signal += 0.15;
+      if (swipedPhotos > 0) signal += 0.10 + Math.min(0.15, swipedPhotos * 0.05);
+
+      if (signal <= 0) return;
+
+      // Accumulate weighted preferences with exponential decay
+      if (meta.locality) {
+        vector.localities[meta.locality] = (vector.localities[meta.locality] || 0) + signal;
+      }
+      if (meta.postType) {
+        vector.postTypes[meta.postType] = (vector.postTypes[meta.postType] || 0) + signal;
+      }
+      if (meta.bhk) {
+        const bhkKey = String(meta.bhk);
+        vector.bhkPrefs[bhkKey] = (vector.bhkPrefs[bhkKey] || 0) + signal;
+      }
+      if (meta.price > 0) {
+        vector.priceSum += meta.price * signal;
+        vector.priceCount += signal;
+      }
+      if (meta.listingType) {
+        vector.listingTypes[meta.listingType] = (vector.listingTypes[meta.listingType] || 0) + signal;
+      }
+      vector.totalSignals += signal;
+      vector.updatedAt = Date.now();
+
+      // Cap dimension sizes to prevent unbounded growth
+      for (const dim of ["localities", "postTypes", "bhkPrefs", "listingTypes"]) {
+        const entries = Object.entries(vector[dim]);
+        if (entries.length > 30) {
+          entries.sort((a, b) => b[1] - a[1]);
+          vector[dim] = Object.fromEntries(entries.slice(0, 25));
+        }
+      }
+
+      await redisClient.setEx(key, 7 * 86400, JSON.stringify(vector));
+    } catch (e) {
+      logger.warn("Preference vector update error:", e.message);
+    }
+  }
+
+  static async getPreferenceVector(userId) {
+    try {
+      if (!redisClient) return null;
+      const raw = await redisClient.get(`user:pref_vector:${userId}`);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
     }
   }
 
@@ -630,10 +749,18 @@ class CardCTRService {
 
       const avgEngagedPrice = priceCount > 0 ? totalPrice / priceCount : 0;
 
+      // Load medium-term preference vector for behavioral learning blend
+      const prefVector = await CardCTRService.getPreferenceVector(userId);
+      const prefAvgPrice = prefVector && prefVector.priceCount > 0
+        ? prefVector.priceSum / prefVector.priceCount : 0;
+      const hasPrefVector = prefVector && prefVector.totalSignals > 3;
+
       // Compute momentum multiplier for each candidate post
       const scoredPosts = posts.map((post) => {
         let momentumMultiplier = 1.0;
         const pid = String(post._id);
+
+        // === Short-term session signals (from last 2h micro-engagements) ===
 
         // Locality affinity boost (huge signal: user is actively browsing this neighborhood)
         const postLoc = String(post.locality || "").toLowerCase().trim();
@@ -659,6 +786,44 @@ class CardCTRService {
           const ratio = post.price / avgEngagedPrice;
           if (ratio >= 0.7 && ratio <= 1.3) {
             momentumMultiplier += 0.10;
+          }
+        }
+
+        // === Medium-term behavioral learning (from 7-day preference vector) ===
+        if (hasPrefVector) {
+          const total = prefVector.totalSignals;
+
+          // Locality preference from engagement history
+          if (postLoc && prefVector.localities[postLoc]) {
+            const locStrength = Math.min(0.25, (prefVector.localities[postLoc] / total) * 0.8);
+            momentumMultiplier += locStrength;
+          }
+
+          // Post type preference
+          if (postType && prefVector.postTypes[postType]) {
+            const typeStrength = Math.min(0.12, (prefVector.postTypes[postType] / total) * 0.5);
+            momentumMultiplier += typeStrength;
+          }
+
+          // BHK preference
+          if (postBhk && prefVector.bhkPrefs[String(postBhk)]) {
+            const bhkStrength = Math.min(0.10, (prefVector.bhkPrefs[String(postBhk)] / total) * 0.4);
+            momentumMultiplier += bhkStrength;
+          }
+
+          // Price alignment with learned preference
+          if (prefAvgPrice > 0 && post.price) {
+            const ratio = post.price / prefAvgPrice;
+            if (ratio >= 0.6 && ratio <= 1.4) {
+              momentumMultiplier += 0.08;
+            }
+          }
+
+          // Listing type preference (Rent vs Buy vs Sell)
+          const lt = String(post.listingType || "").trim();
+          if (lt && prefVector.listingTypes[lt]) {
+            const ltStrength = Math.min(0.08, (prefVector.listingTypes[lt] / total) * 0.3);
+            momentumMultiplier += ltStrength;
           }
         }
 

@@ -494,6 +494,21 @@ export default function MarketplacePage() {
       return;
     }
 
+    // Track contact as high-weight engagement signal
+    axiosInstance
+      .post("/posts/micro-engagement", {
+        postId: post._id,
+        dwellTimeMs: 0,
+        swipedPhotosCount: 0,
+        engagementType: "contact",
+        locality: post.locality || post.location?.locality || "",
+        postType: post.postType || "",
+        bhk: post.bedrooms || post.postMeta?.residential?.bedrooms || 0,
+        price: post.price || 0,
+        listingType: post.listingType || "",
+      })
+      .catch(() => {});
+
     // Check if already friends
     const isFriend = friendsData?.some(friend => friend._id === post.author?._id);
     

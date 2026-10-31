@@ -231,6 +231,16 @@ export default React.memo(function PropertyPostCard({
   // Micro-engagement & in-feed dwell-time tracking (>2.5s or carousel swipe)
   const dwellTimerRef = useRef(null);
   const microEngagedRef = useRef(false);
+  const enteredViewRef = useRef(0);
+  const skipFiredRef = useRef(false);
+
+  const postMeta = useMemo(() => ({
+    locality: post.locality || post.location?.locality || "",
+    postType: post.postType || "",
+    bhk: post.bedrooms || post.postMeta?.residential?.bedrooms || 0,
+    price: post.price || 0,
+    listingType: post.listingType || "",
+  }), [post.locality, post.location?.locality, post.postType, post.bedrooms, post.postMeta?.residential?.bedrooms, post.price, post.listingType]);
 
   const handleScroll = () => {
     const el = scrollerRef.current;
@@ -245,6 +255,7 @@ export default React.memo(function PropertyPostCard({
           postId: post._id,
           dwellTimeMs: 1500,
           swipedPhotosCount: idx,
+          ...postMeta,
         })
         .catch(() => {});
     }
@@ -252,6 +263,8 @@ export default React.memo(function PropertyPostCard({
 
   useEffect(() => {
     if (cardInView && !microEngagedRef.current && post._id) {
+      enteredViewRef.current = Date.now();
+      skipFiredRef.current = false;
       dwellTimerRef.current = setTimeout(() => {
         microEngagedRef.current = true;
         axiosInstance
@@ -259,16 +272,32 @@ export default React.memo(function PropertyPostCard({
             postId: post._id,
             dwellTimeMs: 2600,
             swipedPhotosCount: activeIdx,
+            ...postMeta,
           })
           .catch(() => {});
       }, 2500);
+    } else if (!cardInView && enteredViewRef.current > 0 && !microEngagedRef.current && !skipFiredRef.current && post._id) {
+      const viewDuration = Date.now() - enteredViewRef.current;
+      if (viewDuration < 1000) {
+        skipFiredRef.current = true;
+        axiosInstance
+          .post("/posts/micro-engagement", {
+            postId: post._id,
+            dwellTimeMs: viewDuration,
+            swipedPhotosCount: 0,
+            engagementType: "skip",
+            ...postMeta,
+          })
+          .catch(() => {});
+      }
+      if (dwellTimerRef.current) clearTimeout(dwellTimerRef.current);
     } else {
       if (dwellTimerRef.current) clearTimeout(dwellTimerRef.current);
     }
     return () => {
       if (dwellTimerRef.current) clearTimeout(dwellTimerRef.current);
     };
-  }, [cardInView, post._id, activeIdx]);
+  }, [cardInView, post._id, activeIdx, postMeta]);
 
   const handleCardClick = (e) => {
     if (post._id) {
