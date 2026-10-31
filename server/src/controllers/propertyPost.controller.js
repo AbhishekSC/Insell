@@ -1178,8 +1178,8 @@ export async function getPropertyFeed(req, res) {
       finalDecoratedPosts = await CardCTRService.applySessionMomentum(decoratedPosts, currentUserId);
     }
 
-    // On pull-to-refresh: apply Instagram-style seen demotion & dynamic rotation (Page 1 only)
-    if (isRefresh && page === 1 && currentUserId && finalDecoratedPosts.length > 3) {
+    // Seen-demotion: push already-viewed posts below unseen ones (all pages, not just refresh)
+    if (currentUserId && finalDecoratedPosts.length > 3) {
       try {
         const seenIds = await redisClient.zRange(`personalization:seen:${currentUserId}`, 0, -1);
         if (Array.isArray(seenIds) && seenIds.length > 0) {
@@ -1188,12 +1188,15 @@ export async function getPropertyFeed(req, res) {
           const seen = finalDecoratedPosts.filter((p) => seenSet.has(String(p._id)));
 
           if (unseen.length >= 2) {
-            // Unseen properties float to the top
             finalDecoratedPosts = [...unseen, ...seen];
           }
         }
+      } catch (rotationErr) {
+        logger.warn("Feed seen-demotion error:", rotationErr?.message);
+      }
 
-        // Apply seed rotation on the top candidate window to prevent static ordering
+      // On pull-to-refresh: apply seed rotation on top window to prevent static ordering
+      if (isRefresh && page === 1) {
         const windowSize = Math.min(8, finalDecoratedPosts.length);
         if (windowSize > 2) {
           const shift = (refreshSeed || Math.floor(Date.now() / 15000)) % (windowSize - 1) + 1;
@@ -1201,8 +1204,6 @@ export async function getPropertyFeed(req, res) {
           const rotated = [...topWindow.slice(shift), ...topWindow.slice(0, shift)];
           finalDecoratedPosts = [...rotated, ...finalDecoratedPosts.slice(windowSize)];
         }
-      } catch (rotationErr) {
-        logger.warn("Feed refresh rotation error:", rotationErr?.message);
       }
     }
 
