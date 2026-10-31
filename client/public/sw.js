@@ -10,7 +10,7 @@ const API_CACHE_ROUTES = [
 
 const API_CACHE_MAX_AGE = 2 * 60 * 1000;
 
-self.addEventListener("install", (event) => {
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
