@@ -573,14 +573,17 @@ export async function getPropertyFeed(req, res) {
           let rankedPosts = decoratedPosts;
           if (currentUserId) {
             try {
+              rankedPosts = await CardCTRService.applySessionMomentum(rankedPosts, currentUserId);
               const viewer = await User.findById(currentUserId).select("flatmateProfile locationDetails workLocation").lean();
-              if (decoratedPosts.some((p) => p.postType === "FLATMATE_OFFER" || p.postType === "FLATMATE_SEEKING")) {
-                rankedPosts = scoreFlatmatePosts(decoratedPosts, viewer, category);
+              if (rankedPosts.some((p) => p.postType === "FLATMATE_OFFER" || p.postType === "FLATMATE_SEEKING")) {
+                rankedPosts = scoreFlatmatePosts(rankedPosts, viewer, category);
               }
               if (category !== "near me") {
                 rankedPosts = applyDistanceAndFreshnessRanking(rankedPosts, viewer);
               }
-            } catch {}
+            } catch (err) {
+              logger.warn("Shared cache ranking error:", err?.message);
+            }
           }
           logger.info("Shared cache hit for property feed");
           return sendSuccessResponse(res, 200, "Property feed retrieved (cached)", {
@@ -613,6 +616,7 @@ export async function getPropertyFeed(req, res) {
             parsed.posts = await batchDecoratePosts(parsed.posts, currentUserId);
             if (currentUserId) {
               try {
+                parsed.posts = await CardCTRService.applySessionMomentum(parsed.posts, currentUserId);
                 const viewer = await User.findById(currentUserId).select("flatmateProfile locationDetails workLocation").lean();
                 if (parsed.posts.some((p) => p.postType === "FLATMATE_OFFER" || p.postType === "FLATMATE_SEEKING")) {
                   parsed.posts = scoreFlatmatePosts(parsed.posts, viewer, category);
@@ -620,7 +624,9 @@ export async function getPropertyFeed(req, res) {
                 if (category !== "near me") {
                   parsed.posts = applyDistanceAndFreshnessRanking(parsed.posts, viewer);
                 }
-              } catch {}
+              } catch (err) {
+                logger.warn("User cache ranking error:", err?.message);
+              }
             }
           }
           logger.info("User cache hit for property feed");
@@ -823,43 +829,56 @@ export async function getPropertyFeed(req, res) {
       }
     }
 
-    // Apply personalization for "for you" category — only computed for page 1.
+    // Apply personalization for "for you" category — all pages.
     // Fast path: serves from pre-computed Redis Sorted Set candidate pool (<2ms).
-    // Fallback: calculates live via PersonalizationService and enqueues background precomputation.
+    // Fallback (page 1 only): calculates live via PersonalizationService and enqueues background precomputation.
     let personalizedPosts = [];
-    if (category === "for you" && currentUserId && page === 1) {
+    if (category === "for you" && currentUserId) {
       try {
         const candidateKey = `user:${currentUserId}:feed_candidates`;
+        const offset = (page - 1) * limit;
         let precomputedIds = [];
         try {
-          precomputedIds = await redisClient.zRange(candidateKey, 0, limit - 1, { REV: true });
-        } catch {}
+          precomputedIds = await redisClient.zRange(candidateKey, offset, offset + limit - 1, { REV: true });
+        } catch (err) {
+          logger.warn("Redis zRange error for feed candidates:", err?.message);
+        }
 
         if (Array.isArray(precomputedIds) && precomputedIds.length > 0) {
-          const candidateDocs = await PropertyPost.find({
-            _id: { $in: precomputedIds.map((id) => new mongoose.Types.ObjectId(id)) },
-            isDeleted: { $ne: true },
-            isBlocked: { $ne: true },
-          })
-            .populate(
-              "author",
-              "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate"
-            )
-            .lean();
+          // Filter out seen and suppressed posts
+          const [seenIds, suppressedIds] = await Promise.all([
+            PersonalizationService.getRecentlySeenPostIds(currentUserId),
+            PersonalizationService.getSuppressedPostIds(currentUserId),
+          ]);
+          const excludeSet = new Set([...seenIds, ...suppressedIds].map(String));
+          const filteredIds = precomputedIds.filter((id) => !excludeSet.has(String(id)));
 
-          if (candidateDocs.length > 0) {
-            const idOrderMap = new Map(precomputedIds.map((id, idx) => [String(id), idx]));
-            candidateDocs.sort(
-              (a, b) => (idOrderMap.get(String(a._id)) ?? 999) - (idOrderMap.get(String(b._id)) ?? 999)
-            );
-            personalizedPosts = await batchDecoratePosts(candidateDocs, currentUserId);
-            personalizedPosts = await attachSocialProof(personalizedPosts, currentUserId);
-            logger.info(`⚡ [PersonalizedFeed] Served ${personalizedPosts.length} posts from pre-computed Redis candidates`);
+          if (filteredIds.length > 0) {
+            const candidateDocs = await PropertyPost.find({
+              _id: { $in: filteredIds.map((id) => new mongoose.Types.ObjectId(id)) },
+              isDeleted: { $ne: true },
+              isBlocked: { $ne: true },
+            })
+              .populate(
+                "author",
+                "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate"
+              )
+              .lean();
+
+            if (candidateDocs.length > 0) {
+              const idOrderMap = new Map(filteredIds.map((id, idx) => [String(id), idx]));
+              candidateDocs.sort(
+                (a, b) => (idOrderMap.get(String(a._id)) ?? 999) - (idOrderMap.get(String(b._id)) ?? 999)
+              );
+              personalizedPosts = await batchDecoratePosts(candidateDocs, currentUserId);
+              personalizedPosts = await attachSocialProof(personalizedPosts, currentUserId);
+              logger.info(`⚡ [PersonalizedFeed] Served ${personalizedPosts.length} posts from pre-computed Redis candidates (page ${page})`);
+            }
           }
         }
 
-        // Fallback: If precomputed candidate pool is not yet populated, compute live and enqueue background refresh
-        if (personalizedPosts.length === 0) {
+        // Fallback: If precomputed candidate pool is empty, compute live (page 1) or return empty (page 2+)
+        if (personalizedPosts.length === 0 && page === 1) {
           personalizedPosts = await PersonalizationService.getPersonalizedRecommendations(currentUserId, limit);
           personalizedPosts = await batchDecoratePosts(personalizedPosts, currentUserId);
           personalizedPosts = personalizedPosts.map((p) => ({ ...p, personalizationScore: p.personalizationScore }));
@@ -973,15 +992,11 @@ export async function getPropertyFeed(req, res) {
       currentUserId
     );
 
-    // Structure the feed for "for you" category — only on page 1. Later pages
-    // fall through to plain chronological pagination below: the new/recent
-    // date buckets are computed from that page's own slice, which is almost
-    // always older than the 48h window once there's real post volume, and
-    // personalizedPosts is intentionally empty past page 1 (see above) — so
-    // bucketing every page here would return an empty `posts` array on page 2+
-    // even though pagination.totalPages still claims more pages exist.
+    // Structure the feed for "for you" category — all pages.
+    // Page 1 blends fresh (24h) + personalized posts; pages 2+ serve from
+    // the pre-computed candidate pool with session momentum applied.
     // NOTE: Profile feeds (isProfileFeed) are strictly chronological timelines and skip "for you" bucketing.
-    if (category === "for you" && page === 1 && !isProfileFeed) {
+    if (category === "for you" && !isProfileFeed) {
       const now = new Date();
       const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
@@ -1103,7 +1118,9 @@ export async function getPropertyFeed(req, res) {
           }));
           await redisClient.zAdd(`personalization:seen:${currentUserId}`, topToMark);
           await redisClient.expire(`personalization:seen:${currentUserId}`, 86400);
-        } catch {}
+        } catch (err) {
+          logger.warn("Seen-post marking error:", err?.message);
+        }
       }
 
       // Score flatmate posts + apply distance/freshness ranking
@@ -1116,9 +1133,12 @@ export async function getPropertyFeed(req, res) {
           if (category !== "near me") {
             finalForYouPosts = applyDistanceAndFreshnessRanking(finalForYouPosts, viewer);
           }
-        } catch {}
+        } catch (err) {
+          logger.warn("For-You ranking error:", err?.message);
+        }
       }
 
+      const forYouHasMore = personalizedPosts.length >= limit || finalForYouPosts.length >= limit;
       const responseData = {
         posts: finalForYouPosts,
         sections: {
@@ -1128,8 +1148,10 @@ export async function getPropertyFeed(req, res) {
         },
         pagination: {
           page,
-          totalPages: Math.ceil(total / limit),
+          totalPages: Math.max(page + (forYouHasMore ? 1 : 0), Math.ceil(total / limit)),
           total,
+          hasMore: forYouHasMore,
+          nextCursor: finalForYouPosts.length > 0 ? String(finalForYouPosts[finalForYouPosts.length - 1]._id) : null,
           structured: true
         }
       };
@@ -1194,7 +1216,9 @@ export async function getPropertyFeed(req, res) {
         }));
         await redisClient.zAdd(`personalization:seen:${currentUserId}`, topToMark);
         await redisClient.expire(`personalization:seen:${currentUserId}`, 86400);
-      } catch {}
+      } catch (err) {
+        logger.warn("Seen-post marking error:", err?.message);
+      }
     }
 
     // Flatmate compatibility + distance/freshness ranking for all posts

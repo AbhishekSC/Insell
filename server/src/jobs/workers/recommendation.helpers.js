@@ -1,7 +1,7 @@
 import redisClient from "../../config/redisClient.config.js";
 import { logger } from "../../utils/logger.js";
 
-const CANDIDATE_POOL_SIZE = 50;
+const CANDIDATE_POOL_SIZE = 200;
 const CANDIDATE_TTL_SECONDS = 12 * 60 * 60;
 
 export async function precomputeUserRecommendations(userId) {
