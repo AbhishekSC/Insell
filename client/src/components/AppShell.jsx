@@ -119,7 +119,7 @@ function LogoSection({ isMarketplaceShell, showText = true }) {
   if (isMarketplaceShell) {
     return (
       <Link to="/marketplace" className="min-w-0 flex shrink-0 items-center" aria-label="NearMySpace home">
-        <img src={logoDesktop} alt="NearMySpace" className="h-9 w-auto shrink-0" />
+        <img src={logoDesktop} alt="NearMySpace" className="h-9 w-auto shrink-0 dark:brightness-[1.8] dark:contrast-[0.85]" />
       </Link>
     );
   }
