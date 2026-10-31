@@ -175,7 +175,7 @@ export default function LoginPage() {
       <div className="glass-wrap flex flex-col lg:flex-row w-full max-w-5xl mx-auto overflow-hidden">
         <div className="w-full lg:w-1/2 p-5 sm:p-8 flex flex-col justify-center">
           <div className="mb-4 flex items-center">
-            <img src={logoDesktop} alt="NearMySpace" className="h-10 w-auto dark:brightness-[3] dark:contrast-[0.7]" />
+            <img src={logoDesktop} alt="NearMySpace" className="h-10 w-auto " />
           </div>
 
           <div className="w-full space-y-4">
