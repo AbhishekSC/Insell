@@ -40,6 +40,14 @@ function isVideoUrl(url) {
   return /\.(mp4|webm|mov|avi|mkv)(\?.*)?$/i.test(url) || url.includes("/video/upload/");
 }
 
+function Tip({ label }) {
+  return (
+    <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-neutral-800 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover/tip:opacity-100 z-50">
+      {label}
+    </span>
+  );
+}
+
 function stripEmoji(str) {
   if (!str) return "";
   return String(str)
@@ -349,7 +357,7 @@ export default React.memo(function PropertyPostCard({
   const glassBtn =
     "grid size-8 place-items-center rounded-full text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)] transition hover:opacity-75";
   const actionBtn =
-    "flex items-center gap-1 text-base-content/70 transition hover:text-base-content";
+    "relative flex items-center gap-1 text-base-content/70 transition hover:text-base-content group/tip";
 
   const stop = (fn) => (e) => {
     e.stopPropagation();
@@ -599,18 +607,22 @@ export default React.memo(function PropertyPostCard({
               <div className="flex items-center gap-3 text-white">
                 <button
                   type="button"
-                  className="flex items-center gap-1 text-white/90 hover:text-white transition-colors"
+                  className="relative flex items-center gap-1 text-white/90 hover:text-white transition-colors group/tip"
                   onClick={handleLikeWithAnim}
+                  aria-label={isLiked ? "Unlike" : "Like"}
                 >
+                  <Tip label={isLiked ? "Unlike" : "Like"} />
                   <Heart className={`size-[18px] transition-transform duration-300 ${isLiked ? "fill-error text-error" : ""} ${likeAnim ? "scale-125" : ""}`} />
                   {likesCount > 0 && <span className="text-xs font-semibold tabular-nums">{likesCount}</span>}
                 </button>
 
                 <button
                   type="button"
-                  className="flex items-center gap-1 text-white/90 hover:text-white transition-colors"
+                  className="relative flex items-center gap-1 text-white/90 hover:text-white transition-colors group/tip"
                   onClick={stop(onComment)}
+                  aria-label="Comment"
                 >
+                  <Tip label="Comment" />
                   <MessageCircle className="size-[18px]" />
                   {commentsCount > 0 && <span className="text-xs font-semibold tabular-nums">{commentsCount}</span>}
                 </button>
@@ -618,10 +630,11 @@ export default React.memo(function PropertyPostCard({
                 {onShare && (
                   <button
                     type="button"
-                    className="text-white/90 hover:text-white transition-colors"
+                    className="relative text-white/90 hover:text-white transition-colors group/tip"
                     onClick={stop(onShare)}
-                    title="Share"
+                    aria-label="Share"
                   >
+                    <Tip label="Share" />
                     <Send className="size-[17px]" />
                   </button>
                 )}
@@ -629,9 +642,11 @@ export default React.memo(function PropertyPostCard({
                 {onSave && (
                   <button
                     type="button"
-                    className="flex items-center gap-1 text-white/90 hover:text-white transition-colors"
+                    className="relative flex items-center gap-1 text-white/90 hover:text-white transition-colors group/tip"
                     onClick={handleSaveWithAnim}
+                    aria-label={isSaved ? "Unsave" : "Save"}
                   >
+                    <Tip label={isSaved ? "Unsave" : "Save"} />
                     <Bookmark className={`size-[18px] transition-transform duration-300 ${isSaved ? "fill-primary text-primary" : ""} ${saveAnim ? "scale-125" : ""}`} />
                     {savesCount > 0 && <span className="text-xs font-semibold tabular-nums">{savesCount}</span>}
                   </button>
@@ -861,16 +876,19 @@ export default React.memo(function PropertyPostCard({
         {/* action bar — compact */}
         <div className="flex items-center justify-between text-base-content/70">
           <div className="flex items-center gap-3.5">
-            <button type="button" className={actionBtn} onClick={handleLikeWithAnim}>
+            <button type="button" className={actionBtn} onClick={handleLikeWithAnim} aria-label={isLiked ? "Unlike" : "Like"}>
+              <Tip label={isLiked ? "Unlike" : "Like"} />
               <Heart className={`size-[18px] transition-transform duration-300 ${isLiked ? "fill-error text-error" : ""} ${likeAnim ? "scale-125" : ""}`} />
               {likesCount > 0 && <span className="text-xs font-medium tabular-nums">{likesCount}</span>}
             </button>
-            <button type="button" className={actionBtn} onClick={stop(onComment)}>
+            <button type="button" className={actionBtn} onClick={stop(onComment)} aria-label="Comment">
+              <Tip label="Comment" />
               <MessageCircle className="size-[18px]" />
               {commentsCount > 0 && <span className="text-xs font-medium tabular-nums">{commentsCount}</span>}
             </button>
             {onShare && (
-              <button type="button" className={actionBtn} onClick={stop(onShare)} title="Share">
+              <button type="button" className={actionBtn} onClick={stop(onShare)} aria-label="Share">
+                <Tip label="Share" />
                 <Send className="size-[17px]" />
               </button>
             )}
@@ -879,16 +897,17 @@ export default React.memo(function PropertyPostCard({
             {onNotInterested && (
               <button
                 type="button"
-                className="text-base-content/30 transition hover:text-error/70"
+                className="relative text-base-content/30 transition hover:text-error/70 group/tip"
                 onClick={(e) => { e.stopPropagation(); onNotInterested(); }}
-                title="Not interested"
-                aria-label="Not interested in this post"
+                aria-label="Not interested"
               >
+                <Tip label="Not interested" />
                 <ThumbsDown className="size-[15px]" />
               </button>
             )}
             {onSave && (
-              <button type="button" className={actionBtn} onClick={handleSaveWithAnim}>
+              <button type="button" className={actionBtn} onClick={handleSaveWithAnim} aria-label={isSaved ? "Unsave" : "Save"}>
+                <Tip label={isSaved ? "Unsave" : "Save"} />
                 <Bookmark className={`size-[18px] transition-transform duration-300 ${isSaved ? "fill-primary text-primary" : ""} ${saveAnim ? "scale-125" : ""}`} />
                 {savesCount > 0 && <span className="text-xs font-medium tabular-nums">{savesCount}</span>}
               </button>
@@ -1001,11 +1020,11 @@ export default React.memo(function PropertyPostCard({
             {onContact && (
               <button
                 type="button"
-                className="shrink-0 text-base-content/50 transition hover:text-primary"
+                className="relative shrink-0 text-base-content/50 transition hover:text-primary group/tip"
                 onClick={stop(onContact)}
-                title={contactLabel}
                 aria-label={contactLabel}
               >
+                <Tip label={contactLabel} />
                 <Phone className="size-4" />
               </button>
             )}
