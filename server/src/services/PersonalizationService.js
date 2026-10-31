@@ -611,22 +611,23 @@ class PersonalizationService {
       }
 
       // Extract engaged properties with time-based weights
+      // Weight hierarchy: save > contact/share > like > view (save = strongest purchase intent)
       const engagedProperties = [
         ...sharedProperties,
-        ...(user.likedPosts || []).map(post => ({
-          ...post,
-          engagementType: 'like',
-          weight: 3.0 * decayFactor(post.updatedAt || now) // Likes have high weight
-        })),
         ...(user.savedPosts || []).map(post => ({
           ...post,
           engagementType: 'save',
-          weight: 2.5 * decayFactor(post.updatedAt || now) // Saves have medium-high weight
+          weight: 4.0 * decayFactor(post.updatedAt || now)
+        })),
+        ...(user.likedPosts || []).map(post => ({
+          ...post,
+          engagementType: 'like',
+          weight: 1.8 * decayFactor(post.updatedAt || now)
         })),
         ...(user.viewedPosts || []).map(view => ({
           ...(view.post || {}),
           engagementType: 'view',
-          weight: Math.min(1.0, (view.duration || 0) / 30) * decayFactor(view.viewedAt) // Views weighted by duration
+          weight: Math.min(1.5, (view.duration || 0) / 20) * decayFactor(view.viewedAt)
         }))
       ];
 
@@ -1977,21 +1978,62 @@ class PersonalizationService {
    * @param {number} limit           — feed page size
    * @returns {Array}                — exploration picks (0, 1, or 2 items)
    */
+  // Beta distribution sampler for Thompson sampling (Box-Muller approximation)
+  static sampleBeta(alpha, beta) {
+    // For alpha, beta >= 1, use the Jöhnk algorithm approximation
+    // For simplicity, use the gamma-ratio method via central limit theorem
+    const sampleGamma = (shape) => {
+      if (shape < 1) {
+        return PersonalizationService.sampleGamma(shape + 1) * Math.pow(Math.random(), 1.0 / shape);
+      }
+      const d = shape - 1.0 / 3.0;
+      const c = 1.0 / Math.sqrt(9.0 * d);
+      while (true) {
+        let x, v;
+        do {
+          x = (Math.random() * 2 - 1) + (Math.random() * 2 - 1) * 0.5;
+          v = 1 + c * x;
+        } while (v <= 0);
+        v = v * v * v;
+        const u = Math.random();
+        if (u < 1 - 0.0331 * x * x * x * x) return d * v;
+        if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+      }
+    };
+    const x = sampleGamma(alpha);
+    const y = sampleGamma(beta);
+    return x / (x + y);
+  }
+
+  static sampleGamma(shape) {
+    if (shape < 1) {
+      return PersonalizationService.sampleGamma(shape + 1) * Math.pow(Math.random(), 1.0 / shape);
+    }
+    const d = shape - 1.0 / 3.0;
+    const c = 1.0 / Math.sqrt(9.0 * d);
+    while (true) {
+      let x, v;
+      do {
+        x = (Math.random() * 2 - 1) + (Math.random() * 2 - 1) * 0.5;
+        v = 1 + c * x;
+      } while (v <= 0);
+      v = v * v * v;
+      const u = Math.random();
+      if (u < 1 - 0.0331 * x * x * x * x) return d * v;
+      if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+    }
+  }
+
   static selectExplorationPicks(allScored, alreadySelected, userBehavior, limit) {
-    // Compute epsilon based on user's engagement volume
     const engagementCount = (userBehavior.engagedProperties || []).length;
-    const epsilon = Math.max(0.05, 0.2 * (1 - engagementCount / 100));
 
-    // Roll the dice
-    if (Math.random() > epsilon) return [];
+    // How many exploration slots: scales with feed size, decays with engagement
+    const baseSlots = limit >= 10 ? 2 : 1;
+    const explorationBudget = Math.max(1, Math.round(baseSlots * Math.max(0.3, 1 - engagementCount / 150)));
 
-    // How many exploration slots? 1 for small feeds, up to 2 for larger ones
-    const explorationSlots = limit >= 10 ? 2 : 1;
-
-    // Build a set of already-selected IDs to avoid duplicates
     const selectedIds = new Set(alreadySelected.map((p) => String(p._id)));
 
-    // Build exclusion sets from user's typical patterns
+    // Build the user's typical pattern profile for novelty detection
     const preferredTypes = new Set(
       (userBehavior.preferredPropertyTypes || [])
         .slice(0, 3)
@@ -2004,7 +2046,7 @@ class PersonalizationService {
     );
     const priceRange = userBehavior.typicalPriceRange;
 
-    // Find candidates that are OUTSIDE the user's typical patterns
+    // Find candidates outside the user's comfort zone
     const explorationCandidates = allScored.filter((p) => {
       if (selectedIds.has(String(p._id))) return false;
 
@@ -2012,7 +2054,6 @@ class PersonalizationService {
       const city = String(p.city || "").toLowerCase();
       const price = Number(p.price) || 0;
 
-      // Must differ on at least 2 of 3 dimensions to qualify as "exploration"
       let diffCount = 0;
       if (preferredTypes.size > 0 && !preferredTypes.has(type)) diffCount++;
       if (preferredCities.size > 0 && !preferredCities.has(city)) diffCount++;
@@ -2021,21 +2062,39 @@ class PersonalizationService {
         if (outsidePrice) diffCount++;
       }
 
-      return diffCount >= 2;
+      return diffCount >= 1; // Relaxed from 2 to 1 — Thompson sampling handles the rest
     });
 
     if (explorationCandidates.length === 0) return [];
 
-    // Sort by popularity (likes + saves) so exploration picks are at least
-    // generally popular — not random junk
-    explorationCandidates.sort((a, b) => {
-      const aPop = (a.popularityScore || 0);
-      const bPop = (b.popularityScore || 0);
-      return bPop - aPop;
+    // Thompson sampling: model each candidate as a Beta(alpha, beta) distribution
+    // alpha = successes (popularity signals) + 1 (prior)
+    // beta = exposures without engagement + 1 (prior)
+    // Sample from Beta to get probabilistic ranking — naturally balances exploration/exploitation
+    const thompsonScored = explorationCandidates.map((p) => {
+      const likes = Array.isArray(p.likedBy) ? p.likedBy.length : 0;
+      const saves = Array.isArray(p.savedBy) ? p.savedBy.length : 0;
+      const views = p.viewCount || p.liveViewCount || 0;
+
+      // Successes = weighted engagement signals
+      const alpha = 1 + (saves * 3) + (likes * 1.5) + ((p.commentCount || 0) * 2);
+      // Failures = views without engagement (impressions - engagements)
+      const beta = 1 + Math.max(0, views - likes - saves);
+
+      // Sample from Beta distribution — high-variance for uncertain items
+      const thompsonSample = PersonalizationService.sampleBeta(alpha, beta);
+
+      // Blend Thompson sample with relevance score for stability
+      const relevanceBoost = (p.finalScore || p.popularityScore || 50) / 100;
+      const combinedScore = 0.6 * thompsonSample + 0.4 * relevanceBoost;
+
+      return { ...p, thompsonScore: combinedScore };
     });
 
-    // Pick from the top of the popularity-sorted exploration list
-    return explorationCandidates.slice(0, explorationSlots);
+    // Sort by Thompson-sampled score (naturally varies each request = natural exploration)
+    thompsonScored.sort((a, b) => b.thompsonScore - a.thompsonScore);
+
+    return thompsonScored.slice(0, explorationBudget);
   }
 
   static async getPersonalizedRecommendations(userId, limit = 20) {
@@ -2184,6 +2243,37 @@ class PersonalizationService {
           property.postMeta?.pgHostel?.electricityBillStatus === "VERIFIED";
         const verifiedMultiplier = isAddressVerified ? 1.25 : 1.0;
 
+        // Behavioral preference vector boost (learned from engagement-weighted signals)
+        let prefVectorMultiplier = 1.0;
+        const prefVector = await CardCTRService.getPreferenceVector(String(user._id));
+        if (prefVector && prefVector.totalSignals > 5) {
+          const pTotal = prefVector.totalSignals;
+          const pLoc = String(property.locality || "").toLowerCase().trim();
+          const pType = String(property.postType || "").toUpperCase().trim();
+          const pBhk = property.bedrooms || property.postMeta?.residential?.bedrooms || 0;
+          const pLt = String(property.listingType || "").trim();
+
+          if (pLoc && prefVector.localities[pLoc]) {
+            prefVectorMultiplier += Math.min(0.15, (prefVector.localities[pLoc] / pTotal) * 0.5);
+          }
+          if (pType && prefVector.postTypes[pType]) {
+            prefVectorMultiplier += Math.min(0.08, (prefVector.postTypes[pType] / pTotal) * 0.3);
+          }
+          if (pBhk && prefVector.bhkPrefs[String(pBhk)]) {
+            prefVectorMultiplier += Math.min(0.06, (prefVector.bhkPrefs[String(pBhk)] / pTotal) * 0.25);
+          }
+          if (pLt && prefVector.listingTypes[pLt]) {
+            prefVectorMultiplier += Math.min(0.06, (prefVector.listingTypes[pLt] / pTotal) * 0.2);
+          }
+          if (prefVector.priceCount > 0 && property.price) {
+            const prefAvgPrice = prefVector.priceSum / prefVector.priceCount;
+            const ratio = property.price / prefAvgPrice;
+            if (ratio >= 0.5 && ratio <= 1.5) {
+              prefVectorMultiplier += 0.05;
+            }
+          }
+        }
+
         // Predicted CTR (pCTR) scoring layer & Contextual time-of-day boost
         const pCTR = CardCTRService.calculatePCTR(property);
         const pCTRMultiplier = 0.85 + (pCTR * 0.35); // 0.88x to 1.20x
@@ -2221,7 +2311,7 @@ class PersonalizationService {
           isAddressVerified,
           pCTR,
           reasons: reasons.slice(0, 2),
-          finalScore: blended * negMult * verifiedMultiplier * pCTRMultiplier * timeOfDayMultiplier,
+          finalScore: blended * negMult * verifiedMultiplier * pCTRMultiplier * timeOfDayMultiplier * prefVectorMultiplier,
         };
       })
       );
