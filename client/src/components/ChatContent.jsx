@@ -11,6 +11,7 @@ import {
   Thread,
   Window,
 } from "stream-chat-react";
+import "stream-chat-react/dist/css/index.css";
 import {
   ArrowLeft,
   Building2,
