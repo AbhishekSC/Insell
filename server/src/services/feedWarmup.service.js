@@ -17,6 +17,7 @@ export async function warmFeedAndMapCaches() {
       PropertyPost.find(baseFilter)
         .sort({ createdAt: -1 })
         .limit(12)
+        .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate")
         .lean(),
       PropertyPost.find({
         ...baseFilter,
