@@ -6,6 +6,7 @@ import { testCloudinaryConnection } from "./config/cloudinary.js";
 import { connectToRedis, closeRedisConnection } from "./config/redisClient.config.js";
 import { initAllWorkers, shutdownAllWorkers } from "./jobs/index.js";
 import { initTelemetry } from "./services/telemetry.service.js";
+import { warmFeedAndMapCaches } from "./services/feedWarmup.service.js";
 
 let httpServer = null;
 let shuttingDown = false;
@@ -74,6 +75,7 @@ async function startServer() {
     httpServer = app.listen(PORT, async () => {
       initTelemetry();
       await initAllWorkers();
+      warmFeedAndMapCaches();
       logger.info(`Server is running on port ${PORT}`);
     }).on("error", (err) => {
       if (err.code === "EADDRINUSE") {

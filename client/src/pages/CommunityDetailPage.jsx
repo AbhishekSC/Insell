@@ -2,6 +2,7 @@ import { Component, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Channel, Chat, MessageComposer, MessageList, Thread, Window } from "stream-chat-react";
+import "stream-chat-react/dist/css/index.css";
 import { Crown, FolderOpen, MessageSquare, Paperclip, Send, BadgeCheck, Users, Video, X } from "lucide-react";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";

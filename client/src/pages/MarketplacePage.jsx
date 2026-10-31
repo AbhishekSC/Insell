@@ -799,7 +799,7 @@ export default function MarketplacePage() {
       } else {
         params.set("page", String(pageParam || 1));
       }
-      params.set("limit", "12");
+      params.set("limit", "8");
       const pageNum = typeof pageParam === "object" ? (pageParam.page || 1) : (pageParam || 1);
       if (feedRefreshSeed > 0 && pageNum === 1) {
         params.set("refresh", "true");
@@ -811,7 +811,7 @@ export default function MarketplacePage() {
       let response;
       if (search.trim() && isNaturalQuery && searchType !== 'author') {
         const pageNum = params.get("page") || 1;
-        response = await axiosInstance.get(`/search/natural?q=${encodeURIComponent(search.trim())}&page=${pageNum}&limit=12`);
+        response = await axiosInstance.get(`/search/natural?q=${encodeURIComponent(search.trim())}&page=${pageNum}&limit=8`);
         if (response.data?.data?.parsed) {
           setActiveNaturalParsed(response.data.data.parsed);
         }
@@ -891,11 +891,11 @@ export default function MarketplacePage() {
         } else {
           params.set("page", String(pageParam || 1));
         }
-        params.set("limit", "12");
+        params.set("limit", "8");
         const isNaturalQuery = /\b(bhk|bedroom|under|below|less than|near|lakh|lac|cr|crore|rent|between|with|garden|pool|gym)\b/i.test(search.trim());
         let response;
         if (search.trim() && isNaturalQuery && searchType !== 'author') {
-          response = await axiosInstance.get(`/search/natural?q=${encodeURIComponent(search.trim())}&page=${params.get("page") || 1}&limit=12`);
+          response = await axiosInstance.get(`/search/natural?q=${encodeURIComponent(search.trim())}&page=${params.get("page") || 1}&limit=8`);
         } else {
           if (searchType === 'author' && searchAuthorId) params.set("authorId", searchAuthorId);
           else if (search.trim()) params.set("q", search.trim());

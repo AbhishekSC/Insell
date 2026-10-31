@@ -1,6 +1,7 @@
 import { Component, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Channel, Chat, MessageComposer, MessageList, Thread, Window } from "stream-chat-react";
+import "stream-chat-react/dist/css/index.css";
 import { ArrowLeft, Calendar, Camera, Check, Crown, LogOut, Loader2, Menu, PhoneCall, Shield, BadgeCheck, Trash2, UserPlus, Users, Video, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router";

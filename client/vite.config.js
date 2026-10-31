@@ -22,6 +22,8 @@ export default defineConfig({
           'vendor-leaflet': ['leaflet', 'react-leaflet'],
           'vendor-react': ['react', 'react-dom', 'react-router'],
           'vendor-icons': ['lucide-react'],
+          'vendor-firebase': ['firebase/app', 'firebase/messaging'],
+          'vendor-analytics': ['posthog-js', '@sentry/react'],
         },
       },
     },
