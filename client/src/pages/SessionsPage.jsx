@@ -335,7 +335,7 @@ export default function SessionsPage() {
   }
 
   return (
-    <AppShell title="Matching and Trip Sessions" subtitle="Find the best travel partners and schedule focused planning blocks.">
+    <AppShell showBackButton title="Matching and Trip Sessions" subtitle="Find the best travel partners and schedule focused planning blocks.">
       <div className="grid gap-5 xl:grid-cols-12">
         <section className="shell-panel xl:col-span-7">
           <div className="p-6">

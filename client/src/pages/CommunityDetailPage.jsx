@@ -311,7 +311,7 @@ export default function CommunityDetailPage() {
 
   if (authLoading || isLoading) {
     return (
-      <AppShell title="Community" subtitle="Loading community details...">
+      <AppShell showBackButton title="Community" subtitle="Loading community details...">
         <div className="grid min-h-[320px] place-items-center rounded-2xl border border-base-300/70 bg-base-100/80 p-6 text-sm text-base-content/70">
           Loading community details...
         </div>
@@ -392,6 +392,7 @@ export default function CommunityDetailPage() {
 
   return (
     <AppShell
+      showBackButton
       title={circle?.name || "Community"}
       subtitle={circle?.topic || "Private community"}
       actions={

@@ -116,7 +116,7 @@ export default function HelpGuidePage() {
   );
 
   return (
-    <AppShell hideHero title="How to use NearMySpace" subtitle="A quick walkthrough of everything you can do in the app">
+    <AppShell hideHero showBackButton title="How to use NearMySpace" subtitle="A quick walkthrough of everything you can do in the app">
       <div className="mx-auto max-w-3xl px-4 py-6 pb-24">
         <div className="mb-6 flex items-center gap-4 rounded-2xl bg-gradient-to-r from-primary to-secondary p-5 text-white shadow-sm">
           <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-white/15">

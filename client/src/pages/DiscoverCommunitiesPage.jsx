@@ -64,7 +64,7 @@ export default function DiscoverCommunitiesPage() {
   );
 
   return (
-    <AppShell hideHero title="Discover Communities" subtitle="Find and join communities that match your interests">
+    <AppShell hideHero showBackButton title="Discover Communities" subtitle="Find and join communities that match your interests">
       <div className="mx-auto max-w-5xl px-4 py-6 pb-24">
         <div className="relative mb-6">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50" size={20} />

@@ -226,6 +226,7 @@ export default function NotificationPage() {
 
   return (
     <AppShell
+      showBackButton
       title="Connections"
       subtitle="Manage connection requests, grow your network, and find the right property counterpart."
       lockPageScroll

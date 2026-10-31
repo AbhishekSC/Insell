@@ -217,6 +217,7 @@ export default function LocalityInsightsPage() {
   return (
     <AppShell
       hideHero
+      showBackButton
       title="Locality Price Insights"
       subtitle="Explore price trends and market data by locality"
     >

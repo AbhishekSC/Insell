@@ -593,6 +593,7 @@ export default function AppShell({
   hideBottomNav = false,
   hideMobileHeader = false,
   autoHideHeaderOnScroll = false,
+  showBackButton = false,
   marketplaceSearch = "",
   onMarketplaceSearchChange,
   onCreateProperty,
@@ -1315,9 +1316,9 @@ export default function AppShell({
         <div className="xl:hidden" style={{ height: headerHeight }} />
       )}
 
-      {/* Clean back + title bar when the full header is hidden (standalone pages) */}
-      {hideMobileHeader && title && !onMarketplaceSearchChange && (
-        <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-base-300 bg-base-100/95 backdrop-blur px-4 py-3">
+      {/* Back + title bar for hideMobileHeader pages (without showBackButton) */}
+      {hideMobileHeader && !showBackButton && !onMarketplaceSearchChange && (
+        <div className={`sticky top-0 z-20 flex items-center gap-3 border-b border-base-300 bg-base-100/95 backdrop-blur px-4 py-3 ${isMarketplaceShell ? "max-w-[1440px] mx-auto" : "max-w-7xl mx-auto"}`}>
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -1326,7 +1327,8 @@ export default function AppShell({
           >
             <ArrowLeft className="size-5 text-base-content" />
           </button>
-          <h1 className="text-lg font-bold text-base-content truncate">{title}</h1>
+          {title && <h1 className="min-w-0 flex-1 text-lg font-bold text-base-content truncate">{title}</h1>}
+          {actions && <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>}
         </div>
       )}
 
@@ -1335,7 +1337,7 @@ export default function AppShell({
           lockPageScroll ? "xl:flex xl:h-[calc(100dvh-4.75rem)] xl:flex-col xl:overflow-hidden" : "pb-24 md:pb-8"
         }`}
       >
-        {!hideHero ? (
+        {!hideHero && !showBackButton ? (
           <section className={`glass-wrap mb-5 p-5 sm:p-6 ${hideMobileHeader ? (onMarketplaceSearchChange ? "hidden xl:block" : "hidden") : ""}`}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <h1 className="hero-title break-words text-2xl sm:text-3xl md:text-4xl">{title}</h1>
@@ -1345,7 +1347,25 @@ export default function AppShell({
           </section>
         ) : null}
 
-        <div className={lockPageScroll ? "xl:flex-1 xl:min-h-0 xl:overflow-hidden" : "pb-6"}>{children}</div>
+        {showBackButton ? (
+          <div className="overflow-hidden rounded-2xl border border-base-300/70 bg-base-100 shadow-sm">
+            <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-base-300 bg-base-100/95 backdrop-blur px-4 py-3">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="grid size-9 place-items-center rounded-full hover:bg-base-200 active:bg-base-300 transition-colors"
+                aria-label="Go back"
+              >
+                <ArrowLeft className="size-5 text-base-content" />
+              </button>
+              {title && <h1 className="min-w-0 flex-1 text-lg font-bold text-base-content truncate">{title}</h1>}
+              {actions && <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>}
+            </div>
+            <div className={lockPageScroll ? "xl:flex-1 xl:min-h-0 xl:overflow-hidden" : ""}>{children}</div>
+          </div>
+        ) : (
+          <div className={lockPageScroll ? "xl:flex-1 xl:min-h-0 xl:overflow-hidden" : "pb-6"}>{children}</div>
+        )}
       </main>
 
       {!hideBottomNav && (
