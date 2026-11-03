@@ -4569,7 +4569,7 @@ function QueuesPanel() {
 
   const queues = data?.queues || {};
   const overallStatus = data?.status || "unknown";
-  const bullBoardUrl = "/admin/queues";
+  const bullBoardUrl = `${import.meta.env.VITE_API_URL || ""}/admin/queues`;
 
   return (
     <div className="space-y-4">

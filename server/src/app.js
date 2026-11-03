@@ -203,7 +203,7 @@ import { verifyUser, requireVerified, requireAdmin } from "./middlewares/auth.mi
 const bullBoardAdapter = setupBullBoard();
 app.use("/admin/queues", (req, res, next) => {
   const clientOrigin = process.env.CLIENT_URL || "http://localhost:5173";
-  res.setHeader("X-Frame-Options", `ALLOW-FROM ${clientOrigin}`);
+  res.removeHeader("X-Frame-Options");
   res.setHeader("Content-Security-Policy", `frame-ancestors 'self' ${clientOrigin}`);
   next();
 }, verifyUser, requireVerified, requireAdmin, bullBoardAdapter.getRouter());
