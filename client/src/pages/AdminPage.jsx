@@ -4640,10 +4640,19 @@ function QueuesPanel() {
                     {isActive && <Loader2 className="ml-auto size-3 animate-spin text-primary" />}
                   </div>
                   {q.status !== "unavailable" && q.status !== "error" ? (
-                    <div className="mt-2 flex items-baseline gap-3 text-xs">
-                      <span title="Waiting" className="text-base-content/60">{q.waiting || 0}w</span>
-                      <span title="Active" className="text-primary">{q.active || 0}a</span>
-                      <span title="Failed" className={hasFailed ? "font-semibold text-error" : "text-base-content/60"}>{q.failed || 0}f</span>
+                    <div className="mt-2.5 grid grid-cols-3 gap-1 text-center text-[11px]">
+                      <div>
+                        <p className="text-sm font-bold text-base-content">{q.waiting || 0}</p>
+                        <p className="text-base-content/50">Waiting</p>
+                      </div>
+                      <div>
+                        <p className={`text-sm font-bold ${isActive ? "text-primary" : "text-base-content"}`}>{q.active || 0}</p>
+                        <p className="text-base-content/50">Active</p>
+                      </div>
+                      <div>
+                        <p className={`text-sm font-bold ${hasFailed ? "text-error" : "text-base-content"}`}>{q.failed || 0}</p>
+                        <p className="text-base-content/50">Failed</p>
+                      </div>
                     </div>
                   ) : (
                     <p className="mt-2 text-[11px] text-base-content/40">Offline</p>
