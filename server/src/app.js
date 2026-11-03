@@ -172,19 +172,14 @@ const handleReadiness = async (req, res) => {
     }
   } catch (_) {}
 
-  if (!isMongoReady) {
-    return res.status(503).json({
-      status: "not_ready",
-      database: "disconnected",
-      redis: isRedisReady ? "connected" : "disconnected",
-    });
-  }
+  const ready = isMongoReady && isRedisReady;
 
-  return res.status(200).json({
-    status: "ready",
-    database: "connected",
+  return res.status(ready ? 200 : 503).json({
+    status: ready ? "ready" : "not_ready",
+    database: isMongoReady ? "connected" : "disconnected",
     redis: isRedisReady ? "connected" : "disconnected",
     uptime: process.uptime(),
+    memoryMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
   });
 };
 app.get("/api/v1/readyz", handleReadiness);
@@ -212,6 +207,7 @@ app.use("/admin/queues", (req, res, next) => {
 // the unprefixed /api mount stays aliased to the same router so the web
 // client keeps working unchanged during the transition.
 app.use("/api/v1", globalRateLimiter, routes);
+app.use("/api/v2", globalRateLimiter, routes);
 app.use("/api", globalRateLimiter, routes);
 app.use(notFoundHandler);
 if (isSentryEnabled()) {

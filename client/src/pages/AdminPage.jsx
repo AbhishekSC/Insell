@@ -4,6 +4,7 @@ import { Link, Navigate } from "react-router";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthUser } from "../hooks/useAuthUser";
 import {
+  Activity,
   AlertTriangle,
   BarChart3,
   Calendar,
@@ -29,6 +30,7 @@ import {
   MousePointerClick,
   Pencil,
   Phone,
+  RefreshCw,
   Plus,
   Search,
   ShieldAlert,
@@ -4557,6 +4559,158 @@ const QUEUE_LABELS = {
   DLQ: { label: "Dead Letters", color: "text-red-600 dark:text-red-400", bg: "bg-red-500/15" },
 };
 
+const HEALTH_STATUS_STYLES = {
+  healthy: { bg: "bg-success/10", text: "text-success", dot: "bg-success", label: "Healthy" },
+  degraded: { bg: "bg-warning/10", text: "text-warning", dot: "bg-warning", label: "Degraded" },
+  unhealthy: { bg: "bg-error/10", text: "text-error", dot: "bg-error", label: "Unhealthy" },
+  unconfigured: { bg: "bg-base-200", text: "text-base-content/50", dot: "bg-base-content/30", label: "Not Configured" },
+};
+
+const SERVICE_META = {
+  mongodb: { label: "MongoDB", icon: "🗄️" },
+  redis: { label: "Redis", icon: "⚡" },
+  stream: { label: "Stream Chat", icon: "💬" },
+  firebase: { label: "Firebase", icon: "🔔" },
+  cloudinary: { label: "Cloudinary", icon: "☁️" },
+  bullmq: { label: "BullMQ", icon: "📋" },
+};
+
+function formatUptime(seconds) {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const parts = [];
+  if (d > 0) parts.push(`${d}d`);
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0) parts.push(`${m}m`);
+  parts.push(`${s}s`);
+  return parts.join(" ");
+}
+
+function SystemHealthPanel() {
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+    queryKey: ["adminSystemHealth"],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/admin/system-health");
+      return response.data;
+    },
+    refetchInterval: 15_000,
+  });
+
+  const overall = data?.status || "unknown";
+  const services = data?.services || [];
+  const memory = data?.memory || {};
+  const uptime = data?.uptime || 0;
+  const overallStyle = HEALTH_STATUS_STYLES[overall] || HEALTH_STATUS_STYLES.unhealthy;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="grid size-9 place-items-center rounded-xl bg-primary/15 text-primary">
+            <Activity className="size-4" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-base-content">System Health</h2>
+            <p className="text-xs text-base-content/60">Auto-refreshes every 15s</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${overallStyle.bg} ${overallStyle.text}`}>
+            <span className={`size-1.5 rounded-full ${overallStyle.dot}`} />
+            {overallStyle.label}
+          </span>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-base-300 px-3 py-1.5 text-xs font-semibold text-base-content/70 hover:bg-base-200 disabled:opacity-50"
+          >
+            {isFetching ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="py-10 text-center">
+          <Loader2 className="mx-auto size-7 animate-spin text-base-content/40" />
+        </div>
+      ) : isError ? (
+        <div className="rounded-2xl border border-error/20 bg-error/5 p-6 text-center">
+          <AlertTriangle className="mx-auto size-8 text-error/60" />
+          <p className="mt-2 text-sm font-medium text-error">Failed to load system health</p>
+        </div>
+      ) : (
+        <>
+          {/* System Overview */}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+              <p className="text-xs font-medium text-base-content/50">Uptime</p>
+              <p className="mt-1 text-lg font-bold text-base-content">{formatUptime(uptime)}</p>
+            </div>
+            <div className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+              <p className="text-xs font-medium text-base-content/50">Memory (RSS)</p>
+              <p className="mt-1 text-lg font-bold text-base-content">{memory.rss || 0} MB</p>
+              <p className="text-xs text-base-content/40">Heap: {memory.heapUsed || 0} / {memory.heapTotal || 0} MB</p>
+            </div>
+            <div className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+              <p className="text-xs font-medium text-base-content/50">Services</p>
+              <p className="mt-1 text-lg font-bold text-base-content">
+                {services.filter((s) => s.status === "healthy").length}/{services.length} Healthy
+              </p>
+            </div>
+          </div>
+
+          {/* Service Cards */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {services.map((svc) => {
+              const meta = SERVICE_META[svc.name] || { label: svc.name, icon: "🔧" };
+              const style = HEALTH_STATUS_STYLES[svc.status] || HEALTH_STATUS_STYLES.unhealthy;
+
+              return (
+                <div
+                  key={svc.name}
+                  className={`rounded-xl border bg-base-100 p-4 shadow-sm ${
+                    svc.status === "unhealthy" ? "border-error/30" : svc.status === "degraded" ? "border-warning/30" : "border-base-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{meta.icon}</span>
+                      <span className="text-sm font-semibold text-base-content">{meta.label}</span>
+                    </div>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${style.bg} ${style.text}`}>
+                      <span className={`size-1.5 rounded-full ${style.dot}`} />
+                      {style.label}
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-1">
+                    {svc.latencyMs !== undefined && svc.status !== "unconfigured" && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-base-content/50">Latency</span>
+                        <span className={`font-medium ${svc.latencyMs > 1000 ? "text-warning" : "text-base-content"}`}>{svc.latencyMs}ms</span>
+                      </div>
+                    )}
+                    {svc.message && (
+                      <p className="text-xs text-base-content/40 truncate" title={svc.message}>{svc.message}</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-center text-xs text-base-content/30">
+            Last checked: {data?.timestamp ? new Date(data.timestamp).toLocaleTimeString() : "—"}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 function QueuesPanel() {
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["adminQueuesHealth"],
@@ -4788,6 +4942,15 @@ export default function AdminPage() {
         >
           <BarChart3 className="size-4" /> Queues
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("system-health")}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+            activeTab === "system-health" ? "bg-primary text-white" : "bg-base-200 text-base-content/70 hover:bg-base-300"
+          }`}
+        >
+          <Activity className="size-4" /> System Health
+        </button>
       </div>
 
       {activeTab === "users" ? (
@@ -4810,6 +4973,8 @@ export default function AdminPage() {
         <CoinHistoryPanel />
       ) : activeTab === "queues" ? (
         <QueuesPanel />
+      ) : activeTab === "system-health" ? (
+        <SystemHealthPanel />
       ) : (
         <AnnouncementsPanel />
       )}

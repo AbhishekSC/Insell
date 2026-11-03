@@ -1,4 +1,5 @@
 import express from "express";
+import { apiVersion } from "../middlewares/apiVersion.middleware.js";
 
 import authRoutes from "./auth.route.js";
 import userRoutes from "./user.route.js";
@@ -39,6 +40,7 @@ import walletRoutes from "./wallet.routes.js";
 import localityTrendsRoutes from "./localityTrends.route.js";
 
 const router = new express.Router();
+router.use(apiVersion);
 
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);

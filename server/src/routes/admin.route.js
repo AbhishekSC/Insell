@@ -2,6 +2,7 @@ import express from "express";
 import { verifyUser, requireVerified, requireAdmin } from "../middlewares/auth.middleware.js";
 import { uploadAnnouncementImage, uploadAdvertisementImage } from "../middlewares/upload.middleware.js";
 import { getQueuesHealth } from "../jobs/bullboard.js";
+import { getDetailedHealth } from "../modules/system-health/systemHealth.controller.js";
 import { getDealStats, adminListDeals, adminResolveDealReports, adminForceCancelDeal } from "../controllers/deal.controller.js";
 import {
   getAdminUsers,
@@ -98,5 +99,8 @@ router.get("/queues/health", async (req, res) => {
   const hasFailures = Object.values(health).some((q) => (q.failed || 0) > 0);
   res.json({ status: hasFailures ? "degraded" : "healthy", queues: health });
 });
+
+// System health — comprehensive infrastructure check
+router.get("/system-health", getDetailedHealth);
 
 export default router;
