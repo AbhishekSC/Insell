@@ -1,6 +1,7 @@
 import express from "express";
 import { verifyUser, requireVerified, requireAdmin } from "../middlewares/auth.middleware.js";
 import { uploadAnnouncementImage, uploadAdvertisementImage } from "../middlewares/upload.middleware.js";
+import { getQueuesHealth } from "../jobs/bullboard.js";
 import { getDealStats, adminListDeals, adminResolveDealReports, adminForceCancelDeal } from "../controllers/deal.controller.js";
 import {
   getAdminUsers,
@@ -90,5 +91,12 @@ router.post("/advertisements", adminCreateAdvertisement);
 router.patch("/advertisements/:id", adminUpdateAdvertisement);
 router.delete("/advertisements/:id", adminDeleteAdvertisement);
 router.post("/advertisements/upload-image", uploadAdvertisementImage.single("image"), uploadAdvertisementImageController);
+
+// Queue observability
+router.get("/queues/health", async (req, res) => {
+  const health = await getQueuesHealth();
+  const hasFailures = Object.values(health).some((q) => (q.failed || 0) > 0);
+  res.json({ status: hasFailures ? "degraded" : "healthy", queues: health });
+});
 
 export default router;
