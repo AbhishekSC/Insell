@@ -2,6 +2,7 @@ import { Worker } from "bullmq";
 import { getBullRedisConnection } from "../config/bullmq.config.js";
 import { getQueue, closeAllQueues, QUEUE_NAMES } from "./queues.js";
 import { createFailedHandler } from "./dlq.js";
+import { processDlqJob } from "./workers/dlq.worker.js";
 import { processEmailJob } from "./workers/email.worker.js";
 import { processNotificationJob } from "./workers/notification.worker.js";
 import { processCleanupJob } from "./workers/cleanup.worker.js";
@@ -18,9 +19,30 @@ function createWorker(queueName, processor, concurrency = 3) {
     return null;
   }
 
-  const worker = new Worker(queueName, processor, { connection, concurrency });
+  const worker = new Worker(queueName, processor, {
+    connection,
+    concurrency,
+    lockDuration: 60_000,
+    stalledInterval: 30_000,
+  });
+
+  worker.on("completed", (job) => {
+    const duration = Date.now() - job.timestamp;
+    logger.info({
+      msg: "job_completed",
+      queue: queueName,
+      job: job.name,
+      id: job.id,
+      durationMs: duration,
+    });
+  });
 
   worker.on("failed", createFailedHandler(queueName));
+
+  worker.on("stalled", (jobId) => {
+    logger.warn({ msg: "job_stalled", queue: queueName, jobId });
+  });
+
   worker.on("error", (err) => {
     logger.warn(`[Jobs] Worker [${queueName}] error (non-fatal): ${err?.message || err}`);
   });
@@ -67,6 +89,7 @@ export async function initAllWorkers() {
   createWorker(QUEUE_NAMES.CLEANUP, processCleanupJob, 3);
   createWorker(QUEUE_NAMES.FANOUT, processFanoutJob, 3);
   createWorker(QUEUE_NAMES.INGESTION, processIngestionJob, 1);
+  createWorker(QUEUE_NAMES.DLQ, processDlqJob, 1);
 
   await scheduleRepeatableJobs();
 
@@ -82,7 +105,7 @@ export async function shutdownAllWorkers() {
     }
   }
 
-  await Promise.allSettled(_workers.map((w) => w.close()));
+  await Promise.allSettled(_workers.map((w) => w.close(true)));
   _workers.length = 0;
 
   await closeAllQueues();

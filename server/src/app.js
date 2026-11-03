@@ -9,6 +9,7 @@ import mongoose from "mongoose";
 import redisClient from "./config/redisClient.config.js";
 
 import routes from "./routes/index.js";
+import { setupBullBoard } from "./jobs/bullboard.js";
 import { renderListingSharePage } from "./modules/public-listing/publicListing.controller.js";
 import { renderProfileSharePage } from "./modules/public-profile/publicProfile.controller.js";
 import { generateSitemapXml } from "./controllers/sitemap.controller.js";
@@ -195,6 +196,11 @@ app.get("/readyz", handleReadiness);
 app.get("/p/:id", renderListingSharePage);
 app.get("/u/:id", renderProfileSharePage);
 app.get("/sitemap.xml", generateSitemapXml);
+
+// Bull Board dashboard — admin-only, protected by the same auth middleware as /api/admin
+import { verifyUser, requireVerified, requireAdmin } from "./middlewares/auth.middleware.js";
+const bullBoardAdapter = setupBullBoard();
+app.use("/admin/queues", verifyUser, requireVerified, requireAdmin, bullBoardAdapter.getRouter());
 
 // /api/v1 is the versioned prefix new clients (mobile) use going forward;
 // the unprefixed /api mount stays aliased to the same router so the web
