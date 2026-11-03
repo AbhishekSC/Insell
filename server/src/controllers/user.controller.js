@@ -22,4 +22,4 @@ export {
   getUserDevices,
   deactivateDevice,
   getUserActivity,
-} from "../services/UserServiceHandlers.js";
+} from "../modules/user/user.controller.js";

@@ -16,4 +16,4 @@ export {
   sendSettlementReminders,
   updateSharedExpense,
   updateWorkspaceBudget,
-} from "../services/ExpenseService.js";
+} from "../modules/expense/expense.controller.js";

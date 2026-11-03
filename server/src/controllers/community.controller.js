@@ -24,4 +24,4 @@ export {
   upsertPresence,
   getPresenceForUsers,
   notifyCommunityCallStarted,
-} from "../services/CommunityServiceHandlers.js";
+} from "../modules/community/community.controller.js";
