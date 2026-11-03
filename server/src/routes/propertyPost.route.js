@@ -28,7 +28,7 @@ import {
   getMyPropertyPosts,
   recordMicroEngagement,
   recordCoverClick,
-} from "../controllers/propertyPost.controller.js";
+} from "../modules/property-post/propertyPost.controller.js";
 import { uploadPropertyMedia } from "../middlewares/upload.middleware.js";
 
 const router = new express.Router();

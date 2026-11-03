@@ -86,7 +86,7 @@ export async function processFanoutJob(job) {
       const { postId, oldPrice } = data;
       const PropertyPost = (await import("../../models/PropertyPost.model.js")).default;
       const { notifyTriggeredAlerts } = await import("../../modules/price-alert/priceAlert.app.service.js");
-      const { notifyPriceChange } = await import("../../controllers/propertyPost.controller.js");
+      const { notifyPriceChange } = await import("../../modules/property-post/propertyPost.service.js");
 
       const post = await PropertyPost.findById(postId).lean();
       if (!post) return { skipped: true };

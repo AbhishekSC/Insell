@@ -550,7 +550,7 @@ export async function acceptFriendRequest(req, res) {
     });
     await Promise.all([invalidateDiscoverCache(friendRequest.sender), invalidateDiscoverCache(friendRequest.receiver)]);
     try {
-      const { invalidateUserSocialGraph } = await import("../controllers/propertyPost.controller.js");
+      const { invalidateUserSocialGraph } = await import("../modules/property-post/propertyPost.repository.js");
       await Promise.all([
         invalidateUserSocialGraph(friendRequest.sender),
         invalidateUserSocialGraph(friendRequest.receiver),
