@@ -4548,6 +4548,141 @@ function CoinHistoryPanel() {
   );
 }
 
+const QUEUE_LABELS = {
+  EMAIL: { label: "Email", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/15" },
+  NOTIFICATION: { label: "Notification", color: "text-violet-600 dark:text-violet-400", bg: "bg-violet-500/15" },
+  CLEANUP: { label: "Cleanup", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/15" },
+  FANOUT: { label: "Fanout", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/15" },
+  INGESTION: { label: "Ingestion", color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/15" },
+  DLQ: { label: "Dead Letters", color: "text-red-600 dark:text-red-400", bg: "bg-red-500/15" },
+};
+
+function QueuesPanel() {
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+    queryKey: ["adminQueuesHealth"],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/admin/queues/health");
+      return response.data;
+    },
+    refetchInterval: 10_000,
+  });
+
+  const queues = data?.queues || {};
+  const overallStatus = data?.status || "unknown";
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="grid size-9 place-items-center rounded-xl bg-primary/15 text-primary">
+            <BarChart3 className="size-4" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-base-content">Background Queues</h2>
+            <p className="text-xs text-base-content/60">Auto-refreshes every 10s</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+              overallStatus === "healthy"
+                ? "bg-success/10 text-success"
+                : overallStatus === "degraded"
+                  ? "bg-warning/10 text-warning"
+                  : "bg-base-200 text-base-content/50"
+            }`}
+          >
+            <span className={`size-1.5 rounded-full ${overallStatus === "healthy" ? "bg-success" : overallStatus === "degraded" ? "bg-warning" : "bg-base-content/30"}`} />
+            {overallStatus === "healthy" ? "All Healthy" : overallStatus === "degraded" ? "Degraded" : "Unknown"}
+          </span>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-base-300 px-3 py-1.5 text-xs font-semibold text-base-content/70 hover:bg-base-200 disabled:opacity-50"
+          >
+            {isFetching ? <Loader2 className="size-3.5 animate-spin" /> : <BarChart3 className="size-3.5" />}
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="py-16 text-center">
+          <Loader2 className="mx-auto size-7 animate-spin text-base-content/40" />
+        </div>
+      ) : isError ? (
+        <div className="rounded-2xl border border-error/20 bg-error/5 p-6 text-center">
+          <AlertTriangle className="mx-auto size-8 text-error/60" />
+          <p className="mt-2 text-sm font-medium text-error">Failed to load queue health</p>
+          <p className="mt-1 text-xs text-base-content/50">Make sure the server is running and Redis is connected.</p>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Object.entries(queues).map(([key, q]) => {
+            const meta = QUEUE_LABELS[key] || { label: key, color: "text-base-content", bg: "bg-base-200" };
+            const hasFailed = (q.failed || 0) > 0;
+            const isActive = (q.active || 0) > 0;
+
+            return (
+              <div
+                key={key}
+                className={`rounded-2xl border bg-base-100 p-4 shadow-sm ${hasFailed ? "border-error/30" : "border-base-300"}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`grid size-8 place-items-center rounded-lg ${meta.bg}`}>
+                      <BarChart3 className={`size-4 ${meta.color}`} />
+                    </div>
+                    <span className="text-sm font-semibold text-base-content">{meta.label}</span>
+                  </div>
+                  {q.status === "unavailable" ? (
+                    <span className="rounded-full bg-base-200 px-2 py-0.5 text-[11px] font-medium text-base-content/50">Offline</span>
+                  ) : q.status === "error" ? (
+                    <span className="rounded-full bg-error/10 px-2 py-0.5 text-[11px] font-medium text-error">Error</span>
+                  ) : isActive ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                      <Loader2 className="size-3 animate-spin" /> Processing
+                    </span>
+                  ) : null}
+                </div>
+
+                {q.status !== "unavailable" && q.status !== "error" && (
+                  <div className="mt-3 grid grid-cols-4 gap-2">
+                    <div className="text-center">
+                      <p className="text-lg font-bold text-base-content">{q.waiting || 0}</p>
+                      <p className="text-[11px] text-base-content/50">Waiting</p>
+                    </div>
+                    <div className="text-center">
+                      <p className={`text-lg font-bold ${isActive ? "text-primary" : "text-base-content"}`}>{q.active || 0}</p>
+                      <p className="text-[11px] text-base-content/50">Active</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-lg font-bold text-success">{q.completed || 0}</p>
+                      <p className="text-[11px] text-base-content/50">Done</p>
+                    </div>
+                    <div className="text-center">
+                      <p className={`text-lg font-bold ${hasFailed ? "text-error" : "text-base-content"}`}>{q.failed || 0}</p>
+                      <p className="text-[11px] text-base-content/50">Failed</p>
+                    </div>
+                  </div>
+                )}
+
+                {(q.delayed || 0) > 0 && (
+                  <div className="mt-2 flex items-center gap-1.5 text-xs text-base-content/50">
+                    <Clock className="size-3" />
+                    {q.delayed} delayed
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("users");
 
@@ -4651,6 +4786,15 @@ export default function AdminPage() {
         >
           <Sparkles className="size-4" /> Coins
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("queues")}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+            activeTab === "queues" ? "bg-primary text-white" : "bg-base-200 text-base-content/70 hover:bg-base-300"
+          }`}
+        >
+          <BarChart3 className="size-4" /> Queues
+        </button>
       </div>
 
       {activeTab === "users" ? (
@@ -4671,6 +4815,8 @@ export default function AdminPage() {
         <AdvertisementsPanel />
       ) : activeTab === "coins" ? (
         <CoinHistoryPanel />
+      ) : activeTab === "queues" ? (
+        <QueuesPanel />
       ) : (
         <AnnouncementsPanel />
       )}
