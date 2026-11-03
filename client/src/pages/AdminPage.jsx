@@ -4658,7 +4658,7 @@ function QueuesPanel() {
             <iframe
               src={bullBoardUrl}
               title="Bull Board"
-              className="h-[700px] w-full border-0"
+              className="h-[calc(100vh-280px)] min-h-[500px] w-full border-0"
             />
           </div>
         </>
