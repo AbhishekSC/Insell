@@ -197,10 +197,25 @@ app.get("/p/:id", renderListingSharePage);
 app.get("/u/:id", renderProfileSharePage);
 app.get("/sitemap.xml", generateSitemapXml);
 
-// Bull Board dashboard — admin-only, protected by the same auth middleware as /api/admin
-import { verifyUser, requireVerified, requireAdmin } from "./middlewares/auth.middleware.js";
+// Bull Board dashboard — protected by HTTP Basic Auth so the browser
+// natively prompts for credentials and Bull Board's own static assets load.
 const bullBoardAdapter = setupBullBoard();
-app.use("/admin/queues", verifyUser, requireVerified, requireAdmin, bullBoardAdapter.getRouter());
+const BULL_BOARD_USER = process.env.BULL_BOARD_USER || "admin";
+const BULL_BOARD_PASS = process.env.BULL_BOARD_PASS || "";
+app.use("/admin/queues", (req, res, next) => {
+  if (!BULL_BOARD_PASS) {
+    return res.status(403).json({ message: "Bull Board disabled — set BULL_BOARD_PASS env var" });
+  }
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith("Basic ")) {
+    res.setHeader("WWW-Authenticate", 'Basic realm="Bull Board"');
+    return res.status(401).send("Authentication required");
+  }
+  const [user, pass] = Buffer.from(auth.split(" ")[1], "base64").toString().split(":");
+  if (user === BULL_BOARD_USER && pass === BULL_BOARD_PASS) return next();
+  res.setHeader("WWW-Authenticate", 'Basic realm="Bull Board"');
+  return res.status(401).send("Invalid credentials");
+}, bullBoardAdapter.getRouter());
 
 // /api/v1 is the versioned prefix new clients (mobile) use going forward;
 // the unprefixed /api mount stays aliased to the same router so the web
