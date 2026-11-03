@@ -35,6 +35,10 @@ export default defineConfig({
         target: 'http://localhost:5001',
         changeOrigin: true,
       },
+      '/admin/queues': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+      },
       // Server-rendered share pages (/p/:id, /u/:id) and dynamic sitemap (/sitemap.xml)
       // in prod Vercel rewrites these to the backend; mirror that in dev so shared links
       // resolve instead of falling through to the SPA.

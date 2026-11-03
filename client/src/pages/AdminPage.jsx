@@ -4569,9 +4569,11 @@ function QueuesPanel() {
 
   const queues = data?.queues || {};
   const overallStatus = data?.status || "unknown";
+  const bullBoardUrl = "/admin/queues";
 
   return (
     <div className="space-y-4">
+      {/* Summary cards */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="grid size-9 place-items-center rounded-xl bg-primary/15 text-primary">
@@ -4579,7 +4581,7 @@ function QueuesPanel() {
           </div>
           <div>
             <h2 className="font-semibold text-base-content">Background Queues</h2>
-            <p className="text-xs text-base-content/60">Auto-refreshes every 10s</p>
+            <p className="text-xs text-base-content/60">Summary auto-refreshes every 10s</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -4608,7 +4610,7 @@ function QueuesPanel() {
       </div>
 
       {isLoading ? (
-        <div className="py-16 text-center">
+        <div className="py-10 text-center">
           <Loader2 className="mx-auto size-7 animate-spin text-base-content/40" />
         </div>
       ) : isError ? (
@@ -4618,66 +4620,48 @@ function QueuesPanel() {
           <p className="mt-1 text-xs text-base-content/50">Make sure the server is running and Redis is connected.</p>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Object.entries(queues).map(([key, q]) => {
-            const meta = QUEUE_LABELS[key] || { label: key, color: "text-base-content", bg: "bg-base-200" };
-            const hasFailed = (q.failed || 0) > 0;
-            const isActive = (q.active || 0) > 0;
+        <>
+          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {Object.entries(queues).map(([key, q]) => {
+              const meta = QUEUE_LABELS[key] || { label: key, color: "text-base-content", bg: "bg-base-200" };
+              const hasFailed = (q.failed || 0) > 0;
+              const isActive = (q.active || 0) > 0;
 
-            return (
-              <div
-                key={key}
-                className={`rounded-2xl border bg-base-100 p-4 shadow-sm ${hasFailed ? "border-error/30" : "border-base-300"}`}
-              >
-                <div className="flex items-center justify-between">
+              return (
+                <div
+                  key={key}
+                  className={`rounded-xl border bg-base-100 p-3 shadow-sm ${hasFailed ? "border-error/30" : "border-base-300"}`}
+                >
                   <div className="flex items-center gap-2">
-                    <div className={`grid size-8 place-items-center rounded-lg ${meta.bg}`}>
-                      <BarChart3 className={`size-4 ${meta.color}`} />
+                    <div className={`grid size-7 place-items-center rounded-lg ${meta.bg}`}>
+                      <BarChart3 className={`size-3.5 ${meta.color}`} />
                     </div>
-                    <span className="text-sm font-semibold text-base-content">{meta.label}</span>
+                    <span className="text-xs font-semibold text-base-content">{meta.label}</span>
+                    {isActive && <Loader2 className="ml-auto size-3 animate-spin text-primary" />}
                   </div>
-                  {q.status === "unavailable" ? (
-                    <span className="rounded-full bg-base-200 px-2 py-0.5 text-[11px] font-medium text-base-content/50">Offline</span>
-                  ) : q.status === "error" ? (
-                    <span className="rounded-full bg-error/10 px-2 py-0.5 text-[11px] font-medium text-error">Error</span>
-                  ) : isActive ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                      <Loader2 className="size-3 animate-spin" /> Processing
-                    </span>
-                  ) : null}
+                  {q.status !== "unavailable" && q.status !== "error" ? (
+                    <div className="mt-2 flex items-baseline gap-3 text-xs">
+                      <span title="Waiting" className="text-base-content/60">{q.waiting || 0}w</span>
+                      <span title="Active" className="text-primary">{q.active || 0}a</span>
+                      <span title="Failed" className={hasFailed ? "font-semibold text-error" : "text-base-content/60"}>{q.failed || 0}f</span>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-[11px] text-base-content/40">Offline</p>
+                  )}
                 </div>
+              );
+            })}
+          </div>
 
-                {q.status !== "unavailable" && q.status !== "error" && (
-                  <div className="mt-3 grid grid-cols-4 gap-2">
-                    <div className="text-center">
-                      <p className="text-lg font-bold text-base-content">{q.waiting || 0}</p>
-                      <p className="text-[11px] text-base-content/50">Waiting</p>
-                    </div>
-                    <div className="text-center">
-                      <p className={`text-lg font-bold ${isActive ? "text-primary" : "text-base-content"}`}>{q.active || 0}</p>
-                      <p className="text-[11px] text-base-content/50">Active</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-lg font-bold text-success">{q.completed || 0}</p>
-                      <p className="text-[11px] text-base-content/50">Done</p>
-                    </div>
-                    <div className="text-center">
-                      <p className={`text-lg font-bold ${hasFailed ? "text-error" : "text-base-content"}`}>{q.failed || 0}</p>
-                      <p className="text-[11px] text-base-content/50">Failed</p>
-                    </div>
-                  </div>
-                )}
-
-                {(q.delayed || 0) > 0 && (
-                  <div className="mt-2 flex items-center gap-1.5 text-xs text-base-content/50">
-                    <Clock className="size-3" />
-                    {q.delayed} delayed
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+          {/* Full Bull Board UI */}
+          <div className="overflow-hidden rounded-2xl border border-base-300 shadow-sm">
+            <iframe
+              src={bullBoardUrl}
+              title="Bull Board"
+              className="h-[700px] w-full border-0"
+            />
+          </div>
+        </>
       )}
     </div>
   );
