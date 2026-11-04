@@ -4742,7 +4742,8 @@ function QueuesPanel() {
 
   const queues = data?.queues || {};
   const overallStatus = data?.status || "unknown";
-  const bullBoardUrl = `${import.meta.env.VITE_API_URL || ""}/admin/queues`;
+  const token = typeof window !== "undefined" ? localStorage.getItem("insell_auth_token") : null;
+  const bullBoardUrl = `${import.meta.env.VITE_API_URL || ""}/admin/queues${token ? `?token=${encodeURIComponent(token)}` : ""}`;
 
   return (
     <div className="space-y-4">
