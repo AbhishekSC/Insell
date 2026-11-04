@@ -71,7 +71,7 @@ export const getActiveStories = async (req, res) => {
 
     const query = buildActiveStoriesQuery(userId, followingIds);
 
-    const stories = await repo.findActiveStories(query, limit);
+    const stories = (await repo.findActiveStories(query, limit)) || [];
 
     // Mark stories as viewed by current user
     const storyIds = stories.map((s) => s._id);
@@ -99,7 +99,7 @@ export const getUserStories = async (req, res) => {
     const { userId } = req.params;
     const currentUserId = req.user._id;
 
-    const stories = await repo.findUserActiveStories(userId);
+    const stories = (await repo.findUserActiveStories(userId)) || [];
 
     // Mark as viewed
     const storyIds = stories.map((s) => s._id);
@@ -126,7 +126,7 @@ export const getMyStories = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    const stories = await repo.findAllUserStories(userId);
+    const stories = (await repo.findAllUserStories(userId)) || [];
 
     const { activeStories, expiredStories } = separateActiveAndExpired(stories);
 
@@ -311,7 +311,7 @@ export const cleanupExpiredStories = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const expired = await repo.findExpiredStories(500);
+    const expired = (await repo.findExpiredStories(500)) || [];
 
     if (expired.length) {
       await cleanupExpiredStoriesBatch(expired);

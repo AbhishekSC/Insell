@@ -92,7 +92,7 @@ export async function getPostOffers(req, res) {
       return sendErrorResponse(res, 403, "You can only view offers on your own posts");
     }
 
-    const offers = await repo.findPostOffers(postId);
+    const offers = await repo.findPostOffers(postId) || [];
 
     const acceptedOfferIds = offers.filter((o) => o.status === "accepted").map((o) => o._id);
     const reviewedOfferIds = await repo.getReviewedOfferIds(acceptedOfferIds, userId);
@@ -250,7 +250,7 @@ export async function respondToOffer(req, res) {
 }
 
 export async function closeActiveOffersForPost(postId, actorId) {
-  const activeOffers = await repo.findActiveOffersForPost(postId);
+  const activeOffers = await repo.findActiveOffersForPost(postId) || [];
   if (activeOffers.length === 0) return;
 
   const actor = actorId || activeOffers[0].owner;

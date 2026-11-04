@@ -15,7 +15,7 @@ export const addTokenBlacklist = async (res, token) => {
 
       // Blacklist the token in Redis
       await redisClient.set(token, "blacklisted", { EX: expiresIn });
-      logger.info(`Token blacklisted successfully: ${token}`);
+      logger.info(`Token blacklisted successfully: …${token.slice(-8)}`);
     }
   } catch (error) {
     logger.error("Error adding token to blacklist:", error);

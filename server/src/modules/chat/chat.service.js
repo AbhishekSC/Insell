@@ -29,7 +29,7 @@ export async function getPrioritizedConversations(currentUserId, { limit, page }
     currentUserId,
   ];
 
-  verifiedNonFriend = await chatRepository.findVerifiedNonFriendUsers(seenIds, verifiedRoles, limit);
+  verifiedNonFriend = await chatRepository.findVerifiedNonFriendUsers(seenIds, verifiedRoles, limit) || [];
 
   const tag = (users, score, level, isFriend, isVerified) =>
     users.map((u) => ({ ...u, priorityScore: score, priorityLevel: level, isFriend, isVerified }));

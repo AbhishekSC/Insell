@@ -141,6 +141,7 @@ const notificationSchema = new mongoose.Schema(
 notificationSchema.index({ recipient: 1, read: 1, createdAt: -1 });
 notificationSchema.index({ recipient: 1, type: 1, createdAt: -1 });
 notificationSchema.index({ recipient: 1, read: 1, type: 1 });
+notificationSchema.index({ read: 1, createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60, partialFilterExpression: { read: true } });
 
 const Notification = mongoose.model("Notification", notificationSchema);
 

@@ -14,7 +14,7 @@ export const findAllFlagsPopulated = () => {
 };
 
 export const findFlagByKey = (key) => {
-  return FeatureFlag.findOne({ key });
+  return FeatureFlag.findOne({ key }).lean();
 };
 
 export const createFlag = (data) => {
@@ -24,7 +24,8 @@ export const createFlag = (data) => {
 export const findFlagByIdPopulated = (id) => {
   return FeatureFlag.findById(id)
     .populate("enabledUserIds", "fullName email profilePic")
-    .populate("disabledUserIds", "fullName email profilePic");
+    .populate("disabledUserIds", "fullName email profilePic")
+    .lean();
 };
 
 export const findFlagById = (id) => {
@@ -38,5 +39,5 @@ export const deleteFlagById = (id) => {
 export const findUserByEmailOrId = (trimmed) => {
   return User.findOne({
     $or: [{ email: trimmed.toLowerCase() }, { _id: trimmed.match(/^[0-9a-fA-F]{24}$/) ? trimmed : null }],
-  }).select("_id fullName email");
+  }).select("_id fullName email").lean();
 };

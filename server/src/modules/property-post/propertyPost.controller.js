@@ -72,7 +72,7 @@ export async function compareProperties(req, res) {
       logger.warn("Redis cache read error:", cacheError);
     }
 
-    const properties = await repo.findPostsForComparison(propertyIds);
+    const properties = await repo.findPostsForComparison(propertyIds) || [];
     if (properties.length === 0) return sendErrorResponse(res, 404, "No properties found");
 
     const scoredProperties = properties.map((property) => {
@@ -104,7 +104,7 @@ export async function compareProperties(req, res) {
         const commonCities = [...new Set(properties.map((p) => p.city).filter(Boolean))];
         const commonTypes = [...new Set(properties.map((p) => p.propertyType).filter(Boolean))];
 
-        const similarProperties = await repo.findSimilarForRecommendation(propertyIds, commonCities, commonTypes, avgPrice);
+        const similarProperties = await repo.findSimilarForRecommendation(propertyIds, commonCities, commonTypes, avgPrice) || [];
 
         recommendations = await Promise.all(
           similarProperties.map(async (prop) => ({
@@ -295,7 +295,7 @@ export async function getPropertyFeed(req, res) {
       if (/verified/i.test(query)) filter.$or.push({ addressVerified: true }, { "postMeta.residential.electricityBillStatus": "VERIFIED" }, { "postMeta.electricityBillStatus": "VERIFIED" });
       if (/pet/i.test(query)) filter.$or.push({ caption: /pet/i }, { "postMeta.residential.houseRules": /pet/i });
       if (/bachelor/i.test(query)) filter.$or.push({ caption: /bachelor/i }, { "postMeta.residential.preferredTenants": /bachelor/i });
-      const matchingUsers = await User.find({ fullName: regex }).select("_id").lean();
+      const matchingUsers = await User.find({ fullName: regex }).select("_id").lean() || [];
       if (matchingUsers.length > 0) filter.$or.push({ author: { $in: matchingUsers.map((u) => u._id) } });
     }
     if (listingType) filter.listingType = listingType;
@@ -364,7 +364,7 @@ export async function getPropertyFeed(req, res) {
             const candidateDocs = await PropertyPost.find({
               _id: { $in: filteredIds.map((id) => new mongoose.Types.ObjectId(id)) },
               isDeleted: { $ne: true }, isBlocked: { $ne: true },
-            }).populate("author", AUTHOR_POPULATE_FIELDS).lean();
+            }).populate("author", AUTHOR_POPULATE_FIELDS).lean() || [];
 
             if (candidateDocs.length > 0) {
               const idOrderMap = new Map(filteredIds.map((id, idx) => [String(id), idx]));
@@ -433,12 +433,12 @@ export async function getPropertyFeed(req, res) {
     let posts, total;
     if (hasCursor) {
       feedQuery.limit(limit + 1);
-      const rawPosts = await feedQuery.lean();
+      const rawPosts = await feedQuery.lean() || [];
       const hasMore = rawPosts.length > limit;
       posts = hasMore ? rawPosts.slice(0, limit) : rawPosts;
       total = hasMore ? page * limit + 1 : (page - 1) * limit + posts.length;
     } else {
-      [posts, total] = await Promise.all([feedQuery.lean(), PropertyPost.countDocuments(filter)]);
+      [posts, total] = await Promise.all([feedQuery.lean().then(r => r || []), PropertyPost.countDocuments(filter)]);
     }
 
     const postsWithEngagement = await service.batchDecoratePosts(posts, currentUserId);
@@ -700,14 +700,14 @@ async function getNearMeFeed(req, res, { filter, page, limit, skip, currentUserI
     }
 
     let [posts, total] = await Promise.all([
-      PropertyPost.find(cityFilter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate("author", AUTHOR_POPULATE_FIELDS).lean(),
+      PropertyPost.find(cityFilter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate("author", AUTHOR_POPULATE_FIELDS).lean().then(r => r || []),
       PropertyPost.countDocuments(cityFilter),
     ]);
 
     if (mode === "city" && total === 0) {
       mode = "all";
       [posts, total] = await Promise.all([
-        PropertyPost.find(geoQuery).sort({ createdAt: -1 }).skip(skip).limit(limit).populate("author", AUTHOR_POPULATE_FIELDS).lean(),
+        PropertyPost.find(geoQuery).sort({ createdAt: -1 }).skip(skip).limit(limit).populate("author", AUTHOR_POPULATE_FIELDS).lean().then(r => r || []),
         PropertyPost.countDocuments(geoQuery),
       ]);
     }
@@ -827,7 +827,7 @@ export async function getMyPropertyPosts(req, res) {
     if (!req.user?._id) return sendErrorResponse(res, 401, "Authentication required");
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 50));
-    const posts = await repo.findMyPosts(req.user._id, page, limit);
+    const posts = await repo.findMyPosts(req.user._id, page, limit) || [];
     return sendSuccessResponse(res, 200, "User posts fetched successfully", {
       posts: posts.map(toMyPostDTO),
       total: posts.length,
@@ -1005,7 +1005,7 @@ export async function getSimilarProperties(req, res) {
     const ref = await PropertyPost.findById(id).select("postType propertyType city locality price bedrooms author").lean();
     if (!ref) return sendErrorResponse(res, 404, "Post not found");
 
-    const candidates = await repo.findSimilarCandidates(ref);
+    const candidates = await repo.findSimilarCandidates(ref) || [];
     const scored = candidates
       .map((p) => {
         let score = 0;
@@ -1082,7 +1082,7 @@ export async function getCardSignals(req, res) {
     if (ids.length === 0) return sendSuccessResponse(res, 200, "No ids", { signals: {} });
 
     const [posts, offerRows] = await Promise.all([
-      PropertyPost.find({ _id: { $in: ids }, isDeleted: { $ne: true } }).select("city propertyType postType listingType bedrooms price areaSqft postMeta").lean(),
+      PropertyPost.find({ _id: { $in: ids }, isDeleted: { $ne: true } }).select("city propertyType postType listingType bedrooms price areaSqft postMeta").lean().then(r => r || []),
       Offer.aggregate([
         { $match: { post: { $in: ids.map((x) => new mongoose.Types.ObjectId(String(x))) }, status: { $in: ["pending", "countered"] } } },
         { $group: { _id: "$post", n: { $sum: 1 } } },
@@ -1212,7 +1212,7 @@ export async function reportPost(req, res) {
     if (!userId) return sendErrorResponse(res, 401, "Unauthorized");
     if (!REPORT_REASON_CODES.includes(reasonCode)) return sendErrorResponse(res, 400, "A valid reason is required");
 
-    const post = await PropertyPost.findById(postId).select("author isDeleted title");
+    const post = await PropertyPost.findById(postId).select("author isDeleted title").lean();
     if (!post || post.isDeleted) return sendErrorResponse(res, 404, "Post not found");
     if (String(post.author) === String(userId)) return sendErrorResponse(res, 400, "You cannot report your own post");
 

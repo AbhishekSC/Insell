@@ -566,9 +566,9 @@ class PersonalizationService {
 
       const user = await User.findById(userId)
         .select('isVerified likedPosts savedPosts viewedPosts commentAnalytics')
-        .populate('likedPosts')
-        .populate('savedPosts')
-        .populate('viewedPosts.post')
+        .populate('likedPosts', 'price propertyType postType city amenities specifications updatedAt')
+        .populate('savedPosts', 'price propertyType postType city amenities specifications updatedAt')
+        .populate('viewedPosts.post', 'price propertyType postType city amenities specifications updatedAt')
         .lean();
 
       if (!user) {
@@ -597,8 +597,8 @@ class PersonalizationService {
         const sharedEvents = await RecoEvent.find({ user: userId, event: "share" })
           .sort({ createdAt: -1 })
           .limit(20)
-          .populate("post")
-          .lean();
+          .populate("post", "price propertyType postType city amenities specifications updatedAt")
+          .lean() || [];
         sharedProperties = (sharedEvents || [])
           .filter((e) => e && e.post)
           .map((e) => ({
@@ -820,13 +820,13 @@ class PersonalizationService {
         createdAt: { $gte: since },
       })
         .select("post reason")
-        .lean();
+        .lean() || [];
       if (!events.length) return {};
 
       const postIds = [...new Set(events.map((e) => String(e.post)))];
       const posts = await PropertyPost.find({ _id: { $in: postIds } })
         .select("propertyType city locality price")
-        .lean();
+        .lean() || [];
       const byId = new Map(posts.map((p) => [String(p._id), p]));
 
       const rejectedTypes = new Set();
@@ -1027,7 +1027,7 @@ class PersonalizationService {
       const properties = await PropertyPost.find({ ...LIVE_POST_MATCH })
         .select("city location price propertyType createdAt postMeta")
         .limit(1000)
-        .lean();
+        .lean() || [];
 
       logger.info(`📊 [TRENDING LOCATIONS] Analyzing ${properties.length} published properties`);
 
@@ -1290,7 +1290,7 @@ class PersonalizationService {
         const properties = await PropertyPost.find({ ...LIVE_POST_MATCH })
           .select("city locality location price propertyType createdAt postMeta")
           .limit(1000)
-          .lean();
+          .lean() || [];
 
         logger.info(`📊 [TRENDING LOCALITIES] Analyzing ${properties.length} published properties for locality data`);
 
@@ -1625,14 +1625,14 @@ class PersonalizationService {
       "title price city locality propertyType postType mediaUrls author createdAt location likedBy savedBy commentCount viewCount";
 
     const geoNear = async (maxDistance) =>
-      PropertyPost.find({
+      await PropertyPost.find({
         ...baseMatch,
         location: { $near: { $geometry: { type: "Point", coordinates: point }, $maxDistance: maxDistance } },
       })
         .select(postFields)
         .populate("author", authorSelect)
         .limit(TRENDING_NEAR_CANDIDATE_CAP)
-        .lean();
+        .lean() || [];
 
     let pool = [];
     let strategy = "none";
@@ -1671,7 +1671,7 @@ class PersonalizationService {
           .populate("author", authorSelect)
           .sort({ createdAt: -1 })
           .limit(TRENDING_NEAR_CANDIDATE_CAP)
-          .lean();
+          .lean() || [];
         const seen = new Set(pool.map((p) => String(p._id)));
         pool = [...pool, ...cityPool.filter((p) => !seen.has(String(p._id)))];
         strategy = strategy === "none" ? "city" : `${strategy}+city`;
@@ -1687,7 +1687,7 @@ class PersonalizationService {
         .populate("author", authorSelect)
         .sort({ createdAt: -1 })
         .limit(TRENDING_NEAR_CANDIDATE_CAP)
-        .lean();
+        .lean() || [];
       strategy = "national";
     }
     if (pool.length === 0) return { properties: [], source: strategy };
@@ -1785,12 +1785,12 @@ class PersonalizationService {
     const workable = Math.max(limit, 8);
     // Newest-first when we have to cap — bias toward fresh inventory; stage 2
     // re-ranks by the full blend anyway.
-    const load = (extra) =>
-      PropertyPost.find({ ...baseMatch, ...extra })
+    const load = async (extra) =>
+      await PropertyPost.find({ ...baseMatch, ...extra })
         .populate("author", authorSelect)
         .sort({ createdAt: -1 })
         .limit(RECO_CANDIDATE_CAP)
-        .lean();
+        .lean() || [];
     const dedupById = (arr) => {
       const seen = new Set();
       return arr.filter((p) => {
@@ -1817,7 +1817,7 @@ class PersonalizationService {
         })
           .populate("author", authorSelect)
           .limit(RECO_CANDIDATE_CAP)
-          .lean();
+          .lean() || [];
         strategy = `geo:${source}`;
       } catch (err) {
         // e.g. the 2dsphere index is missing on a fresh deploy, or a bad point.
@@ -2524,7 +2524,7 @@ class PersonalizationService {
       })
         .select('fullName profilePic activeRole primaryRole city')
         .limit(limit * 3)
-        .lean();
+        .lean() || [];
 
       // Score each potential connection
       const scoredConnections = potentialConnections.map(potential => {
@@ -2603,7 +2603,7 @@ class PersonalizationService {
       })
         .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate")
         .limit(limit * 2)
-        .lean();
+        .lean() || [];
 
       // Score and sort by similarity
       const scoredProperties = similarProperties.map(property => {

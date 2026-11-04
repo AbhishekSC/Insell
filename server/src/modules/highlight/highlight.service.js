@@ -90,7 +90,7 @@ export async function getUserHighlights(userId, viewerId) {
     return { error: { status: 403, message: "Only friends can view this user's highlights" } };
   }
 
-  const highlights = await highlightRepository.findUserHighlights(userId);
+  const highlights = (await highlightRepository.findUserHighlights(userId)) || [];
 
   const summarized = highlights.map((h) => ({
     _id: h._id,

@@ -618,7 +618,7 @@ export async function notifyPriceChange(post, oldPrice, excludeUserIds = new Set
 
 export async function notifyActiveOfferBuyersOfPriceChange(post, oldPrice) {
   const { default: Offer } = await import("../../models/Offer.model.js");
-  const activeOffers = await Offer.find({ post: post._id, status: { $in: ["pending", "countered"] } }).select("buyer currentPrice").lean();
+  const activeOffers = await Offer.find({ post: post._id, status: { $in: ["pending", "countered"] } }).select("buyer currentPrice").lean() || [];
   if (activeOffers.length === 0) return;
 
   const oldFormatted = `₹${Number(oldPrice).toLocaleString("en-IN")}`;

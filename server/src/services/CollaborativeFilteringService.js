@@ -122,7 +122,7 @@ export async function rebuildEmbeddings(options = {}) {
     createdAt: { $gte: since },
   })
     .select("user post event")
-    .lean();
+    .lean() || [];
 
   logger.info(`[CF] Loaded ${engagementEvents.length} engagement events from last ${LOOKBACK_DAYS} days`);
 

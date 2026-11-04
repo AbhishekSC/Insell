@@ -7,7 +7,7 @@ export const findUserFriends = (userId) => {
 };
 
 export const findStoryByIdAndAuthor = (storyId, userId) => {
-  return Story.findOne({ _id: storyId, author: userId });
+  return Story.findOne({ _id: storyId, author: userId }).lean();
 };
 
 export const unsetStoryExpiry = (storyId) => {
@@ -29,7 +29,7 @@ export const findHighlightByIdPopulated = (id) => {
       { path: "author", select: "fullName profilePic isVerified activeRole primaryRole" },
       { path: "propertyId", select: "title price city listingType" },
     ],
-  });
+  }).lean();
 };
 
 export const findUserHighlights = (userId) => {

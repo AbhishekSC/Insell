@@ -3,7 +3,7 @@ import PropertyPost from "../../models/PropertyPost.model.js";
 import User from "../../models/User.model.js";
 
 export async function findPostByIdWithAuthor(postId) {
-  return PropertyPost.findById(postId).populate("author", "fullName");
+  return PropertyPost.findById(postId).populate("author", "fullName").lean();
 }
 
 export async function findCommentById(commentId) {
@@ -33,7 +33,7 @@ export async function findPopulatedCommentById(commentId) {
 }
 
 export async function findPostById(postId) {
-  return PropertyPost.findById(postId);
+  return PropertyPost.findById(postId).lean();
 }
 
 export async function findTopLevelComments(postId, skip, limit) {

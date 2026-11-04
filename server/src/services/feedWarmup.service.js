@@ -13,7 +13,7 @@ export async function warmFeedAndMapCaches() {
   try {
     const baseFilter = { isDeleted: { $ne: true }, isBlocked: { $ne: true } };
 
-    const [feedPosts, mapPins] = await Promise.all([
+    const [feedPostsRaw, mapPinsRaw] = await Promise.all([
       PropertyPost.find(baseFilter)
         .sort({ createdAt: -1 })
         .limit(12)
@@ -29,6 +29,8 @@ export async function warmFeedAndMapCaches() {
         .limit(500)
         .lean(),
     ]);
+    const feedPosts = feedPostsRaw || [];
+    const mapPins = mapPinsRaw || [];
 
     const total = await PropertyPost.countDocuments(baseFilter);
 

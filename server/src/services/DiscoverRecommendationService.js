@@ -128,11 +128,11 @@ export async function getDiscoverRecommendations(currentUserId, query = {}) {
   const currentId = String(currentUser._id);
   const friendIds = (currentUser.friends || []).map(String);
   const myFriends = friendIds.length > 0
-    ? await User.find({ _id: { $in: friendIds } }).select("_id fullName profilePic").lean()
+    ? (await User.find({ _id: { $in: friendIds } }).select("_id fullName profilePic").lean() || [])
     : [];
   const myFriendsMap = new Map(myFriends.map((f) => [String(f._id), { _id: String(f._id), fullName: f.fullName, profilePic: f.profilePic }]));
 
-  const pendingRequests = await FriendRequest.find({ status: "pending", $or: [{ sender: currentUserId }, { receiver: currentUserId }] }).select("sender receiver").lean();
+  const pendingRequests = await FriendRequest.find({ status: "pending", $or: [{ sender: currentUserId }, { receiver: currentUserId }] }).select("sender receiver").lean() || [];
   const outgoingPendingIds = new Set(pendingRequests.filter((r) => String(r.sender) === currentId).map((r) => String(r.receiver)));
   const incomingPendingIds = new Set(pendingRequests.filter((r) => String(r.receiver) === currentId).map((r) => String(r.sender)));
   const friendIdSet = new Set(friendIds);
@@ -158,7 +158,7 @@ export async function getDiscoverRecommendations(currentUserId, query = {}) {
     ];
   }
 
-  const candidates = await User.find(baseQuery).select("fullName profilePic city homeBase location primaryRole activeRole friends propertyTypePreferences preferredLocalities isVerified isOwnerVerified profileCompletion responseRate createdAt updatedAt commentAnalytics locationDetails").limit(MAX_CANDIDATES).lean();
+  const candidates = await User.find(baseQuery).select("fullName profilePic city homeBase location primaryRole activeRole friends propertyTypePreferences preferredLocalities isVerified isOwnerVerified profileCompletion responseRate createdAt updatedAt commentAnalytics locationDetails").limit(MAX_CANDIDATES).lean() || [];
   const candidateIds = candidates.map((user) => user._id);
   const listingStats = await PropertyPost.aggregate([
     { $match: { author: { $in: candidateIds }, status: "PUBLISHED", visibility: "PUBLIC" } },
@@ -217,7 +217,7 @@ export async function getDiscoverRecommendations(currentUserId, query = {}) {
   const savedPostIds = (currentUser.savedPosts || []).map(String);
   const propertyDetails = await PropertyPost.find({ _id: { $in: [...likedPostIds, ...savedPostIds] } })
     .select("propertyType city price budgetMin budgetMax")
-    .lean();
+    .lean() || [];
   
   propertyDetails.forEach(post => {
     const isLiked = likedPostIds.includes(String(post._id));

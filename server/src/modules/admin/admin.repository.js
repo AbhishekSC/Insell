@@ -35,7 +35,7 @@ export async function countLiveUsers(cutoff) {
 }
 
 export async function findRecipientIds(conditions) {
-  const recipients = await User.find(conditions).select("_id").lean();
+  const recipients = (await User.find(conditions).select("_id").lean()) || [];
   return recipients.map((u) => u._id);
 }
 

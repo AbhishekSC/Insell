@@ -5,15 +5,15 @@ import User from "../../models/User.model.js";
 import { ACTIVE_STATUSES, VISIT_CONFLICT_MS } from "./visitRequest.constants.js";
 
 export function findReplayByRequestId(postId, requesterId, requestId) {
-  return VisitRequest.findOne({ post: postId, requester: requesterId, "history.requestId": requestId });
+  return VisitRequest.findOne({ post: postId, requester: requesterId, "history.requestId": requestId }).lean();
 }
 
 export function findPostById(postId) {
-  return PropertyPost.findById(postId).select("title author status isDeleted postType");
+  return PropertyPost.findById(postId).select("title author status isDeleted postType").lean();
 }
 
 export function findExistingActiveVisit(postId, requesterId) {
-  return VisitRequest.findOne({ post: postId, requester: requesterId, status: { $in: ACTIVE_STATUSES.concat("CONFIRMED") } });
+  return VisitRequest.findOne({ post: postId, requester: requesterId, status: { $in: ACTIVE_STATUSES.concat("CONFIRMED") } }).lean();
 }
 
 export function countActiveVisitRequests(requesterId) {
@@ -59,7 +59,7 @@ export function findVisitConflict(visitId, slot, requester, owner) {
       { requester }, { owner: requester },
       { requester: owner }, { owner },
     ],
-  }).select("confirmedSlot");
+  }).select("confirmedSlot").lean();
 }
 
 export function findPostVisitRequests(postId, filter) {

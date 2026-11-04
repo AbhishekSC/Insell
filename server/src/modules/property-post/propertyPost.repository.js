@@ -193,7 +193,7 @@ export async function getUserReportedPostIds(userId) {
       const ids = await redisClient.sMembers(cacheKey);
       return new Set(ids.filter((id) => id !== "__init__"));
     }
-    const reports = await PostReport.find({ reporter: userId }).select("post").lean();
+    const reports = await PostReport.find({ reporter: userId }).select("post").lean() || [];
     const idStrings = reports.map((r) => String(r.post));
     const toAdd = idStrings.length > 0 ? idStrings : ["__init__"];
     await redisClient.sAdd(cacheKey, toAdd);
@@ -201,7 +201,7 @@ export async function getUserReportedPostIds(userId) {
     return new Set(idStrings);
   } catch (err) {
     logger.warn("Error reading reported posts cache:", err?.message);
-    const reports = await PostReport.find({ reporter: userId }).select("post").lean();
+    const reports = await PostReport.find({ reporter: userId }).select("post").lean() || [];
     return new Set(reports.map((r) => String(r.post)));
   }
 }
@@ -326,7 +326,7 @@ export async function countSellerListings(authorId) {
 
 export async function checkActiveDeal(postId) {
   const Deal = (await import("../../models/Deal.model.js")).default;
-  return Deal.findOne({ post: postId, status: "ACTIVE" });
+  return Deal.findOne({ post: postId, status: "ACTIVE" }).lean();
 }
 
 // ── Price benchmark ─────────────────────────────────────────────────────
@@ -366,7 +366,7 @@ export async function getVerifiedUserIds() {
       { activeRole: { $in: ["Broker", "Seller", "Landlord"] } },
       { primaryRole: { $in: ["Broker", "Seller", "Landlord"] } },
     ],
-  }).select("_id").lean();
+  }).select("_id").lean() || [];
   const ids = verifiedUsers.map((u) => String(u._id));
 
   try {
@@ -404,7 +404,7 @@ export async function findMapPins() {
     .select(MAP_PINS_PROJECTION)
     .sort({ createdAt: -1 })
     .limit(500)
-    .lean();
+    .lean() || [];
 
   pins = pins.map((p) => ({
     ...p,
