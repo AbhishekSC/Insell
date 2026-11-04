@@ -26,7 +26,7 @@ export async function createReview(req, res) {
       return sendErrorResponse(res, 400, "Rating must be an integer between 1 and 5");
     }
 
-    const offer = await Offer.findById(offerId).populate("post", "title");
+    const offer = await Offer.findById(offerId).populate("post", "title").lean();
     if (!offer) {
       return sendErrorResponse(res, 404, "Offer not found");
     }

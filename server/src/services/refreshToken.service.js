@@ -91,7 +91,7 @@ export async function rotateRefreshToken({ rawRefreshToken, deviceId = null, use
   }
 
   // Verify the user exists and is active
-  const user = await User.findById(existingTokenDoc.user);
+  const user = await User.findById(existingTokenDoc.user).lean();
   if (!user) {
     throw new AppError("User account not found", 401);
   }

@@ -53,14 +53,14 @@ export async function findRelatedListings(post, limit) {
   if (!post.city || !(post.price > 0)) return [];
   const base = { _id: { $ne: post._id }, ...SHAREABLE_FILTER, city: post.city, postType: post.postType };
 
-  const tight = await PropertyPost.find({
+  const tight = (await PropertyPost.find({
     ...base,
     price: { $gte: post.price * 0.6, $lte: post.price * 1.6 },
   })
     .sort({ publishedAt: -1 })
     .limit(limit)
     .select(PUBLIC_FIELDS)
-    .lean();
+    .lean()) || [];
   if (tight.length >= limit) return tight;
 
   const wide = await PropertyPost.find({

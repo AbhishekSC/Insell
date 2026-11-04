@@ -71,9 +71,9 @@ export async function createSession(req, res) {
     }
 
     if (String(process.env.ENABLE_SESSION_EMAIL_INVITES || "").toLowerCase() === "true") {
-      const invitees = await User.find({ _id: { $in: normalizedInviteeIds } })
+      const invitees = (await User.find({ _id: { $in: normalizedInviteeIds } })
         .select("email fullName")
-        .lean();
+        .lean()) || [];
 
       await Promise.allSettled(
         invitees.map((invitee) =>
@@ -104,14 +104,14 @@ export async function getMySessions(req, res) {
       return sendErrorResponse(res, 401, "Unauthorized");
     }
 
-    const sessions = await Session.find({
+    const sessions = (await Session.find({
       $or: [{ createdBy: currentUserId }, { invitees: currentUserId }],
       status: "scheduled",
     })
       .sort({ scheduledFor: 1 })
       .populate("createdBy", "fullName profilePic")
       .populate("invitees", "fullName profilePic homeBase travelStyle travelInterests favoriteDestinations nativeLanguage learningLanguage location")
-      .lean();
+      .lean()) || [];
 
     const now = Date.now();
     const tenMinutesFromNow = now + 10 * 60 * 1000;
@@ -124,13 +124,13 @@ export async function getMySessions(req, res) {
     });
 
     if (inviteeUpcomingSessions.length > 0) {
-      const existingReminderNotifications = await Notification.find({
+      const existingReminderNotifications = (await Notification.find({
         recipient: currentUserId,
         type: "session_reminder",
         session: { $in: inviteeUpcomingSessions.map((item) => item._id) },
       })
         .select("session")
-        .lean();
+        .lean()) || [];
 
       const alreadyNotifiedSessionIds = new Set(
         existingReminderNotifications.map((item) => String(item.session))

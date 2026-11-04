@@ -121,13 +121,13 @@ async function sweepActiveUsersRecommendations() {
     const { precomputeUserRecommendations } = await import("./recommendation.helpers.js");
 
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const activeUsers = await User.find({
+    const activeUsers = (await User.find({
       lastActiveAt: { $gte: sevenDaysAgo },
       isDeleted: { $ne: true },
     })
       .select("_id")
       .limit(150)
-      .lean();
+      .lean()) || [];
 
     logger.info(`[Ingestion] Starting recommendation sweep for ${activeUsers.length} active users`);
 

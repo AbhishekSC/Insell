@@ -27,7 +27,7 @@ async function canViewHighlights(ownerId, viewerId) {
 // field here was the original bug (a story mid highlight-creation could
 // read as "expired" before its own flow finished). See Story.model.js.
 async function claimStoryForHighlight(storyId, userId) {
-  const story = await Story.findOne({ _id: storyId, author: userId });
+  const story = await Story.findOne({ _id: storyId, author: userId }).lean();
   if (!story) return null;
   if (story.feedExpiresAt && story.feedExpiresAt <= new Date()) return null;
 
@@ -139,10 +139,10 @@ export const getUserHighlights = async (req, res) => {
       return sendErrorResponse(res, 403, "Only friends can view this user's highlights");
     }
 
-    const highlights = await Highlight.find({ owner: userId, stories: { $ne: [] } })
+    const highlights = (await Highlight.find({ owner: userId, stories: { $ne: [] } })
       .select("title coverImage stories createdAt")
       .sort({ createdAt: -1 })
-      .lean();
+      .lean()) || [];
 
     const summarized = highlights.map((h) => ({
       _id: h._id,
@@ -170,7 +170,7 @@ export const getHighlightById = async (req, res) => {
         { path: "author", select: "fullName profilePic isVerified activeRole primaryRole" },
         { path: "propertyId", select: "title price city listingType" },
       ],
-    });
+    }).lean();
 
     if (!highlight) {
       return sendErrorResponse(res, 404, "Highlight not found");

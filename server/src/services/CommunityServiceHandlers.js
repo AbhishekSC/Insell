@@ -220,7 +220,7 @@ export async function getPresenceForUsers(req, res) {
       return sendSuccessResponse(res, 200, "Presence retrieved successfully", { presence: {} });
     }
 
-    const records = await Presence.find({ user: { $in: userIds } }).select("user status note").lean();
+    const records = (await Presence.find({ user: { $in: userIds } }).select("user status note").lean()) || [];
     const presence = Object.fromEntries(
       records.map((record) => [String(record.user), { status: record.status, note: record.note }])
     );

@@ -95,12 +95,12 @@ function serialize(deal) {
 export async function getMyDeals(req, res) {
   try {
     const userId = req.user._id;
-    const deals = await Deal.find({ $or: [{ buyer: userId }, { owner: userId }] })
+    const deals = (await Deal.find({ $or: [{ buyer: userId }, { owner: userId }] })
       .sort({ updatedAt: -1 })
       .populate("post", "title mediaUrls city locality price listingType")
       .populate("buyer", "fullName profilePic")
       .populate("owner", "fullName profilePic")
-      .lean();
+      .lean()) || [];
     return sendSuccessResponse(res, 200, "Deals retrieved", {
       deals: deals.map((d) => ({
         ...d,
@@ -151,7 +151,7 @@ export async function getDealForPost(req, res) {
         status: "accepted",
         updatedAt: { $gte: recentCutoff },
         $or: [{ buyer: userId }, { owner: userId }],
-      }).select("_id");
+      }).select("_id").lean();
       if (accepted) deal = await ensureDealForOffer(accepted._id);
     }
     if (!deal) return sendSuccessResponse(res, 200, "No deal", { deal: null });
@@ -195,7 +195,7 @@ export async function updateDeal(req, res) {
     const requestId = req.body?.requestId ? String(req.body.requestId) : undefined;
 
     if (requestId) {
-      const replay = await Deal.findOne({ _id: id, "history.requestId": requestId });
+      const replay = await Deal.findOne({ _id: id, "history.requestId": requestId }).lean();
       if (replay) return sendSuccessResponse(res, 200, "Already processed", { deal: await reloadSerialized(id) });
     }
 
@@ -570,7 +570,7 @@ export async function updateDeal(req, res) {
       return sendErrorResponse(res, 400, "Invalid action");
     } catch (err) {
       if (isDuplicateRequestIdError(err)) {
-        const winner = await Deal.findOne({ _id: id, "history.requestId": requestId });
+        const winner = await Deal.findOne({ _id: id, "history.requestId": requestId }).lean();
         if (winner) return sendSuccessResponse(res, 200, "Already processed", { deal: await reloadSerialized(id) });
       }
       throw err;
@@ -853,7 +853,7 @@ export async function verifyDealAttachment(req, res) {
     const actorName = req.user.fullName || "User";
     const { id, attId } = req.params;
 
-    const deal = await Deal.findById(id);
+    const deal = await Deal.findById(id).lean();
     if (!deal) return sendErrorResponse(res, 404, "Deal not found");
 
     const isParty = String(deal.buyer) === String(userId) || String(deal.owner) === String(userId) || req.user.role === "admin";
@@ -1081,14 +1081,14 @@ export async function nudgeStalledDeals(req, res) {
     const staleBefore = new Date(Date.now() - STALLED_AFTER_DAYS * 86400000);
     const nudgeBefore = new Date(Date.now() - NUDGE_COOLDOWN_DAYS * 86400000);
 
-    const stalled = await Deal.find({
+    const stalled = (await Deal.find({
       status: "ACTIVE",
       updatedAt: { $lt: staleBefore },
       $or: [{ lastNudgedAt: null }, { lastNudgedAt: { $lt: nudgeBefore } }],
     })
       .populate("post", "title")
       .limit(200)
-      .lean();
+      .lean()) || [];
 
     if (stalled.length) {
       const { enqueueDealNudge } = await import("../jobs/producers/fanout.producer.js");

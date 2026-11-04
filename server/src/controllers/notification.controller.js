@@ -66,7 +66,7 @@ export const getNotifications = async (req, res) => {
     const typeCondition = type ? { type: { $in: String(type).split(",").map((t) => t.trim()).filter(Boolean) } } : {};
     Object.assign(filter, typeCondition);
 
-    const notifications = await Notification.find(filter)
+    const notifications = (await Notification.find(filter)
       .populate("actor", "fullName profilePic isVerified isOwnerVerified activeRole primaryRole")
       .populate("propertyPost", "title price city listingType mediaUrls")
       // Offer status, not just the id — an "offer_received"/"offer_countered"
@@ -77,7 +77,7 @@ export const getNotifications = async (req, res) => {
       .populate("offer", "status")
       .sort({ createdAt: -1 })
       .limit(50)
-      .lean();
+      .lean()) || [];
 
     // Same reasoning as the offer status above — an "offer_accepted"
     // notification never changes once you've reviewed it, so a "Leave a

@@ -61,13 +61,13 @@ export async function createOffer(req, res) {
     // retried "make an offer" click shouldn't 409 as a duplicate, it should
     // just hand back the offer that was already created for it.
     if (requestId) {
-      const replay = await Offer.findOne({ post: postId, buyer: buyerId, "history.requestId": requestId });
+      const replay = await Offer.findOne({ post: postId, buyer: buyerId, "history.requestId": requestId }).lean();
       if (replay) {
         return sendSuccessResponse(res, 200, "Offer already submitted", { offer: replay });
       }
     }
 
-    const post = await PropertyPost.findById(postId);
+    const post = await PropertyPost.findById(postId).lean();
     if (!post || post.isDeleted) {
       return sendErrorResponse(res, 404, "Post not found");
     }
@@ -84,7 +84,7 @@ export async function createOffer(req, res) {
       post: postId,
       buyer: buyerId,
       status: { $in: ACTIVE_STATUSES.concat("accepted") },
-    });
+    }).lean();
     if (existing) {
       return sendErrorResponse(res, 409, "You already have an active offer on this post");
     }
@@ -97,7 +97,7 @@ export async function createOffer(req, res) {
     let offer;
     try {
       await session.withTransaction(async () => {
-        const freshPost = await PropertyPost.findById(postId, null, { session });
+        const freshPost = await PropertyPost.findById(postId, null, { session }).lean();
         if (freshPost.offerStatus === "ACCEPTED") {
           throw Object.assign(new Error("ALREADY_ACCEPTED"), { code: "ALREADY_ACCEPTED" });
         }
@@ -124,7 +124,7 @@ export async function createOffer(req, res) {
         return sendErrorResponse(res, 409, "This property already has an accepted offer");
       }
       if (isDuplicateRequestIdError(txError)) {
-        const winner = await Offer.findOne({ post: postId, buyer: buyerId, "history.requestId": requestId });
+        const winner = await Offer.findOne({ post: postId, buyer: buyerId, "history.requestId": requestId }).lean();
         return sendSuccessResponse(res, 200, "Offer already submitted", { offer: winner });
       }
       throw txError;
@@ -155,7 +155,7 @@ export async function getPostOffers(req, res) {
     const { postId } = req.params;
     const userId = req.user?._id;
 
-    const post = await PropertyPost.findById(postId);
+    const post = await PropertyPost.findById(postId).lean();
     if (!post || post.isDeleted) {
       return sendErrorResponse(res, 404, "Post not found");
     }
@@ -164,10 +164,10 @@ export async function getPostOffers(req, res) {
       return sendErrorResponse(res, 403, "You can only view offers on your own posts");
     }
 
-    const offers = await Offer.find({ post: postId })
+    const offers = (await Offer.find({ post: postId })
       .populate("buyer", "fullName profilePic")
       .sort({ updatedAt: -1 })
-      .lean();
+      .lean()) || [];
 
     // Tells the client whether *this* viewer (the owner) has already
     // reviewed a given accepted offer, so a "Leave a review" button doesn't
@@ -225,7 +225,7 @@ export async function respondToOffer(req, res) {
       return sendErrorResponse(res, 400, "Invalid action");
     }
 
-    const offer = await Offer.findById(offerId).populate("post", "title author price");
+    const offer = await Offer.findById(offerId).populate("post", "title author price").lean();
     if (!offer) {
       return sendErrorResponse(res, 404, "Offer not found");
     }
@@ -281,7 +281,7 @@ export async function respondToOffer(req, res) {
         ).populate("post", "title author price");
       } catch (writeError) {
         if (isDuplicateRequestIdError(writeError)) {
-          const winner = await Offer.findById(offerId).populate("post", "title author price");
+          const winner = await Offer.findById(offerId).populate("post", "title author price").lean();
           return sendSuccessResponse(res, 200, "Already processed", { offer: winner });
         }
         throw writeError;
@@ -293,7 +293,7 @@ export async function respondToOffer(req, res) {
         // just won a race a moment ago on another concurrent request. Tell
         // those two cases apart before answering, so a genuine concurrent
         // duplicate submit gets a clean 200 replay instead of a 409.
-        const replayed = requestId ? await Offer.findOne({ _id: offerId, "history.requestId": requestId }) : null;
+        const replayed = requestId ? await Offer.findOne({ _id: offerId, "history.requestId": requestId }).lean() : null;
         if (replayed) {
           return sendSuccessResponse(res, 200, "Already processed", { offer: replayed });
         }
@@ -341,14 +341,14 @@ export async function respondToOffer(req, res) {
         ).populate("post", "title author price");
       } catch (writeError) {
         if (isDuplicateRequestIdError(writeError)) {
-          const winner = await Offer.findById(offerId).populate("post", "title author price");
+          const winner = await Offer.findById(offerId).populate("post", "title author price").lean();
           return sendSuccessResponse(res, 200, "Already processed", { offer: winner });
         }
         throw writeError;
       }
 
       if (!updated) {
-        const replayed = requestId ? await Offer.findOne({ _id: offerId, "history.requestId": requestId }) : null;
+        const replayed = requestId ? await Offer.findOne({ _id: offerId, "history.requestId": requestId }).lean() : null;
         if (replayed) {
           return sendSuccessResponse(res, 200, "Already processed", { offer: replayed });
         }
@@ -436,14 +436,14 @@ export async function respondToOffer(req, res) {
         // here rather than hitting the duplicate-key path below — the
         // status filter fails first. Tell a real conflict apart from a
         // harmless replay before answering.
-        const replayed = requestId ? await Offer.findOne({ _id: offerId, "history.requestId": requestId }) : null;
+        const replayed = requestId ? await Offer.findOne({ _id: offerId, "history.requestId": requestId }).lean() : null;
         if (replayed) {
           return sendSuccessResponse(res, 200, "Already processed", { offer: replayed });
         }
         return sendErrorResponse(res, 409, "You can't accept your own last proposal, or this offer is no longer available");
       }
       if (isDuplicateRequestIdError(txError)) {
-        const winner = await Offer.findById(offerId).populate("post", "title author price");
+        const winner = await Offer.findById(offerId).populate("post", "title author price").lean();
         return sendSuccessResponse(res, 200, "Already processed", { offer: winner });
       }
       throw txError;
@@ -498,7 +498,7 @@ export async function respondToOffer(req, res) {
 // forever pointing at a post that's no longer live. An already-accepted
 // offer is left untouched: it represents a completed deal, not an open one.
 export async function closeActiveOffersForPost(postId, actorId) {
-  const activeOffers = await Offer.find({ post: postId, status: { $in: ACTIVE_STATUSES } }).lean();
+  const activeOffers = (await Offer.find({ post: postId, status: { $in: ACTIVE_STATUSES } }).lean()) || [];
   if (activeOffers.length === 0) return;
 
   const actor = actorId || activeOffers[0].owner;

@@ -77,11 +77,12 @@ export const getActiveStories = async (req, res) => {
       ],
     };
 
-    const stories = await Story.find(query)
+    const stories = (await Story.find(query)
       .populate("author", "fullName profilePic isVerified isOwnerVerified activeRole primaryRole")
       .populate("propertyId", "title price city listingType")
       .sort({ createdAt: -1 })
-      .limit(Number(limit));
+      .limit(Number(limit))
+      .lean()) || [];
 
     // Mark stories as viewed by current user
     const storyIds = stories.map((s) => s._id);
@@ -115,14 +116,15 @@ export const getUserStories = async (req, res) => {
     const { userId } = req.params;
     const currentUserId = req.user._id;
 
-    const stories = await Story.find({
+    const stories = (await Story.find({
       author: userId,
       isActive: true,
       feedExpiresAt: { $gt: new Date() },
     })
       .populate("author", "fullName profilePic isVerified isOwnerVerified activeRole primaryRole")
       .populate("propertyId", "title price city listingType")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean()) || [];
 
     // Mark as viewed
     const storyIds = stories.map((s) => s._id);
@@ -155,11 +157,12 @@ export const getMyStories = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    const stories = await Story.find({
+    const stories = (await Story.find({
       author: userId,
     })
       .populate("propertyId", "title price city listingType")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean()) || [];
 
     // Separate active and expired using feedExpiresAt (the natural 24h
     // lifecycle field, untouched by highlighting) rather than expiresAt
@@ -239,7 +242,7 @@ export const getStoryLikes = async (req, res) => {
     const { storyId } = req.params;
     const userId = req.user._id;
 
-    const story = await Story.findById(storyId).populate("likedBy", "fullName profilePic city isOwnerVerified");
+    const story = await Story.findById(storyId).populate("likedBy", "fullName profilePic city isOwnerVerified").lean();
 
     if (!story) {
       return res.status(404).json({
@@ -319,7 +322,7 @@ export const deleteStory = async (req, res) => {
     const { storyId } = req.params;
     const userId = req.user._id;
 
-    const story = await Story.findOne({ _id: storyId, author: userId });
+    const story = await Story.findOne({ _id: storyId, author: userId }).lean();
 
     if (!story) {
       return res.status(404).json({
@@ -366,10 +369,10 @@ export const cleanupExpiredStories = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const expired = await Story.find({ expiresAt: { $lte: new Date() } })
+    const expired = (await Story.find({ expiresAt: { $lte: new Date() } })
       .select("mediaUrl")
       .limit(500)
-      .lean();
+      .lean()) || [];
 
     if (expired.length) {
       try {

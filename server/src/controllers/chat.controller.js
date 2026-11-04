@@ -80,13 +80,13 @@ export async function getPrioritizedConversations(req, res) {
       currentUserId,
     ];
 
-    verifiedNonFriend = await User.find({
+    verifiedNonFriend = (await User.find({
       _id: { $nin: seenIds },
       $or: [{ activeRole: { $in: verifiedRoles } }, { primaryRole: { $in: verifiedRoles } }],
     })
       .select("fullName profilePic activeRole primaryRole city")
       .limit(limit)
-      .lean();
+      .lean()) || [];
 
     const tag = (users, score, level, isFriend, isVerified) =>
       users.map((u) => ({ ...u, priorityScore: score, priorityLevel: level, isFriend, isVerified }));

@@ -712,9 +712,9 @@ class CardCTRService {
       if (missingIds.length > 0) {
         try {
           const PropertyPost = (await import("../models/PropertyPost.model.js")).default;
-          const fetched = await PropertyPost.find({ _id: { $in: missingIds } })
+          const fetched = (await PropertyPost.find({ _id: { $in: missingIds } })
             .select("locality city postType price bedrooms postMeta")
-            .lean();
+            .lean()) || [];
           engagedPosts = [...engagedPosts, ...fetched];
         } catch (e) {
           logger.warn("applySessionMomentum fetch missing engaged posts error:", e?.message);

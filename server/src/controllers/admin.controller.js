@@ -343,7 +343,7 @@ export const getAdminReports = async (req, res) => {
 
     if (search) {
       const searchRegex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-      const matchingPosts = await PropertyPost.find({ title: searchRegex }).select("_id").lean();
+      const matchingPosts = (await PropertyPost.find({ title: searchRegex }).select("_id").lean()) || [];
       matchStage.post = { $in: matchingPosts.map((p) => p._id) };
     }
 
@@ -367,10 +367,10 @@ export const getAdminReports = async (req, res) => {
     ]);
 
     const postIds = grouped.map((g) => g._id);
-    const posts = await PropertyPost.find({ _id: { $in: postIds } })
+    const posts = (await PropertyPost.find({ _id: { $in: postIds } })
       .select("title price city mediaUrls author isBlocked isDeleted")
       .populate("author", "fullName email")
-      .lean();
+      .lean()) || [];
     const postMap = new Map(posts.map((p) => [String(p._id), p]));
 
     const reports = grouped
@@ -564,7 +564,7 @@ export const createAnnouncement = async (req, res) => {
     if (city) conditions.city = new RegExp(`^${city.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
     if (verifiedOnly) conditions.activeRole = { $in: VERIFIED_ROLES };
 
-    const recipients = await User.find(conditions).select("_id").lean();
+    const recipients = (await User.find(conditions).select("_id").lean()) || [];
     const recipientIds = recipients.map((u) => u._id);
 
     if (recipientIds.length === 0) {
@@ -661,7 +661,7 @@ export const adminCreditCoins = async (req, res) => {
       return sendErrorResponse(res, 400, "Amount must be between 1 and 10,000 coins");
     }
 
-    const targetUser = await User.findById(id).select("fullName email");
+    const targetUser = await User.findById(id).select("fullName email").lean();
     if (!targetUser) {
       return sendErrorResponse(res, 404, "User not found");
     }
@@ -707,7 +707,7 @@ export const adminCreditCoins = async (req, res) => {
 export const adminGetUserWallet = async (req, res) => {
   try {
     const { id } = req.params;
-    const targetUser = await User.findById(id).select("fullName email");
+    const targetUser = await User.findById(id).select("fullName email").lean();
     if (!targetUser) {
       return sendErrorResponse(res, 404, "User not found");
     }
@@ -913,7 +913,7 @@ export const reviewPropertyVerification = async (req, res) => {
 export const downloadPropertyBill = async (req, res) => {
   try {
     const { id } = req.params;
-    const post = await PropertyPost.findById(id).select("postMeta title");
+    const post = await PropertyPost.findById(id).select("postMeta title").lean();
     if (!post) {
       return sendErrorResponse(res, 404, "Property post not found");
     }

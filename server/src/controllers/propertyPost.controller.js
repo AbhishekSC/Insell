@@ -182,11 +182,11 @@ export async function compareProperties(req, res) {
       logger.warn("Redis cache read error:", cacheError);
     }
 
-    const properties = await PropertyPost.find({
+    const properties = (await PropertyPost.find({
       _id: { $in: propertyIds },
       isDeleted: { $ne: true },
       isBlocked: { $ne: true }
-    }).populate('author', 'fullName profilePic isVerified isOwnerVerified').lean();
+    }).populate('author', 'fullName profilePic isVerified isOwnerVerified').lean()) || [];
 
     if (properties.length === 0) {
       return sendErrorResponse(res, 404, "No properties found");
@@ -227,7 +227,7 @@ export async function compareProperties(req, res) {
         const commonCities = [...new Set(properties.map(p => p.city).filter(Boolean))];
         const commonTypes = [...new Set(properties.map(p => p.propertyType).filter(Boolean))];
         
-        const similarProperties = await PropertyPost.find({
+        const similarProperties = (await PropertyPost.find({
           _id: { $nin: propertyIds },
           isDeleted: { $ne: true },
           isBlocked: { $ne: true },
@@ -241,7 +241,7 @@ export async function compareProperties(req, res) {
         })
         .populate('author', 'fullName profilePic')
         .limit(6)
-        .lean();
+        .lean()) || [];
 
         // Score recommendations
         recommendations = await Promise.all(similarProperties.map(async prop => ({
@@ -770,7 +770,7 @@ export async function getPropertyFeed(req, res) {
       
       // Also search by author name
       const User = (await import("../models/User.model.js")).default;
-      const matchingUsers = await User.find({ fullName: regex }).select('_id').lean();
+      const matchingUsers = (await User.find({ fullName: regex }).select('_id').lean()) || [];
       const authorIds = matchingUsers.map(u => u._id);
       
       if (authorIds.length > 0) {
@@ -884,7 +884,7 @@ export async function getPropertyFeed(req, res) {
           const filteredIds = precomputedIds.filter((id) => !excludeSet.has(String(id)));
 
           if (filteredIds.length > 0) {
-            const candidateDocs = await PropertyPost.find({
+            const candidateDocs = (await PropertyPost.find({
               _id: { $in: filteredIds.map((id) => new mongoose.Types.ObjectId(id)) },
               isDeleted: { $ne: true },
               isBlocked: { $ne: true },
@@ -893,7 +893,7 @@ export async function getPropertyFeed(req, res) {
                 "author",
                 "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate"
               )
-              .lean();
+              .lean()) || [];
 
             if (candidateDocs.length > 0) {
               const idOrderMap = new Map(filteredIds.map((id, idx) => [String(id), idx]));
@@ -969,12 +969,12 @@ export async function getPropertyFeed(req, res) {
         if (cached) return JSON.parse(cached);
       } catch (_) {}
 
-      const verifiedUsers = await User.find({
+      const verifiedUsers = (await User.find({
         $or: [
           { activeRole: { $in: ["Broker", "Seller", "Landlord"] } },
           { primaryRole: { $in: ["Broker", "Seller", "Landlord"] } },
         ],
-      }).select("_id").lean();
+      }).select("_id").lean()) || [];
       const ids = verifiedUsers.map(u => String(u._id));
 
       try {
@@ -1388,7 +1388,7 @@ export async function getUserReportedPostIds(userId) {
       const ids = await redisClient.sMembers(cacheKey);
       return new Set(ids.filter((id) => id !== "__init__"));
     }
-    const reports = await PostReport.find({ reporter: userId }).select("post").lean();
+    const reports = (await PostReport.find({ reporter: userId }).select("post").lean()) || [];
     const idStrings = reports.map((r) => String(r.post));
     const toAdd = idStrings.length > 0 ? idStrings : ["__init__"];
     await redisClient.sAdd(cacheKey, toAdd);
@@ -1396,7 +1396,7 @@ export async function getUserReportedPostIds(userId) {
     return new Set(idStrings);
   } catch (err) {
     logger.warn("Error reading reported posts cache:", err?.message);
-    const reports = await PostReport.find({ reporter: userId }).select("post").lean();
+    const reports = (await PostReport.find({ reporter: userId }).select("post").lean()) || [];
     return new Set(reports.map((r) => String(r.post)));
   }
 }
@@ -2111,7 +2111,7 @@ export async function notifyPriceChange(post, oldPrice, excludeUserIds = new Set
 // currently advertises. But the buyer should still know the number they're
 // negotiating against just changed underneath their offer.
 async function notifyActiveOfferBuyersOfPriceChange(post, oldPrice) {
-  const activeOffers = await Offer.find({ post: post._id, status: { $in: ["pending", "countered"] } }).select("buyer currentPrice").lean();
+  const activeOffers = (await Offer.find({ post: post._id, status: { $in: ["pending", "countered"] } }).select("buyer currentPrice").lean()) || [];
   if (activeOffers.length === 0) return;
 
   const oldFormatted = `₹${Number(oldPrice).toLocaleString("en-IN")}`;
@@ -2504,7 +2504,7 @@ export async function boostPropertyPost(req, res) {
     const post = await PropertyPost.findById(postId).populate(
       "author",
       "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate"
-    );
+    ).lean();
 
     if (!post || post.isDeleted) {
       return sendErrorResponse(res, 404, "Post not found");
@@ -2690,7 +2690,7 @@ export async function getMyPropertyPosts(req, res) {
 
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 50));
-    const posts = await PropertyPost.find({
+    const posts = (await PropertyPost.find({
       author: userId,
       isDeleted: { $ne: true },
     })
@@ -2702,7 +2702,7 @@ export async function getMyPropertyPosts(req, res) {
         "author",
         "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified"
       )
-      .lean();
+      .lean()) || [];
 
     const formattedPosts = posts.map((post) => {
       const media = Array.isArray(post.mediaUrls)
@@ -2914,7 +2914,7 @@ export async function getPostLikers(req, res) {
     const User = (await import("../models/User.model.js")).default;
     const FriendRequest = (await import("../models/FriendRequest.model.js")).default;
 
-    const [users, me, pending] = await Promise.all([
+    const [users = [], me, pending = []] = await Promise.all([
       User.find({ _id: { $in: pageIds }, isBlocked: { $ne: true } })
         .select("fullName profilePic isVerified isOwnerVerified city")
         .lean(),
@@ -2985,7 +2985,7 @@ export async function getSimilarProperties(req, res) {
     const priceLo = ref.price > 0 ? ref.price * 0.6 : 0;
     const priceHi = ref.price > 0 ? ref.price * 1.6 : Number.MAX_SAFE_INTEGER;
 
-    const candidates = await PropertyPost.find({
+    const candidates = (await PropertyPost.find({
       _id: { $ne: ref._id },
       isDeleted: { $ne: true },
       isBlocked: { $ne: true },
@@ -3001,7 +3001,7 @@ export async function getSimilarProperties(req, res) {
       .sort({ createdAt: -1 })
       .limit(120)
       .populate("author", "fullName profilePic isVerified isOwnerVerified")
-      .lean();
+      .lean()) || [];
 
     const currentUserId = req.user?._id ? String(req.user._id) : "";
 
@@ -3094,7 +3094,7 @@ async function priceBenchmarkFor(cityRaw, propertyType, beds, excludeId, intent 
   const rentMatch = { $or: [{ listingType: /^(rent|lease)$/i }, { postType: "PROPERTY_RENT" }] };
   const buyMatch = { listingType: { $not: /^(rent|lease)$/i }, postType: { $ne: "PROPERTY_RENT" } };
 
-  const rows = await PropertyPost.find({
+  const rows = (await PropertyPost.find({
     isDeleted: { $ne: true },
     isBlocked: { $ne: true },
     status: "PUBLISHED",
@@ -3107,7 +3107,7 @@ async function priceBenchmarkFor(cityRaw, propertyType, beds, excludeId, intent 
   })
     .select("price areaSqft bedrooms")
     .limit(500)
-    .lean();
+    .lean()) || [];
 
   let pool = rows;
   if (Number(beds) > 0) {
@@ -3195,7 +3195,7 @@ export async function getCardSignals(req, res) {
     const ids = Array.isArray(req.body?.ids) ? req.body.ids.slice(0, 40).filter(Boolean) : [];
     if (ids.length === 0) return sendSuccessResponse(res, 200, "No ids", { signals: {} });
 
-    const [posts, offerRows] = await Promise.all([
+    const [posts = [], offerRows = []] = await Promise.all([
       PropertyPost.find({ _id: { $in: ids }, isDeleted: { $ne: true } })
         .select("city propertyType postType listingType bedrooms price areaSqft postMeta")
         .lean(),
@@ -3408,7 +3408,7 @@ export async function deletePropertyPost(req, res) {
 
     // Security guard: Cannot delete property while an active deal is in progress
     const Deal = (await import("../models/Deal.model.js")).default;
-    const activeDeal = await Deal.findOne({ post: postId, status: "ACTIVE" });
+    const activeDeal = await Deal.findOne({ post: postId, status: "ACTIVE" }).lean();
     if (activeDeal) {
       return sendErrorResponse(
         res,
@@ -3467,7 +3467,7 @@ export async function reportPost(req, res) {
       return sendErrorResponse(res, 400, "A valid reason is required");
     }
 
-    const post = await PropertyPost.findById(postId).select("author isDeleted title");
+    const post = await PropertyPost.findById(postId).select("author isDeleted title").lean();
     if (!post || post.isDeleted) {
       return sendErrorResponse(res, 404, "Post not found");
     }
@@ -3655,7 +3655,7 @@ export async function getMapPins(req, res) {
       }
     } catch (_) {}
 
-    pins = await PropertyPost.find({
+    pins = (await PropertyPost.find({
       isDeleted: { $ne: true },
       isBlocked: { $ne: true },
       latitude: { $exists: true, $ne: null },
@@ -3664,7 +3664,7 @@ export async function getMapPins(req, res) {
       .select(MAP_PINS_PROJECTION)
       .sort({ createdAt: -1 })
       .limit(500)
-      .lean();
+      .lean()) || [];
 
     pins = pins.map((p) => ({
       ...p,

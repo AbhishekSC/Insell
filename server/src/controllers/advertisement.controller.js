@@ -167,10 +167,10 @@ export const getActiveAdvertisements = async (req, res) => {
       query.targetIntent = { $in: ["All", intent] };
     }
 
-    const ads = await Advertisement.find(query)
+    const ads = (await Advertisement.find(query)
       .sort({ updatedAt: -1 })
       .limit(50)
-      .lean();
+      .lean()) || [];
 
     const userKey = getUserIdentifier(req);
     const today = getTodayDateString();

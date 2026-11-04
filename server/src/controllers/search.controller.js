@@ -55,7 +55,7 @@ export async function getSearchSuggestions(req, res) {
         .select("fullName")
         .limit(3)
         .lean()
-        .then((users) => users.map((u) => ({ type: "author", value: u.fullName, authorId: String(u._id), count: 1 }))),
+        .then((users) => (users || []).map((u) => ({ type: "author", value: u.fullName, authorId: String(u._id), count: 1 }))),
     ]);
 
     const suggestions = [

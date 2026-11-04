@@ -119,7 +119,7 @@ export async function verifyCode(userId, code) {
  */
 export async function checkVerificationStatus(userId) {
   try {
-    const user = await User.findById(userId).select("isVerified");
+    const user = await User.findById(userId).select("isVerified").lean();
     if (!user) {
       throw new Error("User not found");
     }

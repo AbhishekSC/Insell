@@ -22,7 +22,7 @@ export async function createComment(req, res) {
       return sendErrorResponse(res, 400, "Comment content is required");
     }
 
-    const post = await PropertyPost.findById(postId).populate("author", "fullName");
+    const post = await PropertyPost.findById(postId).populate("author", "fullName").lean();
     if (!post || post.isDeleted) {
       return sendErrorResponse(res, 404, "Post not found");
     }
@@ -43,7 +43,7 @@ export async function createComment(req, res) {
     };
 
     if (parentCommentId) {
-      const parentComment = await Comment.findById(parentCommentId);
+      const parentComment = await Comment.findById(parentCommentId).lean();
       if (!parentComment) {
         return sendErrorResponse(res, 404, "Parent comment not found");
       }
@@ -181,12 +181,12 @@ export async function getPostComments(req, res) {
     const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
     const skip = (page - 1) * limit;
 
-    const post = await PropertyPost.findById(postId);
+    const post = await PropertyPost.findById(postId).lean();
     if (!post || post.isDeleted) {
       return sendErrorResponse(res, 404, "Post not found");
     }
 
-    const comments = await Comment.find({ post: postId, parentComment: null, isDeleted: false })
+    const comments = (await Comment.find({ post: postId, parentComment: null, isDeleted: false })
       .populate("author", "fullName profilePic activeRole primaryRole isOwnerVerified")
       .populate({
         path: "parentComment",
@@ -195,7 +195,7 @@ export async function getPostComments(req, res) {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .lean();
+      .lean()) || [];
 
     // Fetch reply counts for each comment
     const commentIds = comments.map(c => c._id);
@@ -311,17 +311,17 @@ export async function getCommentReplies(req, res) {
     const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
     const skip = (page - 1) * limit;
 
-    const parentComment = await Comment.findById(commentId);
+    const parentComment = await Comment.findById(commentId).lean();
     if (!parentComment) {
       return sendErrorResponse(res, 404, "Comment not found");
     }
 
-    const replies = await Comment.find({ parentComment: commentId, isDeleted: false })
+    const replies = (await Comment.find({ parentComment: commentId, isDeleted: false })
       .populate("author", "fullName profilePic activeRole primaryRole isOwnerVerified")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .lean();
+      .lean()) || [];
 
     // Add reply counts for each reply
     const replyIds = replies.map(r => r._id);

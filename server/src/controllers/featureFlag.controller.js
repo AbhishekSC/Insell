@@ -10,7 +10,7 @@ import { logger } from "../utils/logger.js";
 export const getMyEvaluatedFlags = async (req, res) => {
   try {
     const user = req.user;
-    const flags = await FeatureFlag.find({ isActive: true }).lean();
+    const flags = (await FeatureFlag.find({ isActive: true }).lean()) || [];
 
     const evaluated = {};
     for (const flag of flags) {
@@ -78,7 +78,7 @@ export const adminCreateFeatureFlag = async (req, res) => {
     }
 
     const cleanKey = String(key).trim().toLowerCase();
-    const existing = await FeatureFlag.findOne({ key: cleanKey });
+    const existing = await FeatureFlag.findOne({ key: cleanKey }).lean();
     if (existing) {
       return res.status(409).json({
         success: false,
@@ -98,7 +98,8 @@ export const adminCreateFeatureFlag = async (req, res) => {
 
     const populated = await FeatureFlag.findById(flag._id)
       .populate("enabledUserIds", "fullName email profilePic")
-      .populate("disabledUserIds", "fullName email profilePic");
+      .populate("disabledUserIds", "fullName email profilePic")
+      .lean();
 
     logger.info(`Admin created feature flag "${cleanKey}" with rollout ${flag.rolloutPercentage}%`);
 
@@ -148,7 +149,8 @@ export const adminUpdateFeatureFlag = async (req, res) => {
 
     const populated = await FeatureFlag.findById(flag._id)
       .populate("enabledUserIds", "fullName email profilePic")
-      .populate("disabledUserIds", "fullName email profilePic");
+      .populate("disabledUserIds", "fullName email profilePic")
+      .lean();
 
     logger.info(`Admin updated feature flag "${flag.key}": rollout=${flag.rolloutPercentage}%, active=${flag.isActive}`);
 
@@ -220,7 +222,7 @@ export const adminAddUserToWhitelist = async (req, res) => {
     const trimmed = String(userIdentifier).trim();
     const targetUser = await User.findOne({
       $or: [{ email: trimmed.toLowerCase() }, { _id: trimmed.match(/^[0-9a-fA-F]{24}$/) ? trimmed : null }],
-    }).select("_id fullName email");
+    }).select("_id fullName email").lean();
 
     if (!targetUser) {
       return res.status(404).json({ success: false, message: "User not found with provided email or ID" });
@@ -234,7 +236,8 @@ export const adminAddUserToWhitelist = async (req, res) => {
 
     const populated = await FeatureFlag.findById(flag._id)
       .populate("enabledUserIds", "fullName email profilePic")
-      .populate("disabledUserIds", "fullName email profilePic");
+      .populate("disabledUserIds", "fullName email profilePic")
+      .lean();
 
     res.status(200).json({
       success: true,

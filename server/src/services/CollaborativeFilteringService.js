@@ -117,12 +117,12 @@ export async function rebuildEmbeddings(options = {}) {
   logger.info("[CF] Starting embedding rebuild");
 
   // Step 1: Load all positive engagement events (click, save, like, visit, offer)
-  const engagementEvents = await RecoEvent.find({
+  const engagementEvents = (await RecoEvent.find({
     event: { $in: Object.keys(ENGAGEMENT_WEIGHTS) },
     createdAt: { $gte: since },
   })
     .select("user post event")
-    .lean();
+    .lean()) || [];
 
   logger.info(`[CF] Loaded ${engagementEvents.length} engagement events from last ${LOOKBACK_DAYS} days`);
 

@@ -229,7 +229,7 @@ export async function getExpenseWorkspaceDetail(req, res) {
     }
     const { workspace, isAdmin } = access;
 
-    const expenses = await SharedExpense.find({ workspace: id })
+    const expenses = (await SharedExpense.find({ workspace: id })
       .populate("paidBy", "fullName profilePic")
       .populate("createdBy", "fullName profilePic")
       .populate("updatedBy", "fullName profilePic")
@@ -237,7 +237,7 @@ export async function getExpenseWorkspaceDetail(req, res) {
       .populate("splits.user", "fullName profilePic")
       .sort({ createdAt: -1 })
       .limit(100)
-      .lean();
+      .lean()) || [];
 
     const totalSpent = expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
     const budgetUsagePercent = workspace.budgetLimit > 0 ? round2((totalSpent / workspace.budgetLimit) * 100) : 0;

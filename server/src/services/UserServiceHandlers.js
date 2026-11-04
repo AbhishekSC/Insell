@@ -1183,10 +1183,10 @@ export async function getMutualFriendsList(req, res) {
     }
 
     const limit = Math.min(Number(req.query.limit) || 50, 100);
-    const mutualFriends = await User.find({ _id: { $in: mutualFriendIds } })
+    const mutualFriends = (await User.find({ _id: { $in: mutualFriendIds } })
       .select("fullName profilePic city primaryRole activeRole isOwnerVerified")
       .limit(limit)
-      .lean();
+      .lean()) || [];
 
     return sendSuccessResponse(res, 200, "Mutual friends fetched successfully", {
       mutualFriends: mutualFriends.map((u) => ({
@@ -1271,9 +1271,9 @@ export async function getUserPublicProfile(req, res) {
         .filter((id) => targetFriendIds.has(id));
 
       if (mutualFriendIds.length > 0) {
-        const previewUsers = await User.find({ _id: { $in: mutualFriendIds.slice(0, 3) } })
+        const previewUsers = (await User.find({ _id: { $in: mutualFriendIds.slice(0, 3) } })
           .select("fullName profilePic isOwnerVerified")
-          .lean();
+          .lean()) || [];
 
         mutualFriends = {
           count: mutualFriendIds.length,

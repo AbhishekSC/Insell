@@ -62,11 +62,11 @@ export async function createVisitRequest(req, res) {
     const requestId = req.body?.requestId ? String(req.body.requestId) : undefined;
 
     if (requestId) {
-      const replay = await VisitRequest.findOne({ post: postId, requester: requesterId, "history.requestId": requestId });
+      const replay = await VisitRequest.findOne({ post: postId, requester: requesterId, "history.requestId": requestId }).lean();
       if (replay) return sendSuccessResponse(res, 200, "Visit request already submitted", { visit: replay });
     }
 
-    const post = await PropertyPost.findById(postId).select("title author status isDeleted postType");
+    const post = await PropertyPost.findById(postId).select("title author status isDeleted postType").lean();
     if (!post || post.isDeleted) return sendErrorResponse(res, 404, "Post not found");
     if (String(post.author) === String(requesterId)) {
       return sendErrorResponse(res, 400, "You can't request a visit on your own listing");
@@ -76,7 +76,7 @@ export async function createVisitRequest(req, res) {
       return sendErrorResponse(res, 400, "Visit requests don't apply to requirement posts");
     }
 
-    const existing = await VisitRequest.findOne({ post: postId, requester: requesterId, status: { $in: ACTIVE_STATUSES.concat("CONFIRMED") } });
+    const existing = await VisitRequest.findOne({ post: postId, requester: requesterId, status: { $in: ACTIVE_STATUSES.concat("CONFIRMED") } }).lean();
     if (existing) return sendErrorResponse(res, 409, "You already have an open visit request on this listing");
 
     // Rate limits — entitlement-driven (see config/plans.js), not `if isPremium`.
@@ -133,7 +133,7 @@ export async function createVisitRequest(req, res) {
       });
     } catch (err) {
       if (err?.code === 11000) {
-        const winner = await VisitRequest.findOne({ post: postId, requester: requesterId, "history.requestId": requestId });
+        const winner = await VisitRequest.findOne({ post: postId, requester: requesterId, "history.requestId": requestId }).lean();
         if (winner) {
           await refundVisitUsage(requesterId, dateBucket);
           return sendSuccessResponse(res, 200, "Visit request already submitted", { visit: winner });
@@ -241,7 +241,7 @@ export async function respondToVisitRequest(req, res) {
           { requester: visit.requester }, { owner: visit.requester },
           { requester: visit.owner }, { owner: visit.owner },
         ],
-      }).select("confirmedSlot");
+      }).select("confirmedSlot").lean();
       if (conflict) {
         return sendErrorResponse(
           res,
@@ -361,7 +361,7 @@ export async function getPostVisitRequests(req, res) {
   try {
     const { postId } = req.params;
     const userId = req.user?._id;
-    const post = await PropertyPost.findById(postId).select("author");
+    const post = await PropertyPost.findById(postId).select("author").lean();
     if (!post) return sendErrorResponse(res, 404, "Post not found");
 
     const filter = { post: postId };

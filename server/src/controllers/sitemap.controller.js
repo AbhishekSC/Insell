@@ -13,14 +13,14 @@ export const generateSitemapXml = asyncHandler(async (req, res) => {
   const origin = getSiteOrigin(req);
 
   // Fetch up to 5,000 public active listings
-  const activePosts = await PropertyPost.find({
+  const activePosts = (await PropertyPost.find({
     status: { $nin: ["deleted", "blocked"] },
     isDraft: { $ne: true },
   })
     .select("_id updatedAt createdAt")
     .sort({ updatedAt: -1 })
     .limit(5000)
-    .lean();
+    .lean()) || [];
 
   const staticUrls = [
     { loc: `${origin}/`, priority: "1.0", changefreq: "daily" },

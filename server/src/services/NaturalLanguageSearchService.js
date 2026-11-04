@@ -368,7 +368,7 @@ export async function executeNaturalSearch({
   // Query database with candidate pool (limit * 3) for MMR re-ranking
   const candidatePoolSize = Math.max(limit * 3, 30);
 
-  const [candidates, total] = await Promise.all([
+  const [candidates = [], total] = await Promise.all([
     PropertyPost.find(filter)
       .sort({ createdAt: -1 })
       .limit(candidatePoolSize)
@@ -388,7 +388,7 @@ export async function executeNaturalSearch({
     if (parsed.city) looserFilter.city = { $regex: new RegExp(`^${parsed.city}`, "i") };
     if (parsed.bedrooms) looserFilter.bedrooms = parsed.bedrooms;
 
-    const [fallbackCandidates, fallbackTotal] = await Promise.all([
+    const [fallbackCandidates = [], fallbackTotal] = await Promise.all([
       PropertyPost.find(looserFilter)
         .sort({ createdAt: -1 })
         .limit(limit)

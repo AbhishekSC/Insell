@@ -166,7 +166,7 @@ export async function getOrFetchMarketBenchmark({
       locality: normLocality,
       intent,
       propertyType: normType,
-    });
+    }).lean();
 
     const isStale =
       !cached ||

@@ -79,10 +79,10 @@ export async function getHotPostsByCity(city = "", limit = 20) {
     query.city = new RegExp(`^${escaped}$`, "i");
   }
 
-  const candidatePosts = await PropertyPost.find(query)
+  const candidatePosts = (await PropertyPost.find(query)
     .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate")
     .limit(100)
-    .lean();
+    .lean()) || [];
 
   // 3. Compute hotness score and sort descending
   const scoredPosts = candidatePosts.map((post) => {
