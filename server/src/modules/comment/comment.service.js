@@ -158,7 +158,7 @@ export async function getPostComments({ postId, page, limit }) {
     return { error: { status: 404, message: "Post not found" } };
   }
 
-  const comments = await commentRepository.findTopLevelComments(postId, skip, limit);
+  const comments = await commentRepository.findTopLevelComments(postId, skip, limit) || [];
 
   // Fetch reply counts for each comment
   const commentIds = comments.map(c => c._id);
@@ -246,7 +246,7 @@ export async function getCommentReplies({ commentId, page, limit }) {
     return { error: { status: 404, message: "Comment not found" } };
   }
 
-  const replies = await commentRepository.findReplies(commentId, skip, limit);
+  const replies = await commentRepository.findReplies(commentId, skip, limit) || [];
 
   // Add reply counts for each reply
   const replyIds = replies.map(r => r._id);

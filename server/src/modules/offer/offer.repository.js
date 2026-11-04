@@ -5,15 +5,15 @@ import PropertyPost from "../../models/PropertyPost.model.js";
 import { ACTIVE_STATUSES } from "./offer.constants.js";
 
 export function findReplayByRequestId(postId, buyerId, requestId) {
-  return Offer.findOne({ post: postId, buyer: buyerId, "history.requestId": requestId });
+  return Offer.findOne({ post: postId, buyer: buyerId, "history.requestId": requestId }).lean();
 }
 
 export function findOfferByRequestId(offerId, requestId) {
-  return Offer.findOne({ _id: offerId, "history.requestId": requestId });
+  return Offer.findOne({ _id: offerId, "history.requestId": requestId }).lean();
 }
 
 export function findPostById(postId) {
-  return PropertyPost.findById(postId);
+  return PropertyPost.findById(postId).lean();
 }
 
 export function findExistingActiveOffer(postId, buyerId) {
@@ -21,7 +21,7 @@ export function findExistingActiveOffer(postId, buyerId) {
     post: postId,
     buyer: buyerId,
     status: { $in: ACTIVE_STATUSES.concat("accepted") },
-  });
+  }).lean();
 }
 
 export async function createOfferInTransaction(postId, buyerId, ownerId, listedPrice, proposedPrice, message, requestId) {
@@ -58,7 +58,7 @@ export async function createOfferInTransaction(postId, buyerId, ownerId, listedP
 }
 
 export function findOfferByIdPopulated(offerId) {
-  return Offer.findById(offerId).populate("post", "title author price");
+  return Offer.findById(offerId).populate("post", "title author price").lean();
 }
 
 export function counterOffer(offerId, counterPrice, userId, actorRole, message, requestId) {

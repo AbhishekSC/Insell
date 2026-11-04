@@ -10,7 +10,8 @@ export function findActiveStories(query, limit) {
     .populate("author", "fullName profilePic isVerified isOwnerVerified activeRole primaryRole")
     .populate("propertyId", "title price city listingType")
     .sort({ createdAt: -1 })
-    .limit(Number(limit));
+    .limit(Number(limit))
+    .lean();
 }
 
 export function markStoriesAsViewed(storyIds, userId) {
@@ -31,13 +32,15 @@ export function findUserActiveStories(userId) {
   })
     .populate("author", "fullName profilePic isVerified isOwnerVerified activeRole primaryRole")
     .populate("propertyId", "title price city listingType")
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
 }
 
 export function findAllUserStories(userId) {
   return Story.find({ author: userId })
     .populate("propertyId", "title price city listingType")
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
 }
 
 export function findStoryById(storyId) {
@@ -45,7 +48,7 @@ export function findStoryById(storyId) {
 }
 
 export function findStoryByIdWithLikes(storyId) {
-  return Story.findById(storyId).populate("likedBy", "fullName profilePic city isOwnerVerified");
+  return Story.findById(storyId).populate("likedBy", "fullName profilePic city isOwnerVerified").lean();
 }
 
 export function findStoryByIdWithViewers(storyId) {
@@ -53,7 +56,7 @@ export function findStoryByIdWithViewers(storyId) {
 }
 
 export function findStoryByAuthor(storyId, userId) {
-  return Story.findOne({ _id: storyId, author: userId });
+  return Story.findOne({ _id: storyId, author: userId }).lean();
 }
 
 export function deleteStoryById(storyId) {

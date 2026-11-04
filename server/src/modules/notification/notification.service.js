@@ -35,7 +35,7 @@ export async function getNotifications({ userId, unreadOnly, type }) {
   const typeCondition = type ? { type: { $in: String(type).split(",").map((t) => t.trim()).filter(Boolean) } } : {};
   Object.assign(filter, typeCondition);
 
-  const notifications = await notificationRepository.findNotifications(filter);
+  const notifications = (await notificationRepository.findNotifications(filter)) || [];
 
   // Same reasoning as the offer status above — an "offer_accepted"
   // notification never changes once you've reviewed it, so a "Leave a
@@ -46,7 +46,7 @@ export async function getNotifications({ userId, unreadOnly, type }) {
     .map((n) => n.offer._id);
   const reviewedOfferIds = acceptedOfferIds.length
     ? new Set(
-        (await notificationRepository.findReviewsByOfferIds(acceptedOfferIds, userId))
+        ((await notificationRepository.findReviewsByOfferIds(acceptedOfferIds, userId)) || [])
           .map((r) => String(r.offer))
       )
     : new Set();

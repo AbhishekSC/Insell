@@ -15,7 +15,7 @@ export async function computeRoleStats(userId) {
 
   if (role === "Seller" || role === "Landlord") {
     // Get user's published properties
-    const userPosts = await roleStatsRepository.findPublishedPostsByAuthor(userId);
+    const userPosts = (await roleStatsRepository.findPublishedPostsByAuthor(userId)) || [];
 
     const totalViews = userPosts.reduce((sum, post) => sum + (post.viewCount || 0), 0);
 

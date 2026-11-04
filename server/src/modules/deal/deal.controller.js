@@ -17,7 +17,7 @@ export { ensureDealForOffer } from "./deal.service.js";
 
 export async function getMyDeals(req, res) {
   try {
-    const deals = await repo.findMyDeals(req.user._id);
+    const deals = await repo.findMyDeals(req.user._id) || [];
     return sendSuccessResponse(res, 200, "Deals retrieved", { deals: deals.map(toMyDealDTO) });
   } catch (error) {
     logger.error("Error in getMyDeals:", error);
@@ -370,7 +370,7 @@ export async function getDealStats(_req, res) {
         topCancelReasons: cancelReasons,
         avgDaysToClose: medianDays[0]?.avg ? Math.round(medianDays[0].avg * 10) / 10 : null,
         completionRate: completed + cancelled > 0 ? Math.round((completed / (completed + cancelled)) * 100) : null,
-        attention: attention.map(toAttentionDealDTO),
+        attention: (attention || []).map(toAttentionDealDTO),
       },
     });
   } catch (error) {
@@ -389,7 +389,7 @@ export async function adminListDeals(req, res) {
     const [deals, total] = await repo.findAdminDeals(filter, { page, limit });
 
     return sendSuccessResponse(res, 200, "Deals", {
-      deals: deals.map(toAdminDealDTO),
+      deals: (deals || []).map(toAdminDealDTO),
       pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
     });
   } catch (error) {
@@ -589,7 +589,7 @@ export async function nudgeStalledDeals(req, res) {
 
     const staleBefore = new Date(Date.now() - STALLED_AFTER_DAYS * 86400000);
     const nudgeBefore = new Date(Date.now() - NUDGE_COOLDOWN_DAYS * 86400000);
-    const stalled = await repo.findStalledDeals(staleBefore, nudgeBefore);
+    const stalled = await repo.findStalledDeals(staleBefore, nudgeBefore) || [];
 
     if (stalled.length) {
       const { enqueueDealNudge } = await import("../../jobs/producers/fanout.producer.js");

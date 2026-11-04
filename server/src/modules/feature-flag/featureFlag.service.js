@@ -3,7 +3,7 @@ import { logger } from "../../utils/logger.js";
 import * as featureFlagRepository from "./featureFlag.repository.js";
 
 export const evaluateUserFlags = async (user) => {
-  const flags = await featureFlagRepository.findActiveFlagsLean();
+  const flags = await featureFlagRepository.findActiveFlagsLean() || [];
 
   const evaluated = {};
   for (const flag of flags) {

@@ -352,7 +352,8 @@ export async function getRecommendedUsers(req, res) {
     } else {
       recommendedUsers = await User.find(baseMatch)
         .sort({ createdAt: -1 })
-        .limit(limit);
+        .limit(limit)
+        .lean();
     }
 
     return sendSuccessResponse(
@@ -391,7 +392,8 @@ export async function getMyFriends(req, res) {
       .populate(
         "friends",
         "fullName profilePic city primaryRole preferredLocalities propertyTypePreferences budgetMin budgetMax listingIntent homeBase travelStyle travelInterests favoriteDestinations location isOwnerVerified"
-      );
+      )
+      .lean();
 
     if (!userWithFriends) {
       logger.warn(`User not found for ID: ${currentUserId}`);
@@ -583,12 +585,12 @@ export async function getFriendRequests(req, res) {
     }).populate(
       "sender",
       "fullName profilePic city primaryRole preferredLocalities propertyTypePreferences budgetMin budgetMax listingIntent nativeLanguage learningLanguage location isOwnerVerified"
-    );
+    ).lean();
 
     const acceptedRequests = await FriendRequest.find({
       receiver: req.user._id,
       status: "accepted",
-    }).populate("receiver", "fullName profilePic isOwnerVerified");
+    }).populate("receiver", "fullName profilePic isOwnerVerified").lean();
 
     return sendSuccessResponse(
       res,
@@ -613,7 +615,7 @@ export async function getOutgoingFriendRequests(req, res) {
     }).populate(
       "receiver",
       "fullName profilePic city primaryRole preferredLocalities propertyTypePreferences budgetMin budgetMax listingIntent nativeLanguage learningLanguage location isOwnerVerified"
-    );
+    ).lean();
 
     return sendSuccessResponse(
       res,
@@ -1128,7 +1130,8 @@ export async function getUserFriendsList(req, res) {
       .populate(
         "friends",
         "fullName profilePic city primaryRole preferredLocalities propertyTypePreferences budgetMin budgetMax listingIntent homeBase travelStyle travelInterests favoriteDestinations location isOwnerVerified"
-      );
+      )
+      .lean();
 
     if (!userWithFriends) {
       return sendErrorResponse(res, 404, "User not found");
@@ -1248,7 +1251,7 @@ export async function getUserPublicProfile(req, res) {
       }).select("likesCount").lean(),
     ]);
 
-    const likesCount = userPosts.reduce((sum, post) => sum + (post.likesCount || 0), 0);
+    const likesCount = (userPosts || []).reduce((sum, post) => sum + (post.likesCount || 0), 0);
 
     const isSelf = String(currentUserId) === String(targetUserId);
     let connectionStatus = "none";
@@ -1352,53 +1355,53 @@ export async function getUserActivity(req, res) {
     logger.info(`Fetching activity for user ID: ${currentUserId}`);
 
     // Get posts liked by user with timestamps
-    const likedPosts = await PropertyPost.find({
+    const likedPosts = (await PropertyPost.find({
       likedBy: currentUserId,
       ...publishedPostFilter,
     })
       .select("title price city mediaUrls author createdAt likedByTimestamps")
       .populate("author", "fullName profilePic isVerified isOwnerVerified")
       .limit(20)
-      .lean();
+      .lean()) || [];
 
     // Get posts saved by user with timestamps
-    const savedPosts = await PropertyPost.find({
+    const savedPosts = (await PropertyPost.find({
       savedBy: currentUserId,
       ...publishedPostFilter,
     })
       .select("title price city mediaUrls author createdAt savedByTimestamps")
       .populate("author", "fullName profilePic isVerified isOwnerVerified")
       .limit(20)
-      .lean();
+      .lean()) || [];
 
     // Get comments by user
-    const userComments = await Comment.find({
+    const userComments = (await Comment.find({
       author: currentUserId,
     })
       .select("content post createdAt")
       .populate("post", "title price city mediaUrls author")
       .sort({ createdAt: -1 })
       .limit(20)
-      .lean();
+      .lean()) || [];
 
     // Get connection requests (both sent and received)
-    const sentRequests = await FriendRequest.find({
+    const sentRequests = (await FriendRequest.find({
       sender: currentUserId,
     })
       .select("receiver status createdAt")
       .populate("receiver", "fullName profilePic activeRole")
       .sort({ createdAt: -1 })
       .limit(20)
-      .lean();
+      .lean()) || [];
 
-    const receivedRequests = await FriendRequest.find({
+    const receivedRequests = (await FriendRequest.find({
       receiver: currentUserId,
     })
       .select("sender status createdAt")
       .populate("sender", "fullName profilePic activeRole")
       .sort({ createdAt: -1 })
       .limit(20)
-      .lean();
+      .lean()) || [];
 
     // Format the activity data with actual timestamps
     const formattedLikes = likedPosts.map(post => {

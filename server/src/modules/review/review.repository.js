@@ -17,7 +17,7 @@ export async function updateUserRating(userId, avg, count) {
 }
 
 export async function findOfferById(offerId) {
-  return Offer.findById(offerId).populate("post", "title");
+  return Offer.findById(offerId).populate("post", "title").lean();
 }
 
 export async function createReview(data) {

@@ -82,7 +82,7 @@ export async function getHotPostsByCity(city = "", limit = 20) {
   const candidatePosts = await PropertyPost.find(query)
     .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate")
     .limit(100)
-    .lean();
+    .lean() || [];
 
   // 3. Compute hotness score and sort descending
   const scoredPosts = candidatePosts.map((post) => {
@@ -168,7 +168,7 @@ export async function rebuildHotFeeds() {
       const candidatePosts = await PropertyPost.find(query)
         .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate")
         .limit(100)
-        .lean();
+        .lean() || [];
 
       if (!candidatePosts || candidatePosts.length === 0) continue;
 

@@ -127,7 +127,7 @@ async function sweepActiveUsersRecommendations() {
     })
       .select("_id")
       .limit(150)
-      .lean();
+      .lean() || [];
 
     logger.info(`[Ingestion] Starting recommendation sweep for ${activeUsers.length} active users`);
 

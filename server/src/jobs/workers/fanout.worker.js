@@ -57,7 +57,7 @@ export async function processFanoutJob(job) {
         propertyPost: postId,
         _id: { $ne: acceptedOfferId },
         status: { $in: ["pending", "countered"] },
-      }).lean();
+      }).lean() || [];
 
       if (activeOffers.length) {
         await Offer.updateMany(
@@ -117,7 +117,7 @@ export async function processFanoutJob(job) {
       const Deal = (await import("../../models/Deal.model.js")).default;
       const NotificationService = (await import("../../services/NotificationService.js")).default;
 
-      const deals = await Deal.find({ _id: { $in: dealIds } }).lean();
+      const deals = await Deal.find({ _id: { $in: dealIds } }).lean() || [];
 
       await Promise.allSettled(
         deals.flatMap((deal) =>

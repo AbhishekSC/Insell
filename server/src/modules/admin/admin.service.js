@@ -140,7 +140,7 @@ export async function blockPost({ postId, adminId, reasonCode, note }) {
   post.blockNote = String(note || "").trim().slice(0, 1000);
   await post.save();
 
-  const pendingReports = await repo.findPendingReportsByPost(postId);
+  const pendingReports = (await repo.findPendingReportsByPost(postId)) || [];
   await repo.resolveReportsByPost(postId, adminId);
 
   logger.info(`Post ${postId} blocked by admin ${adminId} (reason: ${reasonCode})`);
@@ -247,7 +247,7 @@ export async function listReports(query) {
 
   if (search) {
     const searchRegex = new RegExp(escapeRegex(search), "i");
-    const matchingPosts = await repo.findPostsByTitle(searchRegex);
+    const matchingPosts = (await repo.findPostsByTitle(searchRegex)) || [];
     matchStage.post = { $in: matchingPosts.map((p) => p._id) };
   }
 
@@ -256,14 +256,15 @@ export async function listReports(query) {
     repo.aggregateReportTotal(matchStage),
   ]);
 
-  const postIds = grouped.map((g) => g._id);
-  const posts = await repo.findPostsByIds(
+  const safeGrouped = grouped || [];
+  const postIds = safeGrouped.map((g) => g._id);
+  const posts = (await repo.findPostsByIds(
     postIds,
     "title price city mediaUrls author isBlocked isDeleted"
-  );
+  )) || [];
   const postMap = new Map(posts.map((p) => [String(p._id), p]));
 
-  const reports = grouped
+  const reports = safeGrouped
     .map((g) => toGroupedReportDTO(g, postMap))
     .filter((entry) => entry.post);
 
@@ -278,7 +279,7 @@ export async function getReportDetail(postId) {
     return { error: { status: 404, message: "Post not found" } };
   }
 
-  const reports = await repo.findReportsByPost(postId);
+  const reports = (await repo.findReportsByPost(postId)) || [];
   return { post, reports };
 }
 
@@ -334,7 +335,7 @@ export async function createAnnouncement({ message, role, city, verifiedOnly, im
   if (city) conditions.city = new RegExp(`^${escapeRegex(city)}$`, "i");
   if (verifiedOnly) conditions.activeRole = { $in: VERIFIED_ROLES };
 
-  const recipientIds = await repo.findRecipientIds(conditions);
+  const recipientIds = (await repo.findRecipientIds(conditions)) || [];
 
   if (recipientIds.length === 0) {
     return { error: { status: 400, message: "No users match this segment" } };

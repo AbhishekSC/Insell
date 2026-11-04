@@ -68,11 +68,11 @@ export async function findRecentAcceptedOffer(postId, userId, cutoffDate) {
     status: "accepted",
     updatedAt: { $gte: cutoffDate },
     $or: [{ buyer: userId }, { owner: userId }],
-  }).select("_id");
+  }).select("_id").lean();
 }
 
 export async function findDealByRequestId(id, requestId) {
-  return Deal.findOne({ _id: id, "history.requestId": requestId });
+  return Deal.findOne({ _id: id, "history.requestId": requestId }).lean();
 }
 
 export async function updateDealPush(id, update) {

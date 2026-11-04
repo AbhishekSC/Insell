@@ -157,7 +157,7 @@ export const getActiveAdsForFeed = async (req) => {
     query.targetIntent = { $in: ["All", intent] };
   }
 
-  const ads = await findActiveAds(query);
+  const ads = (await findActiveAds(query)) || [];
 
   const userKey = getUserIdentifier(req);
   const impressionCounts = await batchGetImpressionCounts(userKey, ads);
@@ -250,7 +250,7 @@ export const getAdminAdsList = async ({ page: rawPage, limit: rawLimit, status, 
   }
 
   const [ads, total] = await findAdsPaginated(query, { skip, limit });
-  const enriched = ads.map(toAdminAdDto);
+  const enriched = (ads || []).map(toAdminAdDto);
 
   return {
     advertisements: enriched,
@@ -456,7 +456,7 @@ export const getUserCampaigns = async (userId) => {
   ]);
 
   const now = Date.now();
-  const formatted = ads.map((ad) => toCampaignDto(ad, now));
+  const formatted = (ads || []).map((ad) => toCampaignDto(ad, now));
 
   return {
     campaigns: formatted,
