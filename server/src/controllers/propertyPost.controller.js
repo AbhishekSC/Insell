@@ -3666,6 +3666,8 @@ export async function getMapPins(req, res) {
       .limit(500)
       .lean();
 
+    if (!Array.isArray(pins)) pins = [];
+
     pins = pins.map((p) => ({
       ...p,
       mediaUrls: p.mediaUrls?.length ? [p.mediaUrls[0]] : [],
