@@ -3968,7 +3968,17 @@ function AdvertisementsPanel() {
                 <div>
                   {/* Image banner preview */}
                   <div className="relative aspect-[16/9] w-full overflow-hidden bg-base-200">
-                    {ad.mediaUrl ? (
+                    {ad.mediaUrl && (/\.(mp4|webm|mov)(\?|$)/i.test(ad.mediaUrl) || ad.mediaUrl.includes("/video/upload/")) ? (
+                      <video
+                        src={ad.mediaUrl}
+                        className="h-full w-full object-cover"
+                        muted
+                        loop
+                        autoPlay
+                        playsInline
+                        preload="metadata"
+                      />
+                    ) : ad.mediaUrl ? (
                       <img
                         src={ad.mediaUrl}
                         alt={ad.title}

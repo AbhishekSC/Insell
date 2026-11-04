@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { Flame, Sparkles, X, MapPin, Play } from "lucide-react";
+import { Flame, Sparkles, X, MapPin } from "lucide-react";
 import { cardImageUrl, lqipUrl } from "../lib/cloudinaryImage";
 import { trackRecoEvent } from "../lib/recoEvents";
 
@@ -129,22 +129,16 @@ export default function FeedSuggestionCard({ suggestionType, data, position, onD
           />
         )}
         {suggestion.image && isVideo ? (
-          <>
-            <video
-              src={suggestion.image}
-              className="absolute inset-0 h-full w-full object-cover"
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              onLoadedData={() => setImgLoaded(true)}
-            />
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="grid size-12 place-items-center rounded-full bg-black/50 text-white backdrop-blur-sm">
-                <Play className="size-5 fill-white translate-x-0.5" />
-              </div>
-            </div>
-          </>
+          <video
+            src={suggestion.image}
+            className="absolute inset-0 h-full w-full object-cover"
+            muted
+            loop
+            autoPlay
+            playsInline
+            preload="metadata"
+            onLoadedData={() => setImgLoaded(true)}
+          />
         ) : suggestion.image ? (
           <img
             src={imageSrc}
