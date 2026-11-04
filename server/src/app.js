@@ -203,6 +203,9 @@ app.use("/admin/queues", (req, res, next) => {
   const clientOrigin = process.env.CLIENT_URL || "http://localhost:5173";
   res.removeHeader("X-Frame-Options");
   res.setHeader("Content-Security-Policy", `frame-ancestors 'self' ${clientOrigin}`);
+  if (req.query.token && !req.headers.authorization && !req.cookies?.syncspace_token) {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
   next();
 }, verifyUser, requireVerified, requireAdmin, bullBoardAdapter.getRouter());
 
