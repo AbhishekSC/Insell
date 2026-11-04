@@ -3,6 +3,7 @@ import redisClient from "../../config/redisClient.config.js";
 import { getQueuesHealth } from "../../jobs/bullboard.js";
 import { logger } from "../../utils/logger.js";
 import { SERVICE_NAMES, STATUS, PROBE_TIMEOUT_MS } from "./systemHealth.constants.js";
+import { getMetrics } from "../../services/requestMetrics.service.js";
 
 function withTimeout(promise, ms) {
   return Promise.race([
@@ -132,5 +133,6 @@ export async function getSystemHealth() {
       heapTotal: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
     },
     services,
+    requestMetrics: getMetrics(),
   };
 }

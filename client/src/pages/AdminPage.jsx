@@ -45,6 +45,7 @@ import {
   UserCheck,
   Users,
   X,
+  Zap,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
@@ -4598,6 +4599,26 @@ function formatUptime(seconds) {
   return parts.join(" ");
 }
 
+function formatTimeAgo(timestamp) {
+  const diff = Math.floor((Date.now() - timestamp) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function latencyColor(ms) {
+  if (ms < 200) return "text-success";
+  if (ms < 500) return "text-warning";
+  return "text-error";
+}
+
+function errorRateColor(rate) {
+  if (rate < 1) return "text-success";
+  if (rate < 5) return "text-warning";
+  return "text-error";
+}
+
 function SystemHealthPanel() {
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["adminSystemHealth"],
@@ -4613,6 +4634,14 @@ function SystemHealthPanel() {
   const memory = data?.memory || {};
   const uptime = data?.uptime || 0;
   const overallStyle = HEALTH_STATUS_STYLES[overall] || HEALTH_STATUS_STYLES.unhealthy;
+  const metrics = data?.requestMetrics || {};
+  const slowEndpoints = (metrics.slowEndpoints || []).slice(0, 5);
+  const errorEndpoints = (metrics.errorEndpoints || []).slice(0, 5);
+  const failedJobs = services.flatMap((svc) =>
+    (svc.queues || []).flatMap((q) =>
+      (q.recentFailed || []).map((job) => ({ queue: q.name || svc.name, ...job }))
+    )
+  );
 
   return (
     <div className="space-y-4">
@@ -4680,6 +4709,38 @@ function SystemHealthPanel() {
             </div>
           </div>
 
+          {/* Request Metrics */}
+          {metrics.rpm !== undefined && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 px-1">
+                <Zap className="size-3.5 text-primary" />
+                <span className="text-xs font-semibold text-base-content/60">Request Metrics</span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+                  <p className="text-xs font-medium text-base-content/50">Requests/min</p>
+                  <p className="mt-1 text-lg font-bold text-base-content">{metrics.rpm}</p>
+                  <p className="text-[11px] text-base-content/40">last 5 min</p>
+                </div>
+                <div className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+                  <p className="text-xs font-medium text-base-content/50">Avg Latency</p>
+                  <p className={`mt-1 text-lg font-bold ${latencyColor(metrics.avgLatencyMs || 0)}`}>{metrics.avgLatencyMs || 0}ms</p>
+                  <p className="text-[11px] text-base-content/40">response time</p>
+                </div>
+                <div className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+                  <p className="text-xs font-medium text-base-content/50">Error Rate</p>
+                  <p className={`mt-1 text-lg font-bold ${errorRateColor(metrics.errorRate || 0)}`}>{metrics.errorRate || 0}%</p>
+                  <p className="text-[11px] text-base-content/40">4xx: {metrics.errors4xx || 0} · 5xx: {metrics.errors5xx || 0}</p>
+                </div>
+                <div className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+                  <p className="text-xs font-medium text-base-content/50">Total Requests</p>
+                  <p className="mt-1 text-lg font-bold text-base-content">{metrics.totalRequests || 0}</p>
+                  <p className="text-[11px] text-base-content/40">last 5 min</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Service Cards */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {services.map((svc) => {
@@ -4730,6 +4791,93 @@ function SystemHealthPanel() {
               );
             })}
           </div>
+
+          {/* Slow Endpoints */}
+          {slowEndpoints.length > 0 && (
+            <div className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+              <h3 className="mb-3 text-sm font-semibold text-base-content">Slow Endpoints</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-base-200 text-left text-base-content/50">
+                      <th className="pb-2 pr-4 font-medium">Path</th>
+                      <th className="pb-2 pr-4 font-medium">Avg Latency</th>
+                      <th className="pb-2 pr-4 font-medium">Requests</th>
+                      <th className="pb-2 font-medium">Errors</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {slowEndpoints.map((ep, i) => (
+                      <tr key={i} className="border-b border-base-200/50 last:border-0">
+                        <td className="py-2 pr-4 font-mono text-base-content/70">{ep.path}</td>
+                        <td className={`py-2 pr-4 font-semibold ${latencyColor(ep.avgMs)}`}>{ep.avgMs}ms</td>
+                        <td className="py-2 pr-4 text-base-content/60">{ep.count}</td>
+                        <td className="py-2 text-base-content/60">{ep.errors}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Recent Errors */}
+          {errorEndpoints.length > 0 && (
+            <div className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+              <h3 className="mb-3 text-sm font-semibold text-base-content">Recent Errors</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-base-200 text-left text-base-content/50">
+                      <th className="pb-2 pr-4 font-medium">Path</th>
+                      <th className="pb-2 pr-4 font-medium">Errors</th>
+                      <th className="pb-2 pr-4 font-medium">Total</th>
+                      <th className="pb-2 font-medium">Error Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {errorEndpoints.map((ep, i) => (
+                      <tr key={i} className="border-b border-base-200/50 last:border-0">
+                        <td className="py-2 pr-4 font-mono text-base-content/70">{ep.path}</td>
+                        <td className="py-2 pr-4 font-semibold text-error">{ep.errors}</td>
+                        <td className="py-2 pr-4 text-base-content/60">{ep.count}</td>
+                        <td className={`py-2 font-semibold ${ep.errorRate >= 5 ? "text-error" : ep.errorRate >= 1 ? "text-warning" : "text-success"}`}>{ep.errorRate}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Failed Jobs */}
+          {failedJobs.length > 0 && (
+            <div className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+              <h3 className="mb-3 text-sm font-semibold text-base-content">Failed Jobs</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-base-200 text-left text-base-content/50">
+                      <th className="pb-2 pr-4 font-medium">Queue</th>
+                      <th className="pb-2 pr-4 font-medium">Job Name</th>
+                      <th className="pb-2 pr-4 font-medium">Failed Reason</th>
+                      <th className="pb-2 font-medium">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {failedJobs.map((job, i) => (
+                      <tr key={i} className="border-b border-base-200/50 last:border-0">
+                        <td className="py-2 pr-4 font-medium text-base-content/70">{job.queue}</td>
+                        <td className="py-2 pr-4 text-base-content/60">{job.name}</td>
+                        <td className="max-w-[200px] truncate py-2 pr-4 text-error/80" title={job.failedReason}>{job.failedReason}</td>
+                        <td className="py-2 text-base-content/40">{job.timestamp ? formatTimeAgo(job.timestamp) : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           <p className="text-center text-xs text-base-content/30">
             Last checked: {data?.timestamp ? new Date(data.timestamp).toLocaleTimeString() : "—"}
