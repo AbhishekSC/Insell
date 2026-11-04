@@ -4567,12 +4567,12 @@ const HEALTH_STATUS_STYLES = {
 };
 
 const SERVICE_META = {
-  mongodb: { label: "MongoDB", icon: "🗄️" },
-  redis: { label: "Redis", icon: "⚡" },
-  stream: { label: "Stream Chat", icon: "💬" },
-  firebase: { label: "Firebase", icon: "🔔" },
-  cloudinary: { label: "Cloudinary", icon: "☁️" },
-  bullmq: { label: "BullMQ", icon: "📋" },
+  mongodb: { label: "MongoDB", icon: "🗄️", desc: "Primary database — stores users, posts, offers, deals, and all application data" },
+  redis: { label: "Redis", icon: "⚡", desc: "In-memory cache & session store — powers rate limiting, feed caching, notification counts, and BullMQ job queues" },
+  stream: { label: "Stream Chat", icon: "💬", desc: "Real-time messaging — handles chat conversations, friend lists, and online presence between users" },
+  firebase: { label: "Firebase", icon: "🔔", desc: "Push notifications — delivers mobile push alerts for offers, messages, reviews, and announcements via FCM" },
+  cloudinary: { label: "Cloudinary", icon: "☁️", desc: "Media storage & CDN — hosts property images, profile photos, story media, and advertisement assets" },
+  bullmq: { label: "BullMQ", icon: "📋", desc: "Background job queues — processes emails, notifications, media cleanup, feed fanout, and scheduled tasks" },
 };
 
 function formatUptime(seconds) {
@@ -4645,21 +4645,28 @@ function SystemHealthPanel() {
       ) : (
         <>
           {/* System Overview */}
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
               <p className="text-xs font-medium text-base-content/50">Uptime</p>
               <p className="mt-1 text-lg font-bold text-base-content">{formatUptime(uptime)}</p>
+              <p className="text-[11px] text-base-content/40">PID: {data?.pid || "—"}</p>
             </div>
             <div className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
               <p className="text-xs font-medium text-base-content/50">Memory (RSS)</p>
               <p className="mt-1 text-lg font-bold text-base-content">{memory.rss || 0} MB</p>
-              <p className="text-xs text-base-content/40">Heap: {memory.heapUsed || 0} / {memory.heapTotal || 0} MB</p>
+              <p className="text-[11px] text-base-content/40">Heap: {memory.heapUsed || 0} / {memory.heapTotal || 0} MB</p>
             </div>
             <div className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
               <p className="text-xs font-medium text-base-content/50">Services</p>
               <p className="mt-1 text-lg font-bold text-base-content">
                 {services.filter((s) => s.status === "healthy").length}/{services.length} Healthy
               </p>
+              <p className="text-[11px] text-base-content/40">{services.filter((s) => s.status === "degraded").length} degraded, {services.filter((s) => s.status === "unhealthy").length} unhealthy</p>
+            </div>
+            <div className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+              <p className="text-xs font-medium text-base-content/50">Environment</p>
+              <p className="mt-1 text-lg font-bold text-base-content capitalize">{data?.environment || "—"}</p>
+              <p className="text-[11px] text-base-content/40">Node {data?.nodeVersion || "—"}</p>
             </div>
           </div>
 
@@ -4686,15 +4693,27 @@ function SystemHealthPanel() {
                       {style.label}
                     </span>
                   </div>
-                  <div className="mt-3 space-y-1">
+                  <p className="mt-2 text-[11px] leading-relaxed text-base-content/45">{meta.desc}</p>
+                  <div className="mt-3 space-y-1.5">
                     {svc.latencyMs !== undefined && svc.status !== "unconfigured" && (
-                      <div className="flex justify-between text-xs">
-                        <span className="text-base-content/50">Latency</span>
-                        <span className={`font-medium ${svc.latencyMs > 1000 ? "text-warning" : "text-base-content"}`}>{svc.latencyMs}ms</span>
-                      </div>
+                      <>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-base-content/50">Response Time</span>
+                          <span className={`font-medium ${svc.latencyMs > 1000 ? "text-error" : svc.latencyMs > 500 ? "text-warning" : "text-success"}`}>{svc.latencyMs}ms</span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-base-200">
+                          <div
+                            className={`h-full rounded-full transition-all ${svc.latencyMs > 1000 ? "bg-error" : svc.latencyMs > 500 ? "bg-warning" : "bg-success"}`}
+                            style={{ width: `${Math.min(100, (svc.latencyMs / 2000) * 100)}%` }}
+                          />
+                        </div>
+                      </>
                     )}
                     {svc.message && (
-                      <p className="text-xs text-base-content/40 truncate" title={svc.message}>{svc.message}</p>
+                      <p className="text-[11px] text-base-content/40" title={svc.message}>{svc.message}</p>
+                    )}
+                    {svc.status === "unconfigured" && (
+                      <p className="text-[11px] text-base-content/40">Environment variable not set — this service is disabled</p>
                     )}
                   </div>
                 </div>

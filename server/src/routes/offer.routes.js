@@ -6,22 +6,43 @@ import {
   respondToOffer,
 } from "../controllers/offer.controller.js";
 import { verifyUser, requireVerified } from "../middlewares/auth.middleware.js";
+import { validateRequest } from "../middlewares/validation.js";
+import { createOfferRules, respondToOfferRules } from "../validators/offer.validator.js";
 
 const router = express.Router();
 
 router.use(verifyUser);
 router.use(requireVerified);
 
-// Make an offer on a post
-router.post("/posts/:postId/offers", createOffer);
-
-// Owner: view all offers on their post
+/**
+ * @swagger
+ * /api/v1/offers/posts/{postId}/offers:
+ *   post:
+ *     tags: [Offers]
+ *     summary: Make an offer on a property post
+ *     security: [{ cookieAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: postId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [amount]
+ *             properties:
+ *               amount: { type: number, minimum: 1 }
+ *               message: { type: string, maxLength: 500 }
+ *     responses:
+ *       201: { description: Offer created }
+ *       400: { description: Validation error }
+ */
+router.post("/posts/:postId/offers", createOfferRules, validateRequest, createOffer);
 router.get("/posts/:postId/offers", getPostOffers);
-
-// Buyer: check their own (most recent) offer status on a post
 router.get("/posts/:postId/offers/mine", getMyOfferForPost);
-
-// Accept / counter / decline an offer
-router.patch("/:offerId", respondToOffer);
+router.patch("/:offerId", respondToOfferRules, validateRequest, respondToOffer);
 
 export default router;

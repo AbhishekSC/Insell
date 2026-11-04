@@ -15,6 +15,7 @@ import { renderProfileSharePage } from "./modules/public-profile/publicProfile.c
 import { generateSitemapXml } from "./controllers/sitemap.controller.js";
 import { logger } from "./utils/logger.js";
 import { errorHandler, notFoundHandler } from "./middlewares/errorHandler.js";
+import { setupSwagger } from "./config/swagger.config.js";
 import { requestIdMiddleware } from "./middlewares/requestId.middleware.js";
 import { cacheControl } from "./middlewares/cacheControl.middleware.js";
 import { globalRateLimiter } from "./middlewares/globalRateLimiter.middleware.js";
@@ -149,6 +150,8 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
+
+setupSwagger(app);
 
 // Lightweight liveness probe — no DB, no auth. Used by the external
 // keep-alive ping (see .github/workflows/keep-alive.yml) and any uptime

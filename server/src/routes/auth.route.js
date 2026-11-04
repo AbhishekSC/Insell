@@ -41,9 +41,51 @@ import { sendSuccessResponse } from "../utils/responseHandler.js";
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * /api/v1/auth/signup:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Register a new user
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [fullName, email, password]
+ *             properties:
+ *               fullName: { type: string, minLength: 5, maxLength: 30 }
+ *               email: { type: string, format: email }
+ *               password: { type: string, minLength: 6 }
+ *     responses:
+ *       201: { description: Signup successful — verification code sent }
+ *       400: { description: Validation error, $ref: '#/components/schemas/Error' }
+ */
 router.post("/signup", signupValidation, signup);
 router.post("/verify-signup", otpVerifyRateLimiter, verifySignupRules, validateRequest, verifySignup);
 router.post("/resend-signup-code", signupCodeRateLimiter, resendSignupCode);
+/**
+ * @swagger
+ * /api/v1/auth/login:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Log in with email and password
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email: { type: string, format: email }
+ *               password: { type: string }
+ *     responses:
+ *       200: { description: Login successful — tokens set as cookies }
+ *       401: { description: Invalid credentials }
+ *       429: { description: Too many login attempts }
+ */
 router.post("/login", loginRateLimiter, loginValidation, login);
 router.post("/refresh", refresh);
 router.post("/logout", logout);

@@ -123,6 +123,9 @@ export async function getSystemHealth() {
     status: overall,
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development",
+    nodeVersion: process.version,
+    pid: process.pid,
     memory: {
       rss: Math.round(process.memoryUsage().rss / 1024 / 1024),
       heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
