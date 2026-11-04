@@ -10,17 +10,31 @@ import { warmFeedAndMapCaches } from "./services/feedWarmup.service.js";
 
 let httpServer = null;
 let shuttingDown = false;
+let activeRequests = 0;
 
-// A single coordinated shutdown path for SIGINT/SIGTERM (real termination) and
-// SIGUSR2 (nodemon's restart signal). Previously Mongo and Redis each raced to
-// call process.exit() from their own SIGINT listener — whichever finished first
-// killed the process before the other's cleanup ran, which could leave the port
-// or a connection in a bad state for the next process to bind/connect.
+const SHUTDOWN_TIMEOUT_MS = 15_000;
+
+app.use((_req, res, next) => {
+  if (shuttingDown) {
+    res.set("Connection", "close");
+    return res.status(503).json({ status: "error", message: "Server is shutting down" });
+  }
+  activeRequests++;
+  res.on("finish", () => { activeRequests--; });
+  next();
+});
+
 async function shutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
 
-  logger.info(`Received ${signal}, shutting down gracefully...`);
+  logger.info(`Received ${signal}, shutting down gracefully… (active requests: ${activeRequests})`);
+
+  const forceExit = setTimeout(() => {
+    logger.warn(`Shutdown timeout (${SHUTDOWN_TIMEOUT_MS}ms) exceeded — forcing exit`);
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT_MS);
+  forceExit.unref();
 
   const closeHttpServer = () =>
     new Promise((resolve) => {
@@ -30,6 +44,15 @@ async function shutdown(signal) {
 
   try {
     await closeHttpServer();
+
+    const drainStart = Date.now();
+    while (activeRequests > 0 && Date.now() - drainStart < 5000) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    if (activeRequests > 0) {
+      logger.warn(`Draining timed out with ${activeRequests} active requests`);
+    }
+
     await Promise.allSettled([
       closeMongoConnection(),
       closeRedisConnection(),
@@ -38,6 +61,7 @@ async function shutdown(signal) {
   } catch (error) {
     logger.error(`Error during shutdown: ${error.message}`, { stack: error.stack });
   } finally {
+    clearTimeout(forceExit);
     process.exit(0);
   }
 }
@@ -66,10 +90,6 @@ async function startServer() {
       logger.warn("CRON_SECRET is not set — the stalled-deals nudge endpoint (/api/deals/cron/nudge-stalled) will reject every call with 401.");
     }
 
-    // These three have no dependency on each other — awaiting them in
-    // sequence added their startup latencies together (part of why cold
-    // starts took 30-40s). Running them in parallel cuts that to whichever
-    // one is slowest, instead of the sum of all three.
     await Promise.all([connectToRedis(), connectToMongoDB(), testCloudinaryConnection()]);
 
     httpServer = app.listen(PORT, async () => {

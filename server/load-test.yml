@@ -1,0 +1,101 @@
+config:
+  target: "{{ $processEnvironment.TARGET_URL || 'http://localhost:5001' }}"
+  phases:
+    # Warm-up: 5 users/sec for 30 seconds
+    - duration: 30
+      arrivalRate: 5
+      name: "Warm-up"
+    # Ramp-up: 5 → 30 users/sec over 60 seconds
+    - duration: 60
+      arrivalRate: 5
+      rampTo: 30
+      name: "Ramp-up"
+    # Sustained: 30 users/sec for 60 seconds
+    - duration: 60
+      arrivalRate: 30
+      name: "Sustained load"
+    # Spike: 50 users/sec for 30 seconds
+    - duration: 30
+      arrivalRate: 50
+      name: "Spike"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+  plugins:
+    ensure:
+      thresholds:
+        - http.response_time.p99: 2000
+        - http.response_time.p95: 1000
+      maxErrorRate: 5
+
+scenarios:
+  # Health checks (lightweight, high frequency)
+  - name: "Health check"
+    weight: 30
+    flow:
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: 200
+
+  - name: "Readiness probe"
+    weight: 10
+    flow:
+      - get:
+          url: "/readyz"
+
+  # Public pages
+  - name: "Property feed (unauthenticated health)"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/v1/health"
+          expect:
+            - statusCode: 200
+
+  # Auth flow (signup attempt — will fail validation but tests the pipeline)
+  - name: "Signup validation stress"
+    weight: 15
+    flow:
+      - post:
+          url: "/api/v1/auth/signup"
+          json:
+            fullName: ""
+            email: "not-an-email"
+            password: "12"
+          expect:
+            - statusCode:
+                - 400
+                - 422
+
+  # Login attempt (wrong credentials — tests auth pipeline)
+  - name: "Login attempt"
+    weight: 15
+    flow:
+      - post:
+          url: "/api/v1/auth/login"
+          json:
+            email: "loadtest@example.com"
+            password: "wrongpassword123"
+          expect:
+            - statusCode:
+                - 401
+                - 429
+
+  # API docs (static asset serving)
+  - name: "Swagger UI"
+    weight: 5
+    flow:
+      - get:
+          url: "/api-docs.json"
+          expect:
+            - statusCode: 200
+
+  # 404 handling
+  - name: "Not found route"
+    weight: 5
+    flow:
+      - get:
+          url: "/api/v1/nonexistent-route"
+          expect:
+            - statusCode: 404

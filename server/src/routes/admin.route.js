@@ -33,6 +33,13 @@ import {
   adminDeleteFeatureFlag,
   adminAddUserToWhitelist,
 } from "../controllers/featureFlag.controller.js";
+import { validateRequest } from "../middlewares/validation.js";
+import {
+  toggleUserBlockRules,
+  adminCreditCoinsRules,
+  createAnnouncementRules,
+  reviewVerificationRules,
+} from "../validators/admin.validator.js";
 import {
   adminGetAdvertisements,
   adminCreateAdvertisement,
@@ -48,9 +55,9 @@ router.use(requireVerified);
 router.use(requireAdmin);
 
 router.get("/users", getAdminUsers);
-router.post("/users/:id/block", toggleUserBlock);
+router.post("/users/:id/block", toggleUserBlockRules, validateRequest, toggleUserBlock);
 router.get("/users/:id/wallet", adminGetUserWallet);
-router.post("/users/:id/credit-coins", adminCreditCoins);
+router.post("/users/:id/credit-coins", adminCreditCoinsRules, validateRequest, adminCreditCoins);
 router.get("/coin-history", adminGetCoinHistory);
 
 router.get("/posts", getAdminPosts);
@@ -58,7 +65,7 @@ router.post("/posts/:id/block", blockPost);
 router.post("/posts/:id/unblock", unblockPost);
 
 router.get("/property-verifications", getAdminPropertyVerifications);
-router.patch("/property-verifications/:id", reviewPropertyVerification);
+router.patch("/property-verifications/:id", reviewVerificationRules, validateRequest, reviewPropertyVerification);
 router.get("/property-verifications/:id/bill-download", downloadPropertyBill);
 
 router.get("/reports", getAdminReports);
@@ -76,7 +83,7 @@ router.post("/deals/:id/resolve-report", adminResolveDealReports);
 router.post("/deals/:id/force-cancel", adminForceCancelDeal);
 
 router.get("/announcements", getAnnouncements);
-router.post("/announcements", createAnnouncement);
+router.post("/announcements", createAnnouncementRules, validateRequest, createAnnouncement);
 router.post("/announcements/upload-image", uploadAnnouncementImage.single("image"), uploadAnnouncementImageController);
 
 // Feature Flags management
@@ -100,7 +107,20 @@ router.get("/queues/health", async (req, res) => {
   res.json({ status: hasFailures ? "degraded" : "healthy", queues: health });
 });
 
-// System health — comprehensive infrastructure check
+/**
+ * @swagger
+ * /api/v1/admin/system-health:
+ *   get:
+ *     tags: [Admin, Health]
+ *     summary: Comprehensive infrastructure health check
+ *     security: [{ cookieAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: System health report
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/SystemHealth' }
+ */
 router.get("/system-health", getDetailedHealth);
 
 export default router;

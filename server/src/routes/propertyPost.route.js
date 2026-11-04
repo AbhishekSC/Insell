@@ -30,6 +30,14 @@ import {
   recordCoverClick,
 } from "../controllers/propertyPost.controller.js";
 import { uploadPropertyMedia } from "../middlewares/upload.middleware.js";
+import { validateRequest } from "../middlewares/validation.js";
+import {
+  createPropertyPostRules,
+  updatePropertyPostRules,
+  reportPostRules,
+  boostPropertyPostRules,
+  mongoIdParam,
+} from "../validators/propertyPost.validator.js";
 
 const router = new express.Router();
 
@@ -52,16 +60,16 @@ router.get("/:id/likers", verifyUser, requireVerified, getPostLikers);
 router.get("/:id/price-insight", verifyUser, requireVerified, getPriceInsight);
 router.get("/:id/valuation", verifyUser, requireVerified, getPropertyValuation);
 router.get("/:id/analytics", verifyUser, requireVerified, getPropertyAnalytics);
-router.post("/", verifyUser, requireVerified, createPropertyPost);
+router.post("/", verifyUser, requireVerified, createPropertyPostRules, validateRequest, createPropertyPost);
 router.post("/compare", verifyUser, requireVerified, compareProperties);
-router.put("/:id", verifyUser, requireVerified, updatePropertyPost);
-router.delete("/:id", verifyUser, requireVerified, deletePropertyPost);
+router.put("/:id", verifyUser, requireVerified, updatePropertyPostRules, validateRequest, updatePropertyPost);
+router.delete("/:id", verifyUser, requireVerified, mongoIdParam, validateRequest, deletePropertyPost);
 router.post("/upload-media", verifyUser, requireVerified, uploadPropertyMedia.array("media", 5), uploadPropertyMediaController);
 router.get("/upload-media/signature", verifyUser, requireVerified, getPropertyMediaUploadSignature);
 router.post("/:id/like", verifyUser, requireVerified, togglePropertyPostLike);
 router.post("/:id/save", verifyUser, requireVerified, togglePropertyPostSave);
 router.post("/:id/view", verifyUser, requireVerified, incrementViewCount);
-router.post("/:id/report", verifyUser, requireVerified, reportPost);
-router.post("/:id/boost", verifyUser, requireVerified, boostPropertyPost);
+router.post("/:id/report", verifyUser, requireVerified, reportPostRules, validateRequest, reportPost);
+router.post("/:id/boost", verifyUser, requireVerified, boostPropertyPostRules, validateRequest, boostPropertyPost);
 
 export default router;
