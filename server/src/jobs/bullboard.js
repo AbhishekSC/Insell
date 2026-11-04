@@ -28,7 +28,17 @@ export async function getQueuesHealth() {
     }
     try {
       const counts = await queue.getJobCounts("waiting", "active", "completed", "failed", "delayed");
-      results[key] = { name, ...counts };
+      let recentFailed = [];
+      if (counts.failed > 0) {
+        const failedJobs = await queue.getFailed(0, 2);
+        recentFailed = failedJobs.map(j => ({
+          id: j.id,
+          name: j.name,
+          failedReason: j.failedReason?.slice(0, 200),
+          timestamp: j.timestamp,
+        }));
+      }
+      results[key] = { name, ...counts, recentFailed };
     } catch {
       results[key] = { name, status: "error" };
     }

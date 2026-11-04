@@ -20,6 +20,7 @@ import { requestIdMiddleware } from "./middlewares/requestId.middleware.js";
 import { cacheControl } from "./middlewares/cacheControl.middleware.js";
 import { globalRateLimiter } from "./middlewares/globalRateLimiter.middleware.js";
 import { telemetryMiddleware } from "./services/telemetry.service.js";
+import { requestMetricsMiddleware } from "./middlewares/requestMetrics.middleware.js";
 import passport from "./config/googleAuth.config.js";
 import Sentry, { isSentryEnabled } from "./config/sentry.config.js";
 
@@ -107,6 +108,7 @@ app.options("*", cors(corsOptions));
 app.use(compression({ threshold: 1024 }));
 app.use(requestIdMiddleware);
 app.use(telemetryMiddleware);
+app.use(requestMetricsMiddleware);
 // Guard against stalled connections (30s standard, 60s for file uploads)
 app.use((req, res, next) => {
   const isUpload = req.originalUrl?.includes("/upload") || req.originalUrl?.includes("/media");
