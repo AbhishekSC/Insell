@@ -38,6 +38,13 @@ export function errorHandler(error, _req, res, _next) {
     return sendErrorResponse(res, 409, `Duplicate value for ${field}`);
   }
 
+  // Errors with a statusCode set (e.g. from libraries or middleware)
+  const statusCode = Number(error?.statusCode || 500);
+  if (statusCode >= 400 && statusCode < 500) {
+    logger.warn(`${error?.name || "Error"}: ${error?.message}`, { statusCode });
+    return sendErrorResponse(res, statusCode, error?.message || "Request error");
+  }
+
   logger.error(`Unhandled error: ${error?.message || error}`, { stack: error?.stack });
   return sendErrorResponse(res, 500, "Internal Server Error");
 }
