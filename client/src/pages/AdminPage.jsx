@@ -4638,8 +4638,8 @@ function SystemHealthPanel() {
   const slowEndpoints = (metrics.slowEndpoints || []).slice(0, 5);
   const errorEndpoints = (metrics.errorEndpoints || []).slice(0, 5);
   const failedJobs = services.flatMap((svc) =>
-    (svc.queues || []).flatMap((q) =>
-      (q.recentFailed || []).map((job) => ({ queue: q.name || svc.name, ...job }))
+    Object.entries(svc.queues || {}).flatMap(([key, q]) =>
+      (q.recentFailed || []).map((job) => ({ queue: q.name || key, ...job }))
     )
   );
 
