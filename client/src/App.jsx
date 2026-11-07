@@ -55,6 +55,9 @@ const PropertyMapView = lazy(() => import("./pages/PropertyMapView"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const HelpGuidePage = lazy(() => import("./pages/HelpGuidePage"));
 const VerifyStatementPage = lazy(() => import("./pages/VerifyStatementPage"));
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
+
+import RouteErrorBoundary from "./components/RouteErrorBoundary";
 
 function App() {
   const queryClient = useQueryClient();
@@ -199,7 +202,7 @@ function App() {
           />
           <Route
             path="/map-view"
-            element={guard(<PropertyMapView />)}
+            element={guard(<RouteErrorBoundary name="Map View"><PropertyMapView /></RouteErrorBoundary>)}
           />
           {/* Onboarding is opt-in, reachable from the profile page — not a
               forced gate on every other route. Still redirects away once
@@ -218,7 +221,7 @@ function App() {
           />
           <Route
             path="/chat"
-            element={guard(<ChatPage />)}
+            element={guard(<RouteErrorBoundary name="Messages"><ChatPage /></RouteErrorBoundary>)}
           />
           <Route
             path="/call"
@@ -242,11 +245,11 @@ function App() {
           />
           <Route
             path="/community"
-            element={guard(<MarketplacePage />)}
+            element={guard(<RouteErrorBoundary name="Marketplace"><MarketplacePage /></RouteErrorBoundary>)}
           />
           <Route
             path="/marketplace"
-            element={guard(<MarketplacePage />)}
+            element={guard(<RouteErrorBoundary name="Marketplace"><MarketplacePage /></RouteErrorBoundary>)}
           />
           <Route
             path="/community/:communityId"
@@ -258,7 +261,7 @@ function App() {
           />
           <Route
             path="/property/:id"
-            element={authUser ? guard(<PropertyDetailPage />) : <PublicPropertyDetailPage />}
+            element={authUser ? guard(<RouteErrorBoundary name="Property Details"><PropertyDetailPage /></RouteErrorBoundary>) : <PublicPropertyDetailPage />}
           />
           <Route
             path="/profile"
@@ -310,7 +313,7 @@ function App() {
           />
           <Route
             path="/admin"
-            element={guardAdmin(<AdminPage />)}
+            element={guardAdmin(<RouteErrorBoundary name="Admin"><AdminPage /></RouteErrorBoundary>)}
           />
           <Route
             path="/help"
@@ -321,6 +324,7 @@ function App() {
             path="/verify-statement/:token"
             element={<VerifyStatementPage />}
           />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
 

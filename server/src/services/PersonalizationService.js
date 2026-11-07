@@ -15,6 +15,8 @@ import {
   batchGetForecasts,
 } from "./AppreciationForecastService.js";
 import CardCTRService from "./CardCTRService.js";
+import FeatureFlag from "../models/FeatureFlag.model.js";
+import { evaluateFeatureFlag } from "../utils/featureFlagEvaluator.js";
 
 // Real estate demand is geographically bound — a buyer in Pune will not take a
 // Chennai listing however well it matches on price/type. So recommendations
@@ -128,6 +130,12 @@ class PersonalizationService {
    */
   static async calculatePropertyScore(property, user, userBehavior = {}) {
     let score = 0;
+    // A/B hook: these signal weights can be made overridable via a
+    // "reco_signal_weights" feature flag by accepting an optional
+    // `weightOverrides` parameter and merging here:
+    //   const weights = { ...DEFAULT_SIGNAL_WEIGHTS, ...weightOverrides };
+    // Deferred until the flag infrastructure supports passing overrides
+    // through the calculatePropertyScore call chain.
     const weights = {
       location: 22,
       budget: 18,
@@ -2161,6 +2169,49 @@ class PersonalizationService {
         forecastMap = await batchGetForecasts([...locSet]);
       }
 
+      // ── A/B Testing: feature-flag weight overrides ─────────────────────
+      //
+      // If a feature flag "reco_feed_weights" exists and is enabled for this
+      // user, read weight overrides from the flag's metadata field. This lets
+      // us run controlled experiments on ranking weight tuning without code
+      // deploys. The flag's metadata should contain the weight keys to
+      // override (e.g. { personalization: 0.6, recency: 0.1 }).
+      //
+      // Similarly, "reco_signal_weights" can override the per-signal weights
+      // inside calculatePropertyScore — but those are local to that method,
+      // so a full override would require a signature change. For now, only
+      // feed-level weights are overridden here; signal-level A/B hooks can
+      // be added to calculatePropertyScore when needed.
+      let feedWeights = FEED_SCORE_WEIGHTS;
+      try {
+        const feedWeightFlag = await FeatureFlag.findOne({ key: "reco_feed_weights" }).lean();
+        if (feedWeightFlag) {
+          const { enabled } = evaluateFeatureFlag(feedWeightFlag, user);
+          const meta = feedWeightFlag.metadata;
+          const hasMetadata = meta instanceof Map ? meta.size > 0 : (meta && typeof meta === "object" && Object.keys(meta).length > 0);
+          if (enabled && hasMetadata) {
+            const overrides = feedWeightFlag.metadata instanceof Map
+              ? Object.fromEntries(feedWeightFlag.metadata)
+              : feedWeightFlag.metadata;
+            // Only apply numeric overrides for known weight keys
+            const validKeys = new Set(Object.keys(FEED_SCORE_WEIGHTS));
+            const safeOverrides = {};
+            for (const [k, v] of Object.entries(overrides)) {
+              if (validKeys.has(k) && typeof v === "number" && v >= 0 && v <= 1) {
+                safeOverrides[k] = v;
+              }
+            }
+            if (Object.keys(safeOverrides).length > 0) {
+              feedWeights = { ...FEED_SCORE_WEIGHTS, ...safeOverrides };
+              logger.info(`[A/B] User ${userId} using overridden feed weights: ${JSON.stringify(feedWeights)}`);
+            }
+          }
+        }
+      } catch (e) {
+        // Flag lookup failed — use default weights, don't break recommendations
+        logger.debug(`[A/B] Feed weight flag lookup skipped: ${e?.message}`);
+      }
+
       // Score each property, blending preference-match (personalization +
       // comment signals) with objective quality signals (recency, popularity)
       // and collaborative filtering, so cold-start users — who get neutral
@@ -2185,12 +2236,12 @@ class PersonalizationService {
         const savesCount = Array.isArray(property.savedBy) ? property.savedBy.length : 0;
         const popularityScore = Math.min(100, likesCount * 2 + savesCount * 3 + (property.commentCount || 0) * 1.5);
 
-        // Content-based blended score (existing logic)
+        // Content-based blended score (uses A/B-overridable weights)
         const contentBlended =
-          personalizationScore * FEED_SCORE_WEIGHTS.personalization +
-          commentScore * FEED_SCORE_WEIGHTS.comment +
-          recencyScore * FEED_SCORE_WEIGHTS.recency +
-          popularityScore * FEED_SCORE_WEIGHTS.popularity;
+          personalizationScore * feedWeights.personalization +
+          commentScore * feedWeights.comment +
+          recencyScore * feedWeights.recency +
+          popularityScore * feedWeights.popularity;
 
         // Collaborative filtering score — measures how well this property
         // aligns with what similar users engaged with. Returns 50 (neutral)
@@ -2318,6 +2369,47 @@ class PersonalizationService {
 
       // Sort by final score
       scoredProperties.sort((a, b) => b.finalScore - a.finalScore);
+
+      // ── Session Momentum Integration ──────────────────────────────────
+      //
+      // If the user has active micro-engagement data (dwell time, carousel
+      // swipes from the last ~2h), lightly blend session momentum into the
+      // ranking. This surfaces properties matching the user's *current*
+      // browsing intent (e.g. "actively looking at 2BHKs in Baner") on top
+      // of their long-term preference model. Applied as a score nudge
+      // (+-10%), not a full reorder, so it adjusts rather than overrides.
+      try {
+        const momentumKey = `user:micro_eng:${userId}`;
+        const hasMomentum = redisClient ? await redisClient.exists(momentumKey) : false;
+        if (hasMomentum) {
+          const momentumReordered = await CardCTRService.applySessionMomentum(
+            scoredProperties.map((p) => p), // shallow copy — applySessionMomentum may reorder
+            userId
+          );
+          if (momentumReordered && momentumReordered.length === scoredProperties.length) {
+            // Build momentum rank map: position in momentum-ordered list
+            const momentumRank = new Map();
+            momentumReordered.forEach((p, idx) => momentumRank.set(String(p._id), idx));
+
+            // Nudge finalScore by up to +-10% based on momentum rank
+            const total = momentumReordered.length;
+            for (const prop of scoredProperties) {
+              const mRank = momentumRank.get(String(prop._id));
+              if (mRank != null) {
+                // rank 0 (top momentum) -> 1.1x, last rank -> 0.9x
+                const mScore = 1 - mRank / total;
+                prop.finalScore *= 0.9 + 0.2 * mScore;
+              }
+            }
+            // Re-sort after momentum adjustment
+            scoredProperties.sort((a, b) => b.finalScore - a.finalScore);
+            logger.info(`[SESSION MOMENTUM] Applied session momentum reranking for user ${userId}`);
+          }
+        }
+      } catch (e) {
+        // Session momentum is optional — never break recommendations
+        logger.debug(`[SESSION MOMENTUM] Skipped: ${e?.message}`);
+      }
 
       logger.info(`📈 [PERSONALIZED RECOMMENDATIONS] Top 5 properties before diversity filtering:`);
       scoredProperties.slice(0, 5).forEach((prop, idx) => {

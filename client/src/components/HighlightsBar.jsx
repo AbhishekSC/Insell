@@ -120,7 +120,7 @@ export default function HighlightsBar({ userId, isOwnProfile, isFriend, authUser
               <div className="size-full rounded-full bg-base-100 p-[2px]">
                 <div className="size-full overflow-hidden rounded-full bg-base-200">
                   {highlight.coverImage && (
-                    <img src={resolveMediaUrl(highlight.coverImage)} alt={highlight.title} className="h-full w-full object-cover" />
+                    <img src={resolveMediaUrl(highlight.coverImage)} alt={highlight.title} loading="lazy" className="h-full w-full object-cover" />
                   )}
                 </div>
               </div>

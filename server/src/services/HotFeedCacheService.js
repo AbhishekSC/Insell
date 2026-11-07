@@ -25,8 +25,10 @@ export function calculateHotnessScore(post) {
   const createdAtMs = post.createdAt ? new Date(post.createdAt).getTime() : Date.now();
   const hoursAgo = Math.max(0, (Date.now() - createdAtMs) / (1000 * 60 * 60));
 
+  const comments = Number(post.analytics?.commentCount || post.commentCount || 0);
+
   // Weighted engagement numerator
-  const engagement = (views * 1) + (likes * 3) + (saves * 4) + (isBoosted ? 60 : 0);
+  const engagement = (views * 1) + (likes * 3) + (saves * 4) + (comments * 2) + (isBoosted ? 60 : 0);
 
   // Gravity/decay denominator (Hacker News style decay)
   const decay = Math.pow(hoursAgo + 2, 1.35);
@@ -80,8 +82,9 @@ export async function getHotPostsByCity(city = "", limit = 20) {
   }
 
   const candidatePosts = await PropertyPost.find(query)
+    .sort({ "analytics.viewCount": -1 })
     .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate")
-    .limit(100)
+    .limit(200)
     .lean() || [];
 
   // 3. Compute hotness score and sort descending
@@ -99,7 +102,20 @@ export async function getHotPostsByCity(city = "", limit = 20) {
   });
 
   scoredPosts.sort((a, b) => b.hotnessScore - a.hotnessScore);
-  const topHotPosts = scoredPosts.slice(0, limit);
+
+  // Per-author cap: max 2 posts per author to prevent one seller dominating the feed
+  const authorPostCount = new Map();
+  const diversifiedPosts = [];
+  for (const post of scoredPosts) {
+    const authorId = String(post.author?._id || post.author || "unknown");
+    const count = authorPostCount.get(authorId) || 0;
+    if (count < 2) {
+      diversifiedPosts.push(post);
+      authorPostCount.set(authorId, count + 1);
+    }
+  }
+
+  const topHotPosts = diversifiedPosts.slice(0, limit);
 
   // 4. Warm Redis cache
   try {
@@ -166,8 +182,9 @@ export async function rebuildHotFeeds() {
       }
 
       const candidatePosts = await PropertyPost.find(query)
+        .sort({ "analytics.viewCount": -1 })
         .populate("author", "fullName profilePic activeRole primaryRole city isVerified isOwnerVerified ratingAvg ratingCount responseRate")
-        .limit(100)
+        .limit(200)
         .lean() || [];
 
       if (!candidatePosts || candidatePosts.length === 0) continue;
@@ -186,7 +203,20 @@ export async function rebuildHotFeeds() {
       });
 
       scoredPosts.sort((a, b) => b.hotnessScore - a.hotnessScore);
-      const topHotPosts = scoredPosts.slice(0, 20);
+
+      // Per-author cap: max 2 posts per author to prevent one seller dominating the feed
+      const authorPostCount = new Map();
+      const diversifiedPosts = [];
+      for (const post of scoredPosts) {
+        const authorId = String(post.author?._id || post.author || "unknown");
+        const count = authorPostCount.get(authorId) || 0;
+        if (count < 2) {
+          diversifiedPosts.push(post);
+          authorPostCount.set(authorId, count + 1);
+        }
+      }
+
+      const topHotPosts = diversifiedPosts.slice(0, 20);
 
       await redisClient.setEx(cacheKey, HOT_FEED_CACHE_TTL_SECONDS, JSON.stringify(topHotPosts));
     }

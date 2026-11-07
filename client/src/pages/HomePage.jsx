@@ -295,7 +295,7 @@ export default function HomePage() {
                 const verified = ["Broker", "Seller", "Landlord"].includes(post.author?.activeRole || post.author?.primaryRole);
 
                 return (
-                  <article key={post._id} className="overflow-hidden rounded-2xl border border-base-300 bg-base-100 shadow-sm" onClick={() => console.log("Article clicked")}>
+                  <article key={post._id} className="overflow-hidden rounded-2xl border border-base-300 bg-base-100 shadow-sm">
                     <div className="relative">
                       {post.media.length > 0 ? (
                         isVideoUrl(image) ? (
@@ -343,7 +343,7 @@ export default function HomePage() {
                           <span className="text-[11px] text-base-content/60">{post.likesCount}</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <button type="button" className="btn btn-ghost btn-xs btn-circle !z-50 !relative" onClick={() => { console.log("Comment button clicked, post:", post); setSelectedPostForComments(post); }}><MessageCircle className="size-4" /></button>
+                          <button type="button" className="btn btn-ghost btn-xs btn-circle !z-50 !relative" onClick={() => { setSelectedPostForComments(post); }}><MessageCircle className="size-4" /></button>
                           <span className="text-[11px] text-base-content/60">{post.commentCount || 0}</span>
                         </div>
                         <button type="button" className="btn btn-ghost btn-xs btn-circle"><Share2 className="size-4" /></button>
@@ -466,10 +466,9 @@ export default function HomePage() {
 
       {selectedPostForComments ? (
         <>
-          {console.log("Rendering CommentSection with post:", selectedPostForComments)}
           <CommentSection
             post={selectedPostForComments}
-            onClose={() => { console.log("Closing comment section"); setSelectedPostForComments(null); }}
+            onClose={() => { setSelectedPostForComments(null); }}
           />
         </>
       ) : null}

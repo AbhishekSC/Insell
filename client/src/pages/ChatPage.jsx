@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
+import SEO from "../components/SEO";
 import UserAvatar from "../components/UserAvatar";
 import axiosInstance from "../lib/axios";
 import { useStreamContext } from "../context/StreamProvider";
@@ -193,6 +194,7 @@ export default function ChatPage() {
       lockPageScroll
       hideMobileHeader
     >
+      <SEO title="Messages" description="Your conversations" path="/chat" />
       <div className="telegram-chat-layout h-full min-h-[calc(100dvh-4rem)] overflow-hidden sm:min-h-[580px]">
         <section className={`telegram-sidebar min-h-0 overflow-hidden ${showSidebar ? "" : "hidden sm:block"}`}>
           <div className="flex h-full min-h-0 flex-col">

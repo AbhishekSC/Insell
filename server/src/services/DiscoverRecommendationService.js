@@ -177,10 +177,10 @@ export async function getDiscoverRecommendations(currentUserId, query = {}) {
   // Extract search history keywords and locations with time decay
   const searchKeywords = new Set();
   const searchLocations = new Set();
-  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
   (currentUser.searchHistory || []).forEach(search => {
     const searchAge = now - new Date(search.searchedAt).getTime();
-    if (searchAge < thirtyDaysAgo) {
+    if (searchAge < thirtyDaysMs) {
       const words = search.query.toLowerCase().split(/\s+/);
       words.forEach(word => {
         if (word.length > 2) searchKeywords.add(word);
@@ -198,8 +198,8 @@ export async function getDiscoverRecommendations(currentUserId, query = {}) {
   const viewedBudgets = [];
   (currentUser.viewedPosts || []).forEach(view => {
     const viewAge = now - new Date(view.viewedAt).getTime();
-    if (viewAge < thirtyDaysAgo) {
-      const decayFactor = Math.max(0.1, 1 - (viewAge / thirtyDaysAgo));
+    if (viewAge < thirtyDaysMs) {
+      const decayFactor = Math.max(0.1, 1 - (viewAge / thirtyDaysMs));
       viewedBudgets.push({ budget: null, decay: decayFactor }); // Will be populated from post data
     }
   });
@@ -339,7 +339,7 @@ export async function getDiscoverRecommendations(currentUserId, query = {}) {
     // Search history matching
     const userSearchKeywords = [...searchKeywords];
     const candidateSearchKeywords = (user.searchHistory || [])
-      .filter(s => now - new Date(s.searchedAt).getTime() < thirtyDaysAgo)
+      .filter(s => now - new Date(s.searchedAt).getTime() < thirtyDaysMs)
       .flatMap(s => s.query.toLowerCase().split(/\s+/).filter(w => w.length > 2));
     const searchKeywordMatch = userSearchKeywords.length > 0 && candidateSearchKeywords.length > 0
       ? overlap(userSearchKeywords, candidateSearchKeywords) ? 7 : 0
@@ -510,8 +510,20 @@ export async function getDiscoverRecommendations(currentUserId, query = {}) {
     .filter((candidate) => matchesFilter(candidate, query.filter, query.city, query.profession, query.verified, query.nearby))
     .sort((a, b) => b.recommendationScore - a.recommendationScore || b.engagementScore - a.engagementScore);
 
-  const total = ranked.length;
-  const users = ranked.slice((page - 1) * limit, page * limit).map((candidate) => ({ ...candidate, discoverySection: sectionFor(candidate), friends: undefined }));
+  // Per-role diversity: cap max 3 users of the same role to prevent homogeneous results
+  const roleCounts = new Map();
+  const diversified = [];
+  for (const candidate of ranked) {
+    const role = normalized(candidate.activeRole || candidate.primaryRole || "other");
+    const count = roleCounts.get(role) || 0;
+    if (count < 3) {
+      diversified.push(candidate);
+      roleCounts.set(role, count + 1);
+    }
+  }
+
+  const total = diversified.length;
+  const users = diversified.slice((page - 1) * limit, page * limit).map((candidate) => ({ ...candidate, discoverySection: sectionFor(candidate), friends: undefined }));
   const result = { users, pagination: { page, limit, total, hasMore: page * limit < total } };
   if (cacheable) { try { await redisClient.set(cacheKey, JSON.stringify(result), { EX: CACHE_TTL_SECONDS }); logger.info(`💾 CACHE WRITE: Discover recommendations for user ID: ${currentUserId} (TTL: ${CACHE_TTL_SECONDS}s)`); } catch {} }
   return result;

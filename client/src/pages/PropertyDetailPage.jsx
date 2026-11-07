@@ -76,6 +76,7 @@ import ListingPerformance from "../components/ListingPerformance";
 import TransactionTracker from "../components/TransactionTracker";
 import ReviewModal from "../components/ReviewModal";
 import { getCustomBadgeClasses } from "../lib/badgeColors";
+import SEO from "../components/SEO";
 import { getSellerTrustSignals } from "../lib/trustSignals";
 import { getPropertySignals, toneClass } from "../lib/propertySignalBadges";
 import SimilarProperties from "../components/SimilarProperties";
@@ -746,6 +747,7 @@ export default function PropertyDetailPage() {
 
   return (
     <AppShell hideHero showBackButton title="Property Details">
+      <SEO title={postData?.title || "Property Details"} description={postData?.description?.slice(0, 160)} path={"/property/" + id} />
       <div className="min-h-screen bg-base-200">
         {/* Fullscreen Image Modal */}
         {isFullscreen && (
