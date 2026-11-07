@@ -532,7 +532,7 @@ export default function MarketplacePage() {
 
     try {
       // Create notification for the property owner
-      const response = await axiosInstance.post("/notifications", {
+      await axiosInstance.post("/notifications", {
         recipientId: selectedPostForContact?.author?._id,
         type: "message_request",
         message: `${authUser.fullName} is interested in your property: ${selectedPostForContact?.title || "Property"}`,
