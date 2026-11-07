@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { ExternalLink, Megaphone, Pause, Play, Volume2, VolumeX, X } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import { cardImageUrl } from "../lib/cloudinaryImage";
 
-export default function AdCard({ ad, onDismiss }) {
+function AdCard({ ad, onDismiss }) {
   const cardRef = useRef(null);
   const videoRef = useRef(null);
   const dwellTimer = useRef(null);
@@ -320,3 +320,5 @@ export default function AdCard({ ad, onDismiss }) {
     </div>
   );
 }
+
+export default memo(AdCard);

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Building2, HardHat, Sofa, TrendingUp, UserPlus, Users } from "lucide-react";
 
 const CATEGORY_STYLES = {
@@ -12,7 +13,7 @@ function categoryStyle(category) {
   return CATEGORY_STYLES[category] || CATEGORY_STYLES.General;
 }
 
-export default function DiscoverCommunityCard({ community, onJoin }) {
+function DiscoverCommunityCard({ community, onJoin }) {
   const style = categoryStyle(community.category);
   const Icon = style.icon;
   const memberCount = community.memberCount ?? community.members?.length ?? 0;
@@ -20,7 +21,7 @@ export default function DiscoverCommunityCard({ community, onJoin }) {
   return (
     <div className="flex flex-col rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm transition-all hover:shadow-md">
       {community.photo ? (
-        <img src={community.photo} alt={community.name} className="mb-3 h-12 w-12 rounded-xl object-cover" />
+        <img src={community.photo} alt={community.name} loading="lazy" className="mb-3 h-12 w-12 rounded-xl object-cover" />
       ) : (
         <div className={`mb-3 grid size-12 place-items-center rounded-xl ${style.bg} ${style.text}`}>
           <Icon size={22} />
@@ -52,3 +53,5 @@ export default function DiscoverCommunityCard({ community, onJoin }) {
     </div>
   );
 }
+
+export default memo(DiscoverCommunityCard);

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback, Suspense } from "react";
+import SEO from "../components/SEO";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -525,18 +526,13 @@ export default function MarketplacePage() {
 
   // Send contact message
   const handleSendContactMessage = async (message) => {
-    console.log("handleSendContactMessage called with message:", message);
     if (!authUser) {
-      console.log("No auth user, returning");
       return;
     }
 
     try {
-      console.log("Sending notification to:", selectedPostForContact?.author?._id);
-      console.log("Selected post:", selectedPostForContact);
-      
       // Create notification for the property owner
-      const response = await axiosInstance.post("/notifications", {
+      await axiosInstance.post("/notifications", {
         recipientId: selectedPostForContact?.author?._id,
         type: "message_request",
         message: `${authUser.fullName} is interested in your property: ${selectedPostForContact?.title || "Property"}`,
@@ -544,18 +540,11 @@ export default function MarketplacePage() {
         propertyPostId: selectedPostForContact?._id,
       });
 
-      console.log("Notification response:", response.data);
-
       // Invalidate notification queries to update counts
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["badgeCounts"] });
 
       // TODO: Create actual message/chat entry
-      console.log("Sending contact message:", {
-        postId: selectedPostForContact?._id,
-        recipientId: selectedPostForContact?.author?._id,
-        message,
-      });
 
       toast.success("Message sent successfully!");
       setContactModalOpen(false);
@@ -2020,6 +2009,8 @@ export default function MarketplacePage() {
   };
 
   return (
+    <>
+    <SEO title="Marketplace" description="Browse and discover properties near you" path="/marketplace" />
     <AppShell
       hideHero
       lockPageScroll={activeSection === "chat" || (activeSection === "communities" && Boolean(selectedCommunity))}
@@ -3847,7 +3838,6 @@ export default function MarketplacePage() {
                 className="btn w-full border-none bg-primary text-white hover:bg-primary"
                 onClick={() => {
                   const message = contactMessageRef.current?.value || "";
-                  console.log("Send button clicked, message:", message);
                   handleSendContactMessage(message);
                 }}
               >
@@ -4002,5 +3992,6 @@ export default function MarketplacePage() {
           document.body
         )}
     </AppShell>
+    </>
   );
 }

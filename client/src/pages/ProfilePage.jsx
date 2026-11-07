@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Camera, ClipboardCheck, Link2, MapPin, Phone, BadgeCheck, Sparkles, UploadCloud, UserCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
+import SEO from "../components/SEO";
 import OwnerVerificationCard from "../components/OwnerVerificationCard";
 import ReferralCard from "../components/ReferralCard";
 import axiosInstance from "../lib/axios";
@@ -119,6 +120,7 @@ export default function ProfilePage() {
       title="Profile"
       subtitle="Keep your marketplace identity fresh with role, city, and profile details."
     >
+      <SEO title="My Profile" description="Manage your profile and settings" path="/profile" />
       <div className="grid gap-5 lg:grid-cols-3">
         <section className="min-w-0 space-y-5 lg:col-span-2">
           {!authUser?.isOnboarded ? (

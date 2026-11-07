@@ -121,7 +121,7 @@ export async function rebuildEmbeddings(options = {}) {
     event: { $in: Object.keys(ENGAGEMENT_WEIGHTS) },
     createdAt: { $gte: since },
   })
-    .select("user post event")
+    .select("user post event createdAt")
     .lean() || [];
 
   logger.info(`[CF] Loaded ${engagementEvents.length} engagement events from last ${LOOKBACK_DAYS} days`);
@@ -136,15 +136,21 @@ export async function rebuildEmbeddings(options = {}) {
   for (const evt of engagementEvents) {
     const userId = String(evt.user);
     const postId = String(evt.post);
-    const weight = ENGAGEMENT_WEIGHTS[evt.event] || 0;
-    if (!weight) continue;
+    const baseWeight = ENGAGEMENT_WEIGHTS[evt.event] || 0;
+    if (!baseWeight) continue;
+
+    // Temporal decay: recent events count more, ~50% at 30 days, ~25% at 60+ days
+    const dayAge = (Date.now() - new Date(evt.createdAt).getTime()) / (24 * 60 * 60 * 1000);
+    const decay = Math.exp(-0.023 * dayAge);
+    const weight = baseWeight * decay;
 
     if (!userEngagements.has(userId)) {
       userEngagements.set(userId, new Map());
     }
     const userProps = userEngagements.get(userId);
-    // Keep the maximum weight if a user engaged with the same property multiple times
-    userProps.set(postId, Math.max(userProps.get(postId) || 0, weight));
+    // Accumulate weights so multiple interaction types stack (click + save + offer > just offer)
+    const accumulated = (userProps.get(postId) || 0) + weight * 0.5;
+    userProps.set(postId, Math.min(accumulated, 8.0));
   }
 
   logger.info(`[CF] ${userEngagements.size} users with engagement`);

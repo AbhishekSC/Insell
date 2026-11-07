@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
 import { setAuthToken } from "../lib/authToken";
 import logoDesktop from "../assets/brand/logo-desktop.png";
+import SEO from "../components/SEO";
 
 // Mirrors the server-side check in AuthService.js — kept in sync manually
 // since this is plain client validation, not a shared package.
@@ -97,6 +98,7 @@ const SignupPage = () => {
     <div
       className="min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8 overflow-hidden bg-[radial-gradient(circle_at_20%_20%,hsl(var(--p)/0.18),transparent_40%),radial-gradient(circle_at_80%_10%,hsl(var(--s)/0.2),transparent_40%)]"
     >
+      <SEO title="Sign Up" description="Create your NearMySpace account" path="/signup" />
       <div className="glass-wrap flex flex-col lg:flex-row w-full max-w-5xl mx-auto overflow-hidden">
         {/* LEFT SIDE FORM */}
         <div className="w-full lg:w-1/2 p-5 sm:p-8 flex flex-col">

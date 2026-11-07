@@ -385,7 +385,7 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
                           className="h-full w-full object-cover"
                         />
                       ) : (
-                        <img src={mediaUrl} alt="Banner preview" className="h-full w-full object-cover" />
+                        <img src={mediaUrl} alt="Banner preview" loading="lazy" className="h-full w-full object-cover" />
                       )}
                       <div className="absolute bottom-2 right-2 flex gap-1.5">
                         <label className="flex h-7 cursor-pointer items-center gap-1 rounded-lg bg-black/60 px-2.5 text-[11px] font-bold text-white backdrop-blur-sm hover:bg-black/80">
@@ -658,6 +658,7 @@ export default function AdToolsModal({ isOpen, onClose, preselectedPost = null }
                           <img
                             src={camp.mediaUrl}
                             alt={camp.title}
+                            loading="lazy"
                             onError={() => setBrokenImages((prev) => ({ ...prev, [camp._id]: true }))}
                             className="size-10 shrink-0 rounded-xl border border-base-200 object-cover"
                           />

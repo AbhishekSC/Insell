@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Copy, Gift, Users } from "lucide-react";
 import toast from "react-hot-toast";
@@ -7,7 +7,7 @@ import axiosInstance from "../lib/axios";
 // Invite-a-friend program — a referral link that credits both sides once
 // the invited friend verifies their account. Credits are redeemable
 // against boosted listings once that ships; for now it's a running balance.
-export default function ReferralCard() {
+function ReferralCard() {
   const [copied, setCopied] = useState(false);
 
   const { data, isLoading } = useQuery({
@@ -92,3 +92,5 @@ export default function ReferralCard() {
     </div>
   );
 }
+
+export default memo(ReferralCard);

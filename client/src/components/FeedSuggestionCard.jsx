@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { Flame, Sparkles, X, MapPin } from "lucide-react";
 import { cardImageUrl, lqipUrl } from "../lib/cloudinaryImage";
@@ -47,7 +47,7 @@ function normalizeSuggestion(suggestionType, data) {
   };
 }
 
-export default function FeedSuggestionCard({ suggestionType, data, position, onDismiss }) {
+function FeedSuggestionCard({ suggestionType, data, position, onDismiss }) {
   const navigate = useNavigate();
   const cardRef = useRef(null);
   const [firedImpression, setFiredImpression] = useState(false);
@@ -209,3 +209,5 @@ export default function FeedSuggestionCard({ suggestionType, data, position, onD
     </div>
   );
 }
+
+export default memo(FeedSuggestionCard);

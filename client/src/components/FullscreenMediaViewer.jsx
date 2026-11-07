@@ -21,7 +21,7 @@ export default function FullscreenMediaViewer({ src, onClose }) {
           onClick={(event) => event.stopPropagation()}
         />
       ) : (
-        <img src={src} alt="Property preview" className="max-h-full max-w-full rounded-2xl object-contain" />
+        <img src={src} alt="Property preview" loading="lazy" className="max-h-full max-w-full rounded-2xl object-contain" />
       )}
       <button
         type="button"

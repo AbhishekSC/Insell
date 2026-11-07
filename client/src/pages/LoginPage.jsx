@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../lib/axios";
 import { notify } from "../lib/errorService.jsx";
 import AccountBlockedModal from "../components/AccountBlockedModal";
+import SEO from "../components/SEO";
 import { setAuthToken } from "../lib/authToken";
 import posthog, { isPostHogEnabled } from "../lib/posthog";
 import logoDesktop from "../assets/brand/logo-desktop.png";
@@ -172,6 +173,7 @@ export default function LoginPage() {
     <div
       className="min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8 overflow-hidden bg-[radial-gradient(circle_at_20%_20%,hsl(var(--p)/0.18),transparent_40%),radial-gradient(circle_at_80%_10%,hsl(var(--s)/0.2),transparent_40%)]"
     >
+      <SEO title="Login" description="Sign in to NearMySpace" path="/login" />
       <div className="glass-wrap flex flex-col lg:flex-row w-full max-w-5xl mx-auto overflow-hidden">
         <div className="w-full lg:w-1/2 p-5 sm:p-8 flex flex-col justify-center">
           <div className="mb-4 flex items-center">
