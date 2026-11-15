@@ -379,7 +379,10 @@ export default function MarketplacePage() {
     () => ROLE_RECOMMENDED_OPTIONS[activeRole] || ["PROPERTY_SALE"],
     [activeRole]
   );
-  const availablePostTypes = ALL_CREATE_POST_TYPES;
+  const isPgOwnerApproved = authUser?.pgOwnerProfile?.approvalStatus === "approved";
+  const availablePostTypes = isPgOwnerApproved
+    ? ALL_CREATE_POST_TYPES
+    : ALL_CREATE_POST_TYPES.filter((t) => t !== "PG_HOSTEL");
 
   const [search, setSearch] = useState(() => searchParams.get("search") || "");
   const [searchType, setSearchType] = useState(null);
