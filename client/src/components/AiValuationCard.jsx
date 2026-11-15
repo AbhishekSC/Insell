@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { 
-  Sparkles, 
-  CheckCircle2, 
-  BarChart3, 
-  Loader2, 
-  Scale,
+import {
+  Sparkles,
+  Loader2,
   Info,
-  X
+  X,
+  ChevronDown,
+  Check,
+  Equal,
+  TrendingUp,
+  HelpCircle,
 } from "lucide-react";
 import axiosInstance from "../lib/axios";
 
@@ -18,35 +20,71 @@ function formatRange(min, max, isRent = false, compact = false) {
   function fmt(num) {
     if (isRent) {
       if (compact) {
-        if (num >= 100000) return `₹${(num / 100000).toFixed(1)}L`;
-        if (num >= 1000) return `₹${Math.round(num / 1000)}K`;
-        return `₹${num}`;
+        if (num >= 100000) return (num / 100000).toFixed(1) + "L";
+        if (num >= 1000) return Math.round(num / 1000) + "K";
+        return String(num);
       }
-      if (num >= 100000) return `₹${(num / 100000).toFixed(2)} Lakh`;
-      return `₹${num.toLocaleString("en-IN")}`;
+      if (num >= 100000) return (num / 100000).toFixed(2) + "L";
+      return num.toLocaleString("en-IN");
     }
-    // Sale
-    if (num >= 10000000) return `₹${(num / 10000000).toFixed(2)} Cr`;
-    if (num >= 100000) return `₹${(num / 100000).toFixed(2)} L`;
-    if (num >= 1000) return `₹${Math.round(num / 1000)}K`;
-    return `₹${num.toLocaleString("en-IN")}`;
+    if (num >= 10000000) return (num / 10000000).toFixed(2) + " Cr";
+    if (num >= 100000) return (num / 100000).toFixed(2) + " L";
+    if (num >= 1000) return Math.round(num / 1000) + "K";
+    return num.toLocaleString("en-IN");
   }
 
-  const suffix = isRent ? "/mo" : "";
-  return `${fmt(minNum)} – ${fmt(maxNum)}${suffix}`;
+  if (compact) {
+    return `₹${fmt(minNum)} – ${fmt(maxNum)}${isRent ? "/mo" : ""}`;
+  }
+  return { price: `₹${fmt(minNum)} – ${fmt(maxNum)}`, suffix: isRent ? "/month" : "" };
 }
 
-export default function AiValuationCard({ 
-  postId, 
-  price, 
-  propertyType = "Property", 
-  locality, 
+const VERDICT = {
+  good: {
+    chipBg: "#DCFCE7", chipText: "#166534",
+    boxBg: "#F0FDF4", circleBg: "#DCFCE7",
+    iconColor: "#15803D", titleColor: "#14532D", subtitleColor: "#166534",
+    Icon: Check,
+    title: "Great value",
+    subtitle: "Listed well below the area average",
+  },
+  fair: {
+    chipBg: "#E0E7FF", chipText: "#3730A3",
+    boxBg: "#EEF2FF", circleBg: "#E0E7FF",
+    iconColor: "#4F46E5", titleColor: "#312E81", subtitleColor: "#3730A3",
+    Icon: Equal,
+    title: "Fair price",
+    subtitle: "In line with the area average",
+  },
+  premium: {
+    chipBg: "#FFEDD5", chipText: "#9A3412",
+    boxBg: "#FFF7ED", circleBg: "#FFEDD5",
+    iconColor: "#EA580C", titleColor: "#7C2D12", subtitleColor: "#9A3412",
+    Icon: TrendingUp,
+    title: "Above market",
+    subtitle: "Listed above the area average",
+  },
+  unknown: {
+    chipBg: "#F3F4F6", chipText: "#4B5563",
+    boxBg: "#F9FAFB", circleBg: "#F3F4F6",
+    iconColor: "#6B7280", titleColor: "#374151", subtitleColor: "#4B5563",
+    Icon: HelpCircle,
+    title: "Estimating",
+    subtitle: "We need more nearby listings to estimate",
+  },
+};
+
+export default function AiValuationCard({
+  postId,
+  price,
+  locality,
   city,
   listingType,
-  postType
+  postType,
 }) {
   const listedPrice = Number(price || 0);
   const [isOpen, setIsOpen] = useState(false);
+  const [showHow, setShowHow] = useState(false);
   const containerRef = useRef(null);
   const closeTimerRef = useRef(null);
 
@@ -60,12 +98,9 @@ export default function AiValuationCard({
     staleTime: 5 * 60 * 1000,
   });
 
-  // Close on outside click / escape
   useEffect(() => {
     function handleClickOutside(e) {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setIsOpen(false);
-      }
+      if (containerRef.current && !containerRef.current.contains(e.target)) setIsOpen(false);
     }
     function handleKeyDown(e) {
       if (e.key === "Escape") setIsOpen(false);
@@ -88,210 +123,251 @@ export default function AiValuationCard({
 
   const handleMouseLeave = () => {
     if (typeof window !== "undefined" && window.innerWidth < 640) return;
-    closeTimerRef.current = setTimeout(() => {
-      setIsOpen(false);
-    }, 180);
+    closeTimerRef.current = setTimeout(() => setIsOpen(false), 180);
   };
 
   if (!listedPrice) return null;
 
   if (isLoading) {
     return (
-      <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/5 px-2.5 py-0.5 text-[11px] text-base-content/70 animate-pulse border border-primary/10">
-        <Loader2 className="size-3 animate-spin text-primary" />
-        <span>Est. rent…</span>
-      </div>
+      <button
+        type="button"
+        disabled
+        className="inline-flex items-center gap-2.5 rounded-full bg-white dark:bg-base-200 border border-[#E5E7EB] h-11 px-3.5 text-sm animate-pulse"
+      >
+        <Loader2 className="size-4 animate-spin" style={{ color: "#4F46E5" }} />
+        <span style={{ color: "#6B7280" }}>Estimating…</span>
+      </button>
     );
   }
 
-  // Determine intent (rental vs buy/sale)
-  const isRent = 
+  const compCount = valData?.compCount ?? 0;
+  const compScope = valData?.compScope || "";
+  const tooThin = compCount < 3 && compScope !== "serper_market_benchmark";
+  if (!valData?.available || tooThin) return null;
+
+  const isRent =
     valData?.intent === "rent" ||
     String(listingType || "").toLowerCase() === "rent" ||
     String(listingType || "").toLowerCase() === "lease" ||
     postType === "PROPERTY_RENT" ||
     postType === "REQUIREMENT_RENT";
 
-  const expectedTitle = isRent ? "Expected Rent" : "Expected Price";
   const fairMin = valData?.fairMin || Math.round(listedPrice * 0.94);
   const fairMax = valData?.fairMax || Math.round(listedPrice * 1.05);
-  const confidenceScore = valData?.confidenceScore || 88;
-  const confidenceLabel = valData?.confidenceLabel || "High Confidence";
-  const dealIndex = valData?.dealIndex || "Fair Market Price";
   const dealTone = valData?.dealTone || "fair";
-  const compCount = valData?.compCount ?? 0;
   const marketAverageSqft = valData?.marketAverageSqft;
   const subjectPricePerSqft = valData?.subjectPricePerSqft;
   const deltaPct = valData?.deltaPct ?? 0;
-  const locationLabel = valData?.locationLabel || locality || city || "this area";
+  const LocationLabel = valData?.locationLabel || locality || city || "this area";
 
-  // Visual tones
-  const toneConfig = {
-    good: {
-      badgeBg: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
-      accentDot: "bg-emerald-500",
-      label: "Great Value",
-      subtitle: `${Math.abs(deltaPct)}% below estimated market average`,
-    },
-    premium: {
-      badgeBg: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30",
-      accentDot: "bg-amber-500",
-      label: "Premium Price",
-      subtitle: `${Math.abs(deltaPct)}% above estimated market average`,
-    },
-    fair: {
-      badgeBg: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30",
-      accentDot: "bg-sky-500",
-      label: "Fair Market",
-      subtitle: "Aligned with market comps",
-    },
-  }[dealTone] || {
-    badgeBg: "bg-base-200 text-base-content/80 border-base-300",
-    accentDot: "bg-primary",
-    label: "Market Price",
-    subtitle: "Standard market price",
-  };
-
+  const v = VERDICT[dealTone] || VERDICT.fair;
+  const VIcon = v.Icon;
   const compactRange = formatRange(fairMin, fairMax, isRent, true);
-  const fullRange = formatRange(fairMin, fairMax, isRent, false);
+  const full = formatRange(fairMin, fairMax, isRent, false);
+  const popoverTitle = isRent ? "AI rent estimate" : "AI price estimate";
+  const popoverSubtitle = isRent
+    ? "Fair rent for similar homes nearby"
+    : "Fair price for similar properties nearby";
 
   return (
-    <div 
-      ref={containerRef} 
+    <div
+      ref={containerRef}
       className="relative inline-block max-w-fit"
+      style={{ textAlign: "left" }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Clean, Non-Breaking Badge with Breathing Room */}
-      <div
-        role="button"
-        tabIndex={0}
+      {/* Trigger chip */}
+      <button
+        type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setIsOpen((prev) => !prev); }}
-        className="group inline-flex items-center gap-1.5 rounded-full bg-primary/10 hover:bg-primary/15 border border-primary/20 px-2.5 py-1 text-xs text-base-content transition-all cursor-pointer select-none max-w-fit"
+        className="inline-flex items-center h-11 rounded-full bg-white dark:bg-base-200 border hover:shadow-sm transition-all cursor-pointer select-none"
+        style={{
+          gap: 10,
+          paddingLeft: 14,
+          paddingRight: 12,
+          borderColor: isOpen ? "#4F46E5" : "#E5E7EB",
+          boxShadow: isOpen ? "0 0 0 3px rgba(79,70,229,.12)" : undefined,
+        }}
         aria-expanded={isOpen}
       >
-        <Sparkles className="size-3 text-primary shrink-0" />
-        
-        <span className="font-semibold text-primary text-[11px] sm:text-xs">
-          {expectedTitle}:
-        </span>
-
-        <span className="font-mono font-bold text-base-content text-[11px] sm:text-xs">
+        <Sparkles className="size-4 shrink-0" style={{ color: "#4F46E5" }} />
+        <span
+          className="whitespace-nowrap"
+          style={{ fontSize: 14, fontWeight: 600, color: "#111827", fontVariantNumeric: "tabular-nums" }}
+        >
           {compactRange}
         </span>
-
-        {/* Desktop deal pill */}
-        <span className={`hidden md:inline-flex items-center gap-1 rounded-full px-1.5 py-0.2 text-[10px] font-semibold border ${toneConfig.badgeBg} ml-0.5`}>
-          <span className={`size-1.5 rounded-full ${toneConfig.accentDot}`} />
-          {toneConfig.label}
+        <span
+          className="inline-flex items-center rounded-full whitespace-nowrap"
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            padding: "3px 8px",
+            backgroundColor: v.chipBg,
+            color: v.chipText,
+          }}
+        >
+          <span
+            className="size-1.5 rounded-full mr-1.5 shrink-0"
+            style={{ backgroundColor: v.iconColor }}
+          />
+          {v.title}
         </span>
+        <ChevronDown
+          className="size-4 transition-transform"
+          style={{ color: "#6B7280", transform: isOpen ? "rotate(180deg)" : undefined }}
+        />
+      </button>
 
-        <Info className="size-3 text-base-content/40 group-hover:text-primary transition-colors shrink-0 ml-0.5" />
-      </div>
-
-      {/* Popover: Centered Modal on Mobile, Dropdown on Desktop */}
+      {/* Popover */}
       {isOpen && (
         <>
-          {/* Mobile Backdrop */}
-          <div 
-            className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 sm:hidden"
+          <div
+            className="fixed inset-0 bg-black/30 z-50 sm:hidden"
             onClick={() => setIsOpen(false)}
           />
 
-          <div 
-            className="fixed inset-x-4 top-1/2 -translate-y-1/2 sm:translate-y-0 sm:inset-auto sm:absolute sm:right-0 sm:top-full sm:mt-2 z-50 w-auto sm:w-96 max-w-xs sm:max-w-sm rounded-2xl border border-base-200/90 bg-base-100 dark:bg-base-900 p-4 shadow-2xl backdrop-blur-md transition-all animate-in fade-in zoom-in-95 duration-150 mx-auto"
+          <div
+            className="fixed inset-x-4 top-1/2 -translate-y-1/2 sm:translate-y-0 sm:inset-auto sm:absolute sm:left-0 sm:top-full sm:mt-2 z-50 sm:w-[26rem] bg-white dark:bg-base-100 mx-auto overflow-hidden"
+            style={{
+              textAlign: "left",
+              borderRadius: 20,
+              padding: 24,
+              boxShadow: "0 16px 40px rgba(17,24,39,.08), 0 1px 3px rgba(17,24,39,.06)",
+              fontVariantNumeric: "tabular-nums",
+              display: "flex",
+              flexDirection: "column",
+              gap: 24,
+            }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           >
-            {/* Header pill & Engine tag */}
-            <div className="flex items-center justify-between gap-2 border-b border-base-200/70 pb-2">
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary border border-primary/20">
-                <Sparkles className="size-3" /> AI Valuation Model
-              </span>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 text-[10px] text-base-content/50">
-                  <Scale className="size-3" />
-                  <span>Real-time Comps</span>
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Sparkles className="size-[18px]" style={{ color: "#4F46E5" }} />
+                <span style={{ fontSize: 15, fontWeight: 600, color: "#111827" }}>{popoverTitle}</span>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
+                className="grid place-items-center rounded-full hover:bg-gray-100 dark:hover:bg-base-200 transition-colors"
+                style={{ width: 44, height: 44 }}
+                aria-label="Close"
+              >
+                <X className="size-4" style={{ color: "#6B7280" }} />
+              </button>
+            </div>
+
+            {/* Price block */}
+            <div>
+              <p style={{ fontSize: 14, color: "#4B5563", marginBottom: 6 }}>{popoverSubtitle}</p>
+              <p className="whitespace-nowrap" style={{ letterSpacing: "-0.02em" }}>
+                <span style={{ fontSize: 34, fontWeight: 700, color: "#111827" }}>
+                  {full.price}
+                </span>
+                {full.suffix && (
+                  <span style={{ fontSize: 15, color: "#6B7280", marginLeft: 6, fontWeight: 400 }}>
+                    {full.suffix}
+                  </span>
+                )}
+              </p>
+            </div>
+
+            {/* Verdict box */}
+            <div
+              className="flex items-center"
+              style={{ padding: "14px 16px", borderRadius: 14, gap: 12, backgroundColor: v.boxBg }}
+            >
+              <div
+                className="grid place-items-center shrink-0 rounded-full"
+                style={{ width: 36, height: 36, backgroundColor: v.circleBg }}
+              >
+                <VIcon className="size-[18px]" style={{ color: v.iconColor }} />
+              </div>
+              <div>
+                <p style={{ fontSize: 15, fontWeight: 600, color: v.titleColor }}>{v.title}</p>
+                <p style={{ fontSize: 13, color: v.subtitleColor }}>
+                  {deltaPct !== 0
+                    ? `Listed ${Math.abs(deltaPct)}% ${deltaPct < 0 ? "below" : "above"} the area average`
+                    : v.subtitle}
+                </p>
+              </div>
+            </div>
+
+            {/* Detail rows */}
+            <dl style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 14, margin: 0 }}>
+              {subjectPricePerSqft > 0 && (
+                <div className="flex items-center justify-between">
+                  <dt style={{ color: "#4B5563" }}>This listing</dt>
+                  <dd style={{ fontWeight: 600, color: "#111827", margin: 0 }}>
+                    ₹{subjectPricePerSqft.toLocaleString("en-IN")} / sq ft
+                  </dd>
                 </div>
-                <button 
-                  type="button" 
-                  onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
-                  className="sm:hidden p-1 rounded-full text-base-content/50 hover:text-base-content hover:bg-base-200"
-                  aria-label="Close"
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Confidence & Comp Count */}
-            <div className="mt-2.5 flex items-center gap-2 flex-wrap text-[11px]">
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 font-semibold text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                <CheckCircle2 className="size-3" /> {confidenceLabel} ({confidenceScore}%)
-              </span>
-              {compCount > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-base-200 px-2 py-0.5 font-medium text-base-content/70 border border-base-300">
-                  <BarChart3 className="size-3 text-primary" /> {compCount} live {compCount === 1 ? "comp" : "comps"}
-                </span>
               )}
-            </div>
+              {marketAverageSqft > 0 && (
+                <div className="flex items-center justify-between">
+                  <dt style={{ color: "#4B5563" }}>Area average</dt>
+                  <dd style={{ fontWeight: 600, color: "#111827", margin: 0 }}>
+                    ₹{marketAverageSqft.toLocaleString("en-IN")} / sq ft
+                  </dd>
+                </div>
+              )}
+              {compCount > 0 && (
+                <div className="flex items-center justify-between">
+                  <dt style={{ color: "#4B5563" }}>Compared with</dt>
+                  <dd style={{ fontWeight: 600, color: "#111827", margin: 0 }}>
+                    {compCount} home{compCount !== 1 ? "s" : ""} within 25 km
+                  </dd>
+                </div>
+              )}
+            </dl>
 
-            {/* Expected Range Body */}
-            <div className="mt-2.5 rounded-xl bg-base-200/40 p-3 border border-base-200/60">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-base-content/55">
-                Estimated Fair Market {isRent ? "Rent" : "Value"}
-              </p>
-              <div className="mt-0.5 flex items-baseline gap-2">
-                <span className="font-mono text-lg sm:text-xl font-black text-primary tracking-tight">
-                  {fullRange}
-                </span>
-              </div>
+            {/* Divider + Note */}
+            <div>
+              <div style={{ height: 1, backgroundColor: "#F3F4F6", marginBottom: 16 }} />
+              <div className="flex items-start" style={{ gap: 10 }}>
+                <Info className="size-4 shrink-0 mt-0.5" style={{ color: "#6B7280" }} />
+                <p style={{ fontSize: 13, lineHeight: 1.55, color: "#4B5563", margin: 0 }}>
+                  {valData?.summary || (
+                    compCount < 3
+                      ? "We found only one similar home nearby, so use this as a rough guide. "
+                      : `Based on ${compCount} similar homes within 25 km. `
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setShowHow((v) => !v); }}
+                    style={{ color: "#4338CA", fontWeight: 600, textDecoration: "none", background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: 13 }}
+                  >
+                    {showHow ? "Hide details" : "See how it's calculated"}
+                  </button>
+                </p>
 
-              {/* PSF Rates comparison */}
-              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-base-content/70 border-t border-base-200/60 pt-1.5 font-mono">
-                {subjectPricePerSqft > 0 && (
-                  <span>
-                    <span className="text-base-content/50 font-sans">Listed: </span>
-                    ₹{subjectPricePerSqft.toLocaleString("en-IN")}/sq.ft
-                  </span>
+                {showHow && (
+                  <div
+                    className="mt-3 space-y-2.5"
+                    style={{ fontSize: 12, lineHeight: 1.6, color: "#4B5563" }}
+                  >
+                    <div className="flex gap-2.5">
+                      <span className="shrink-0 grid place-items-center size-5 rounded-full" style={{ backgroundColor: "#E0E7FF", fontSize: 11, fontWeight: 700, color: "#4F46E5" }}>1</span>
+                      <p style={{ margin: 0 }}><span style={{ fontWeight: 600, color: "#111827" }}>Find comparables</span> — We search verified listings within 25 km that match your property type, size, and configuration.</p>
+                    </div>
+                    <div className="flex gap-2.5">
+                      <span className="shrink-0 grid place-items-center size-5 rounded-full" style={{ backgroundColor: "#E0E7FF", fontSize: 11, fontWeight: 700, color: "#4F46E5" }}>2</span>
+                      <p style={{ margin: 0 }}><span style={{ fontWeight: 600, color: "#111827" }}>Adjust for differences</span> — Floor, facing, age, amenities, and micro-location factors are weighted to normalize prices.</p>
+                    </div>
+                    <div className="flex gap-2.5">
+                      <span className="shrink-0 grid place-items-center size-5 rounded-full" style={{ backgroundColor: "#E0E7FF", fontSize: 11, fontWeight: 700, color: "#4F46E5" }}>3</span>
+                      <p style={{ margin: 0 }}><span style={{ fontWeight: 600, color: "#111827" }}>Generate range</span> — The fair market range is the adjusted 25th–75th percentile of comparable prices per sq ft, applied to this property's area.</p>
+                    </div>
+                    <p style={{ margin: 0, fontSize: 11, color: "#6B7280" }}>
+                      Sources include Magicbricks, 99acres, and Housing.com. This is an automated estimate — not a professional appraisal.
+                    </p>
+                  </div>
                 )}
-                {marketAverageSqft > 0 && (
-                  <span>
-                    <span className="text-base-content/50 font-sans">Market Avg: </span>
-                    ₹{marketAverageSqft.toLocaleString("en-IN")}/sq.ft
-                  </span>
-                )}
               </div>
-            </div>
-
-            {/* Deal Index Box */}
-            <div className={`mt-2 rounded-xl border p-2.5 ${toneConfig.badgeBg}`}>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider opacity-75">
-                  Deal Rating
-                </span>
-                <span className="flex items-center gap-1 text-[11px] font-bold">
-                  <span className={`size-1.5 rounded-full ${toneConfig.accentDot}`} />
-                  {dealIndex}
-                </span>
-              </div>
-              <p className="mt-0.5 text-[10px] opacity-75">
-                {toneConfig.subtitle}
-              </p>
-            </div>
-
-            {/* Summary / Location context */}
-            <div className="mt-2 flex items-start gap-1.5 text-[10px] text-base-content/65 border-t border-base-200/50 pt-2">
-              <Info className="size-3 mt-0.5 text-primary/70 shrink-0" />
-              <p className="leading-tight">
-                {valData?.summary || (
-                  <>
-                    Trained on verified {propertyType.toLowerCase()} comps in{" "}
-                    <span className="font-medium text-base-content/80">{locationLabel}</span>.
-                  </>
-                )}
-              </p>
             </div>
           </div>
         </>

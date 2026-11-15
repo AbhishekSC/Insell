@@ -48,6 +48,12 @@ import {
   UserCircle,
   UserRoundPlus,
   Users,
+  UtensilsCrossed,
+  Bed,
+  Star,
+  FileText,
+  LayoutDashboard,
+  Wifi,
   X,
   Zap,
 } from "lucide-react";
@@ -136,9 +142,9 @@ const STORY_COLLECTIONS = [
   { label: "Trending", category: "Recent", image: "https://placehold.co/480x320?text=Trending" },
 ];
 
-const CATEGORY_CHIPS = ["For You", "Following", "Near Me", "Rooms", "Flatmates"];
+const CATEGORY_CHIPS = ["For You", "Following", "Near Me", "Rooms", "Flatmates", "PG/Hostel"];
 
-const LISTING_TYPES = ["All", "Sell", "Rent", "Requirement", "Project", "Commercial", "Agricultural Land"];
+const LISTING_TYPES = ["All", "Sell", "Rent", "Requirement", "Project", "Commercial", "Agricultural Land", "PG/Hostel"];
 const PROPERTY_TYPES = ["All", "Apartment", "Independent House", "Villa", "Plot", "Commercial", "Agricultural Land"];
 const CITIES = [
   "Mumbai",
@@ -239,6 +245,20 @@ const POST_TYPE_DEFINITIONS = {
     propertyType: "Apartment",
     group: "flatmate",
   },
+  PG_HOSTEL: {
+    label: "PG / Hostel Listing",
+    description: "List your PG, hostel, or co-living space",
+    listingType: "Rent",
+    propertyType: "PG",
+    group: "pg",
+  },
+  SERVICE_LISTING: {
+    label: "Service Listing",
+    description: "Offer property services — packers, interiors, legal, etc.",
+    listingType: "Service",
+    propertyType: "Service",
+    group: "service",
+  },
 };
 
 const ALL_CREATE_POST_TYPES = [
@@ -253,6 +273,8 @@ const ALL_CREATE_POST_TYPES = [
   "OPEN_HOUSE_EVENT",
   "FLATMATE_OFFER",
   "FLATMATE_SEEKING",
+  "PG_HOSTEL",
+  "SERVICE_LISTING",
 ];
 
 function relativeTimeShort(when) {
@@ -327,6 +349,7 @@ function getListingBadge(post) {
   if (postType === "OPEN_HOUSE_EVENT") return "Open House";
   if (postType === "FLATMATE_OFFER") return "Looking for Roommate";
   if (postType === "FLATMATE_SEEKING") return "Need a Room";
+  if (postType === "PG_HOSTEL") return "PG/Hostel";
   // Commercial / agricultural can be either sale or rent — derive from
   // listingType instead of falling through to the raw "Sell" string.
   if (postType === "AGRICULTURAL_LISTING") {
@@ -365,6 +388,8 @@ export default function MarketplacePage() {
   const [activeCategory, setActiveCategory] = useState("For You");
   const [selectedTrendingLocation, setSelectedTrendingLocation] = useState(null);
   const [activeBadgeFilter, setActiveBadgeFilter] = useState(null);
+  const [pgFilters, setPgFilters] = useState({ gender: "", food: "", sharing: "", minRating: 0 });
+  const isPgCategory = activeCategory === "PG/Hostel";
 
   const handleFilterByBadge = (badge, e) => {
     if (e) e.stopPropagation();
@@ -685,6 +710,21 @@ export default function MarketplacePage() {
     preferredLocalities: "",
     groupSize: "",
     hideContact: false,
+    // PG / Hostel fields
+    pgSharingTypes: [],
+    pgGenderPreference: "",
+    pgFoodIncluded: false,
+    pgFoodType: "",
+    pgTotalBeds: "",
+    pgAvailableBeds: "",
+    pgSecurityDeposit: "",
+    pgLockInPeriodMonths: "",
+    pgAmenities: [],
+    pgWifiSpeed: "",
+    pgHouseRules: [],
+    pgNearbyColleges: [],
+    pgNearbyOffices: [],
+    pgWeeklyMenu: [],
   });
 
   const [citySuggestions, setCitySuggestions] = useState([]);
@@ -729,8 +769,13 @@ export default function MarketplacePage() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get("openComposer") === "1") {
+      const presetType = params.get("postType");
+      if (presetType) {
+        setDraft((prev) => ({ ...prev, postType: presetType }));
+      }
       setIsComposerOpen(true);
       params.delete("openComposer");
+      params.delete("postType");
       const nextSearch = params.toString();
       navigate(`${location.pathname}${nextSearch ? `?${nextSearch}` : ""}`, { replace: true });
     }
@@ -997,7 +1042,23 @@ export default function MarketplacePage() {
         // "Near Me" is filtered + distance-ranked entirely server-side (a
         // $geoNear pipeline) — no client-side location filter, and its order
         // must be preserved (see the sort below).
-        return cityOk && localityOk && minOk && maxOk && verifiedOk && luxuryOk && investmentOk;
+        if (!cityOk || !localityOk || !minOk || !maxOk || !verifiedOk || !luxuryOk || !investmentOk) return false;
+
+        if (isPgCategory) {
+          const pgMeta = post.postMeta?.pgHostel || {};
+          if (pgFilters.gender && pgMeta.genderPreference && pgMeta.genderPreference !== "any" && pgMeta.genderPreference !== pgFilters.gender) return false;
+          if (pgFilters.food && pgMeta.foodIncluded !== true) return false;
+          if (pgFilters.sharing) {
+            const types = (pgMeta.sharingTypes || []).map((s) => (s.type || "").toLowerCase());
+            if (!types.includes(pgFilters.sharing.toLowerCase())) return false;
+          }
+          if (pgFilters.minRating > 0) {
+            const vals = pgMeta.avgRatings ? Object.values(pgMeta.avgRatings).filter((v) => typeof v === "number" && v > 0) : [];
+            const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+            if (avg < pgFilters.minRating) return false;
+          }
+        }
+        return true;
       })
       .sort((a, b) => {
         if (activeCategory !== "Recent") return 0;
@@ -1008,7 +1069,7 @@ export default function MarketplacePage() {
         media: normalizeMedia(post),
         likesCount: Number(post.likesCount || 0),
       }));
-  }, [activeCategory, appliedFilters, authUser?.city, data]);
+  }, [activeCategory, appliedFilters, authUser?.city, data, isPgCategory, pgFilters]);
 
   // Deferred secondary queries: fire ONLY after the primary propertyFeed is loaded
   // to avoid choking the browser's 6-connection HTTP limit during initial load.
@@ -1278,6 +1339,7 @@ export default function MarketplacePage() {
     const commercial = flatMeta.commercial || {};
     const residential = flatMeta.residential || {};
     const flatmate = flatMeta.flatmate || {};
+    const pgHostel = flatMeta.pgHostel || {};
     return {
       postType: post.postType || "PROPERTY_SALE",
       listingType: post.listingType || "Sell",
@@ -1347,7 +1409,7 @@ export default function MarketplacePage() {
           ? residential.amenities
           : String(requirement.amenitiesText || "").split(",").map((item) => item.trim()).filter(Boolean),
       alternativeMobile: residential.alternativeMobile || flatMeta.alternativeMobile || "",
-      electricityBillUrl: residential.electricityBillUrl || flatMeta.electricityBillUrl || flatMeta.electricityBill || "",
+      electricityBillUrl: residential.electricityBillUrl || commercial.electricityBillUrl || pgHostel.electricityBillUrl || flatMeta.electricityBillUrl || flatMeta.electricityBill || "",
       roomType: flatmate.roomType || "",
       occupancy: flatmate.occupancy || "",
       rentPerPerson: flatmate.rentPerPerson || "",
@@ -1365,6 +1427,22 @@ export default function MarketplacePage() {
       preferredLocalities: Array.isArray(flatmate.preferredLocalities) ? flatmate.preferredLocalities.join(", ") : "",
       groupSize: flatmate.groupSize || "",
       hideContact: Boolean(flatmate.hideContact),
+
+      pgSharingTypes: Array.isArray(pgHostel.sharingTypes) && pgHostel.sharingTypes.length > 0 ? pgHostel.sharingTypes : [],
+      pgGenderPreference: pgHostel.genderPreference || "",
+      pgFoodIncluded: Boolean(pgHostel.foodIncluded),
+      pgFoodType: pgHostel.foodType || "",
+      pgTotalBeds: pgHostel.totalBeds || "",
+      pgAvailableBeds: pgHostel.availableBeds || "",
+      pgSecurityDeposit: pgHostel.securityDeposit || "",
+      pgLockInPeriodMonths: pgHostel.lockInPeriodMonths || "",
+      pgAmenities: Array.isArray(pgHostel.amenities) ? pgHostel.amenities : [],
+      pgWifiSpeed: pgHostel.wifiSpeed || "",
+      pgHouseRules: Array.isArray(pgHostel.houseRules) ? pgHostel.houseRules : [],
+      pgNearbyColleges: Array.isArray(pgHostel.nearbyColleges) ? pgHostel.nearbyColleges : [],
+      pgNearbyOffices: Array.isArray(pgHostel.nearbyOffices) ? pgHostel.nearbyOffices : [],
+      pgWeeklyMenu: Array.isArray(pgHostel.weeklyMenu) && pgHostel.weeklyMenu.length === 7 ? pgHostel.weeklyMenu : [],
+
       status: post?.status || "DRAFT",
     };
   };
@@ -1507,12 +1585,37 @@ export default function MarketplacePage() {
         groupSize: Number(draft.groupSize || 0),
         hideContact: Boolean(draft.hideContact),
       },
+      pgHostel: {
+        sharingTypes: Array.isArray(draft.pgSharingTypes)
+          ? draft.pgSharingTypes.filter((r) => r.type && r.price).map((r) => ({ type: r.type, price: Number(r.price) }))
+          : [],
+        genderPreference: draft.pgGenderPreference || "",
+        foodIncluded: Boolean(draft.pgFoodIncluded),
+        foodType: draft.pgFoodType || "",
+        totalBeds: Number(draft.pgTotalBeds || 0),
+        availableBeds: Number(draft.pgAvailableBeds || 0),
+        securityDeposit: Number(draft.pgSecurityDeposit || 0),
+        lockInPeriodMonths: Number(draft.pgLockInPeriodMonths || 0),
+        amenities: Array.isArray(draft.pgAmenities) ? draft.pgAmenities : [],
+        wifiSpeed: draft.pgWifiSpeed || "",
+        houseRules: Array.isArray(draft.pgHouseRules) ? draft.pgHouseRules : [],
+        nearbyColleges: Array.isArray(draft.pgNearbyColleges) ? draft.pgNearbyColleges : [],
+        nearbyOffices: Array.isArray(draft.pgNearbyOffices) ? draft.pgNearbyOffices : [],
+        weeklyMenu: Array.isArray(draft.pgWeeklyMenu) && draft.pgWeeklyMenu.some((d) => d.breakfast || d.lunch || d.dinner)
+          ? draft.pgWeeklyMenu
+          : [],
+      },
     };
 
     let price = Number(draft.price || 0);
     if (isRequirement) price = Number(draft.budgetMax || draft.price || 0);
     else if (draft.postType === "FLATMATE_OFFER") price = Number(draft.rentPerPerson || draft.price || 0);
     else if (draft.postType === "FLATMATE_SEEKING") price = Number(draft.seekerBudgetMax || draft.price || 0);
+    else if (draft.postType === "PG_HOSTEL") {
+      const sharingPrices = (Array.isArray(draft.pgSharingTypes) ? draft.pgSharingTypes : [])
+        .map((r) => Number(r.price || 0)).filter(Boolean);
+      price = sharingPrices.length > 0 ? Math.min(...sharingPrices) : Number(draft.price || 0);
+    }
 
     return {
       ...draft,
@@ -2043,30 +2146,37 @@ export default function MarketplacePage() {
                   if (item.section === "chat") {
                     items.push({ label: "My Deals", icon: Handshake, to: "/deals" });
                     items.push({ label: "Saved Searches", icon: Bell, to: "/saved-searches" });
+                    items.push({ label: "My PG", icon: Building2, to: "/my-pg" });
+                    if (authUser?.pgOwnerProfile?.approvalStatus === "approved") {
+                      items.push({ label: "PG Dashboard", icon: LayoutDashboard, to: "/pg-dashboard" });
+                      items.push({ label: "Rental Tools", icon: FileText, to: "/rental-tools" });
+                    }
                   }
                 }
                 if (authUser?.isAdmin) items.push(ADMIN_NAV_ITEM);
                 return items;
-              })().map(({ label, icon, section, to }) => {
-                // Renamed-destructure (`icon: NavIcon`) used only in JSX trips
-                // up this project's no-unused-vars config as a false positive.
+              })().map((item) => {
+                const { label, icon, section, to } = item;
                 const NavIcon = icon;
-                // Calculate notification counts for badges
                 let badgeCount = 0;
                 if (section === "activity") {
-                  badgeCount = totalUnreadCount; // Total unread notifications
+                  badgeCount = totalUnreadCount;
                 } else if (section === "connections") {
-                  badgeCount = incomingRequestsCount; // Connection requests
+                  badgeCount = incomingRequestsCount;
                 } else if (section === "chat") {
-                  badgeCount = messageRequests; // Message requests
+                  badgeCount = messageRequests;
                 }
+
+                const isActive = section
+                  ? activeSection === section
+                  : to && location.pathname === to;
 
                 return (
                   <button
                     key={label}
                     type="button"
                     className={`btn btn-sm w-full justify-start rounded-lg border-none relative ${
-                      section && activeSection === section
+                      isActive
                         ? "bg-primary/15 text-primary hover:bg-primary/15"
                         : "bg-transparent text-base-content/70 hover:bg-base-200 hover:text-base-content"
                     }`}
@@ -2217,6 +2327,57 @@ export default function MarketplacePage() {
               onReset={() => setAppliedFilters(filters)}
               onSaveSearch={saveSearchFromFilters}
             />
+
+            {isPgCategory && (
+              <div className="mt-3 mb-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                <select
+                  className="select select-sm select-bordered rounded-full bg-base-100 shrink-0 text-xs"
+                  value={pgFilters.gender}
+                  onChange={(e) => setPgFilters((p) => ({ ...p, gender: e.target.value }))}
+                >
+                  <option value="">All Genders</option>
+                  <option value="boys">Boys</option>
+                  <option value="girls">Girls</option>
+                  <option value="unisex">Unisex</option>
+                </select>
+                <button
+                  type="button"
+                  className={`btn btn-sm rounded-full shrink-0 text-xs ${pgFilters.food ? "btn-success text-white" : "btn-outline"}`}
+                  onClick={() => setPgFilters((p) => ({ ...p, food: p.food ? "" : "yes" }))}
+                >
+                  🍽 Food Included
+                </button>
+                <select
+                  className="select select-sm select-bordered rounded-full bg-base-100 shrink-0 text-xs"
+                  value={pgFilters.sharing}
+                  onChange={(e) => setPgFilters((p) => ({ ...p, sharing: e.target.value }))}
+                >
+                  <option value="">All Sharing</option>
+                  <option value="single">Single</option>
+                  <option value="double">Double</option>
+                  <option value="triple">Triple</option>
+                </select>
+                <select
+                  className="select select-sm select-bordered rounded-full bg-base-100 shrink-0 text-xs"
+                  value={pgFilters.minRating}
+                  onChange={(e) => setPgFilters((p) => ({ ...p, minRating: Number(e.target.value) }))}
+                >
+                  <option value={0}>Any Rating</option>
+                  <option value={3}>3+ Stars</option>
+                  <option value={4}>4+ Stars</option>
+                  <option value={4.5}>4.5+ Stars</option>
+                </select>
+                {(pgFilters.gender || pgFilters.food || pgFilters.sharing || pgFilters.minRating > 0) && (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost text-error rounded-full shrink-0 text-xs"
+                    onClick={() => setPgFilters({ gender: "", food: "", sharing: "", minRating: 0 })}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
 
             {(pullDistance > 0 || pullRefreshing) && (
               <div
@@ -2531,7 +2692,7 @@ export default function MarketplacePage() {
                             <>
                               {/* Flatmate intent label — prominent like flatmate.in */}
                               <div className="flex items-center gap-2 mb-1">
-                                <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold ${
+                                <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold ${
                                   isOfferType
                                     ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                                     : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
@@ -2540,7 +2701,7 @@ export default function MarketplacePage() {
                                   {isOfferType ? "Looking for Roommate" : "Need a Room"}
                                 </span>
                                 {fm.genderPreference && fm.genderPreference !== "Any" && (
-                                  <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${
+                                  <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold ${
                                     fm.genderPreference.toLowerCase() === "male"
                                       ? "bg-blue-500/10 text-blue-700 dark:text-blue-400"
                                       : fm.genderPreference.toLowerCase() === "female"
@@ -2574,7 +2735,7 @@ export default function MarketplacePage() {
                                   {infoPills.map((pill) => (
                                     <span
                                       key={pill.text}
-                                      className={`inline-flex items-center rounded-lg px-2.5 py-0.5 text-[11px] font-medium ${pill.className}`}
+                                      className={`inline-flex items-center rounded-lg px-2.5 py-0.5 text-[11px] font-bold ${pill.className}`}
                                     >
                                       {pill.text}
                                     </span>
@@ -2587,7 +2748,7 @@ export default function MarketplacePage() {
                                   {tags.slice(0, 6).map((tag) => (
                                     <span
                                       key={tag}
-                                      className="inline-flex items-center rounded-full border border-base-300 px-2 py-0.5 text-[10.5px] font-normal text-base-content/55"
+                                      className="inline-flex items-center rounded-full border border-base-300 px-2 py-0.5 text-[10.5px] font-bold text-base-content/55"
                                     >
                                       {tag}
                                     </span>
@@ -2601,6 +2762,109 @@ export default function MarketplacePage() {
                           );
                         })() : (
                         <>
+                          {postType === "PG_HOSTEL" ? (() => {
+                            const pg = post.postMeta?.pgHostel || {};
+                            const sharing = pg.sharingTypes || [];
+                            const prices = sharing.map((s) => s.price).filter(Boolean).sort((a, b) => a - b);
+                            const totalBeds = pg.totalBeds || 0;
+                            const availBeds = pg.availableBeds || 0;
+                            const occupancy = totalBeds > 0 ? Math.round(((totalBeds - availBeds) / totalBeds) * 100) : 0;
+                            const avgRating = pg.avgRatings?.overall || 0;
+
+                            return (
+                              <>
+                                {/* PG Price range */}
+                                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                  <p className="inline-flex items-baseline text-[1.7rem] font-black leading-none text-base-content">
+                                    {prices.length >= 2 && prices[0] !== prices[prices.length - 1]
+                                      ? <>{formatMoney(prices[0])} – {formatMoney(prices[prices.length - 1])}</>
+                                      : formatMoney(prices[0] || post.price)}
+                                    <span className="ml-1 text-sm font-normal text-base-content/50">/ mo</span>
+                                  </p>
+                                </div>
+
+                                {/* PG Type + sharing pills */}
+                                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                  <span className="inline-flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[11px] font-bold bg-violet-500/10 text-violet-700 dark:text-violet-400">
+                                    <Building2 className="size-3" />
+                                    PG / Hostel
+                                  </span>
+                                  {sharing.map((s) => (
+                                    <span key={s.type} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[11px] font-bold bg-base-200 text-base-content/70">
+                                      <Bed className="size-3" />
+                                      {s.type} ₹{(s.price || 0).toLocaleString("en-IN")}
+                                    </span>
+                                  ))}
+                                </div>
+
+                                {/* Food, WiFi, Gender, Deposit, Lock-in */}
+                                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                  {pg.foodIncluded && (
+                                    <span className="inline-flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[11px] font-bold bg-green-500/10 text-green-700 dark:text-green-400">
+                                      <UtensilsCrossed className="size-3" />
+                                      {pg.foodType === "veg" ? "Veg" : pg.foodType === "nonveg" ? "Non-Veg" : "Food"} Included
+                                    </span>
+                                  )}
+                                  {pg.wifiSpeed && (
+                                    <span className="inline-flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[11px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-400">
+                                      <Wifi className="size-3" />
+                                      {pg.wifiSpeed}
+                                    </span>
+                                  )}
+                                  {pg.genderPreference && pg.genderPreference !== "any" && (
+                                    <span className={`inline-flex items-center rounded-lg px-2.5 py-0.5 text-[11px] font-bold capitalize ${
+                                      pg.genderPreference === "male" ? "bg-blue-500/10 text-blue-700 dark:text-blue-400"
+                                        : pg.genderPreference === "female" ? "bg-pink-500/10 text-pink-700 dark:text-pink-400"
+                                          : "bg-base-200 text-base-content/70"
+                                    }`}>
+                                      {pg.genderPreference}
+                                    </span>
+                                  )}
+                                  {pg.securityDeposit > 0 && (
+                                    <span className="inline-flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[11px] font-bold bg-base-200 text-base-content/70">
+                                      ₹{(pg.securityDeposit / 1000).toFixed(0)}K deposit
+                                    </span>
+                                  )}
+                                  {pg.lockInPeriodMonths > 0 && (
+                                    <span className="inline-flex items-center rounded-lg px-2.5 py-0.5 text-[11px] font-bold bg-base-200 text-base-content/70">
+                                      {pg.lockInPeriodMonths}mo lock-in
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Occupancy bar */}
+                                {totalBeds > 0 && (
+                                  <div className="flex items-center gap-2 pt-0.5">
+                                    <div className="flex-1 bg-base-200 rounded-full h-2 overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full transition-all ${occupancy >= 90 ? "bg-error" : occupancy >= 70 ? "bg-warning" : "bg-success"}`}
+                                        style={{ width: `${occupancy}%` }}
+                                      />
+                                    </div>
+                                    <span className="text-[11px] font-bold text-base-content/60 shrink-0">{occupancy}% full · {availBeds} beds open</span>
+                                  </div>
+                                )}
+
+                                {/* Rating + location */}
+                                <div className="flex items-center gap-2 text-[11px] text-base-content/60 pt-0.5">
+                                  {avgRating > 0 && (
+                                    <span className="inline-flex items-center gap-0.5 font-bold text-amber-600 dark:text-amber-400">
+                                      <Star className="size-3 fill-amber-400 text-amber-400" />
+                                      {avgRating.toFixed(1)}
+                                      {pg.reviewCount > 0 && <span className="font-normal text-base-content/40">({pg.reviewCount} reviews)</span>}
+                                    </span>
+                                  )}
+                                  {(post.locality || post.city) && (
+                                    <span className="flex items-center gap-0.5">
+                                      <MapPin className="size-3 shrink-0" />
+                                      {[post.locality, post.city].filter(Boolean).join(", ")}
+                                    </span>
+                                  )}
+                                </div>
+                              </>
+                            );
+                          })() : (
+                          <>
                           {/* Price + inline price-drop */}
                           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                             <p className="inline-flex items-baseline text-[1.7rem] font-black leading-none text-base-content">
@@ -2688,6 +2952,8 @@ export default function MarketplacePage() {
                             <p className="text-[11px] text-base-content/50">
                               Move-in {new Date(post.postMeta.moveInDate).toLocaleDateString()}
                             </p>
+                          )}
+                          </>
                           )}
                         </>
                         )
@@ -3217,7 +3483,7 @@ export default function MarketplacePage() {
                 <div>
                   <p className="text-sm font-semibold text-base-content/70">What would you like to post? Recommended for {activeRole}</p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    {recommendedPostTypes.filter((pt) => !(POST_TYPE_DEFINITIONS[pt]?.group === "flatmate")).map((postType) => {
+                    {recommendedPostTypes.filter((pt) => !["flatmate", "pg"].includes(POST_TYPE_DEFINITIONS[pt]?.group)).map((postType) => {
                       const definition = POST_TYPE_DEFINITIONS[postType] || POST_TYPE_DEFINITIONS.PROPERTY_SALE;
                       const isActive = draft.postType === postType;
                       return (
@@ -3239,6 +3505,35 @@ export default function MarketplacePage() {
                       </button>
                       );
                     })}
+                  </div>
+
+                  {/* PG & Hostel section */}
+                  <div className="mt-6 rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">PG & Hostel</p>
+                    <div className="mt-3">
+                      {["PG_HOSTEL"].map((postType) => {
+                        const definition = POST_TYPE_DEFINITIONS[postType];
+                        const isActive = draft.postType === postType;
+                        return (
+                          <button
+                            key={postType}
+                            type="button"
+                            className={`w-full rounded-2xl border p-4 text-left transition ${isActive ? "border-indigo-500 bg-indigo-100 ring-2 ring-indigo-300" : "border-indigo-200 bg-white hover:border-indigo-400"}`}
+                            onClick={() => {
+                              setDraft((prev) => ({
+                                ...prev,
+                                postType,
+                                listingType: definition.listingType,
+                                propertyType: definition.propertyType,
+                              }));
+                            }}
+                          >
+                            <p className="font-semibold text-base-content">{definition.label}</p>
+                            <p className="mt-1 text-xs text-base-content/60">{definition.description}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {/* Flatmate section — always visible, highlighted */}
@@ -3273,7 +3568,7 @@ export default function MarketplacePage() {
                   <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-base-content/60">Other Post Types</p>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     {availablePostTypes
-                      .filter((postType) => !recommendedPostTypes.includes(postType) && !(POST_TYPE_DEFINITIONS[postType]?.group === "flatmate"))
+                      .filter((postType) => !recommendedPostTypes.includes(postType) && !["flatmate", "pg"].includes(POST_TYPE_DEFINITIONS[postType]?.group))
                       .map((postType) => {
                         const definition = POST_TYPE_DEFINITIONS[postType] || POST_TYPE_DEFINITIONS.PROPERTY_SALE;
                         const isActive = draft.postType === postType;

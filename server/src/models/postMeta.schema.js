@@ -62,6 +62,16 @@ const CommercialMetaSchema = new mongoose.Schema(
     carpetArea: { type: Number, min: 0 },
     floorNumber: Number,
     washrooms: { type: Number, min: 0 },
+    electricityBillUrl: String,
+    electricityBillStatus: {
+      type: String,
+      enum: ["NONE", "PENDING", "VERIFIED", "REJECTED"],
+      default: "NONE",
+    },
+    electricityBillVerifiedAt: Date,
+    electricityBillVerifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    electricityBillRejectionReason: String,
+    electricityBillVerificationNote: String,
   },
   subOpts
 );
@@ -140,6 +150,72 @@ const FlatmateMetaSchema = new mongoose.Schema(
   subOpts
 );
 
+const SharingTypeSchema = new mongoose.Schema(
+  {
+    type: String,
+    price: { type: Number, min: 0 },
+  },
+  subOpts
+);
+
+const WeeklyMenuDaySchema = new mongoose.Schema(
+  {
+    day: String,
+    breakfast: String,
+    lunch: String,
+    dinner: String,
+  },
+  subOpts
+);
+
+const CategoryRatingsSchema = new mongoose.Schema(
+  {
+    food: { type: Number, min: 0, max: 5, default: 0 },
+    cleanliness: { type: Number, min: 0, max: 5, default: 0 },
+    wifi: { type: Number, min: 0, max: 5, default: 0 },
+    water: { type: Number, min: 0, max: 5, default: 0 },
+    safety: { type: Number, min: 0, max: 5, default: 0 },
+    landlord: { type: Number, min: 0, max: 5, default: 0 },
+    value_for_money: { type: Number, min: 0, max: 5, default: 0 },
+    location: { type: Number, min: 0, max: 5, default: 0 },
+  },
+  subOpts
+);
+
+const PgHostelMetaSchema = new mongoose.Schema(
+  {
+    sharingTypes: { type: [SharingTypeSchema], default: undefined },
+    foodIncluded: { type: Boolean, default: false },
+    foodType: String,
+    weeklyMenu: { type: [WeeklyMenuDaySchema], default: undefined },
+    genderPreference: String,
+    totalBeds: { type: Number, min: 0 },
+    availableBeds: { type: Number, min: 0 },
+    amenities: { type: [String], default: undefined },
+    wifiSpeed: String,
+    houseRules: { type: [String], default: undefined },
+    nearbyColleges: { type: [String], default: undefined },
+    nearbyOffices: { type: [String], default: undefined },
+    securityDeposit: { type: Number, min: 0 },
+    lockInPeriodMonths: { type: Number, min: 0 },
+    avgRatings: { type: CategoryRatingsSchema, default: () => ({}) },
+    reviewCount: { type: Number, default: 0 },
+    residentCount: { type: Number, default: 0 },
+    issueResponseTimeHours: Number,
+    electricityBillUrl: String,
+    electricityBillStatus: {
+      type: String,
+      enum: ["NONE", "PENDING", "VERIFIED", "REJECTED"],
+      default: "NONE",
+    },
+    electricityBillVerifiedAt: Date,
+    electricityBillVerifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    electricityBillRejectionReason: String,
+    electricityBillVerificationNote: String,
+  },
+  subOpts
+);
+
 export const PostMetaSchema = new mongoose.Schema(
   {
     requirement: { type: RequirementMetaSchema, default: () => ({}) },
@@ -149,6 +225,7 @@ export const PostMetaSchema = new mongoose.Schema(
     investment: { type: InvestmentMetaSchema, default: () => ({}) },
     residential: { type: ResidentialMetaSchema, default: () => ({}) },
     flatmate: { type: FlatmateMetaSchema, default: () => ({}) },
+    pgHostel: { type: PgHostelMetaSchema, default: () => ({}) },
     amenities: { type: [String], default: undefined },
   },
   { _id: false, strict: false, minimize: true }

@@ -200,6 +200,9 @@ export default function CommunityPage() {
 
   return (
     <AppShell
+      hideMobileHeader
+      showBackButton
+      hideHero
       title="Communities"
       subtitle="Create private travel communities, invite friends, and keep every group conversation in one place."
       actions={

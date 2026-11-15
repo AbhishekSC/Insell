@@ -8,9 +8,11 @@ import {
   ChevronRight,
   Handshake,
   Home,
+  Hotel,
   Landmark,
   MapPin,
   Sparkles,
+  TrendingUp,
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -21,7 +23,9 @@ const INTENT_OPTIONS = [
   { role: "Seller", title: "Sell Property", listingIntent: "Sell", icon: Landmark },
   { role: "Tenant", title: "Rent a Property", listingIntent: "Rent", icon: Building2 },
   { role: "Landlord", title: "List Property for Rent", listingIntent: "Lease", icon: Building2 },
+  { role: "PG Owner", title: "I own a PG / Hostel", listingIntent: "Lease", icon: Hotel },
   { role: "Broker", title: "I'm a Broker", listingIntent: "Broker", icon: Handshake },
+  { role: "Investor", title: "I'm an Investor", listingIntent: "Buy", icon: TrendingUp },
 ];
 
 const PROPERTY_TYPE_OPTIONS = [
@@ -205,6 +209,63 @@ function getStepsByRole(role) {
           { name: "gstNumber", label: "GST number", type: "text", placeholder: "GSTIN" },
           { name: "gstDocUrl", label: "GST doc URL", type: "url", placeholder: "https://..." },
           { name: "companyLogoUrl", label: "Company logo URL", type: "url", placeholder: "https://..." },
+        ],
+      },
+    ];
+  }
+
+  if (role === "PG Owner") {
+    return [
+      {
+        title: "Basic Profile",
+        fields: [
+          { name: "fullName", label: "Full name", type: "text", required: true, placeholder: "Your full name" },
+          { name: "mobileNumber", label: "Mobile number", type: "text", required: true, placeholder: "10-digit mobile" },
+          { name: "profilePic", label: "Profile picture", type: "file", required: false },
+        ],
+      },
+      {
+        title: "Location",
+        fields: [
+          { name: "city", label: "City", type: "text", required: true, placeholder: "City where your PG is located" },
+          { name: "location", label: "Location", type: "location", required: false },
+        ],
+      },
+      {
+        title: "PG Details",
+        fields: [
+          { name: "company", label: "PG / Hostel name", type: "text", placeholder: "e.g. Sunshine PG for Men" },
+          { name: "monthlyRent", label: "Starting rent (₹/month)", type: "number", placeholder: "5000" },
+          { name: "preferredAreas", label: "Nearby colleges / areas", type: "multi", options: LOCALITY_OPTIONS },
+        ],
+      },
+    ];
+  }
+
+  if (role === "Investor") {
+    return [
+      {
+        title: "Basic Profile",
+        fields: [
+          { name: "fullName", label: "Full name", type: "text", required: true, placeholder: "Your full name" },
+          { name: "mobileNumber", label: "Mobile number", type: "text", required: true, placeholder: "10-digit mobile" },
+          { name: "profilePic", label: "Profile picture", type: "file", required: false },
+        ],
+      },
+      {
+        title: "Location",
+        fields: [
+          { name: "city", label: "City", type: "text", required: true, placeholder: "Primary city" },
+          { name: "location", label: "Location", type: "location", required: false },
+        ],
+      },
+      {
+        title: "Investment Preferences",
+        fields: [
+          { name: "propertyTypes", label: "Property types of interest", type: "multi", required: true, options: [...PROPERTY_TYPE_OPTIONS, "PG/Hostel"] },
+          { name: "budgetMin", label: "Investment budget min (₹)", type: "number", placeholder: "1000000" },
+          { name: "budgetMax", label: "Investment budget max (₹)", type: "number", placeholder: "50000000" },
+          { name: "preferredAreas", label: "Preferred areas", type: "multi", options: LOCALITY_OPTIONS },
         ],
       },
     ];

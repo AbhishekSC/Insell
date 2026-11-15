@@ -56,8 +56,13 @@ const AdminPage = lazy(() => import("./pages/AdminPage"));
 const HelpGuidePage = lazy(() => import("./pages/HelpGuidePage"));
 const VerifyStatementPage = lazy(() => import("./pages/VerifyStatementPage"));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
+const PgResidentPage = lazy(() => import("./pages/PgResidentPage"));
+const PgOwnerDashboardPage = lazy(() => import("./pages/PgOwnerDashboardPage"));
+const PgListingPage = lazy(() => import("./pages/PgListingPage"));
+const RentalToolsPage = lazy(() => import("./pages/RentalToolsPage"));
 
 import RouteErrorBoundary from "./components/RouteErrorBoundary";
+import { PgCompareTray, PgCompareModal } from "./components/PgCompare";
 
 function App() {
   const queryClient = useQueryClient();
@@ -146,6 +151,7 @@ function App() {
   // unverified users get bounced to /verify-email from any protected route.
   const isVerified = Boolean(authUser?.isVerified);
   const isAdmin = Boolean(authUser?.isAdmin);
+  const isPgOwner = authUser?.pgOwnerProfile?.approvalStatus === "approved";
   const guard = (page) => {
     if (!authUser) return <Navigate to="/login" />;
     if (!isVerified) return <Navigate to="/verify-email" />;
@@ -155,6 +161,12 @@ function App() {
     if (!authUser) return <Navigate to="/login" />;
     if (!isVerified) return <Navigate to="/verify-email" />;
     if (!isAdmin) return <Navigate to="/marketplace" />;
+    return page;
+  };
+  const guardPgOwner = (page) => {
+    if (!authUser) return <Navigate to="/login" />;
+    if (!isVerified) return <Navigate to="/verify-email" />;
+    if (!isPgOwner) return <Navigate to="/profile" />;
     return page;
   };
 
@@ -324,6 +336,22 @@ function App() {
             path="/verify-statement/:token"
             element={<VerifyStatementPage />}
           />
+          <Route
+            path="/pgs"
+            element={guard(<RouteErrorBoundary name="PG Listings"><PgListingPage /></RouteErrorBoundary>)}
+          />
+          <Route
+            path="/my-pg"
+            element={guard(<RouteErrorBoundary name="My PG"><PgResidentPage /></RouteErrorBoundary>)}
+          />
+          <Route
+            path="/pg-dashboard"
+            element={guardPgOwner(<RouteErrorBoundary name="PG Dashboard"><PgOwnerDashboardPage /></RouteErrorBoundary>)}
+          />
+          <Route
+            path="/rental-tools"
+            element={guardPgOwner(<RouteErrorBoundary name="Rental Tools"><RentalToolsPage /></RouteErrorBoundary>)}
+          />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
@@ -337,6 +365,8 @@ function App() {
         />
       ) : null}
 
+      <PgCompareTray />
+      <PgCompareModal />
       <AppToaster />
       <Analytics />
       <SpeedInsights />

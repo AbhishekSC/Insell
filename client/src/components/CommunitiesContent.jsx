@@ -268,9 +268,9 @@ export default function CommunitiesContent({ onOpenChat }) {
   );
 
   return (
-    <div className="h-full">
-      {/* Header */}
-      <div className="mb-3 sm:mb-4">
+    <div className="h-full px-3 pt-3 sm:px-4 sm:pt-4 xl:px-0 xl:pt-0">
+      {/* Header — hidden on mobile where the back-bar already shows the title */}
+      <div className="mb-3 sm:mb-4 hidden lg:block">
         <h1 className="text-xl font-bold text-base-content sm:text-2xl">Communities</h1>
         <p className="text-xs text-base-content/60 sm:text-sm">Join groups and connect with people who share your interests.</p>
       </div>

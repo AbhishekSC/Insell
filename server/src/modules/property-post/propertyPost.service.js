@@ -50,6 +50,25 @@ import {
   COMPARISON_WEIGHT_CONFIGS,
 } from "./propertyPost.constants.js";
 
+// ── Electricity bill branch routing ────────────────────────────────────
+
+const BILL_BRANCH_BY_POST_TYPE = {
+  COMMERCIAL_LISTING: "commercial",
+  PG_HOSTEL: "pgHostel",
+};
+
+function billBranchForType(postType) {
+  return BILL_BRANCH_BY_POST_TYPE[postType] || "residential";
+}
+
+function findBillBranch(postMeta) {
+  for (const b of ["residential", "commercial", "pgHostel"]) {
+    if (postMeta?.[b]?.electricityBillUrl) return b;
+  }
+  if (postMeta?.electricityBillUrl) return "residential";
+  return null;
+}
+
 // ── Pure utility functions ──────────────────────────────────────────────
 
 export function haversineKm(lat1, lon1, lat2, lon2) {
@@ -667,12 +686,14 @@ export async function createPost(user, body) {
   const safeVisibility = POST_VISIBILITIES.includes(visibility) ? visibility : "PUBLIC";
 
   const meta = sanitizePostMeta(body?.postMeta);
-  const billUrl = meta?.residential?.electricityBillUrl || meta?.electricityBillUrl;
+  const branch = billBranchForType(effectivePostType);
+  const billUrl = meta?.[branch]?.electricityBillUrl || meta?.residential?.electricityBillUrl || meta?.electricityBillUrl;
   if (billUrl) {
-    if (!meta.residential) meta.residential = {};
-    meta.residential.electricityBillStatus = "PENDING";
-  } else if (meta?.residential) {
-    meta.residential.electricityBillStatus = "NONE";
+    if (!meta[branch]) meta[branch] = {};
+    meta[branch].electricityBillUrl = billUrl;
+    meta[branch].electricityBillStatus = "PENDING";
+  } else if (meta?.[branch]) {
+    meta[branch].electricityBillStatus = "NONE";
   }
 
   const post = await repo.createPost({
@@ -784,40 +805,45 @@ export async function updatePost(user, postId, body) {
   if (body?.electricityBillUrl !== undefined && !body?.postMeta) {
     const billUrl = String(body.electricityBillUrl || "").trim();
     if (!post.postMeta) post.postMeta = {};
-    if (!post.postMeta.residential) post.postMeta.residential = {};
-    post.postMeta.residential.electricityBillUrl = billUrl;
+    const br = billBranchForType(post.postType);
+    if (!post.postMeta[br]) post.postMeta[br] = {};
+    post.postMeta[br].electricityBillUrl = billUrl;
     if (billUrl) {
-      post.postMeta.residential.electricityBillStatus = "PENDING";
-      post.postMeta.residential.electricityBillVerifiedAt = undefined;
-      post.postMeta.residential.electricityBillVerifiedBy = undefined;
-      post.postMeta.residential.electricityBillRejectionReason = undefined;
+      post.postMeta[br].electricityBillStatus = "PENDING";
+      post.postMeta[br].electricityBillVerifiedAt = undefined;
+      post.postMeta[br].electricityBillVerifiedBy = undefined;
+      post.postMeta[br].electricityBillRejectionReason = undefined;
     } else {
-      post.postMeta.residential.electricityBillStatus = "NONE";
+      post.postMeta[br].electricityBillStatus = "NONE";
     }
     post.markModified("postMeta");
   }
 
   if (body?.postMeta) {
     const sanitizedMeta = sanitizePostMeta(body.postMeta);
-    const oldBill = post.postMeta?.residential?.electricityBillUrl || post.postMeta?.electricityBillUrl;
-    const newBill = sanitizedMeta?.residential?.electricityBillUrl || sanitizedMeta?.electricityBillUrl;
+    const br = billBranchForType(post.postType);
+    const oldBranch = findBillBranch(post.postMeta) || br;
+    const oldBill = post.postMeta?.[oldBranch]?.electricityBillUrl || post.postMeta?.electricityBillUrl;
+    const newBill = sanitizedMeta?.[br]?.electricityBillUrl || sanitizedMeta?.residential?.electricityBillUrl || sanitizedMeta?.electricityBillUrl;
 
     if (newBill) {
       if (newBill !== oldBill) {
-        if (!sanitizedMeta.residential) sanitizedMeta.residential = {};
-        sanitizedMeta.residential.electricityBillStatus = "PENDING";
-        sanitizedMeta.residential.electricityBillVerifiedAt = undefined;
-        sanitizedMeta.residential.electricityBillVerifiedBy = undefined;
-        sanitizedMeta.residential.electricityBillRejectionReason = undefined;
+        if (!sanitizedMeta[br]) sanitizedMeta[br] = {};
+        sanitizedMeta[br].electricityBillUrl = newBill;
+        sanitizedMeta[br].electricityBillStatus = "PENDING";
+        sanitizedMeta[br].electricityBillVerifiedAt = undefined;
+        sanitizedMeta[br].electricityBillVerifiedBy = undefined;
+        sanitizedMeta[br].electricityBillRejectionReason = undefined;
       } else {
-        if (!sanitizedMeta.residential) sanitizedMeta.residential = {};
-        sanitizedMeta.residential.electricityBillStatus = post.postMeta?.residential?.electricityBillStatus || "PENDING";
-        sanitizedMeta.residential.electricityBillVerifiedAt = post.postMeta?.residential?.electricityBillVerifiedAt;
-        sanitizedMeta.residential.electricityBillVerifiedBy = post.postMeta?.residential?.electricityBillVerifiedBy;
-        sanitizedMeta.residential.electricityBillRejectionReason = post.postMeta?.residential?.electricityBillRejectionReason;
+        if (!sanitizedMeta[br]) sanitizedMeta[br] = {};
+        sanitizedMeta[br].electricityBillUrl = newBill;
+        sanitizedMeta[br].electricityBillStatus = post.postMeta?.[oldBranch]?.electricityBillStatus || "PENDING";
+        sanitizedMeta[br].electricityBillVerifiedAt = post.postMeta?.[oldBranch]?.electricityBillVerifiedAt;
+        sanitizedMeta[br].electricityBillVerifiedBy = post.postMeta?.[oldBranch]?.electricityBillVerifiedBy;
+        sanitizedMeta[br].electricityBillRejectionReason = post.postMeta?.[oldBranch]?.electricityBillRejectionReason;
       }
-    } else if (sanitizedMeta?.residential) {
-      sanitizedMeta.residential.electricityBillStatus = "NONE";
+    } else if (sanitizedMeta?.[br]) {
+      sanitizedMeta[br].electricityBillStatus = "NONE";
     }
     post.postMeta = sanitizedMeta;
   }

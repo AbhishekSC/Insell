@@ -278,6 +278,33 @@ const userSchema = new mongoose.Schema(
       },
       default: () => ({}),
     },
+    pgOwnerProfile: {
+      type: {
+        isRegistered: { type: Boolean, default: false },
+        approvalStatus: { type: String, enum: ["pending", "approved", "rejected", ""], default: "" },
+        approvedAt: { type: Date, default: null },
+        approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+        rejectionReason: { type: String, trim: true, default: "" },
+        pgName: { type: String, trim: true, default: "" },
+        pgAddress: { type: String, trim: true, default: "" },
+        pgCity: { type: String, trim: true, default: "" },
+        pgLocality: { type: String, trim: true, default: "" },
+        totalBeds: { type: Number, default: 0, min: 0 },
+        genderPreference: { type: String, enum: ["boys", "girls", "unisex", ""], default: "" },
+        foodIncluded: { type: Boolean, default: false },
+        foodType: { type: String, enum: ["veg", "nonveg", "both", ""], default: "" },
+        amenities: [{ type: String, trim: true }],
+        priceRangeMin: { type: Number, default: 0, min: 0 },
+        priceRangeMax: { type: Number, default: 0, min: 0 },
+        yearsOperating: { type: Number, default: 0, min: 0 },
+        propertyOwnership: { type: String, enum: ["owned", "leased", "managed", ""], default: "" },
+        idProofType: { type: String, trim: true, default: "" },
+        idProofNumber: { type: String, trim: true, default: "" },
+        registeredAt: { type: Date, default: null },
+        updatedAt: { type: Date, default: null },
+      },
+      default: () => ({}),
+    },
     // FCM device tokens for push notifications — an array since one user can
     // have multiple open browser sessions/devices at once (multiple open
     // tabs, plus now the mobile app on top of that). Tagged by platform so

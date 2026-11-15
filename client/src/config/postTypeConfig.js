@@ -25,6 +25,9 @@ export const FIELD_KIND = {
   TEXTAREA: "textarea",
   FILE: "file",
   HOUSE_RULES: "house_rules",
+  SHARING_TYPES: "sharing_types",
+  WEEKLY_MENU: "weekly_menu",
+  TAG_LIST: "tag_list",
 };
 
 export const FURNISHING_OPTIONS = ["Fully Furnished", "Semi Furnished", "Unfurnished"];
@@ -37,6 +40,16 @@ export const AREA_UNIT_OPTIONS = ["Acre", "Hectare", "Bigha", "Sq. Yard", "Sq. F
 export const SOIL_OPTIONS = ["Black Soil", "Red Soil", "Alluvial", "Sandy", "Laterite", "Other"];
 export const WATER_OPTIONS = ["Borewell", "Canal", "River", "Rain-fed", "None"];
 export const COMMERCIAL_TYPE_OPTIONS = ["Office", "Shop", "Showroom", "Warehouse", "Restaurant", "Co-working", "Other"];
+
+export const PG_GENDER_OPTIONS = ["Male only", "Female only", "Co-ed"];
+export const PG_FOOD_TYPE_OPTIONS = ["Veg", "Non-Veg", "Both"];
+export const PG_SHARING_TYPE_OPTIONS = ["Single Sharing", "Double Sharing", "Triple Sharing", "Four Sharing"];
+export const PG_AMENITY_OPTIONS = [
+  "WiFi", "AC", "Geyser", "Washing Machine", "Water Purifier",
+  "Power Backup", "CCTV", "Security Guard", "Covered Parking",
+  "Gym", "Lift", "Laundry", "Housekeeping", "Refrigerator",
+  "TV/Common Room", "Study Room", "Balcony",
+];
 
 export const ROOM_TYPE_OPTIONS = ["Private Room", "Shared Room", "PG Bed"];
 export const TARGET_AUDIENCE_OPTIONS = ["Students", "Working Professionals", "Interns", "Any"];
@@ -208,6 +221,39 @@ export const FIELD_DEFS = {
   carpetArea: { label: "Carpet area (sq ft)", kind: FIELD_KIND.NUMBER },
   floorNumber: { label: "Floor", kind: FIELD_KIND.NUMBER },
   washrooms: { label: "Washrooms", kind: FIELD_KIND.NUMBER },
+
+  // --- PG / Hostel ---
+  pgSharingTypes: {
+    label: "Room sharing options & pricing",
+    kind: FIELD_KIND.SHARING_TYPES,
+    options: PG_SHARING_TYPE_OPTIONS,
+  },
+  pgGenderPreference: { label: "Gender preference", kind: FIELD_KIND.SELECT, options: PG_GENDER_OPTIONS },
+  pgFoodIncluded: { label: "Food included", kind: FIELD_KIND.BOOLEAN },
+  pgFoodType: { label: "Food type", kind: FIELD_KIND.SELECT, options: PG_FOOD_TYPE_OPTIONS },
+  pgTotalBeds: { label: "Total beds", kind: FIELD_KIND.NUMBER },
+  pgAvailableBeds: { label: "Available beds", kind: FIELD_KIND.NUMBER },
+  pgSecurityDeposit: { label: "Security deposit (₹)", kind: FIELD_KIND.NUMBER },
+  pgLockInPeriodMonths: { label: "Lock-in period (months)", kind: FIELD_KIND.NUMBER },
+  pgAmenities: { label: "PG amenities", kind: FIELD_KIND.CHECKBOX_GRID, options: PG_AMENITY_OPTIONS },
+  pgWifiSpeed: { label: "WiFi speed", kind: FIELD_KIND.TEXT, placeholder: "e.g. 100 Mbps" },
+  pgHouseRules: {
+    label: "House rules",
+    kind: FIELD_KIND.HOUSE_RULES,
+    placeholder: "Type a rule and press Enter",
+    suggestions: HOUSE_RULE_SUGGESTIONS,
+  },
+  pgNearbyColleges: {
+    label: "Nearby colleges / universities",
+    kind: FIELD_KIND.TAG_LIST,
+    placeholder: "e.g. Christ University — press Enter to add",
+  },
+  pgNearbyOffices: {
+    label: "Nearby offices / tech parks",
+    kind: FIELD_KIND.TAG_LIST,
+    placeholder: "e.g. Manyata Tech Park — press Enter to add",
+  },
+  pgWeeklyMenu: { label: "Weekly food menu", kind: FIELD_KIND.WEEKLY_MENU },
 };
 
 // Fields whose draft keys the server does NOT read at the top level — the
@@ -224,6 +270,10 @@ export const META_ONLY_FIELDS = new Set([
   "flatmateFurnishing", "flatmateGender", "targetAudience", "lifestyleTags",
   "amenityTags", "collegeName", "workplaceName", "seekerBudgetMin", "seekerBudgetMax",
   "preferredLocalities", "groupSize",
+  "pgSharingTypes", "pgGenderPreference", "pgFoodIncluded", "pgFoodType",
+  "pgTotalBeds", "pgAvailableBeds", "pgSecurityDeposit", "pgLockInPeriodMonths",
+  "pgAmenities", "pgWifiSpeed", "pgHouseRules", "pgNearbyColleges", "pgNearbyOffices",
+  "pgWeeklyMenu",
 ]);
 
 const RESIDENTIAL_LISTING_INTENTS = ["Sell", "Rent"];
@@ -382,6 +432,31 @@ export const POST_TYPE_CONFIG = {
     allowedListingTypes: ["Rent"],
     requiresMedia: false,
   },
+  PG_HOSTEL: {
+    essential: [
+      "pgSharingTypes",
+      "pgGenderPreference",
+      "pgTotalBeds",
+      "pgAvailableBeds",
+      "pgSecurityDeposit",
+    ],
+    advanced: [
+      "pgLockInPeriodMonths",
+      "pgFoodIncluded",
+      "pgFoodType",
+      "pgAmenities",
+      "pgWifiSpeed",
+      "pgHouseRules",
+      "pgNearbyColleges",
+      "pgNearbyOffices",
+      "pgWeeklyMenu",
+      "electricityBillUrl",
+    ],
+    card: ["pgAvailableBeds", "pgGenderPreference"],
+    allowedListingTypes: ["Rent"],
+    requiresMedia: true,
+    priceLabel: "Starting price (₹/month)",
+  },
 };
 
 const FALLBACK_CONFIG = POST_TYPE_CONFIG.PROPERTY_SALE;
@@ -407,7 +482,11 @@ export function getCardChips(post) {
   for (const name of config.card || []) {
     const def = FIELD_DEFS[name];
     if (!def) continue;
-    const value = META_ONLY_FIELDS.has(name) ? post?.postMeta?.[name] : post?.[name];
+    let value = META_ONLY_FIELDS.has(name) ? post?.postMeta?.[name] : post?.[name];
+    if (value === undefined && name.startsWith("pg")) {
+      const pgKey = name.slice(2, 3).toLowerCase() + name.slice(3);
+      value = post?.postMeta?.pgHostel?.[pgKey];
+    }
     if (value === undefined || value === null || value === "" || value === 0 || value === false) continue;
     if (name === "bedrooms") chips.push(`${value} BHK`);
     else if (name === "bathrooms") chips.push(`${value} Baths`);
@@ -417,6 +496,8 @@ export function getCardChips(post) {
     else if (name === "landAreaUnit") continue; // folded into landArea
     else if (name === "rentPerPerson") chips.push(`₹${Number(value).toLocaleString("en-IN")}/mo`);
     else if (name === "seekerBudgetMax") chips.push(`Up to ₹${Number(value).toLocaleString("en-IN")}/mo`);
+    else if (name === "pgAvailableBeds") chips.push(`${value} beds free`);
+    else if (name === "pgGenderPreference") chips.push(String(value));
     else chips.push(String(value));
   }
   return chips;

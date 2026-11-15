@@ -24,4 +24,7 @@ export {
   getAdminPropertyVerifications,
   reviewPropertyVerification,
   downloadPropertyBill,
+  getPendingPgOwners,
+  approvePgOwner,
+  rejectPgOwner,
 } from "../modules/admin/admin.controller.js";

@@ -50,8 +50,24 @@ const PREFERENCE_PROMPTS = {
     question: "What kind of property?",
     options: ["Apartment", "Independent House", "Villa", "Plot", "Agricultural Land", "Commercial"].map((v) => ({ value: v, label: v })),
   },
+  secondary_role: {
+    key: "secondary_role",
+    kind: "chips",
+    question: "Do you have any other roles on the platform?",
+    hint: "Pick any that apply — this helps us show you more relevant content. You can skip if none fit.",
+    options: [
+      { value: "Buyer", label: "Buyer" },
+      { value: "Seller", label: "Seller" },
+      { value: "Tenant", label: "Tenant" },
+      { value: "Landlord", label: "Landlord" },
+      { value: "PG Owner", label: "PG Owner" },
+      { value: "Broker", label: "Broker" },
+      { value: "Investor", label: "Investor" },
+    ],
+  },
 };
-const PREFERENCE_PROMPT_ORDER = ["intent", "budget", "areas", "types"];
+const PREFERENCE_PROMPT_ORDER = ["intent", "budget", "areas", "types", "secondary_role"];
+const SECONDARY_ROLE_MIN_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
 const PREFERENCE_PROMPT_COOLDOWN_MS = 20 * 60 * 60 * 1000; // ~once a day
 const PREFERENCE_MAX_SKIPS = 3;
 const PREFERENCE_DONE_THRESHOLD = 3; // answered this many → mark onboarded
@@ -62,6 +78,7 @@ function preferenceAnsweredState(user) {
     budget: Number(user.budgetMax) > 0 || Number(user.budgetMin) > 0,
     areas: Array.isArray(user.preferredLocalities) && user.preferredLocalities.length > 0,
     types: Array.isArray(user.propertyTypePreferences) && user.propertyTypePreferences.length > 0,
+    secondary_role: Array.isArray(user.userRoles) && user.userRoles.length > 1,
   };
 }
 
@@ -69,7 +86,7 @@ function preferenceAnsweredState(user) {
 export async function getPreferencePrompt(req, res) {
   try {
     const user = await User.findById(req.user._id)
-      .select("isOnboarded listingIntent budgetMin budgetMax preferredLocalities propertyTypePreferences preferenceHints")
+      .select("isOnboarded listingIntent budgetMin budgetMax preferredLocalities propertyTypePreferences preferenceHints userRoles primaryRole createdAt")
       .lean();
     if (!user) return sendErrorResponse(res, 404, "User not found");
 
@@ -87,10 +104,17 @@ export async function getPreferencePrompt(req, res) {
     const answeredKeys = new Set(hints.answered || []);
     const skipped = hints.skipped || {};
 
+    const accountAge = user.createdAt ? Date.now() - new Date(user.createdAt).getTime() : Infinity;
+
     for (const key of PREFERENCE_PROMPT_ORDER) {
       if (answeredNow[key] || answeredKeys.has(key)) continue;
       if ((Number(skipped[key]) || 0) >= PREFERENCE_MAX_SKIPS) continue;
-      return sendSuccessResponse(res, 200, "Prompt ready", { prompt: PREFERENCE_PROMPTS[key] });
+      if (key === "secondary_role" && accountAge < SECONDARY_ROLE_MIN_AGE_MS) continue;
+      const prompt = { ...PREFERENCE_PROMPTS[key] };
+      if (key === "secondary_role") {
+        prompt.options = prompt.options.filter((o) => o.value !== (user.primaryRole || ""));
+      }
+      return sendSuccessResponse(res, 200, "Prompt ready", { prompt });
     }
     return sendSuccessResponse(res, 200, "No prompt", { prompt: null });
   } catch (error) {
@@ -144,6 +168,18 @@ export async function answerPreferencePrompt(req, res) {
             .slice(0, 6);
           if (!arr.length) return sendErrorResponse(res, 400, "Pick at least one type");
           set.propertyTypePreferences = arr;
+          break;
+        }
+        case "secondary_role": {
+          const roles = (Array.isArray(value) ? value : [])
+            .map((s) => String(s || "").trim())
+            .filter(Boolean)
+            .slice(0, 6);
+          if (!roles.length) return sendErrorResponse(res, 400, "Pick at least one role");
+          const existingUser = await User.findById(req.user._id).select("primaryRole userRoles").lean();
+          const primary = existingUser?.primaryRole || "";
+          const merged = [...new Set([primary, ...roles])].filter(Boolean);
+          set.userRoles = merged;
           break;
         }
         default:
@@ -206,21 +242,31 @@ export async function updateMyProfile(req, res) {
       updatePayload.homeBase = homeBase;
       updatePayload.location = homeBase;
     }
+    let parsedUserRoles = null;
+    if (body.userRoles !== undefined) {
+      try {
+        const raw = typeof body.userRoles === "string" ? JSON.parse(body.userRoles) : body.userRoles;
+        if (Array.isArray(raw)) parsedUserRoles = raw.map((r) => String(r).trim()).filter(Boolean).slice(0, 10);
+      } catch { /* ignore bad JSON */ }
+    }
+
     if (primaryRole !== undefined) {
       updatePayload.primaryRole = primaryRole;
       updatePayload.travelStyle = primaryRole;
-      updatePayload.activeRole = primaryRole;
-      if (primaryRole) updatePayload.userRoles = [primaryRole];
+      if (!activeRole) updatePayload.activeRole = primaryRole;
     }
     if (activeRole !== undefined) {
       updatePayload.activeRole = activeRole;
-      if (activeRole) updatePayload.userRoles = [activeRole];
     }
     if (travelStyle !== undefined) {
       updatePayload.primaryRole = travelStyle;
       updatePayload.travelStyle = travelStyle;
       updatePayload.activeRole = travelStyle;
-      if (travelStyle) updatePayload.userRoles = [travelStyle];
+    }
+    if (parsedUserRoles) {
+      updatePayload.userRoles = parsedUserRoles;
+    } else if (primaryRole && !parsedUserRoles) {
+      updatePayload.userRoles = [primaryRole];
     }
 
     if (req.file) {
@@ -263,6 +309,65 @@ export async function updateMyProfile(req, res) {
   } catch (error) {
     logger.error("Error updating profile:", error);
     return sendErrorResponse(res, 500, "Internal Server Error");
+  }
+}
+
+export async function registerPgOwner(req, res) {
+  try {
+    const userId = req.user._id;
+    const body = req.body || {};
+
+    const existingProfile = (await User.findById(userId).select("pgOwnerProfile").lean())?.pgOwnerProfile;
+    const isAlreadyApproved = existingProfile?.approvalStatus === "approved";
+
+    const pgProfile = {
+      isRegistered: true,
+      approvalStatus: isAlreadyApproved ? "approved" : "pending",
+      approvedAt: isAlreadyApproved ? existingProfile.approvedAt : null,
+      approvedBy: isAlreadyApproved ? existingProfile.approvedBy : null,
+      rejectionReason: "",
+      pgName: String(body.pgName || "").trim(),
+      pgAddress: String(body.pgAddress || "").trim(),
+      pgCity: String(body.pgCity || "").trim(),
+      pgLocality: String(body.pgLocality || "").trim(),
+      totalBeds: Math.max(0, Number(body.totalBeds) || 0),
+      genderPreference: ["boys", "girls", "unisex"].includes(body.genderPreference) ? body.genderPreference : "",
+      foodIncluded: Boolean(body.foodIncluded),
+      foodType: ["veg", "nonveg", "both"].includes(body.foodType) ? body.foodType : "",
+      amenities: Array.isArray(body.amenities) ? body.amenities.map((a) => String(a).trim()).filter(Boolean).slice(0, 20) : [],
+      priceRangeMin: Math.max(0, Number(body.priceRangeMin) || 0),
+      priceRangeMax: Math.max(0, Number(body.priceRangeMax) || 0),
+      yearsOperating: Math.max(0, Number(body.yearsOperating) || 0),
+      propertyOwnership: ["owned", "leased", "managed"].includes(body.propertyOwnership) ? body.propertyOwnership : "",
+      idProofType: String(body.idProofType || "").trim(),
+      idProofNumber: String(body.idProofNumber || "").trim(),
+      registeredAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const roleUpdate = {};
+    const user = await User.findById(userId).select("userRoles primaryRole activeRole").lean();
+    const currentRoles = Array.isArray(user?.userRoles) ? user.userRoles : [];
+    if (!currentRoles.includes("PG Owner")) {
+      roleUpdate.userRoles = [...currentRoles, "PG Owner"];
+      if (!user?.primaryRole) roleUpdate.primaryRole = "PG Owner";
+      if (!user?.activeRole) roleUpdate.activeRole = "PG Owner";
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { pgOwnerProfile: pgProfile, ...roleUpdate },
+      { new: true }
+    );
+
+    if (!updatedUser) return sendErrorResponse(res, 404, "User not found");
+
+    return sendSuccessResponse(res, 200, "PG Owner profile registered", {
+      user: sanitizeUserData(updatedUser),
+    });
+  } catch (error) {
+    logger.error("Error registering PG owner:", error);
+    return sendErrorResponse(res, 500, "Failed to register PG owner profile");
   }
 }
 

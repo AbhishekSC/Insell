@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback, memo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { MapContainer, TileLayer, Marker, Popup, Tooltip, Circle, Polyline, useMap, useMapEvents } from "react-leaflet";
-import { MapPin, Bed, Bath, Square, Home, X, SlidersHorizontal, GraduationCap, Hospital, Train, ShoppingBag, Trees, ChevronDown, ArrowLeft, Search, LocateFixed, Loader2 } from "lucide-react";
+import { MapPin, Bed, Bath, Square, Home, X, SlidersHorizontal, GraduationCap, Hospital, Train, ShoppingBag, Trees, ChevronDown, ArrowLeft, Search, LocateFixed, Loader2, ShieldAlert } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useQuery } from "@tanstack/react-query";
@@ -148,6 +148,26 @@ const createAmenityIcon = (type) => {
     `,
     iconSize: [36, 36],
     iconAnchor: [18, 18],
+  });
+};
+
+const SAFETY_CONFIG = {
+  police: { emoji: "🚔", color: "#2563eb", label: "Police" },
+  hospital: { emoji: "🏥", color: "#ef4444", label: "Hospital" },
+  fire_station: { emoji: "🚒", color: "#f97316", label: "Fire Station" },
+};
+
+const createSafetyIcon = (type) => {
+  const config = SAFETY_CONFIG[type] || SAFETY_CONFIG.police;
+  return L.divIcon({
+    className: "safety-marker",
+    html: `
+      <div style="width:32px;height:32px;border-radius:50%;background:#fff;border:2.5px solid ${config.color};display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.25);font-size:15px;">
+        ${config.emoji}
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
   });
 };
 
@@ -365,6 +385,25 @@ export default function PropertyMapView() {
   });
   const amenitiesData = amenitiesResult?.items;
   const amenitiesRadiusKm = ((amenitiesResult?.radius || 2000) / 1000).toFixed(amenitiesResult?.radius % 1000 ? 1 : 0);
+
+  const [showSafetyLayer, setShowSafetyLayer] = useState(false);
+
+  const { data: safetyFacilities } = useQuery({
+    queryKey: ["mapSafetyFacilities", amenitiesAnchor?.latitude, amenitiesAnchor?.longitude],
+    queryFn: async () => {
+      if (!amenitiesAnchor?.latitude || !amenitiesAnchor?.longitude) return [];
+      const res = await axiosInstance.get("/neighbourhood-safety/overview", {
+        params: {
+          lat: amenitiesAnchor.latitude,
+          lng: amenitiesAnchor.longitude,
+          district: amenitiesAnchor.city,
+        },
+      });
+      return res.data?.data?.emergencyFacilities || [];
+    },
+    enabled: showSafetyLayer && !!amenitiesAnchor?.latitude && !!amenitiesAnchor?.longitude,
+    staleTime: 15 * 60 * 1000,
+  });
 
   const properties = useMemo(() => {
     const posts = data?.posts || [];
@@ -744,6 +783,32 @@ export default function PropertyMapView() {
               </Marker>
               );
             })}
+
+            {/* Safety facility markers — police, hospitals, fire stations */}
+            {showSafetyLayer && amenitiesAnchor && currentZoom >= AMENITY_MIN_ZOOM && safetyFacilities?.map((f, idx) => (
+              f.lat && f.lng && (
+                <Marker
+                  key={`safety-${idx}`}
+                  position={[f.lat, f.lng]}
+                  icon={createSafetyIcon(f.type)}
+                >
+                  {isMobile ? (
+                    <Popup maxWidth={200} minWidth={100} closeButton={false} className="safety-tip-popup">
+                      <div className="text-[11px]">
+                        <span className="font-bold">{SAFETY_CONFIG[f.type]?.emoji} {f.name}</span>
+                        <br />
+                        <span className="text-base-content/60">{SAFETY_CONFIG[f.type]?.label} · {f.distance < 1000 ? `${f.distance}m` : `${(f.distance / 1000).toFixed(1)}km`}</span>
+                      </div>
+                    </Popup>
+                  ) : (
+                    <Tooltip direction="top" offset={[0, -18]} opacity={1}>
+                      <span className="text-[11px] font-semibold">{SAFETY_CONFIG[f.type]?.emoji} {f.name}</span>
+                      <span className="text-[10px] text-base-content/60"> · {f.distance < 1000 ? `${f.distance}m` : `${(f.distance / 1000).toFixed(1)}km`}</span>
+                    </Tooltip>
+                  )}
+                </Marker>
+              )
+            ))}
 
             {/* Amenities search radius — warm orange, distinct from the blue city/search circle */}
             {amenitiesAnchor?.latitude && amenitiesAnchor?.longitude && currentZoom >= AMENITY_MIN_ZOOM && (
@@ -1173,22 +1238,31 @@ export default function PropertyMapView() {
         )}
 
         {/* Pin color legend — bottom-left, just above mobile bottom nav */}
-        <div className="absolute bottom-2 left-4 z-[1000] flex items-center gap-2 rounded-lg border border-base-300 bg-base-100/95 px-2.5 py-1.5 shadow-lg backdrop-blur-sm sm:bottom-4">
-          <span className="flex items-center gap-1 text-[10px] font-medium text-base-content/70">
-            <span className="inline-block size-2.5 rounded-sm" style={{ background: "#2563eb" }} />Sale
-          </span>
-          <span className="flex items-center gap-1 text-[10px] font-medium text-base-content/70">
-            <span className="inline-block size-2.5 rounded-sm" style={{ background: "#059669" }} />Rent
-          </span>
-          <span className="flex items-center gap-1 text-[10px] font-medium text-base-content/70">
-            <span className="inline-block size-2.5 rounded-sm" style={{ background: "#7c3aed" }} />Room
-          </span>
-          <span className="flex items-center gap-1 text-[10px] font-medium text-base-content/70">
-            <span className="inline-block size-2.5 rounded-sm" style={{ background: "#db2777" }} />Flatmate
-          </span>
+        <div className="absolute bottom-2 left-4 z-[1000] flex flex-col gap-1.5 sm:bottom-4">
+          <div className="flex items-center gap-2 rounded-lg border border-base-300 bg-base-100/95 px-2.5 py-1.5 shadow-lg backdrop-blur-sm">
+            <span className="flex items-center gap-1 text-[10px] font-medium text-base-content/70">
+              <span className="inline-block size-2.5 rounded-sm" style={{ background: "#2563eb" }} />Sale
+            </span>
+            <span className="flex items-center gap-1 text-[10px] font-medium text-base-content/70">
+              <span className="inline-block size-2.5 rounded-sm" style={{ background: "#059669" }} />Rent
+            </span>
+            <span className="flex items-center gap-1 text-[10px] font-medium text-base-content/70">
+              <span className="inline-block size-2.5 rounded-sm" style={{ background: "#7c3aed" }} />Room
+            </span>
+            <span className="flex items-center gap-1 text-[10px] font-medium text-base-content/70">
+              <span className="inline-block size-2.5 rounded-sm" style={{ background: "#db2777" }} />Flatmate
+            </span>
+          </div>
+          {showSafetyLayer && (
+            <div className="flex items-center gap-2 rounded-lg border border-blue-500/30 bg-base-100/95 px-2.5 py-1.5 shadow-lg backdrop-blur-sm">
+              <span className="flex items-center gap-1 text-[10px] font-medium text-base-content/70">🚔 Police</span>
+              <span className="flex items-center gap-1 text-[10px] font-medium text-base-content/70">🏥 Hospital</span>
+              <span className="flex items-center gap-1 text-[10px] font-medium text-base-content/70">🚒 Fire</span>
+            </div>
+          )}
         </div>
 
-        {/* Filter + live-location — compact floating buttons, bottom-right */}
+        {/* Filter + safety + live-location — compact floating buttons, bottom-right */}
         <div className="absolute bottom-2 right-4 z-[1000] flex flex-col gap-2 sm:bottom-4">
           <button
             type="button"
@@ -1202,6 +1276,20 @@ export default function PropertyMapView() {
             ) : (
               <LocateFixed className="size-5 text-primary" />
             )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowSafetyLayer(!showSafetyLayer)}
+            aria-label="Toggle safety layer"
+            title={showSafetyLayer ? "Hide safety facilities" : "Show nearby police, hospitals & fire stations"}
+            className={`grid size-11 place-items-center rounded-full border shadow-lg backdrop-blur-sm transition-colors hover:bg-base-100 ${
+              showSafetyLayer
+                ? "border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/30"
+                : "border-base-300 bg-base-100/95"
+            }`}
+          >
+            <ShieldAlert className={`size-5 ${showSafetyLayer ? "text-blue-600" : "text-base-content/60"}`} />
           </button>
 
           <button

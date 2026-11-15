@@ -24,6 +24,7 @@ import {
   getUserDevices,
   deactivateDevice,
   getUserActivity,
+  registerPgOwner,
 } from "../controllers/user.controller.js";
 import { uploadProfileImage } from "../middlewares/upload.middleware.js";
 
@@ -42,6 +43,7 @@ router.get("/:id/friends", getUserFriendsList);
 router.get("/:id/mutual-friends", getMutualFriendsList);
 router.patch("/profile", uploadProfileImage.single("profileImage"), updateMyProfile);
 router.patch("/account", uploadProfileImage.single("profileImage"), updateMyProfile);
+router.post("/pg-owner-register", registerPgOwner);
 router.patch("/location", updateUserLocation);
 router.patch("/work-location", updateWorkLocation);
 router.patch("/digest-preference", updateDigestPreference);

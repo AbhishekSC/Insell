@@ -283,7 +283,7 @@ export default function CallContent() {
   };
 
   return (
-    <div className="xl:h-full xl:min-h-0">
+    <div className="xl:h-full xl:min-h-0 px-3 pt-3 sm:px-4 sm:pt-4 xl:px-0 xl:pt-0">
       <div className="mb-4 flex items-center justify-end">
         <div className="flex items-center gap-2">
           <button
@@ -322,8 +322,8 @@ export default function CallContent() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3 xl:h-full xl:min-h-0">
-        <section className="rounded-2xl border border-base-300 bg-base-100 p-6 shadow-sm lg:col-span-2 xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden">
-          <div className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-secondary to-info p-8 text-white">
+        <section className="hidden lg:block rounded-2xl border border-base-300 bg-base-100 p-6 shadow-sm lg:col-span-2 xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden">
+          <div className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-secondary to-info p-8 text-white hidden lg:block">
             <div className="relative z-10 max-w-lg">
               <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${serviceReady ? "bg-white/20" : "bg-white/10"}`}>
                 <Radio className="size-3.5" />

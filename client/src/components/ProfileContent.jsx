@@ -1,21 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Camera, Link2, MapPin, Phone, BadgeCheck, Sparkles, UploadCloud, UserCircle, Briefcase } from "lucide-react";
+import { Camera, Link2, MapPin, Phone, BadgeCheck, Sparkles, UploadCloud, UserCircle, Briefcase, Plus, X } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import { useAuthUser } from "../hooks/useAuthUser";
 import LocationPicker from "./LocationPicker";
 import EmailVerification from "./EmailVerification";
 import OwnerVerificationCard from "./OwnerVerificationCard";
+import PgOwnerRegistrationCard from "./PgOwnerRegistrationCard";
 import ReferralCard from "./ReferralCard";
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const ALL_ROLES = ["Buyer", "Seller", "Tenant", "Landlord", "PG Owner", "Broker", "Investor"];
 
 export default function ProfileContent() {
   const queryClient = useQueryClient();
   const { data: authData } = useAuthUser({ staleTime: 0, refetchOnMount: "always" });
   const authUser = authData?.data?.user || authData?.data || null;
-  const availableRoles = Array.isArray(authUser?.userRoles) && authUser.userRoles.length > 0
-    ? authUser.userRoles
-    : [authUser?.activeRole || authUser?.primaryRole || "Buyer"].filter(Boolean);
+  const secondaryRoles = useMemo(() => {
+    const all = Array.isArray(authUser?.userRoles) ? authUser.userRoles : [];
+    const primary = authUser?.primaryRole || "";
+    return all.filter((r) => r && r !== primary);
+  }, [authUser?.userRoles, authUser?.primaryRole]);
+
+  const _allUserRoles = useMemo(() => {
+    const primary = authUser?.primaryRole || authUser?.activeRole || "Buyer";
+    return [...new Set([primary, ...secondaryRoles])].filter(Boolean);
+  }, [authUser?.primaryRole, authUser?.activeRole, secondaryRoles]);
 
   const [form, setForm] = useState({
     fullName: authUser?.fullName || "",
@@ -23,6 +34,7 @@ export default function ProfileContent() {
     city: authUser?.city || authUser?.homeBase || authUser?.location || "",
     primaryRole: authUser?.primaryRole || authUser?.travelStyle || "",
     activeRole: authUser?.activeRole || authUser?.primaryRole || authUser?.travelStyle || "",
+    secondaryRoles: secondaryRoles,
     profilePic: authUser?.profilePic || "",
     mobileNumber: authUser?.mobileNumber || "",
   });
@@ -77,6 +89,8 @@ export default function ProfileContent() {
       payload.append("city", form.city);
       payload.append("primaryRole", form.primaryRole);
       payload.append("activeRole", form.activeRole || form.primaryRole);
+      const combinedRoles = [...new Set([form.primaryRole, ...(form.secondaryRoles || [])])].filter(Boolean);
+      payload.append("userRoles", JSON.stringify(combinedRoles));
       payload.append("profilePic", form.profilePic);
       payload.append("mobileNumber", form.mobileNumber);
       if (profileImageFile && imageMode === "upload") {
@@ -607,25 +621,81 @@ export default function ProfileContent() {
 
             <label className="form-control">
               <span className="label-text mb-1 text-xs sm:text-sm text-base-content">Primary role</span>
-              <input
-                type="text"
-                className="input input-sm sm:input-md input-bordered border-base-300 bg-base-200 focus:border-primary/30"
+              <select
+                className="select select-sm sm:select-md select-bordered border-base-300 bg-base-200 focus:border-primary/30"
                 value={form.primaryRole}
-                onChange={(e) => setForm((prev) => ({ ...prev, primaryRole: e.target.value }))}
-              />
+                onChange={(e) => {
+                  const newPrimary = e.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    primaryRole: newPrimary,
+                    activeRole: newPrimary,
+                    secondaryRoles: prev.secondaryRoles.filter((r) => r !== newPrimary),
+                  }));
+                }}
+              >
+                <option value="">Select role</option>
+                {ALL_ROLES.map((role) => (
+                  <option key={role} value={role}>{role}</option>
+                ))}
+              </select>
             </label>
 
+            <div className="form-control sm:col-span-2">
+              <span className="label-text mb-1 text-xs sm:text-sm text-base-content">Secondary roles</span>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {(form.secondaryRoles || []).map((role) => (
+                  <span key={role} className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-1 text-xs font-medium text-primary">
+                    {role}
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({
+                        ...prev,
+                        secondaryRoles: prev.secondaryRoles.filter((r) => r !== role),
+                      }))}
+                      className="hover:text-error"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              {ALL_ROLES.filter((r) => r !== form.primaryRole && !(form.secondaryRoles || []).includes(r)).length > 0 && (
+                <div className="flex gap-2">
+                  <select
+                    className="select select-sm select-bordered border-base-300 bg-base-200 flex-1"
+                    value=""
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      setForm((prev) => ({
+                        ...prev,
+                        secondaryRoles: [...(prev.secondaryRoles || []), e.target.value],
+                      }));
+                      e.target.value = "";
+                    }}
+                  >
+                    <option value="">+ Add a secondary role</option>
+                    {ALL_ROLES.filter((r) => r !== form.primaryRole && !(form.secondaryRoles || []).includes(r)).map((role) => (
+                      <option key={role} value={role}>{role}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <p className="text-[11px] text-base-content/40 mt-1">Secondary roles let the platform show you relevant content beyond your primary role.</p>
+            </div>
+
             <label className="form-control sm:col-span-2">
-              <span className="label-text mb-1 text-xs sm:text-sm text-base-content">Active role (role switcher)</span>
+              <span className="label-text mb-1 text-xs sm:text-sm text-base-content">Active role (what you're doing right now)</span>
               <select
                 className="select select-sm sm:select-md select-bordered border-base-300 bg-base-200 focus:border-primary/30"
                 value={form.activeRole}
                 onChange={(e) => setForm((prev) => ({ ...prev, activeRole: e.target.value }))}
               >
-                {availableRoles.map((role) => (
-                  <option key={role} value={role}>{role}</option>
+                {[form.primaryRole, ...(form.secondaryRoles || [])].filter(Boolean).map((role) => (
+                  <option key={role} value={role}>{role}{role === form.primaryRole ? " (Primary)" : ""}</option>
                 ))}
               </select>
+              <p className="text-[11px] text-base-content/40 mt-1">Switching your active role adjusts your feed and recommendations.</p>
             </label>
           </div>
         </div>
@@ -689,6 +759,7 @@ export default function ProfileContent() {
           </p>
         </div>
 
+        <PgOwnerRegistrationCard authUser={authUser} />
         <OwnerVerificationCard />
         <ReferralCard />
 

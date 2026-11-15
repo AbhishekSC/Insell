@@ -7,14 +7,17 @@ import {
   Bell,
   BellOff,
   BellRing,
+  Building2,
   ChevronDown,
   Command,
+  FileText,
   Filter,
   Flame,
   Flag,
   HelpCircle,
   Home,
   House,
+  LayoutDashboard,
   LocateFixed,
   LogOut,
   Map,
@@ -76,6 +79,16 @@ const navItems = [
 
 const ADMIN_NAV_ITEM = { to: "/admin", label: "Admin", icon: ShieldCheck };
 
+const PG_NAV_ITEMS = [
+  { to: "/marketplace", label: "Marketplace", icon: Home },
+  { to: "/pgs", label: "Browse PGs", icon: Search },
+  { to: "/my-pg", label: "My PG", icon: Building2 },
+  { to: "/pg-dashboard", label: "PG Dashboard", icon: LayoutDashboard },
+  { to: "/rental-tools", label: "Rental Tools", icon: FileText },
+];
+
+const PG_PATHS = new Set(["/pgs", "/my-pg", "/pg-dashboard", "/rental-tools"]);
+
 const DRAWER_FEATURES = [
   // Discovery & Trends
   { to: "/recommended", label: "Recommended for You", icon: Sparkles },
@@ -86,6 +99,11 @@ const DRAWER_FEATURES = [
   // Network & Communication
   { to: "/marketplace?section=connections", label: "Connections", icon: Users, section: "connections" },
   { to: "/marketplace?section=call", label: "Calls", icon: Phone, section: "call" },
+
+  // PG/Hostel & Rental
+  { to: "/my-pg", label: "My PG", icon: Building2 },
+  { to: "/pg-dashboard", label: "PG Dashboard", icon: LayoutDashboard },
+  { to: "/rental-tools", label: "Rental Tools", icon: FileText },
 ];
 
 // The mobile bottom nav mirrors the 5 mobile tabs exactly.
@@ -624,7 +642,10 @@ export default function AppShell({
     location.pathname.startsWith("/property-tools") ||
     location.pathname.startsWith("/friends/") ||
     location.pathname.startsWith("/help") ||
-    location.pathname.startsWith("/admin");
+    location.pathname.startsWith("/admin") ||
+    location.pathname.startsWith("/my-pg") ||
+    location.pathname.startsWith("/pg-dashboard") ||
+    location.pathname.startsWith("/rental-tools");
 
   const queryClient = useQueryClient();
   const previousRequestCountRef = useRef(0);
@@ -779,12 +800,17 @@ export default function AppShell({
   const { data: authData } = useAuthUser();
   const authUser = authData?.data?.user || authData?.data || null;
   const isAdmin = Boolean(authUser?.isAdmin);
-  const visibleNavItems = isAdmin ? [...navItems, ADMIN_NAV_ITEM] : navItems;
+  const isPgOwner = authUser?.pgOwnerProfile?.approvalStatus === "approved";
+  const isPgPage = PG_PATHS.has(location.pathname);
+  const pgNavFiltered = isPgOwner ? PG_NAV_ITEMS : PG_NAV_ITEMS.filter((item) => !["/pg-dashboard", "/rental-tools"].includes(item.to));
+  const baseNavItems = isPgPage ? pgNavFiltered : navItems;
+  const visibleNavItems = isAdmin ? [...baseNavItems, ADMIN_NAV_ITEM] : baseNavItems;
   const mobileDrawerItems = useMemo(() => {
-    const items = [...DRAWER_FEATURES];
+    const ownerOnly = new Set(["/pg-dashboard", "/rental-tools"]);
+    const items = DRAWER_FEATURES.filter((item) => isPgOwner || !ownerOnly.has(item.to));
     if (isAdmin) items.push(ADMIN_NAV_ITEM);
     return items;
-  }, [isAdmin]);
+  }, [isAdmin, isPgOwner]);
 
   const { data: liveUsersCount } = useQuery({
     queryKey: ["adminLiveUsersCount"],
@@ -1036,7 +1062,7 @@ export default function AppShell({
     >
       <header
         ref={headerRef}
-        className={`${hideMobileHeader ? (onMarketplaceSearchChange ? "hidden xl:block " : "hidden ") : ""}z-30 ${autoHideHeaderOnScroll ? "fixed inset-x-0 top-0 xl:sticky" : "sticky top-0"} ${isMarketplaceShell ? "border-b border-base-300 bg-base-100/95 backdrop-blur" : "border-b border-base-300/70 bg-base-100/75 backdrop-blur-2xl"} ${
+        className={`${hideMobileHeader ? (onMarketplaceSearchChange ? "hidden xl:block " : showBackButton ? "hidden lg:block " : "hidden ") : ""}z-30 ${autoHideHeaderOnScroll ? "fixed inset-x-0 top-0 xl:sticky" : "sticky top-0"} ${isMarketplaceShell ? "border-b border-base-300 bg-base-100/95 backdrop-blur" : "border-b border-base-300/70 bg-base-100/75 backdrop-blur-2xl"} ${
           autoHideHeaderOnScroll
             ? `transition-transform duration-300 ease-out will-change-transform xl:!translate-y-0 ${headerHiddenByScroll ? "-translate-y-full" : "translate-y-0"}`
             : ""
@@ -1247,6 +1273,35 @@ export default function AppShell({
 
                   {mobileUserMenuOpen && (
                     <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-base-300 bg-base-100 shadow-lg">
+                      <Link
+                        to="/my-pg"
+                        onClick={() => setMobileUserMenuOpen(false)}
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
+                      >
+                        <Building2 className="size-4 text-base-content/60" />
+                        My PG
+                      </Link>
+                      {isPgOwner && (
+                        <>
+                          <Link
+                            to="/pg-dashboard"
+                            onClick={() => setMobileUserMenuOpen(false)}
+                            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
+                          >
+                            <LayoutDashboard className="size-4 text-base-content/60" />
+                            PG Dashboard
+                          </Link>
+                          <Link
+                            to="/rental-tools"
+                            onClick={() => setMobileUserMenuOpen(false)}
+                            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-base-content hover:bg-base-200"
+                          >
+                            <FileText className="size-4 text-base-content/60" />
+                            Rental Tools
+                          </Link>
+                        </>
+                      )}
+                      <div className="my-1 border-t border-base-200" />
                       <NotificationMenuItem
                         pushUiState={pushUiState}
                         onEnable={enableNotifications}
@@ -1348,7 +1403,7 @@ export default function AppShell({
         ) : null}
 
         {showBackButton ? (
-          <div className="overflow-hidden rounded-2xl border border-base-300/70 bg-base-100 shadow-sm">
+          <div className="overflow-hidden lg:rounded-2xl lg:border lg:border-base-300/70 lg:bg-base-100 lg:shadow-sm">
             <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-base-300 bg-base-100/95 backdrop-blur px-4 py-3">
               <button
                 type="button"
@@ -1361,7 +1416,7 @@ export default function AppShell({
               {title && <h1 className="min-w-0 flex-1 text-lg font-bold text-base-content truncate">{title}</h1>}
               {actions && <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>}
             </div>
-            <div className={lockPageScroll ? "xl:flex-1 xl:min-h-0 xl:overflow-hidden" : ""}>{children}</div>
+            <div className={`pt-3 sm:pt-4 ${lockPageScroll ? "xl:flex-1 xl:min-h-0 xl:overflow-hidden" : ""}`}>{children}</div>
           </div>
         ) : (
           <div className={lockPageScroll ? "xl:flex-1 xl:min-h-0 xl:overflow-hidden" : "pb-6"}>{children}</div>

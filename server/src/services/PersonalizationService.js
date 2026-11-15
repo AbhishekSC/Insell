@@ -167,6 +167,14 @@ class PersonalizationService {
     // Content-based feature matching
     score += this.getContentFeatureScore(property, userBehavior) * (weights.contentFeatures / 100);
 
+    // PG/Hostel-specific matching — uses flatmate profile data (gender, food
+    // preference) and PG metadata to boost or penalize PG_HOSTEL posts.
+    // Applied as a flat additive bonus/penalty (not weighted) so it acts as a
+    // hard signal: a gender mismatch should drop hard, not be averaged away.
+    if (property.postType === "PG_HOSTEL") {
+      score += this.getPgMatchScore(property, user);
+    }
+
     // Trust & Address Verification boost (+15 points towards personalization score)
     const isAddressVerified =
       property.electricityBillStatus === "VERIFIED" ||
@@ -550,6 +558,154 @@ class PersonalizationService {
     featureScore = 50 + (overlapRatio * 50); // Up to 100 based on feature overlap
 
     return Math.min(100, featureScore);
+  }
+
+  /**
+   * PG/Hostel-specific matching score.
+   *
+   * Matches every available user.flatmateProfile signal against the PG post's
+   * metadata to produce a bonus/penalty applied additively to the raw score.
+   *
+   * Signals used (13 user fields → 9 scoring dimensions):
+   *  1. gender          → pgHostel.genderPreference
+   *  2. foodPreference  → pgHostel.foodType + foodIncluded
+   *  3. budgetMin/Max   → pgHostel.sharingTypes[].price
+   *  4. occupation      → nearbyColleges / nearbyOffices
+   *  5. smoking         → houseRules keyword scan
+   *  6. drinking        → houseRules keyword scan
+   *  7. pets            → houseRules keyword scan
+   *  8. workSchedule    → houseRules (curfew/gate timing)
+   *  9. cleanliness     → pgHostel.avgRatings.cleanliness
+   * 10. noisePreference → houseRules keyword scan
+   * 11. ageGroup        → nearbyColleges (student proxy)
+   * 12. preferredCity   → property.city
+   *
+   * Range: roughly -33 (hard mismatch) to +50 (perfect match).
+   * Returns 0 when no profile data exists (neutral).
+   */
+  static getPgMatchScore(property, user) {
+    const pg = property.postMeta?.pgHostel || {};
+    const profile = user?.flatmateProfile || {};
+    if (!profile || Object.keys(profile).length === 0) return 0;
+    let bonus = 0;
+
+    const lc = (v) => String(v || "").toLowerCase().trim();
+    const rules = (pg.houseRules || []).map((r) => lc(r)).join(" ");
+
+    // ── 1. Gender match ──
+    const userGender = lc(profile.gender);
+    const pgGender = lc(pg.genderPreference);
+    if (userGender && pgGender && pgGender !== "any") {
+      bonus += userGender === pgGender ? 10 : -20;
+    }
+
+    // ── 2. Food preference match ──
+    const userFood = lc(profile.foodPreference);
+    const pgFood = lc(pg.foodType);
+    if (userFood && pgFood && pg.foodIncluded) {
+      if (userFood === pgFood || pgFood === "both") {
+        bonus += 8;
+      } else if (userFood === "veg" && pgFood === "nonveg") {
+        bonus -= 5;
+      }
+    }
+
+    // ── 3. Budget vs sharing types ──
+    const bMin = Number(profile.budgetMin || user?.budgetMin) || 0;
+    const bMax = Number(profile.budgetMax || user?.budgetMax) || 0;
+    const sharingPrices = (pg.sharingTypes || []).map((s) => s.price).filter(Boolean);
+    if (bMax > 0 && sharingPrices.length > 0) {
+      const fits = sharingPrices.some((p) => p >= bMin * 0.85 && p <= bMax * 1.15);
+      if (fits) {
+        bonus += 10;
+      } else {
+        const closest = sharingPrices.reduce((best, p) => {
+          const dist = p < bMin ? bMin - p : p - bMax;
+          return dist < best ? dist : best;
+        }, Infinity);
+        if (closest / (bMax || 1) > 0.3) bonus -= 8;
+      }
+    }
+
+    // ── 4. Occupation → nearby colleges/offices ──
+    const occ = lc(profile.occupation);
+    if (occ) {
+      const hasColleges = (pg.nearbyColleges || []).length > 0;
+      const hasOffices = (pg.nearbyOffices || []).length > 0;
+      if (occ === "student" && hasColleges) bonus += 6;
+      if (occ === "student" && !hasColleges && hasOffices) bonus -= 3;
+      if ((occ === "working" || occ === "freelancer") && hasOffices) bonus += 6;
+      if (occ === "working" && !hasOffices && hasColleges && !hasColleges) bonus -= 2;
+    }
+
+    // ── 5. Smoking preference vs house rules ──
+    const smoking = lc(profile.smoking);
+    if (smoking) {
+      const noSmoking = rules.includes("no smoking") || rules.includes("smoking not allowed");
+      if (smoking === "no" && noSmoking) bonus += 4;
+      if (smoking === "yes" && noSmoking) bonus -= 5;
+    }
+
+    // ── 6. Drinking preference vs house rules ──
+    const drinking = lc(profile.drinking);
+    if (drinking) {
+      const noDrinking = rules.includes("no drinking") || rules.includes("no alcohol") || rules.includes("alcohol not allowed");
+      if (drinking === "no" && noDrinking) bonus += 4;
+      if (drinking === "yes" && noDrinking) bonus -= 5;
+    }
+
+    // ── 7. Pets preference vs house rules ──
+    const pets = lc(profile.pets);
+    if (pets) {
+      const noPets = rules.includes("no pets") || rules.includes("pets not allowed");
+      if ((pets === "no" || pets === "ok_with_pets") && noPets) bonus += 2;
+      if (pets === "yes" && noPets) bonus -= 5;
+    }
+
+    // ── 8. Work schedule vs curfew/gate timing ──
+    const schedule = lc(profile.workSchedule);
+    if (schedule) {
+      const hasCurfew = rules.includes("gate closes") || rules.includes("curfew") || rules.includes("entry after");
+      if (schedule === "night" && hasCurfew) bonus -= 6;
+      if (schedule === "day" && hasCurfew) bonus += 3;
+      if (schedule === "wfh") {
+        const hasWifi = (pg.amenities || []).some((a) => lc(a).includes("wifi"));
+        if (hasWifi) bonus += 4;
+      }
+    }
+
+    // ── 9. Cleanliness preference vs PG cleanliness rating ──
+    const clean = lc(profile.cleanliness);
+    const cleanRating = pg.avgRatings?.cleanliness || 0;
+    if (clean && cleanRating > 0) {
+      if (clean === "neat" && cleanRating >= 4) bonus += 5;
+      if (clean === "neat" && cleanRating < 3) bonus -= 4;
+      if (clean === "relaxed" && cleanRating >= 4) bonus += 2;
+    }
+
+    // ── 10. Noise preference vs house rules ──
+    const noise = lc(profile.noisePreference);
+    if (noise) {
+      const quietRules = rules.includes("no loud music") || rules.includes("quiet") || rules.includes("silence after");
+      if (noise === "quiet" && quietRules) bonus += 4;
+      if (noise === "social" && quietRules) bonus -= 3;
+    }
+
+    // ── 11. Age group → student-oriented PG ──
+    const age = lc(profile.ageGroup);
+    if (age === "under25") {
+      const hasColleges = (pg.nearbyColleges || []).length > 0;
+      if (hasColleges) bonus += 3;
+    }
+
+    // ── 12. Preferred city match ──
+    const prefCity = lc(profile.preferredCity);
+    const postCity = lc(property.city);
+    if (prefCity && postCity && prefCity === postCity) {
+      bonus += 5;
+    }
+
+    return bonus;
   }
 
   /**
@@ -1877,6 +2033,20 @@ class PersonalizationService {
       const scores = new Map((b.preferredPropertyTypes || []).map((p) => [p.type, p.score]));
       wantedTypes.forEach((t) => scores.set(t, Math.max(scores.get(t) || 0, 45)));
       b.preferredPropertyTypes = [...scores.entries()]
+        .map(([type, score]) => ({ type, score }))
+        .sort((a, c) => c.score - a.score);
+    }
+
+    // If the user's intent includes PG or they have a flatmate profile with
+    // gender/food preferences, boost PG_HOSTEL in their preferred post types.
+    const intent = String(user?.listingIntent || "").toUpperCase();
+    const hasPgIntent = intent.includes("PG") || intent.includes("HOSTEL");
+    const hasFlatmateProfile = user?.flatmateProfile &&
+      (user.flatmateProfile.gender || user.flatmateProfile.foodPreference);
+    if (hasPgIntent || hasFlatmateProfile) {
+      const postScores = new Map((b.preferredPostTypes || []).map((p) => [p.type, p.score]));
+      postScores.set("PG_HOSTEL", Math.max(postScores.get("PG_HOSTEL") || 0, 45));
+      b.preferredPostTypes = [...postScores.entries()]
         .map(([type, score]) => ({ type, score }))
         .sort((a, c) => c.score - a.score);
     }

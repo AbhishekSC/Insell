@@ -22,4 +22,5 @@ export {
   getUserDevices,
   deactivateDevice,
   getUserActivity,
+  registerPgOwner,
 } from "../modules/user/user.controller.js";

@@ -464,11 +464,24 @@ export async function getCoinHistory(query) {
 
 // ── Property Verifications ─────────────────────────────────────────────
 
+const BILL_BRANCHES = ["residential", "commercial", "pgHostel"];
+
+function getBillBranch(post) {
+  if (!post?.postMeta) return "residential";
+  for (const branch of BILL_BRANCHES) {
+    if (post.postMeta[branch]?.electricityBillUrl) return branch;
+  }
+  if (post.postMeta.electricityBillUrl) return "residential";
+  return "residential";
+}
+
 function buildBillBaseFilter() {
   return {
     isDeleted: { $ne: true },
     $or: [
       { "postMeta.residential.electricityBillUrl": { $exists: true, $ne: "" } },
+      { "postMeta.commercial.electricityBillUrl": { $exists: true, $ne: "" } },
+      { "postMeta.pgHostel.electricityBillUrl": { $exists: true, $ne: "" } },
       { "postMeta.electricityBillUrl": { $exists: true, $ne: "" } },
     ],
   };
@@ -477,24 +490,22 @@ function buildBillBaseFilter() {
 function buildVerificationStatusCondition(status) {
   if (status === "PENDING") {
     return {
-      $or: [
-        { "postMeta.residential.electricityBillStatus": "PENDING" },
-        { "postMeta.residential.electricityBillStatus": { $exists: false } },
-        { "postMeta.residential.electricityBillStatus": null },
-        { "postMeta.residential.electricityBillStatus": "" },
-      ],
+      $or: BILL_BRANCHES.map((b) => ({
+        [`postMeta.${b}.electricityBillUrl`]: { $exists: true, $ne: "" },
+        [`postMeta.${b}.electricityBillStatus`]: { $nin: ["VERIFIED", "REJECTED"] },
+      })),
     };
   } else if (status === "VERIFIED") {
     return {
       $or: [
-        { "postMeta.residential.electricityBillStatus": "VERIFIED" },
+        ...BILL_BRANCHES.map((b) => ({ [`postMeta.${b}.electricityBillStatus`]: "VERIFIED" })),
         { "postMeta.electricityBillStatus": "VERIFIED" },
       ],
     };
   } else if (status === "REJECTED") {
     return {
       $or: [
-        { "postMeta.residential.electricityBillStatus": "REJECTED" },
+        ...BILL_BRANCHES.map((b) => ({ [`postMeta.${b}.electricityBillStatus`]: "REJECTED" })),
         { "postMeta.electricityBillStatus": "REJECTED" },
       ],
     };
@@ -508,14 +519,16 @@ export async function listPropertyVerifications(query) {
 
   const billBaseFilter = buildBillBaseFilter();
   const statusCondition = status !== "ALL" ? buildVerificationStatusCondition(status) : {};
-  const queryFilter = { ...billBaseFilter, ...statusCondition };
+  const queryFilter = statusCondition.$or
+    ? { $and: [billBaseFilter, statusCondition] }
+    : { ...billBaseFilter, ...statusCondition };
 
   const [posts, total, pendingCount, verifiedCount, rejectedCount] = await Promise.all([
     repo.findPropertyVerifications(queryFilter, { skip, limit }),
     repo.countPosts(queryFilter),
-    repo.countPosts({ ...billBaseFilter, ...buildVerificationStatusCondition("PENDING") }),
-    repo.countPosts({ ...billBaseFilter, ...buildVerificationStatusCondition("VERIFIED") }),
-    repo.countPosts({ ...billBaseFilter, ...buildVerificationStatusCondition("REJECTED") }),
+    repo.countPosts({ $and: [billBaseFilter, buildVerificationStatusCondition("PENDING")] }),
+    repo.countPosts({ $and: [billBaseFilter, buildVerificationStatusCondition("VERIFIED")] }),
+    repo.countPosts({ $and: [billBaseFilter, buildVerificationStatusCondition("REJECTED")] }),
   ]);
 
   return {
@@ -536,17 +549,18 @@ export async function reviewPropertyVerification({ postId, status, rejectionReas
   }
 
   if (!post.postMeta) post.postMeta = {};
-  if (!post.postMeta.residential) post.postMeta.residential = {};
+  const branch = getBillBranch(post);
+  if (!post.postMeta[branch]) post.postMeta[branch] = {};
 
-  post.postMeta.residential.electricityBillStatus = status;
-  post.postMeta.residential.electricityBillVerifiedAt = new Date();
-  post.postMeta.residential.electricityBillVerifiedBy = adminId;
+  post.postMeta[branch].electricityBillStatus = status;
+  post.postMeta[branch].electricityBillVerifiedAt = new Date();
+  post.postMeta[branch].electricityBillVerifiedBy = adminId;
   if (status === "REJECTED") {
-    post.postMeta.residential.electricityBillRejectionReason = String(rejectionReason || "").trim();
-    post.postMeta.residential.electricityBillVerificationNote = "";
+    post.postMeta[branch].electricityBillRejectionReason = String(rejectionReason || "").trim();
+    post.postMeta[branch].electricityBillVerificationNote = "";
   } else if (status === "VERIFIED") {
-    post.postMeta.residential.electricityBillVerificationNote = String(verificationNote || "").trim();
-    post.postMeta.residential.electricityBillRejectionReason = "";
+    post.postMeta[branch].electricityBillVerificationNote = String(verificationNote || "").trim();
+    post.postMeta[branch].electricityBillRejectionReason = "";
   }
 
   // Backward-compat flat mirror
@@ -568,7 +582,8 @@ export async function getPropertyBillDownloadUrl(postId) {
     return { error: { status: 404, message: "Property post not found" } };
   }
 
-  const billUrl = post.postMeta?.residential?.electricityBillUrl || post.postMeta?.electricityBillUrl;
+  const branch = getBillBranch(post);
+  const billUrl = post.postMeta?.[branch]?.electricityBillUrl || post.postMeta?.electricityBillUrl;
   if (!billUrl) {
     return { error: { status: 404, message: "No bill found for this property" } };
   }

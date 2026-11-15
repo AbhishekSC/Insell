@@ -56,16 +56,12 @@ export function getAddressVerificationStatus(post) {
   const pg = meta.pgHostel || {};
 
   const status =
-    res.electricityBillStatus ||
-    meta.electricityBillStatus ||
-    comm.electricityBillStatus ||
-    land.electricityBillStatus ||
-    pg.electricityBillStatus ||
-    post.electricityBillStatus;
+    [res.electricityBillStatus, meta.electricityBillStatus, comm.electricityBillStatus, land.electricityBillStatus, pg.electricityBillStatus, post.electricityBillStatus]
+      .find(s => s && s !== "NONE");
 
   if (status) return String(status).toUpperCase();
   if (post.addressVerified) return "VERIFIED";
-  if (res.electricityBillUrl || meta.electricityBillUrl || comm.electricityBillUrl || land.electricityBillUrl) {
+  if (res.electricityBillUrl || meta.electricityBillUrl || comm.electricityBillUrl || land.electricityBillUrl || pg.electricityBillUrl) {
     return "PENDING";
   }
   return "NONE";
@@ -154,6 +150,7 @@ export function buildCatchyPropertyBadges(post, max = 2) {
   const meta = post.postMeta || {};
   const res = meta.residential || {};
   const commercial = meta.commercial || {};
+  const pg = meta.pgHostel || {};
   const land = meta.land || {};
 
   const candidates = [];
@@ -162,6 +159,8 @@ export function buildCatchyPropertyBadges(post, max = 2) {
   const isVerified =
     Boolean(post.addressVerified) ||
     res.electricityBillStatus === "VERIFIED" ||
+    commercial.electricityBillStatus === "VERIFIED" ||
+    pg.electricityBillStatus === "VERIFIED" ||
     meta.electricityBillStatus === "VERIFIED";
   if (isVerified) {
     candidates.push({

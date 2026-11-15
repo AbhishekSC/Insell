@@ -1,6 +1,7 @@
 import { sendSuccessResponse, sendErrorResponse } from "../../utils/responseHandler.js";
 import { logger } from "../../utils/logger.js";
 import * as service from "./admin.service.js";
+import User from "../../models/User.model.js";
 
 function handleServiceError(res, result) {
   if (result?.error) {
@@ -306,11 +307,13 @@ export const getAdminPropertyVerifications = async (req, res) => {
   }
 };
 
+const NORMALIZE_STATUS = { approved: "VERIFIED", rejected: "REJECTED", VERIFIED: "VERIFIED", REJECTED: "REJECTED" };
+
 export const reviewPropertyVerification = async (req, res) => {
   try {
     const result = await service.reviewPropertyVerification({
       postId: req.params.id,
-      status: req.body?.status,
+      status: NORMALIZE_STATUS[req.body?.status] || req.body?.status,
       rejectionReason: req.body?.rejectionReason,
       verificationNote: req.body?.verificationNote,
       adminId: req.user._id,
@@ -337,3 +340,65 @@ export const downloadPropertyBill = async (req, res) => {
     return sendErrorResponse(res, 500, "Failed to download bill");
   }
 };
+
+// ── PG Owner Approval ────────────────────────────────────────────────
+
+export async function getPendingPgOwners(req, res) {
+  try {
+    const status = req.query.status || "pending";
+    const users = await User.find({ "pgOwnerProfile.isRegistered": true, "pgOwnerProfile.approvalStatus": status })
+      .select("fullName email profilePic mobileNumber city pgOwnerProfile createdAt")
+      .sort({ "pgOwnerProfile.registeredAt": -1 })
+      .limit(100)
+      .lean();
+    return sendSuccessResponse(res, 200, "PG owner applications", { users });
+  } catch (error) {
+    logger.error("Error fetching PG owner applications:", error);
+    return sendErrorResponse(res, 500, "Failed to fetch PG owner applications");
+  }
+}
+
+export async function approvePgOwner(req, res) {
+  try {
+    const userId = req.params.id;
+    const user = await User.findById(userId).select("pgOwnerProfile userRoles primaryRole activeRole").lean();
+    if (!user) return sendErrorResponse(res, 404, "User not found");
+    if (!user.pgOwnerProfile?.isRegistered) return sendErrorResponse(res, 400, "User has not registered as PG owner");
+
+    const roleUpdate = {};
+    const currentRoles = Array.isArray(user.userRoles) ? user.userRoles : [];
+    if (!currentRoles.includes("PG Owner")) {
+      roleUpdate.userRoles = [...currentRoles, "PG Owner"];
+    }
+
+    await User.findByIdAndUpdate(userId, {
+      "pgOwnerProfile.approvalStatus": "approved",
+      "pgOwnerProfile.approvedAt": new Date(),
+      "pgOwnerProfile.approvedBy": req.user._id,
+      "pgOwnerProfile.rejectionReason": "",
+      ...roleUpdate,
+    });
+
+    return sendSuccessResponse(res, 200, "PG Owner approved");
+  } catch (error) {
+    logger.error("Error approving PG owner:", error);
+    return sendErrorResponse(res, 500, "Failed to approve PG owner");
+  }
+}
+
+export async function rejectPgOwner(req, res) {
+  try {
+    const userId = req.params.id;
+    const reason = String(req.body?.reason || "").trim();
+
+    await User.findByIdAndUpdate(userId, {
+      "pgOwnerProfile.approvalStatus": "rejected",
+      "pgOwnerProfile.rejectionReason": reason,
+    });
+
+    return sendSuccessResponse(res, 200, "PG Owner application rejected");
+  } catch (error) {
+    logger.error("Error rejecting PG owner:", error);
+    return sendErrorResponse(res, 500, "Failed to reject PG owner");
+  }
+}

@@ -28,12 +28,75 @@ import {
   ExternalLink,
   ThumbsDown,
   Info,
+  Star,
+  UtensilsCrossed,
+  Bed,
+  Wifi,
+  Lock,
+  Shield,
+  GraduationCap,
+  Briefcase,
+  Car,
+  BatteryCharging,
+  Snowflake,
 } from "lucide-react";
 import PostAuthorLink from "./PostAuthorLink";
 import { useStoryOverlay } from "../context/StoryOverlayContext";
 import { useLiveLocation } from "../hooks/useLiveLocation";
 import { lqipUrl, cardImageUrl, cardImageSrcSet, CARD_SIZES } from "../lib/cloudinaryImage";
 import axiosInstance from "../lib/axios";
+import { PgCompareButton } from "./PgCompare";
+import { useSafetyGradeCache } from "../context/SafetyGradeCache";
+
+const GRADE_LABELS = { A: "Very Safe Area", B: "Safe Area", C: "Moderate Safety", D: "Below Average", E: "Needs Caution" };
+const TREND_LABELS = { decreasing: "Crime trending down", increasing: "Crime trending up", stable: "Crime rate stable" };
+
+function SafetyBadge({ city }) {
+  const getGrade = useSafetyGradeCache();
+  const [grade, setGrade] = useState(null);
+  const [showTip, setShowTip] = useState(false);
+  const fetched = useRef(false);
+  const hideTimer = useRef(null);
+
+  useEffect(() => {
+    if (!city || !getGrade || fetched.current) return;
+    fetched.current = true;
+    getGrade(city).then((g) => { if (g) setGrade(g); });
+  }, [city, getGrade]);
+
+  if (!grade) return null;
+
+  const openTip = () => { clearTimeout(hideTimer.current); setShowTip(true); };
+  const closeTip = () => { hideTimer.current = setTimeout(() => setShowTip(false), 120); };
+  const toggleTip = (e) => { e.stopPropagation(); e.preventDefault(); setShowTip((v) => !v); };
+
+  return (
+    <span
+      className="relative inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium text-white shadow-sm backdrop-blur-sm bg-blue-600/70 cursor-default pointer-events-auto"
+      onMouseEnter={openTip}
+      onMouseLeave={closeTip}
+      onClick={toggleTip}
+    >
+      <Shield className="size-2.5" />
+      <span>Safety Insights</span>
+
+      {showTip && (
+        <span
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 rounded-lg bg-neutral text-neutral-content text-[10px] leading-snug p-2 shadow-lg z-30 pointer-events-none text-center"
+          onMouseEnter={openTip}
+          onMouseLeave={closeTip}
+        >
+          <span className="block font-bold text-[11px]">{GRADE_LABELS[grade.grade] || "Safety Data"}</span>
+          <span className="block mt-0.5 opacity-75">{grade.total} incidents reported</span>
+          {grade.trend?.direction && (
+            <span className="block mt-0.5 opacity-75">{TREND_LABELS[grade.trend.direction]}</span>
+          )}
+          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-neutral" />
+        </span>
+      )}
+    </span>
+  );
+}
 
 function isVideoUrl(url) {
   if (!url) return false;
@@ -45,6 +108,149 @@ function Tip({ label }) {
     <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-neutral-800 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover/tip:opacity-100 z-50">
       {label}
     </span>
+  );
+}
+
+function PgCardInfo({ post }) {
+  const pg = post.postMeta?.pgHostel || {};
+  const sharing = pg.sharingTypes || [];
+  const totalBeds = pg.totalBeds || 0;
+  const availBeds = pg.availableBeds || 0;
+  const occupancy = totalBeds > 0 ? Math.round(((totalBeds - availBeds) / totalBeds) * 100) : 0;
+
+  const AMENITY_ICONS = { ac: Snowflake, parking: Car, power_backup: BatteryCharging, cctv: Shield, wifi: Wifi };
+  const topAmenities = (pg.amenities || []).filter((a) => AMENITY_ICONS[a]).slice(0, 4);
+  const colleges = pg.nearbyColleges || [];
+  const offices = pg.nearbyOffices || [];
+
+  const avgRatingVal = (() => {
+    if (!pg.avgRatings) return 0;
+    const vals = Object.values(pg.avgRatings).filter((v) => typeof v === "number" && v > 0);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+  })();
+
+  const isUrgent = availBeds > 0 && availBeds <= 3;
+  const isFull = totalBeds > 0 && availBeds === 0;
+
+  return (
+    <div className="mt-1 space-y-1.5">
+      {/* Hero badges row — rating, gender, food, urgency */}
+      <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+        {avgRatingVal > 0 && (
+          <span className="inline-flex items-center gap-0.5 rounded-full bg-yellow-500/25 px-2 py-0.5 font-bold text-yellow-200 ring-1 ring-yellow-400/40">
+            <Star className="size-2.5 fill-yellow-400 text-yellow-400" />
+            {avgRatingVal.toFixed(1)}
+            {pg.reviewCount > 0 && <span className="font-normal text-yellow-200/70">({pg.reviewCount})</span>}
+          </span>
+        )}
+        {pg.genderPreference && pg.genderPreference !== "any" && (
+          <span className={`rounded-full px-2 py-0.5 font-bold capitalize ring-1 ${
+            pg.genderPreference === "boys" ? "bg-blue-500/25 text-blue-200 ring-blue-400/40"
+              : pg.genderPreference === "girls" ? "bg-pink-500/25 text-pink-200 ring-pink-400/40"
+              : "bg-purple-500/25 text-purple-200 ring-purple-400/40"
+          }`}>
+            {pg.genderPreference === "boys" ? "Boys Only" : pg.genderPreference === "girls" ? "Girls Only" : pg.genderPreference}
+          </span>
+        )}
+        {pg.foodIncluded && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-green-500/25 px-2 py-0.5 font-bold text-green-200 ring-1 ring-green-400/40">
+            <UtensilsCrossed className="size-2.5" />
+            {pg.foodType === "veg" ? "Veg" : pg.foodType === "nonveg" ? "Non-Veg" : "Food"}
+          </span>
+        )}
+        {isUrgent && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-red-500/30 px-2 py-0.5 font-bold text-red-200 ring-1 ring-red-400/50 animate-pulse">
+            Only {availBeds} bed{availBeds > 1 ? "s" : ""} left!
+          </span>
+        )}
+        {isFull && (
+          <span className="rounded-full bg-red-500/20 px-2 py-0.5 font-bold text-red-300 ring-1 ring-red-400/30">
+            Fully Occupied
+          </span>
+        )}
+      </div>
+
+      {/* Sharing type prices */}
+      {sharing.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {sharing.map((s) => (
+            <span key={s.type} className="inline-flex items-center gap-1 rounded-full bg-white/15 backdrop-blur-sm px-2 py-0.5 text-[10px] font-semibold text-white ring-1 ring-white/20">
+              <Bed className="size-2.5" />
+              {s.type} ₹{(s.price || 0).toLocaleString("en-IN")}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* WiFi + amenities */}
+      <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+        {pg.wifiSpeed && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/20 px-2 py-0.5 font-semibold text-blue-300 ring-1 ring-blue-400/30">
+            <Wifi className="size-2.5" />
+            {pg.wifiSpeed}
+          </span>
+        )}
+        {topAmenities.map((a) => {
+          const Ic = AMENITY_ICONS[a];
+          return (
+            <span key={a} className="inline-flex items-center gap-0.5 rounded-full bg-white/10 px-1.5 py-0.5 text-white/70 capitalize ring-1 ring-white/10">
+              <Ic className="size-2.5" />
+              {a.replace("_", " ")}
+            </span>
+          );
+        })}
+      </div>
+
+      {/* Occupancy bar + deposit + lock-in */}
+      <div className="flex items-center gap-3 text-[10px] text-white/70">
+        {totalBeds > 0 && !isFull && (
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <div className="flex-1 bg-white/15 rounded-full h-1.5 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${occupancy >= 90 ? "bg-red-400" : occupancy >= 70 ? "bg-yellow-400" : "bg-green-400"}`}
+                style={{ width: `${occupancy}%` }}
+              />
+            </div>
+            <span className="font-semibold text-white/80 shrink-0">{occupancy}% full</span>
+          </div>
+        )}
+        {pg.securityDeposit > 0 && (
+          <span className="shrink-0 font-medium">
+            <Lock className="size-2.5 inline mr-0.5" />
+            ₹{(pg.securityDeposit / 1000).toFixed(0)}K dep
+          </span>
+        )}
+        {pg.lockInPeriodMonths > 0 && (
+          <span className="shrink-0 font-medium">{pg.lockInPeriodMonths}mo lock-in</span>
+        )}
+      </div>
+
+      {/* Nearby colleges & offices */}
+      {(colleges.length > 0 || offices.length > 0) && (
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-white/60">
+          {colleges.length > 0 && (
+            <span className="inline-flex items-center gap-1 truncate">
+              <GraduationCap className="size-2.5 shrink-0" />
+              {colleges.slice(0, 2).join(", ")}
+              {colleges.length > 2 && ` +${colleges.length - 2}`}
+            </span>
+          )}
+          {offices.length > 0 && (
+            <span className="inline-flex items-center gap-1 truncate">
+              <Briefcase className="size-2.5 shrink-0" />
+              {offices.slice(0, 2).join(", ")}
+              {offices.length > 2 && ` +${offices.length - 2}`}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Location */}
+      <div className="flex items-center gap-2 text-[10px] text-white/60">
+        <MapPin className="size-2.5 shrink-0" />
+        <span className="truncate">{post.locality || post.city}</span>
+      </div>
+    </div>
   );
 }
 
@@ -519,11 +725,36 @@ export default React.memo(function PropertyPostCard({
             {/* Price & Listing Badge */}
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xl sm:text-2xl font-black text-white drop-shadow-md">
-                  {formatMoney(post.price)}
-                </span>
-                {post.listingType === "Rent" && (
-                  <span className="text-xs text-white/70 font-medium">/ mo</span>
+                {post.postType === "PG_HOSTEL" ? (() => {
+                  const sharing = post.postMeta?.pgHostel?.sharingTypes || [];
+                  const prices = sharing.map((s) => s.price).filter(Boolean).sort((a, b) => a - b);
+                  if (prices.length >= 2 && prices[0] !== prices[prices.length - 1]) {
+                    return (
+                      <>
+                        <span className="text-xl sm:text-2xl font-black text-white drop-shadow-md">
+                          {formatMoney(prices[0])} – {formatMoney(prices[prices.length - 1])}
+                        </span>
+                        <span className="text-xs text-white/70 font-medium">/ mo</span>
+                      </>
+                    );
+                  }
+                  return (
+                    <>
+                      <span className="text-xl sm:text-2xl font-black text-white drop-shadow-md">
+                        {formatMoney(prices[0] || post.price)}
+                      </span>
+                      <span className="text-xs text-white/70 font-medium">/ mo</span>
+                    </>
+                  );
+                })() : (
+                  <>
+                    <span className="text-xl sm:text-2xl font-black text-white drop-shadow-md">
+                      {formatMoney(post.price)}
+                    </span>
+                    {post.listingType === "Rent" && (
+                      <span className="text-xs text-white/70 font-medium">/ mo</span>
+                    )}
+                  </>
                 )}
               </div>
               {badge && (
@@ -556,14 +787,23 @@ export default React.memo(function PropertyPostCard({
               <h3 className="text-sm sm:text-base font-bold text-white line-clamp-1 drop-shadow-sm leading-snug">
                 {post.title}
               </h3>
-              <p className="mt-0.5 text-xs text-white/80 drop-shadow-sm line-clamp-1">
-                {[
-                  post.bedrooms ? `${post.bedrooms} BHK` : null,
-                  post.areaSqft ? `${post.areaSqft} sqft` : null,
-                  post.furnishing,
-                  post.locality || post.city,
-                ].filter(Boolean).join(" · ")}
-              </p>
+              {post.postType === "PG_HOSTEL" ? (
+                <>
+                  <PgCardInfo post={post} />
+                  <div className="mt-1">
+                    <PgCompareButton post={post} />
+                  </div>
+                </>
+              ) : (
+                <p className="mt-0.5 text-xs text-white/80 drop-shadow-sm line-clamp-1">
+                  {[
+                    post.bedrooms ? `${post.bedrooms} BHK` : null,
+                    post.areaSqft ? `${post.areaSqft} sqft` : null,
+                    post.furnishing,
+                    post.locality || post.city,
+                  ].filter(Boolean).join(" · ")}
+                </p>
+              )}
             </div>
 
             {/* Social Proof Line (Liked by...) with clickable modal */}
@@ -828,6 +1068,9 @@ export default React.memo(function PropertyPostCard({
                 <Camera className="size-2.5" />
                 <span>{slides.length} Photos</span>
               </span>
+            )}
+            {propCoords && post.city && (
+              <SafetyBadge city={post.city} />
             )}
           </div>
         )}

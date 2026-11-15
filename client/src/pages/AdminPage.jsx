@@ -2582,12 +2582,13 @@ function PropertyAddressVerificationQueue() {
       ) : (
         <div className="divide-y divide-base-200/80">
           {posts.map((post) => {
-            const billUrl = post.postMeta?.residential?.electricityBillUrl || post.postMeta?.electricityBillUrl;
-            const billStatus = post.postMeta?.residential?.electricityBillStatus || (billUrl ? "PENDING" : "NONE");
-            const rejectionReasonText = post.postMeta?.residential?.electricityBillRejectionReason;
-            const verifiedAt = post.postMeta?.residential?.electricityBillVerifiedAt;
-            const verifiedBy = post.postMeta?.residential?.electricityBillVerifiedBy || post.postMeta?.electricityBillVerifiedBy;
-            const verificationNote = post.postMeta?.residential?.electricityBillVerificationNote || post.postMeta?.electricityBillVerificationNote;
+            const _bm = [post.postMeta?.residential, post.postMeta?.commercial, post.postMeta?.pgHostel].find(b => b?.electricityBillUrl) || post.postMeta?.residential || {};
+            const billUrl = _bm.electricityBillUrl || post.postMeta?.electricityBillUrl;
+            const billStatus = _bm.electricityBillStatus || (billUrl ? "PENDING" : "NONE");
+            const rejectionReasonText = _bm.electricityBillRejectionReason;
+            const verifiedAt = _bm.electricityBillVerifiedAt;
+            const verifiedBy = _bm.electricityBillVerifiedBy || post.postMeta?.electricityBillVerifiedBy;
+            const verificationNote = _bm.electricityBillVerificationNote || post.postMeta?.electricityBillVerificationNote;
 
             return (
               <div key={post._id} className="p-4 sm:p-5 hover:bg-base-200/30 transition-colors">
@@ -2849,8 +2850,8 @@ function PropertyAddressVerificationQueue() {
             </div>
 
             {/* Document preview & links */}
-            {(verifyTarget.postMeta?.residential?.electricityBillUrl || verifyTarget.postMeta?.electricityBillUrl) && (() => {
-              const bUrl = verifyTarget.postMeta?.residential?.electricityBillUrl || verifyTarget.postMeta?.electricityBillUrl;
+            {([verifyTarget.postMeta?.residential, verifyTarget.postMeta?.commercial, verifyTarget.postMeta?.pgHostel].find(b => b?.electricityBillUrl)?.electricityBillUrl || verifyTarget.postMeta?.electricityBillUrl) && (() => {
+              const bUrl = [verifyTarget.postMeta?.residential, verifyTarget.postMeta?.commercial, verifyTarget.postMeta?.pgHostel].find(b => b?.electricityBillUrl)?.electricityBillUrl || verifyTarget.postMeta?.electricityBillUrl;
               return (
                 <div className="mt-3 space-y-2">
                   <div className="flex items-center justify-between text-xs font-semibold">
@@ -2979,12 +2980,13 @@ function PropertyAddressVerificationQueue() {
 
       {/* Audit Details Modal (Admin Eyes Only) */}
       {auditTarget && (() => {
-        const targetBillUrl = auditTarget.postMeta?.residential?.electricityBillUrl || auditTarget.postMeta?.electricityBillUrl;
-        const targetStatus = auditTarget.postMeta?.residential?.electricityBillStatus || (targetBillUrl ? "PENDING" : "NONE");
-        const targetVerifiedBy = auditTarget.postMeta?.residential?.electricityBillVerifiedBy || auditTarget.postMeta?.electricityBillVerifiedBy;
-        const targetVerifiedAt = auditTarget.postMeta?.residential?.electricityBillVerifiedAt;
-        const targetNote = auditTarget.postMeta?.residential?.electricityBillVerificationNote || auditTarget.postMeta?.electricityBillVerificationNote;
-        const targetReason = auditTarget.postMeta?.residential?.electricityBillRejectionReason;
+        const _abm = [auditTarget.postMeta?.residential, auditTarget.postMeta?.commercial, auditTarget.postMeta?.pgHostel].find(b => b?.electricityBillUrl) || auditTarget.postMeta?.residential || {};
+        const targetBillUrl = _abm.electricityBillUrl || auditTarget.postMeta?.electricityBillUrl;
+        const targetStatus = _abm.electricityBillStatus || (targetBillUrl ? "PENDING" : "NONE");
+        const targetVerifiedBy = _abm.electricityBillVerifiedBy || auditTarget.postMeta?.electricityBillVerifiedBy;
+        const targetVerifiedAt = _abm.electricityBillVerifiedAt;
+        const targetNote = _abm.electricityBillVerificationNote || auditTarget.postMeta?.electricityBillVerificationNote;
+        const targetReason = _abm.electricityBillRejectionReason;
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setAuditTarget(null)}>
@@ -5008,6 +5010,190 @@ function QueuesPanel() {
   );
 }
 
+function PgOwnersPanel() {
+  const [statusFilter, setStatusFilter] = useState("pending");
+  const [rejectingId, setRejectingId] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["adminPgOwners", statusFilter],
+    queryFn: async () => {
+      const res = await axiosInstance.get(`/admin/pg-owners?status=${statusFilter}`);
+      return res.data?.data?.users || [];
+    },
+  });
+
+  const { mutate: approve, isPending: isApproving } = useMutation({
+    mutationFn: async (userId) => {
+      const res = await axiosInstance.patch(`/admin/pg-owners/${userId}/approve`);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("PG Owner approved");
+      refetch();
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || "Failed to approve"),
+  });
+
+  const { mutate: reject, isPending: isRejecting } = useMutation({
+    mutationFn: async ({ userId, reason }) => {
+      const res = await axiosInstance.patch(`/admin/pg-owners/${userId}/reject`, { reason });
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("PG Owner application rejected");
+      setRejectingId(null);
+      setRejectReason("");
+      refetch();
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || "Failed to reject"),
+  });
+
+  const users = data || [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold">PG Owner Applications</h2>
+        <div className="flex gap-1.5">
+          {["pending", "approved", "rejected"].map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setStatusFilter(s)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
+                statusFilter === s ? "bg-primary text-white" : "bg-base-200 text-base-content/60 hover:bg-base-300"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="size-6 animate-spin text-base-content/40" />
+        </div>
+      ) : users.length === 0 ? (
+        <div className="rounded-2xl border border-base-300 bg-base-100 p-8 text-center">
+          <p className="text-sm text-base-content/50">No {statusFilter} PG owner applications</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {users.map((user) => {
+            const pg = user.pgOwnerProfile || {};
+            return (
+              <div key={user._id} className="rounded-2xl border border-base-300 bg-base-100 p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <UserAvatar src={user.profilePic} name={user.fullName} sizeClass="size-10" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold truncate">{user.fullName}</p>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                        pg.approvalStatus === "approved" ? "bg-success/15 text-success" :
+                        pg.approvalStatus === "rejected" ? "bg-error/15 text-error" :
+                        "bg-amber-100 text-amber-700"
+                      }`}>
+                        {pg.approvalStatus || "pending"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-base-content/50">{user.email}{user.mobileNumber ? ` · ${user.mobileNumber}` : ""}</p>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 rounded-xl bg-base-200/50 p-3 text-xs">
+                  <span className="text-base-content/50">PG Name</span>
+                  <span className="font-medium">{pg.pgName || "—"}</span>
+                  <span className="text-base-content/50">Location</span>
+                  <span className="font-medium">{[pg.pgLocality, pg.pgCity].filter(Boolean).join(", ") || "—"}</span>
+                  <span className="text-base-content/50">Total Beds</span>
+                  <span className="font-medium">{pg.totalBeds || "—"}</span>
+                  <span className="text-base-content/50">Gender</span>
+                  <span className="font-medium capitalize">{pg.genderPreference || "Any"}</span>
+                  <span className="text-base-content/50">Price Range</span>
+                  <span className="font-medium">{pg.priceRangeMin && pg.priceRangeMax ? `₹${pg.priceRangeMin.toLocaleString("en-IN")} - ₹${pg.priceRangeMax.toLocaleString("en-IN")}` : "—"}</span>
+                  <span className="text-base-content/50">Ownership</span>
+                  <span className="font-medium capitalize">{pg.propertyOwnership || "—"}</span>
+                  <span className="text-base-content/50">Years Operating</span>
+                  <span className="font-medium">{pg.yearsOperating || "—"}</span>
+                  <span className="text-base-content/50">Food</span>
+                  <span className="font-medium">{pg.foodIncluded ? (pg.foodType || "Included") : "Not included"}</span>
+                  {pg.amenities?.length > 0 && (
+                    <>
+                      <span className="text-base-content/50">Amenities</span>
+                      <span className="font-medium">{pg.amenities.join(", ")}</span>
+                    </>
+                  )}
+                  {pg.idProofType && (
+                    <>
+                      <span className="text-base-content/50">ID Proof</span>
+                      <span className="font-medium">{pg.idProofType}{pg.idProofNumber ? ` — ${pg.idProofNumber}` : ""}</span>
+                    </>
+                  )}
+                  <span className="text-base-content/50">Registered</span>
+                  <span className="font-medium">{pg.registeredAt ? new Date(pg.registeredAt).toLocaleDateString("en-IN") : "—"}</span>
+                </div>
+
+                {statusFilter === "pending" && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => approve(user._id)}
+                      disabled={isApproving}
+                      className="btn btn-success btn-sm gap-1 flex-1"
+                    >
+                      <CheckCircle2 className="size-3.5" />
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRejectingId(user._id)}
+                      className="btn btn-error btn-outline btn-sm gap-1 flex-1"
+                    >
+                      <X className="size-3.5" />
+                      Reject
+                    </button>
+                  </div>
+                )}
+
+                {rejectingId === user._id && (
+                  <div className="mt-3 space-y-2 rounded-xl border border-error/20 bg-error/5 p-3">
+                    <textarea
+                      className="textarea textarea-bordered w-full text-sm"
+                      placeholder="Reason for rejection (optional)"
+                      rows={2}
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setRejectingId(null); setRejectReason(""); }}
+                        className="btn btn-ghost btn-sm flex-1"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => reject({ userId: user._id, reason: rejectReason })}
+                        disabled={isRejecting}
+                        className="btn btn-error btn-sm flex-1"
+                      >
+                        Confirm Reject
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("users");
 
@@ -5129,6 +5315,15 @@ export default function AdminPage() {
         >
           <Activity className="size-4" /> System Health
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("pg-owners")}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+            activeTab === "pg-owners" ? "bg-primary text-white" : "bg-base-200 text-base-content/70 hover:bg-base-300"
+          }`}
+        >
+          <Home className="size-4" /> PG Owners
+        </button>
       </div>
 
       {activeTab === "users" ? (
@@ -5153,6 +5348,8 @@ export default function AdminPage() {
         <QueuesPanel />
       ) : activeTab === "system-health" ? (
         <SystemHealthPanel />
+      ) : activeTab === "pg-owners" ? (
+        <PgOwnersPanel />
       ) : (
         <AnnouncementsPanel />
       )}
