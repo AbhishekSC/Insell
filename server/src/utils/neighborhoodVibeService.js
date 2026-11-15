@@ -67,6 +67,63 @@ function getDeterministicFallbackScore(lat, lng, localityName = "This locality")
  * @param {string} localityName
  * @returns {Promise<Object>}
  */
+export async function fetchNearbyEmergencyFacilities(latitude, longitude) {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+
+  if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return [];
+
+  const cacheKey = `safety:${getCacheKey(lat, lng)}`;
+  const cached = vibeCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  const apiKey = process.env.GEOAPIFY_API_KEY;
+  if (!apiKey) return [];
+
+  try {
+    const response = await axios.get(GEOAPIFY_PLACES_URL, {
+      params: {
+        categories: "service.police,service.fire_station,healthcare.hospital",
+        filter: `circle:${lng},${lat},3000`,
+        bias: `proximity:${lng},${lat}`,
+        limit: 15,
+        apiKey,
+      },
+      timeout: 6000,
+    });
+
+    const features = response.data?.features || [];
+    const facilities = features
+      .map((feat) => {
+        const p = feat.properties || {};
+        const cats = Array.isArray(p.categories) ? p.categories.join(",") : "";
+        let type = "other";
+        if (cats.includes("police")) type = "police";
+        else if (cats.includes("hospital")) type = "hospital";
+        else if (cats.includes("fire_station")) type = "fire_station";
+
+        return {
+          name: p.name || p.address_line1 || `${type} station`,
+          type,
+          distance: typeof p.distance === "number" ? Math.round(p.distance) : null,
+          address: p.address_line2 || p.formatted || "",
+          lat: feat.geometry?.coordinates?.[1],
+          lng: feat.geometry?.coordinates?.[0],
+        };
+      })
+      .filter((f) => f.name && f.distance != null)
+      .sort((a, b) => a.distance - b.distance);
+
+    vibeCache.set(cacheKey, { data: facilities, timestamp: Date.now() });
+    return facilities;
+  } catch (error) {
+    logger.warn("Emergency facilities fetch error:", error.message);
+    return [];
+  }
+}
+
 export async function computeNeighborhoodVibe(latitude, longitude, localityName = "Neighborhood") {
   const lat = Number(latitude);
   const lng = Number(longitude);

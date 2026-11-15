@@ -117,12 +117,16 @@ export function toPublicDetailDTO(post, related = [], people = []) {
       : (Array.isArray(post.postMeta?.preferredTenants) ? post.postMeta.preferredTenants : []),
     addressVerified: Boolean(
       post.postMeta?.residential?.electricityBillStatus === "VERIFIED" ||
+      post.postMeta?.commercial?.electricityBillStatus === "VERIFIED" ||
+      post.postMeta?.pgHostel?.electricityBillStatus === "VERIFIED" ||
       post.postMeta?.electricityBillStatus === "VERIFIED"
     ),
     electricityBillStatus:
       post.postMeta?.residential?.electricityBillStatus ||
+      post.postMeta?.commercial?.electricityBillStatus ||
+      post.postMeta?.pgHostel?.electricityBillStatus ||
       post.postMeta?.electricityBillStatus ||
-      (post.postMeta?.residential?.electricityBillUrl || post.postMeta?.electricityBillUrl ? "PENDING" : "NONE"),
+      (post.postMeta?.residential?.electricityBillUrl || post.postMeta?.commercial?.electricityBillUrl || post.postMeta?.pgHostel?.electricityBillUrl || post.postMeta?.electricityBillUrl ? "PENDING" : "NONE"),
     keyDetails: keyDetails(post),
     author: post.author
       ? {

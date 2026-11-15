@@ -88,6 +88,7 @@ export function addressVerifiedBadge(post) {
     post?.postMeta?.residential?.electricityBillStatus === "VERIFIED" ||
     post?.postMeta?.electricityBillStatus === "VERIFIED" ||
     post?.postMeta?.commercial?.electricityBillStatus === "VERIFIED" ||
+    post?.postMeta?.pgHostel?.electricityBillStatus === "VERIFIED" ||
     post?.postMeta?.land?.electricityBillStatus === "VERIFIED";
 
   if (!isVerified) return null;

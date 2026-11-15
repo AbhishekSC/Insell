@@ -38,6 +38,14 @@ import featureFlagRoutes from "./featureFlag.routes.js";
 import advertisementRoutes from "./advertisement.routes.js";
 import walletRoutes from "./wallet.routes.js";
 import localityTrendsRoutes from "./localityTrends.route.js";
+import pgReviewRoutes from "../modules/pg-review/pgReview.routes.js";
+import issueReportRoutes from "../modules/issue-report/issueReport.routes.js";
+import rentalToolsRoutes from "../modules/rental-tools/rentalTools.routes.js";
+import mealRatingRoutes from "../modules/meal-rating/mealRating.routes.js";
+import pgBillRoutes from "../modules/pg-bill/pgBill.routes.js";
+import pgResidencyRoutes from "../modules/pg-residency/pgResidency.routes.js";
+import pgDashboardRoutes from "../modules/pg-dashboard/pgDashboard.routes.js";
+import neighbourhoodSafetyRoutes from "./neighbourhoodSafety.route.js";
 
 const router = new express.Router();
 router.use(apiVersion);
@@ -81,5 +89,13 @@ router.use("/feature-flags", featureFlagRoutes);
 router.use("/advertisements", advertisementRoutes);
 router.use("/wallet", walletRoutes);
 router.use("/locality-trends", localityTrendsRoutes);
+router.use("/pg-reviews", pgReviewRoutes);
+router.use("/issues", issueReportRoutes);
+router.use("/rental-tools", rentalToolsRoutes);
+router.use("/meal-ratings", mealRatingRoutes);
+router.use("/pg-bills", pgBillRoutes);
+router.use("/pg-residency", pgResidencyRoutes);
+router.use("/pg-dashboard", pgDashboardRoutes);
+router.use("/neighbourhood-safety", neighbourhoodSafetyRoutes);
 
 export default router;

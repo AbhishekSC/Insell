@@ -7,7 +7,7 @@ export default class UserRepository extends BaseRepository {
   }
 
   findByEmailWithPassword(email) {
-    return this.model.findOne({ email }, "+password +email").lean();
+    return this.model.findOne({ email }, "+password +email");
   }
 
   findByEmail(email) {

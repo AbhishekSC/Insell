@@ -86,7 +86,9 @@ export function calculateDealProbability(property, author = null, benchmark = nu
   const isAddressVerified = Boolean(
     property.isAddressVerified ||
     property.electricityBillStatus === "VERIFIED" ||
-    property.postMeta?.residential?.electricityBillStatus === "VERIFIED"
+    property.postMeta?.residential?.electricityBillStatus === "VERIFIED" ||
+    property.postMeta?.commercial?.electricityBillStatus === "VERIFIED" ||
+    property.postMeta?.pgHostel?.electricityBillStatus === "VERIFIED"
   );
   const isOwnerVerified = Boolean(auth.isOwnerVerified || auth.isVerified);
 

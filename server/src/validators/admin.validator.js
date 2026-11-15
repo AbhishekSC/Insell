@@ -31,9 +31,9 @@ export const createAnnouncementRules = [
 export const reviewVerificationRules = [
   param("id").isMongoId().withMessage("Invalid verification ID"),
   body("status")
-    .isIn(["approved", "rejected"]).withMessage("Status must be approved or rejected"),
+    .isIn(["approved", "rejected", "VERIFIED", "REJECTED"]).withMessage("Status must be VERIFIED or REJECTED"),
   body("rejectionReason")
-    .if(body("status").equals("rejected"))
+    .if((value, { req }) => req.body.status === "rejected" || req.body.status === "REJECTED")
     .trim()
     .notEmpty().withMessage("Rejection reason is required when rejecting"),
 ];

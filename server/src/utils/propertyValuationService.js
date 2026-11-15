@@ -11,6 +11,26 @@ const PSF_BOUNDS = {
   rent: { min: 3, max: 2500 },
 };
 
+const PROPERTY_TYPE_GROUPS = {
+  residential: ["Apartment", "Villa", "Independent House", "Independent Floor", "Penthouse", "Studio Apartment", "Farm House"],
+  commercial: ["Commercial", "Shop", "Office Space", "Showroom", "Warehouse", "Industrial", "Co-working Space"],
+  land: ["Plot", "Land", "Agricultural Land", "Farm Land"],
+  pg: ["PG", "Hostel", "Paying Guest"],
+};
+
+function getPropertyCategory(propertyType) {
+  const pt = String(propertyType || "").toLowerCase();
+  for (const [category, types] of Object.entries(PROPERTY_TYPE_GROUPS)) {
+    if (types.some((t) => t.toLowerCase() === pt || pt.includes(t.toLowerCase()))) return category;
+  }
+  return "residential";
+}
+
+function getSameGroupTypes(propertyType) {
+  const category = getPropertyCategory(propertyType);
+  return PROPERTY_TYPE_GROUPS[category] || [];
+}
+
 function computeMedian(values) {
   if (!values || values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
@@ -21,6 +41,22 @@ function computeMedian(values) {
 function computeAverage(values) {
   if (!values || values.length === 0) return 0;
   return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
+function computeStdDev(values) {
+  if (values.length < 2) return 0;
+  const avg = computeAverage(values);
+  const variance = values.reduce((sum, v) => sum + (v - avg) ** 2, 0) / values.length;
+  return Math.sqrt(variance);
+}
+
+function isStatisticalOutlier(subjectPsf, compPsfs) {
+  if (compPsfs.length < 2 || subjectPsf <= 0) return false;
+  const median = computeMedian(compPsfs);
+  const stdDev = computeStdDev(compPsfs);
+  if (median <= 0) return false;
+  const threshold = stdDev > 0 ? Math.max(2 * stdDev, median * 0.5) : median * 0.5;
+  return Math.abs(subjectPsf - median) > threshold;
 }
 
 /**
@@ -97,12 +133,18 @@ export async function calculateLivePropertyValuation(post) {
       ? { $or: [{ listingType: /^(rent|lease)$/i }, { postType: "PROPERTY_RENT" }, { postType: "REQUIREMENT_RENT" }] }
       : { listingType: { $not: /^(rent|lease)$/i }, postType: { $nin: ["PROPERTY_RENT", "REQUIREMENT_RENT"] } };
 
+  const sameGroupTypes = getSameGroupTypes(post.propertyType);
+  const propertyTypeFilter = sameGroupTypes.length > 0
+    ? { propertyType: { $in: sameGroupTypes.map((t) => new RegExp(`^${t}$`, "i")) } }
+    : {};
+
   const baseFilter = {
     isDeleted: { $ne: true },
     isBlocked: { $ne: true },
     price: { $gt: 0 },
     areaSqft: { $gt: 0 },
     ...intentMatch,
+    ...propertyTypeFilter,
   };
 
   if (post._id) {
@@ -214,6 +256,30 @@ export async function calculateLivePropertyValuation(post) {
       comps = cityComps;
       compScope = "city";
       compRadiusMeters = null;
+    }
+  }
+
+  // Tier 4: If property type filter was too strict and we still have <2 comps,
+  // retry without property type constraint (same intent only)
+  if (comps.length < 2 && sameGroupTypes.length > 0) {
+    const relaxedFilter = { ...baseFilter };
+    delete relaxedFilter.propertyType;
+
+    if (post.city && post.city.trim()) {
+      const cityRegex = new RegExp(`^${post.city.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+      const relaxedComps = await PropertyPost.find({
+        ...relaxedFilter,
+        city: cityRegex,
+      })
+        .select("title price areaSqft locality city propertyType")
+        .limit(30)
+        .lean();
+
+      if (relaxedComps.length > comps.length) {
+        comps = relaxedComps;
+        compScope = "city_relaxed";
+        compRadiusMeters = null;
+      }
     }
   }
 
@@ -372,7 +438,12 @@ export async function calculateLivePropertyValuation(post) {
   let dealIndex = "Fair Market Price";
   let dealTone = "fair"; // 'good' | 'fair' | 'premium'
 
-  if (deltaPct <= -8) {
+  const outlier = subjectPsf > 0 && isStatisticalOutlier(subjectPsf, validCompPsfs);
+
+  if (outlier) {
+    dealIndex = "Price may be inaccurate";
+    dealTone = "unknown";
+  } else if (deltaPct <= -8) {
     dealIndex = "Great Deal (Under Market)";
     dealTone = "good";
   } else if (deltaPct >= 10) {
@@ -393,7 +464,9 @@ export async function calculateLivePropertyValuation(post) {
     confidenceScore = compCount >= 5 ? 88 : 82;
   }
 
-  const confidenceLabel = confidenceScore >= 90 ? "High Confidence" : confidenceScore >= 80 ? "Good Confidence" : "Moderate Confidence";
+  if (outlier) confidenceScore = Math.min(confidenceScore, 60);
+
+  const confidenceLabel = confidenceScore >= 90 ? "High Confidence" : confidenceScore >= 80 ? "Good Confidence" : confidenceScore >= 70 ? "Moderate Confidence" : "Low Confidence";
 
   const locationLabel =
     compScope === "geo_5km"

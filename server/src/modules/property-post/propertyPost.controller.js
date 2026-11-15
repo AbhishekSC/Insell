@@ -340,6 +340,7 @@ export async function getPropertyFeed(req, res) {
         case "recent": break;
         case "rooms": filter.postType = "FLATMATE_OFFER"; break;
         case "flatmates": filter.postType = "FLATMATE_SEEKING"; break;
+        case "pg/hostel": filter.postType = "PG_HOSTEL"; break;
       }
     }
 
@@ -728,6 +729,10 @@ async function getNearMeFeed(req, res, { filter, page, limit, skip, currentUserI
 export async function createPropertyPost(req, res) {
   try {
     if (!req.user?._id) return sendErrorResponse(res, 401, "Unauthorized");
+    const pt = normalizePostType(req.body?.postType);
+    if (pt === "PG_HOSTEL" && req.user.pgOwnerProfile?.approvalStatus !== "approved") {
+      return sendErrorResponse(res, 403, "Only approved PG Owners can create PG/Hostel listings. Register and get admin approval first.");
+    }
     const post = await service.createPost(req.user, req.body);
     return sendSuccessResponse(res, 201, "Property post created successfully", { post });
   } catch (error) {
@@ -1322,9 +1327,8 @@ export async function getMapPins(req, res) {
       }
     } catch {}
 
-    pins = await repo.findMapPins();
-    pins = pins.map((p) => ({ ...p, mediaUrls: p.mediaUrls?.length ? [p.mediaUrls[0]] : [] }));
-    try { await redisClient.setEx(MAP_PINS_CACHE_KEY, MAP_PINS_CACHE_TTL, JSON.stringify(pins)); } catch {}
+    const result = await repo.findMapPins();
+    pins = result.pins || result;
     return sendSuccessResponse(res, 200, "Map pins", { posts: pins });
   } catch (error) {
     logger.error("getMapPins error:", error);

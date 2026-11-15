@@ -38,23 +38,25 @@ export default function TrendingNearYouPage() {
   return (
     <AppShell hideHero hideMobileHeader showBackButton title="Trending Near You" subtitle="What's gaining interest close to where you are">
       <div className="mx-auto max-w-3xl px-4 py-6 pb-24">
-        <div className="mb-6 flex items-center gap-4 rounded-2xl bg-gradient-to-r from-primary to-secondary p-5 text-white shadow-sm">
-          <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-white/15">
-            <Flame className="size-6" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-lg font-bold">Hot right now, near you</p>
-            <p className="text-sm text-white/80">
-              {usingLiveFix
-                ? "Ranked from your current location"
-                : "Ranked from your saved location — share your live location for pinpoint results"}
-            </p>
+        <div className="mb-6 rounded-2xl bg-gradient-to-r from-primary to-secondary p-5 text-white shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/15">
+              <Flame className="size-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-bold leading-snug">Hot right now, near you</p>
+              <p className="mt-1 text-sm text-white/80">
+                {usingLiveFix
+                  ? "Ranked from your current location"
+                  : "Ranked from your saved location — share your live location for pinpoint results"}
+              </p>
+            </div>
           </div>
           {!usingLiveFix && liveLocStatus !== "locating" && (
             <button
               type="button"
               onClick={refreshLocation}
-              className="btn btn-sm shrink-0 border-none bg-white/15 text-white hover:bg-white/25"
+              className="btn btn-sm mt-3 border-none bg-white/15 text-white hover:bg-white/25"
             >
               <Navigation className="size-4" /> Use my location
             </button>

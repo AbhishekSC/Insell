@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Filter, X, SlidersHorizontal, Home, Building2, MapPin, IndianRupee, Calendar, Users, Bed, Bath, Maximize, ChevronDown, TrendingUp, Bell } from "lucide-react";
+import { Filter, X, SlidersHorizontal, Home, Building2, MapPin, IndianRupee, Calendar, Users, Bed, Bath, Maximize, ChevronDown, TrendingUp, Bell, UtensilsCrossed, Wifi, Star, Shield } from "lucide-react";
 
 const ROLE_FILTER_CONFIGS = {
   Tenant: {
@@ -103,6 +103,24 @@ const ROLE_FILTER_CONFIGS = {
       timeHorizon: "Any",
       location: "",
       highGrowthAreas: false
+    }
+  },
+  "PG Owner": {
+    filters: [
+      { key: "budgetRange", label: "Rent Range (₹/mo)", type: "range", icon: IndianRupee, min: 3000, max: 30000, step: 1000 },
+      { key: "genderPreference", label: "Gender", type: "select", icon: Users, options: ["Any", "Boys", "Girls", "Unisex"] },
+      { key: "foodIncluded", label: "Food Included", type: "toggle", icon: UtensilsCrossed },
+      { key: "sharingType", label: "Sharing Type", type: "select", icon: Bed, options: ["Any", "Single", "Double", "Triple", "Quad"] },
+      { key: "location", label: "Near College / Area", type: "text", icon: MapPin },
+      { key: "minRating", label: "Min Rating", type: "select", icon: Star, options: ["Any", "3+", "4+", "4.5+"] },
+    ],
+    defaults: {
+      budgetRange: [3000, 15000],
+      genderPreference: "Any",
+      foodIncluded: false,
+      sharingType: "Any",
+      location: "",
+      minRating: "Any"
     }
   }
 };

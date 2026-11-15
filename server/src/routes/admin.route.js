@@ -25,6 +25,9 @@ import {
   getAdminPropertyVerifications,
   reviewPropertyVerification,
   downloadPropertyBill,
+  getPendingPgOwners,
+  approvePgOwner,
+  rejectPgOwner,
 } from "../controllers/admin.controller.js";
 import {
   adminListFeatureFlags,
@@ -122,5 +125,10 @@ router.get("/queues/health", async (req, res) => {
  *             schema: { $ref: '#/components/schemas/SystemHealth' }
  */
 router.get("/system-health", getDetailedHealth);
+
+// PG Owner approval management
+router.get("/pg-owners", getPendingPgOwners);
+router.patch("/pg-owners/:id/approve", approvePgOwner);
+router.patch("/pg-owners/:id/reject", rejectPgOwner);
 
 export default router;

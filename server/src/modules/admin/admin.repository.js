@@ -192,6 +192,8 @@ export async function findPropertyVerifications(queryFilter, { skip, limit }) {
     .select("title listingType propertyType postType price city locality mediaUrls postMeta author createdAt updatedAt")
     .populate("author", "fullName email mobileNumber profilePic activeRole primaryRole isVerified")
     .populate("postMeta.residential.electricityBillVerifiedBy", "fullName email profilePic")
+    .populate("postMeta.commercial.electricityBillVerifiedBy", "fullName email profilePic")
+    .populate("postMeta.pgHostel.electricityBillVerifiedBy", "fullName email profilePic")
     .sort({ updatedAt: -1, createdAt: -1 })
     .skip(skip)
     .limit(limit)

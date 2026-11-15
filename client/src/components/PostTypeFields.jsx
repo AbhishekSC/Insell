@@ -396,6 +396,177 @@ function HouseRulesField({ field, value, onChange }) {
   );
 }
 
+function SharingTypesField({ field, value, onChange }) {
+  const { name, label, options = [] } = field;
+  const rows = Array.isArray(value) && value.length > 0
+    ? value
+    : [{ type: options[0] || "Single Sharing", price: "" }];
+
+  const update = (idx, key, val) => {
+    const next = rows.map((r, i) => (i === idx ? { ...r, [key]: val } : r));
+    onChange(name, next);
+  };
+  const addRow = () => onChange(name, [...rows, { type: options[rows.length] || options[0], price: "" }]);
+  const removeRow = (idx) => {
+    const next = rows.filter((_, i) => i !== idx);
+    onChange(name, next.length ? next : [{ type: options[0], price: "" }]);
+  };
+
+  return (
+    <div className="form-control sm:col-span-2">
+      <span className="label-text text-xs text-base-content/70 font-semibold mb-1.5">{label}</span>
+      <div className="space-y-2">
+        {rows.map((row, idx) => (
+          <div key={idx} className="flex items-center gap-2">
+            <select
+              className="select select-bordered border-base-300 select-sm flex-1"
+              value={row.type}
+              onChange={(e) => update(idx, "type", e.target.value)}
+            >
+              {options.map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+            <input
+              type="number"
+              className="input input-bordered border-base-300 input-sm w-32"
+              placeholder="₹ / month"
+              value={row.price || ""}
+              onChange={(e) => update(idx, "price", e.target.value ? Number(e.target.value) : "")}
+            />
+            {rows.length > 1 && (
+              <button type="button" onClick={() => removeRow(idx)} className="btn btn-ghost btn-xs text-error">
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+        ))}
+        {rows.length < options.length && (
+          <button type="button" onClick={addRow} className="btn btn-ghost btn-xs text-primary gap-1">
+            <Plus className="size-3.5" /> Add sharing option
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const EMPTY_MENU = DAYS_OF_WEEK.map((day) => ({ day, breakfast: "", lunch: "", dinner: "" }));
+
+function WeeklyMenuField({ field, value, onChange }) {
+  const { name, label } = field;
+  const [expanded, setExpanded] = useState(false);
+  const menu = Array.isArray(value) && value.length === 7 ? value : EMPTY_MENU;
+
+  const update = (idx, meal, val) => {
+    const next = menu.map((m, i) => (i === idx ? { ...m, [meal]: val } : m));
+    onChange(name, next);
+  };
+
+  const hasContent = menu.some((d) => d.breakfast || d.lunch || d.dinner);
+
+  return (
+    <div className="form-control sm:col-span-2">
+      <button
+        type="button"
+        className="flex items-center gap-1.5 text-xs font-semibold text-base-content/70 mb-1.5"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <ChevronDown className={`size-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
+        {label}
+        {hasContent && <span className="text-primary text-[11px] font-medium ml-1">filled</span>}
+      </button>
+      {expanded && (
+        <div className="overflow-x-auto rounded-xl border border-base-300">
+          <table className="table table-xs w-full">
+            <thead>
+              <tr className="bg-base-200/60 text-[11px]">
+                <th className="font-semibold w-24">Day</th>
+                <th className="font-semibold">Breakfast</th>
+                <th className="font-semibold">Lunch</th>
+                <th className="font-semibold">Dinner</th>
+              </tr>
+            </thead>
+            <tbody>
+              {menu.map((row, idx) => (
+                <tr key={row.day}>
+                  <td className="text-xs font-medium text-base-content/70">{row.day}</td>
+                  {["breakfast", "lunch", "dinner"].map((meal) => (
+                    <td key={meal}>
+                      <input
+                        type="text"
+                        className="input input-bordered border-base-300 input-xs w-full text-xs"
+                        placeholder={meal}
+                        value={row[meal] || ""}
+                        onChange={(e) => update(idx, meal, e.target.value)}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TagListField({ field, value, onChange }) {
+  const { name, label, placeholder } = field;
+  const [inputText, setInputText] = useState("");
+  const tags = Array.isArray(value) ? value : [];
+
+  const addTag = () => {
+    const trimmed = inputText.trim();
+    if (trimmed && !tags.includes(trimmed)) {
+      onChange(name, [...tags, trimmed]);
+    }
+    setInputText("");
+  };
+
+  const removeTag = (tag) => onChange(name, tags.filter((t) => t !== tag));
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addTag();
+    }
+  };
+
+  return (
+    <div className="form-control sm:col-span-2">
+      <span className="label-text text-xs text-base-content/70 font-medium mb-1">{label}</span>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          className="input input-bordered border-base-300 flex-1 text-sm"
+          placeholder={placeholder || "Type and press Enter"}
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          onKeyDown={handleKeyDown}
+        />
+        <button type="button" onClick={addTag} disabled={!inputText.trim()} className="btn btn-primary btn-sm h-auto px-4 text-xs font-semibold gap-1">
+          <Plus className="size-3.5" /> Add
+        </button>
+      </div>
+      {tags.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {tags.map((tag) => (
+            <span key={tag} className="inline-flex items-center gap-1.5 rounded-lg bg-base-200 border border-base-300 px-3 py-1.5 text-xs font-medium text-base-content">
+              {tag}
+              <button type="button" onClick={() => removeTag(tag)} className="text-base-content/40 hover:text-error">
+                <X className="size-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Renders the type-specific inputs on the Create Post "details" step from
 // postTypeConfig — essential fields inline, the rest behind an "Add more
 // details" expander. Every field binds to a flat key on `draft` via
@@ -441,6 +612,18 @@ function FieldInput({ field, value, onChange, draft }) {
 
   if (kind === FIELD_KIND.HOUSE_RULES) {
     return <HouseRulesField field={field} value={value} onChange={onChange} />;
+  }
+
+  if (kind === FIELD_KIND.SHARING_TYPES) {
+    return <SharingTypesField field={field} value={value} onChange={onChange} />;
+  }
+
+  if (kind === FIELD_KIND.WEEKLY_MENU) {
+    return <WeeklyMenuField field={field} value={value} onChange={onChange} />;
+  }
+
+  if (kind === FIELD_KIND.TAG_LIST) {
+    return <TagListField field={field} value={value} onChange={onChange} />;
   }
 
   if (kind === FIELD_KIND.TEXTAREA) {

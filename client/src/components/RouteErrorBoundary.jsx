@@ -12,6 +12,7 @@ export default class RouteErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
+    console.error(`[RouteErrorBoundary] ${this.props.name || "Unknown"} crashed:`, error, errorInfo);
     try {
       Sentry.captureException(error, { extra: errorInfo });
     } catch {
@@ -48,6 +49,11 @@ export default class RouteErrorBoundary extends React.Component {
               {pageName} ran into an unexpected error. You can try reloading or
               head back to the marketplace.
             </p>
+            {this.state.error && (
+              <p className="mt-3 text-xs text-error/80 font-mono break-all max-h-20 overflow-auto text-left bg-error/5 rounded-lg p-2">
+                {this.state.error.message || String(this.state.error)}
+              </p>
+            )}
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <button
                 onClick={() => window.location.reload()}

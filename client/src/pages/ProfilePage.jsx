@@ -1,22 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Camera, ClipboardCheck, Link2, MapPin, Phone, BadgeCheck, Sparkles, UploadCloud, UserCircle } from "lucide-react";
+import {
+  Camera, ClipboardCheck,
+  Link2, MapPin, Phone, BadgeCheck, Sparkles, UploadCloud,
+  UserCircle,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import SEO from "../components/SEO";
 import OwnerVerificationCard from "../components/OwnerVerificationCard";
+import PgOwnerRegistrationCard from "../components/PgOwnerRegistrationCard";
 import ReferralCard from "../components/ReferralCard";
 import axiosInstance from "../lib/axios";
+import { ALL_ROLES } from "../components/ProfileContent";
 
 export default function ProfilePage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const authData = queryClient.getQueryData(["authUser"]);
   const authUser = authData?.data?.user || authData?.data || null;
-  const availableRoles = Array.isArray(authUser?.userRoles) && authUser.userRoles.length > 0
-    ? authUser.userRoles
-    : [authUser?.activeRole || authUser?.primaryRole || "Buyer"].filter(Boolean);
+  const secondaryRoles = useMemo(() => {
+    const all = Array.isArray(authUser?.userRoles) ? authUser.userRoles : [];
+    const primary = authUser?.primaryRole || "";
+    return all.filter((r) => r && r !== primary);
+  }, [authUser?.userRoles, authUser?.primaryRole]);
 
   const [form, setForm] = useState({
     fullName: authUser?.fullName || "",
@@ -24,6 +32,7 @@ export default function ProfilePage() {
     city: authUser?.city || authUser?.homeBase || authUser?.location || "",
     primaryRole: authUser?.primaryRole || authUser?.travelStyle || "",
     activeRole: authUser?.activeRole || authUser?.primaryRole || authUser?.travelStyle || "",
+    secondaryRoles: secondaryRoles,
     profilePic: authUser?.profilePic || "",
     mobileNumber: authUser?.mobileNumber || "",
   });
@@ -78,6 +87,8 @@ export default function ProfilePage() {
       payload.append("city", form.city);
       payload.append("primaryRole", form.primaryRole);
       payload.append("activeRole", form.activeRole || form.primaryRole);
+      const combinedRoles = [...new Set([form.primaryRole, ...(form.secondaryRoles || [])])].filter(Boolean);
+      payload.append("userRoles", JSON.stringify(combinedRoles));
       payload.append("profilePic", form.profilePic);
       payload.append("mobileNumber", form.mobileNumber);
       if (profileImageFile && imageMode === "upload") {
@@ -117,6 +128,9 @@ export default function ProfilePage() {
 
   return (
     <AppShell
+      hideMobileHeader
+      showBackButton
+      hideHero
       title="Profile"
       subtitle="Keep your marketplace identity fresh with role, city, and profile details."
     >
@@ -200,12 +214,22 @@ export default function ProfilePage() {
 
                 <label className="form-control">
                   <span className="label-text mb-1">Primary role</span>
-                  <input
-                    type="text"
-                    className="input input-bordered"
+                  <select
+                    className="select select-bordered"
                     value={form.primaryRole}
-                    onChange={(e) => setForm((prev) => ({ ...prev, primaryRole: e.target.value }))}
-                  />
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setForm((prev) => ({
+                        ...prev,
+                        primaryRole: v,
+                        activeRole: v,
+                        secondaryRoles: (prev.secondaryRoles || []).filter((r) => r !== v),
+                      }));
+                    }}
+                  >
+                    <option value="">Select role</option>
+                    {ALL_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
                 </label>
 
                 <label className="form-control sm:col-span-2">
@@ -223,15 +247,33 @@ export default function ProfilePage() {
                   </div>
                 </label>
 
+                <div className="form-control sm:col-span-2">
+                  <span className="label-text mb-1">Secondary roles</span>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {(form.secondaryRoles || []).map((role) => (
+                      <span key={role} className="inline-flex items-center gap-1 badge badge-primary badge-outline">
+                        {role}
+                        <button type="button" onClick={() => setForm((prev) => ({ ...prev, secondaryRoles: prev.secondaryRoles.filter((r) => r !== role) }))} className="hover:text-error">
+                          <X className="size-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <select className="select select-bordered select-sm" value="" onChange={(e) => { if (!e.target.value) return; setForm((prev) => ({ ...prev, secondaryRoles: [...(prev.secondaryRoles || []), e.target.value] })); }}>
+                    <option value="">+ Add secondary role</option>
+                    {ALL_ROLES.filter((r) => r !== form.primaryRole && !(form.secondaryRoles || []).includes(r)).map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+
                 <label className="form-control sm:col-span-2">
-                  <span className="label-text mb-1">Active role (role switcher)</span>
+                  <span className="label-text mb-1">Active role</span>
                   <select
                     className="select select-bordered"
                     value={form.activeRole}
                     onChange={(e) => setForm((prev) => ({ ...prev, activeRole: e.target.value }))}
                   >
-                    {availableRoles.map((role) => (
-                      <option key={role} value={role}>{role}</option>
+                    {[form.primaryRole, ...(form.secondaryRoles || [])].filter(Boolean).map((role) => (
+                      <option key={role} value={role}>{role}{role === form.primaryRole ? " (Primary)" : ""}</option>
                     ))}
                   </select>
                 </label>
@@ -298,6 +340,8 @@ export default function ProfilePage() {
             </p>
           </div>
 
+          <PgOwnerRegistrationCard authUser={authUser} />
+
           <OwnerVerificationCard />
           <ReferralCard />
 
@@ -335,6 +379,7 @@ export default function ProfilePage() {
               <div className="mt-1 flex flex-wrap justify-center gap-2 text-xs text-base-content/70">
                 {form.city ? <span className="badge badge-outline">{form.city}</span> : null}
                 {form.primaryRole ? <span className="badge badge-outline">{form.primaryRole}</span> : null}
+                {(form.secondaryRoles || []).map((r) => <span key={r} className="badge badge-ghost badge-outline text-[10px]">{r}</span>)}
                 {form.activeRole ? <span className="badge badge-primary badge-outline">Active: {form.activeRole}</span> : null}
               </div>
             </div>
@@ -344,3 +389,4 @@ export default function ProfilePage() {
     </AppShell>
   );
 }
+

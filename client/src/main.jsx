@@ -11,6 +11,8 @@ import { StreamProvider } from "./context/StreamProvider";
 import { ThemeProvider } from "./context/ThemeProvider";
 import { StoryOverlayProvider } from "./context/StoryOverlayContext";
 import { FeatureFlagProvider } from "./context/FeatureFlagContext";
+import { PgCompareProvider } from "./context/PgCompareContext";
+import { SafetyGradeCacheProvider } from "./context/SafetyGradeCache";
 import { initPostHog } from "./lib/posthog";
 import Sentry, { initSentry } from "./lib/sentry";
 import { setAuthToken } from "./lib/authToken";
@@ -111,7 +113,11 @@ createRoot(document.getElementById("root")).render(
               <StreamProvider>
                 <StoryOverlayProvider>
                   <FeatureFlagProvider>
-                    <App />
+                    <PgCompareProvider>
+                      <SafetyGradeCacheProvider>
+                        <App />
+                      </SafetyGradeCacheProvider>
+                    </PgCompareProvider>
                   </FeatureFlagProvider>
                 </StoryOverlayProvider>
               </StreamProvider>

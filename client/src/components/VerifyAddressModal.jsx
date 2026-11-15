@@ -29,19 +29,21 @@ export default function VerifyAddressModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resMeta = post?.postMeta?.residential || {};
+  const commMeta = post?.postMeta?.commercial || {};
+  const pgMeta = post?.postMeta?.pgHostel || {};
   const flatMeta =
     post?.postMeta && typeof post.postMeta === "object" && !Array.isArray(post.postMeta)
       ? post.postMeta
       : {};
+  const _billMeta = [resMeta, commMeta, pgMeta].find(b => b.electricityBillUrl) || resMeta;
 
   const currentStatus =
-    resMeta.electricityBillStatus ||
-    flatMeta.electricityBillStatus ||
-    post?.electricityBillStatus ||
-    (resMeta.electricityBillUrl || flatMeta.electricityBillUrl ? "PENDING" : "NONE");
+    [_billMeta.electricityBillStatus, flatMeta.electricityBillStatus, post?.electricityBillStatus]
+      .find(s => s && s !== "NONE") ||
+    (_billMeta.electricityBillUrl || flatMeta.electricityBillUrl ? "PENDING" : "NONE");
 
   const rejectionReason =
-    resMeta.electricityBillRejectionReason ||
+    _billMeta.electricityBillRejectionReason ||
     flatMeta.electricityBillRejectionReason ||
     post?.electricityBillRejectionReason ||
     "";
@@ -50,6 +52,8 @@ export default function VerifyAddressModal({
     if (isOpen && post) {
       const existingUrl =
         post?.postMeta?.residential?.electricityBillUrl ||
+        post?.postMeta?.commercial?.electricityBillUrl ||
+        post?.postMeta?.pgHostel?.electricityBillUrl ||
         post?.postMeta?.electricityBillUrl ||
         post?.electricityBillUrl ||
         "";

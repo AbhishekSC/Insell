@@ -235,7 +235,7 @@ export default function NewsPage() {
       <div className="mx-auto max-w-7xl px-4 py-8 pb-24">
         {/* Page Header */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
+          <div className="hidden lg:block">
             <h1 className="text-3xl font-bold tracking-tight text-base-content">
               Property News
             </h1>

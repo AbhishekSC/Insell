@@ -61,7 +61,7 @@ import VerifyAddressModal from "../components/VerifyAddressModal";
 import { getPostSpaceType, extractTransitPill } from "../lib/propertyDetailBadges";
 import ShareModal from "../components/ShareModal";
 import NeighbourhoodSummary from "../components/NeighbourhoodSummary";
-import NeighborhoodVibeCard from "../components/NeighborhoodVibeCard";
+import NeighbourhoodSafetyCard from "../components/NeighbourhoodSafetyCard";
 import AiValuationCard from "../components/AiValuationCard";
 import { useFeatureFlag } from "../context/FeatureFlagContext";
 import AmenitiesModal from "../components/AmenitiesModal";
@@ -84,6 +84,7 @@ import axiosInstance from "../lib/axios";
 import AppShell from "../components/AppShell";
 import { addRecentlyViewed } from "../utils/recentlyViewed";
 import { notePropertyView } from "../hooks/usePreferencePrompt";
+import { useRequestBooking, useBookingStatus, useCancelBooking } from "../hooks/usePgResidency";
 
 function normalizeMediaUrls(raw) {
   if (Array.isArray(raw)) {
@@ -282,7 +283,8 @@ export default function PropertyDetailPage() {
   const [showAllOffers, setShowAllOffers] = useState(false);
   const [showBoostModal, setShowBoostModal] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
-  const isNeighborhoodVibeEnabled = useFeatureFlag("neighborhood_vibe_score");
+  const [showPgBookingModal, setShowPgBookingModal] = useState(false);
+
   const isAiValuationEnabled = useFeatureFlag("ai_property_valuation");
 
   const { data: authData } = useAuthUser();
@@ -450,6 +452,13 @@ export default function PropertyDetailPage() {
     refetchInterval: 15000,
   });
 
+  const pgPostType = String(postData?.postType || "").toUpperCase();
+  const { data: myBooking } = useBookingStatus(
+    pgPostType === "PG_HOSTEL" && !isOwnerForQueries ? id : null,
+    { enabled: Boolean(id && authUser?._id && pgPostType === "PG_HOSTEL" && !isOwnerForQueries) }
+  );
+  const { mutate: cancelBooking, isPending: isCancelling } = useCancelBooking();
+
   // Owner's incoming offers on this post.
   const { data: postOffers = [] } = useQuery({
     queryKey: ["postOffers", id],
@@ -615,19 +624,24 @@ export default function PropertyDetailPage() {
     ? residential.preferredTenants
     : (Array.isArray(flatMeta.preferredTenants) ? flatMeta.preferredTenants : []);
   const alternativeMobile = residential.alternativeMobile || flatMeta.alternativeMobile || "";
+  const commercial = flatMeta.commercial || {};
+  const pgHostelMeta = flatMeta.pgHostel || {};
   const electricityBillUrl =
     residential.electricityBillUrl ||
+    commercial.electricityBillUrl ||
+    pgHostelMeta.electricityBillUrl ||
     flatMeta.electricityBillUrl ||
     flatMeta.electricityBill ||
     postData.electricityBillUrl ||
     "";
   const electricityBillStatus =
-    residential.electricityBillStatus ||
-    flatMeta.electricityBillStatus ||
-    postData.electricityBillStatus ||
+    [residential.electricityBillStatus, commercial.electricityBillStatus, pgHostelMeta.electricityBillStatus, flatMeta.electricityBillStatus, postData.electricityBillStatus]
+      .find(s => s && s !== "NONE") ||
     (electricityBillUrl ? "PENDING" : "NONE");
   const electricityBillRejectionReason =
     residential.electricityBillRejectionReason ||
+    commercial.electricityBillRejectionReason ||
+    pgHostelMeta.electricityBillRejectionReason ||
     flatMeta.electricityBillRejectionReason ||
     postData.electricityBillRejectionReason ||
     "";
@@ -638,6 +652,8 @@ export default function PropertyDetailPage() {
       ? residential.amenities
       : String(requirement.amenitiesText || "").split(",").map((item) => item.trim()).filter(Boolean);
 
+  const land = flatMeta.land || {};
+
   const hasRequirementData = Boolean(
     requirement.moveInDate || requirement.availableFromDate || requirement.leaseDurationMonths ||
     requirement.budgetMin || requirement.budgetMax || requirement.occupancyPreference ||
@@ -646,12 +662,20 @@ export default function PropertyDetailPage() {
   );
   const hasProjectData = Boolean(project.projectName || project.launchDate || project.reraNumber || project.brochureUrl);
   const hasInvestmentData = Boolean(investment.thesis);
-
   const postTypeUpper = String(postData.postType || "").toUpperCase();
+  const hasCommercialData = Boolean(commercial.commercialType || commercial.carpetArea || commercial.floorNumber || commercial.washrooms);
+  const hasLandData = Boolean(land.landArea || land.soilType || land.waterAvailability || land.roadAccess !== undefined || land.electricityAvailable !== undefined);
+  const isCommercialPost = postTypeUpper === "COMMERCIAL_LISTING";
+  const isAgriPost = postTypeUpper === "AGRICULTURAL_LISTING";
+  const isOpenHouse = postTypeUpper === "OPEN_HOUSE_EVENT";
+  const isServicePost = postTypeUpper === "SERVICE_LISTING";
+
   const isFlatmatePost = postTypeUpper === "FLATMATE_OFFER" || postTypeUpper === "FLATMATE_SEEKING";
+  const isPgPost = postTypeUpper === "PG_HOSTEL";
   const isOfferType = postTypeUpper === "FLATMATE_OFFER";
   const fm = flatMeta.flatmate || {};
   const fmMatchScore = postData.flatmateMatchScore;
+  const pg = flatMeta.pgHostel || {};
 
   const reraNumber = project.reraNumber || flatMeta.reraNumber || "";
   const reraVerified = Boolean(flatMeta.reraVerified);
@@ -746,7 +770,7 @@ export default function PropertyDetailPage() {
   })();
 
   return (
-    <AppShell hideHero showBackButton title="Property Details">
+    <AppShell hideHero hideMobileHeader showBackButton title="Property Details">
       <SEO title={postData?.title || "Property Details"} description={postData?.description?.slice(0, 160)} path={"/property/" + id} />
       <div className="min-h-screen bg-base-200">
         {/* Fullscreen Image Modal */}
@@ -977,10 +1001,66 @@ export default function PropertyDetailPage() {
                             </span>
                           )}
                         </>
+                      ) : isPgPost ? (
+                        <>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/10 px-2.5 py-0.5 text-xs font-bold text-violet-700 dark:text-violet-400">
+                            <Building2 className="size-3.5" />
+                            PG / Hostel
+                          </span>
+                          {pg.genderPreference && pg.genderPreference !== "any" && (
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                              pg.genderPreference === "male"
+                                ? "bg-blue-500/10 text-blue-700 dark:text-blue-400"
+                                : pg.genderPreference === "female"
+                                  ? "bg-pink-500/10 text-pink-700 dark:text-pink-400"
+                                  : "bg-base-200 text-base-content/70"
+                            }`}>
+                              {titleCase(pg.genderPreference)} only
+                            </span>
+                          )}
+                          {pg.foodIncluded && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/10 px-2.5 py-0.5 text-xs font-medium text-orange-700 dark:text-orange-400">
+                              <UtensilsCrossed className="size-3" />
+                              {pg.foodType === "veg" ? "Veg" : pg.foodType === "nonveg" ? "Non-Veg" : pg.foodType === "both" ? "Veg & Non-Veg" : "Food"} included
+                            </span>
+                          )}
+                          {pg.wifiSpeed && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2.5 py-0.5 text-xs font-medium text-sky-700 dark:text-sky-400">
+                              <Wifi className="size-3" />
+                              {pg.wifiSpeed}
+                            </span>
+                          )}
+                        </>
                       ) : (
-                        <span className="rounded-full bg-base-200 px-2.5 py-0.5 text-xs font-medium text-base-content/70">
-                          {String(postData.listingType || "").toLowerCase() === "rent" || postData.postType === "PROPERTY_RENT" ? "For Rent" : titleCase(postData.postType)}
-                        </span>
+                        <>
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                            isCommercialPost ? "bg-teal-500/10 text-teal-700 dark:text-teal-400"
+                              : isAgriPost ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                                : isOpenHouse ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                                  : isServicePost ? "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400"
+                                    : "bg-base-200 text-base-content/70"
+                          }`}>
+                            {isCommercialPost && <Briefcase className="size-3.5" />}
+                            {isAgriPost && <MapPin className="size-3.5" />}
+                            {isOpenHouse && <Calendar className="size-3.5" />}
+                            {isServicePost && <Briefcase className="size-3.5" />}
+                            {isCommercialPost ? "Commercial"
+                              : isAgriPost ? (postData.listingType?.toLowerCase() === "rent" ? "Land for Lease" : "Land for Sale")
+                                : isOpenHouse ? "Open House"
+                                  : isServicePost ? "Service"
+                                    : String(postData.listingType || "").toLowerCase() === "rent" || postData.postType === "PROPERTY_RENT" ? "For Rent" : titleCase(postData.listingType || postData.postType)}
+                          </span>
+                          {isCommercialPost && commercial.commercialType && (
+                            <span className="rounded-full bg-base-200 px-2.5 py-0.5 text-xs font-medium text-base-content/70">
+                              {titleCase(commercial.commercialType)}
+                            </span>
+                          )}
+                          {isAgriPost && land.landArea > 0 && (
+                            <span className="rounded-full bg-base-200 px-2.5 py-0.5 text-xs font-medium text-base-content/70">
+                              {Number(land.landArea).toLocaleString("en-IN")} {land.landAreaUnit || "sq.ft"}
+                            </span>
+                          )}
+                        </>
                       )}
                       {(() => {
                         const transit = extractTransitPill(postData);
@@ -1031,7 +1111,21 @@ export default function PropertyDetailPage() {
                     )}
                   </div>
                   <div className="text-left sm:text-right shrink-0">
-                    <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary">{formatMoney(postData.price)}</p>
+                    {isPgPost && pg.sharingTypes?.length > 0 ? (() => {
+                      const prices = pg.sharingTypes.map((s) => s.price).filter(Boolean).sort((a, b) => a - b);
+                      const lo = prices[0];
+                      const hi = prices[prices.length - 1];
+                      return (
+                        <>
+                          <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary">
+                            {lo === hi ? formatMoney(lo) : `${formatMoney(lo)} – ${formatMoney(hi)}`}
+                          </p>
+                          <p className="text-xs text-base-content/50">/month per person</p>
+                        </>
+                      );
+                    })() : (
+                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary">{formatMoney(postData.price)}</p>
+                    )}
                     <p className="text-xs sm:text-sm text-base-content/60 mt-0.5">Posted {relativeDate(postData.createdAt)}</p>
                     {wasEdited && <p className="text-[11px] sm:text-xs text-base-content/50">Edited {relativeDate(postData.updatedAt)}</p>}
                     {isAiValuationEnabled && postData.price > 0 && (
@@ -1408,7 +1502,23 @@ export default function PropertyDetailPage() {
                     <InfoRow label="Smoking" value={fm.smoking} />
                     <InfoRow label="Drinking" value={fm.drinking} />
                     <InfoRow label="Occupation" value={Array.isArray(fm.occupation) ? fm.occupation.join(", ") : fm.occupation} />
+                    <InfoRow label="College" value={fm.collegeName} />
+                    <InfoRow label="Workplace" value={fm.workplaceName} />
+                    <InfoRow label="Group size" value={fm.groupSize > 0 ? `${fm.groupSize} people` : null} />
                   </div>
+                  {fm.preferredLocalities?.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-sm font-semibold text-base-content/70 mb-2">Preferred Localities</p>
+                      <div className="flex flex-wrap gap-2">
+                        {fm.preferredLocalities.map((loc) => (
+                          <span key={loc} className="inline-flex items-center gap-1 rounded-full border border-base-300 bg-base-200/50 px-2.5 py-1 text-xs font-medium text-base-content/70">
+                            <MapPin className="size-3" />
+                            {loc}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {(fm.targetAudience?.length > 0 || fm.lifestyleTags?.length > 0 || fm.amenityTags?.length > 0) && (
                     <div className="mt-4 flex flex-wrap gap-2">
                       {[...(fm.targetAudience || []), ...(fm.lifestyleTags || []), ...(fm.amenityTags || [])].map((tag) => (
@@ -1419,6 +1529,247 @@ export default function PropertyDetailPage() {
                     </div>
                   )}
                 </Section>
+              )}
+
+              {/* PG/Hostel details */}
+              {isPgPost && (
+                <>
+                  {/* Sharing Types & Pricing */}
+                  {pg.sharingTypes?.length > 0 && (
+                    <Section title="Room Types & Pricing" icon={Bed}>
+                      <div className="grid gap-3">
+                        {pg.sharingTypes.map((s) => (
+                          <div key={s.type} className="flex items-center justify-between p-4 rounded-xl bg-base-200/60">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <Bed className="size-5 text-primary" />
+                              </div>
+                              <div>
+                                <p className="font-semibold text-sm">{titleCase(s.type)} Sharing</p>
+                                <p className="text-xs text-base-content/50">Per person / month</p>
+                              </div>
+                            </div>
+                            <p className="text-lg font-bold text-primary">{formatMoney(s.price)}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        {pg.securityDeposit > 0 && (
+                          <div className="p-3 rounded-xl bg-base-200/50">
+                            <p className="text-xs text-base-content/50">Security Deposit</p>
+                            <p className="font-bold">{formatMoney(pg.securityDeposit)}</p>
+                          </div>
+                        )}
+                        {pg.lockInPeriodMonths > 0 && (
+                          <div className="p-3 rounded-xl bg-base-200/50">
+                            <p className="text-xs text-base-content/50">Lock-in Period</p>
+                            <p className="font-bold">{pg.lockInPeriodMonths} months</p>
+                          </div>
+                        )}
+                      </div>
+                    </Section>
+                  )}
+
+                  {/* Occupancy */}
+                  {(pg.totalBeds > 0) && (
+                    <Section title="Occupancy" icon={Users}>
+                      <div className="grid grid-cols-3 gap-3 mb-4">
+                        <div className="text-center p-3 rounded-xl bg-base-200/50">
+                          <p className="text-2xl font-bold">{pg.totalBeds}</p>
+                          <p className="text-xs text-base-content/50">Total Beds</p>
+                        </div>
+                        <div className="text-center p-3 rounded-xl bg-green-500/10">
+                          <p className="text-2xl font-bold text-green-700 dark:text-green-400">{pg.availableBeds || 0}</p>
+                          <p className="text-xs text-green-700/70 dark:text-green-400/70">Available</p>
+                        </div>
+                        <div className="text-center p-3 rounded-xl bg-base-200/50">
+                          <p className="text-2xl font-bold">{pg.totalBeds - (pg.availableBeds || 0)}</p>
+                          <p className="text-xs text-base-content/50">Occupied</p>
+                        </div>
+                      </div>
+                      <div className="w-full bg-base-300 rounded-full h-3 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all"
+                          style={{ width: `${Math.round(((pg.totalBeds - (pg.availableBeds || 0)) / pg.totalBeds) * 100)}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-base-content/50 text-right mt-1">
+                        {Math.round(((pg.totalBeds - (pg.availableBeds || 0)) / pg.totalBeds) * 100)}% occupied
+                      </p>
+                    </Section>
+                  )}
+
+                  {/* Food & Menu */}
+                  {pg.foodIncluded && (
+                    <Section title="Food & Menu" icon={UtensilsCrossed}>
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium ${
+                          pg.foodType === "veg"
+                            ? "bg-green-500/10 text-green-700 dark:text-green-400"
+                            : pg.foodType === "nonveg"
+                              ? "bg-red-500/10 text-red-700 dark:text-red-400"
+                              : "bg-orange-500/10 text-orange-700 dark:text-orange-400"
+                        }`}>
+                          <UtensilsCrossed className="size-3.5" />
+                          {pg.foodType === "veg" ? "Vegetarian" : pg.foodType === "nonveg" ? "Non-Vegetarian" : "Veg & Non-Veg"}
+                        </span>
+                      </div>
+                      {pg.weeklyMenu?.length > 0 && (
+                        <div className="space-y-2">
+                          <h3 className="text-sm font-semibold text-base-content/70 mb-3">Weekly Menu</h3>
+                          <div className="overflow-x-auto -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="text-xs text-base-content/50 uppercase tracking-wider">
+                                  <th className="text-left pb-2 pr-4 font-semibold">Day</th>
+                                  <th className="text-left pb-2 pr-4 font-semibold">Breakfast</th>
+                                  <th className="text-left pb-2 pr-4 font-semibold">Lunch</th>
+                                  <th className="text-left pb-2 font-semibold">Dinner</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {pg.weeklyMenu.map((day) => (
+                                  <tr key={day.day} className="border-t border-base-200">
+                                    <td className="py-2.5 pr-4 font-medium text-base-content/80 whitespace-nowrap">{day.day}</td>
+                                    <td className="py-2.5 pr-4 text-base-content/60">{day.breakfast}</td>
+                                    <td className="py-2.5 pr-4 text-base-content/60">{day.lunch}</td>
+                                    <td className="py-2.5 text-base-content/60">{day.dinner}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </Section>
+                  )}
+
+                  {/* House Rules */}
+                  {pg.houseRules?.length > 0 && (
+                    <Section title="House Rules" icon={ShieldCheck}>
+                      <div className="space-y-2">
+                        {pg.houseRules.map((rule, i) => (
+                          <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-base-200/40">
+                            <span className="mt-0.5 w-5 h-5 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
+                              <span className="text-xs font-bold text-amber-700 dark:text-amber-400">{i + 1}</span>
+                            </span>
+                            <span className="text-sm text-base-content/80">{rule}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </Section>
+                  )}
+
+                  {/* Nearby Places */}
+                  {(pg.nearbyColleges?.length > 0 || pg.nearbyOffices?.length > 0) && (
+                    <Section title="Nearby Places" icon={MapPin}>
+                      {pg.nearbyColleges?.length > 0 && (
+                        <div className="mb-4">
+                          <h3 className="text-sm font-semibold text-base-content/70 mb-2 flex items-center gap-1.5">
+                            <GraduationCap className="size-4 text-primary" />
+                            Colleges & Universities
+                          </h3>
+                          <div className="flex flex-wrap gap-2">
+                            {pg.nearbyColleges.map((c) => (
+                              <span key={c} className="inline-flex items-center rounded-full border border-base-300 bg-base-200/50 px-3 py-1 text-xs font-medium text-base-content/70">
+                                {c}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {pg.nearbyOffices?.length > 0 && (
+                        <div>
+                          <h3 className="text-sm font-semibold text-base-content/70 mb-2 flex items-center gap-1.5">
+                            <Briefcase className="size-4 text-primary" />
+                            Offices & IT Parks
+                          </h3>
+                          <div className="flex flex-wrap gap-2">
+                            {pg.nearbyOffices.map((o) => (
+                              <span key={o} className="inline-flex items-center rounded-full border border-base-300 bg-base-200/50 px-3 py-1 text-xs font-medium text-base-content/70">
+                                {o}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </Section>
+                  )}
+
+                  {/* Ratings Breakdown */}
+                  {pg.avgRatings && pg.reviewCount > 0 && (
+                    <Section title={`Ratings & Reviews (${pg.reviewCount})`} icon={Star}>
+                      <div className="flex items-center gap-4 mb-5">
+                        <div className="text-center">
+                          <div className="text-4xl font-bold text-primary">
+                            {(() => {
+                              const vals = Object.values(pg.avgRatings).filter((v) => typeof v === "number" && v > 0);
+                              return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : "—";
+                            })()}
+                          </div>
+                          <div className="flex gap-0.5 mt-1 justify-center">
+                            {[1, 2, 3, 4, 5].map((n) => {
+                              const avg = (() => {
+                                const vals = Object.values(pg.avgRatings).filter((v) => typeof v === "number" && v > 0);
+                                return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+                              })();
+                              return <Star key={n} className={`size-4 ${n <= Math.round(avg) ? "fill-yellow-400 text-yellow-400" : "text-base-content/20"}`} />;
+                            })}
+                          </div>
+                          <p className="text-xs text-base-content/50 mt-1">{pg.reviewCount} reviews</p>
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          {[
+                            { key: "food", label: "Food" },
+                            { key: "cleanliness", label: "Cleanliness" },
+                            { key: "wifi", label: "WiFi" },
+                            { key: "water", label: "Water" },
+                            { key: "safety", label: "Safety" },
+                            { key: "landlord", label: "Landlord" },
+                            { key: "value_for_money", label: "Value" },
+                            { key: "location", label: "Location" },
+                          ].map((cat) => {
+                            const val = pg.avgRatings[cat.key] || 0;
+                            return (
+                              <div key={cat.key} className="flex items-center gap-2">
+                                <span className="text-xs w-20 text-base-content/60">{cat.label}</span>
+                                <div className="flex-1 bg-base-200 rounded-full h-1.5 overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${val >= 4 ? "bg-green-500" : val >= 3 ? "bg-yellow-500" : "bg-red-500"}`}
+                                    style={{ width: `${(val / 5) * 100}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs font-medium w-6 text-right">{val.toFixed(1)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </Section>
+                  )}
+
+                  {/* PG Amenities */}
+                  {pg.amenities?.length > 0 && (
+                    <Section title="PG Amenities" icon={Sparkles}>
+                      <div className="flex flex-wrap gap-2">
+                        {pg.amenities.map((a) => {
+                          const iconMap = {
+                            wifi: Wifi, laundry: Shirt, parking: Car, power_backup: Zap,
+                            cctv: ShieldCheck, housekeeping: Sparkles, ac: Wind, gym: Dumbbell,
+                            water_purifier: Droplets, fridge: Home, tv: Home,
+                          };
+                          const Ic = iconMap[a.toLowerCase()] || Sparkles;
+                          return (
+                            <span key={a} className="inline-flex items-center gap-1.5 rounded-xl border border-base-300 bg-base-200/50 px-3 py-1.5 text-xs font-medium text-base-content/70">
+                              <Ic className="size-3.5 text-primary" />
+                              {titleCase(a.replace(/_/g, " "))}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </Section>
+                  )}
+                </>
               )}
 
               {/* Requirement details — for REQUIREMENT_BUY / REQUIREMENT_RENT posts */}
@@ -1470,6 +1821,35 @@ export default function PropertyDetailPage() {
               {hasInvestmentData && (
                 <Section title="Investment Thesis" icon={TrendingUp}>
                   <p className="text-base-content/70 leading-relaxed">{investment.thesis}</p>
+                </Section>
+              )}
+
+              {/* Commercial details — for COMMERCIAL_LISTING posts */}
+              {hasCommercialData && (
+                <Section title="Commercial Details" icon={Building2}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <InfoRow label="Commercial type" value={commercial.commercialType ? titleCase(commercial.commercialType) : null} />
+                    <InfoRow label="Carpet area" value={commercial.carpetArea ? `${Number(commercial.carpetArea).toLocaleString("en-IN")} sq.ft` : null} />
+                    <InfoRow label="Floor" value={commercial.floorNumber != null ? `Floor ${commercial.floorNumber}` : null} />
+                    <InfoRow label="Washrooms" value={commercial.washrooms || null} />
+                  </div>
+                </Section>
+              )}
+
+              {/* Agricultural / Land details — for AGRICULTURAL_LISTING posts */}
+              {hasLandData && (
+                <Section title="Land Details" icon={MapPin}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <InfoRow label="Land area" value={
+                      land.landArea
+                        ? `${Number(land.landArea).toLocaleString("en-IN")} ${land.landAreaUnit || "sq.ft"}`
+                        : null
+                    } />
+                    <InfoRow label="Soil type" value={land.soilType ? titleCase(land.soilType) : null} />
+                    <InfoRow label="Water availability" value={land.waterAvailability ? titleCase(land.waterAvailability) : null} />
+                    <InfoRow label="Road access" value={land.roadAccess != null ? (land.roadAccess ? "Yes" : "No") : null} />
+                    <InfoRow label="Electricity" value={land.electricityAvailable != null ? (land.electricityAvailable ? "Available" : "Not available") : null} />
+                  </div>
                 </Section>
               )}
 
@@ -1542,12 +1922,13 @@ export default function PropertyDetailPage() {
                     />
                   </div>
 
-                  {isNeighborhoodVibeEnabled && latitude && longitude && (
-                    <NeighborhoodVibeCard
+                  {latitude && longitude && (
+                    <NeighbourhoodSafetyCard
                       latitude={latitude}
                       longitude={longitude}
                       locality={postData.locality}
                       city={postData.city}
+                      district={postData.city}
                     />
                   )}
 
@@ -1589,25 +1970,32 @@ export default function PropertyDetailPage() {
               {(reraVerified || reraNumber || possession || projectStatus || electricityBillUrl || isOwner) && (
                 <Section title="Legal & Ownership Details" icon={ShieldCheck}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {electricityBillUrl ? (
+                    {electricityBillUrl && electricityBillStatus === "VERIFIED" ? (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl md:col-span-2 border bg-success/10 border-success/30">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="size-9 rounded-lg flex items-center justify-center shrink-0 bg-success/20 text-success">
+                            <ShieldCheck className="size-5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-base-content">Address Verification</p>
+                            <p className="text-xs text-base-content/70 leading-snug break-words">Electricity bill verified by admin</p>
+                          </div>
+                        </div>
+                        <span className="font-bold text-success bg-success/15 px-3 py-1 rounded-full text-xs sm:text-sm shrink-0 self-start sm:self-auto">✓ Address Verified</span>
+                      </div>
+                    ) : electricityBillUrl && isOwner ? (
                       <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl md:col-span-2 border ${
-                        electricityBillStatus === "VERIFIED"
-                          ? "bg-success/10 border-success/30"
-                          : electricityBillStatus === "REJECTED"
-                            ? "bg-error/10 border-error/30"
-                            : "bg-amber-500/10 border-amber-500/30"
+                        electricityBillStatus === "REJECTED"
+                          ? "bg-error/10 border-error/30"
+                          : "bg-amber-500/10 border-amber-500/30"
                       }`}>
                         <div className="flex items-center gap-3 min-w-0">
                           <div className={`size-9 rounded-lg flex items-center justify-center shrink-0 ${
-                            electricityBillStatus === "VERIFIED"
-                              ? "bg-success/20 text-success"
-                              : electricityBillStatus === "REJECTED"
-                                ? "bg-error/20 text-error"
-                                : "bg-amber-500/20 text-amber-600 dark:text-amber-400"
+                            electricityBillStatus === "REJECTED"
+                              ? "bg-error/20 text-error"
+                              : "bg-amber-500/20 text-amber-600 dark:text-amber-400"
                           }`}>
-                            {electricityBillStatus === "VERIFIED" ? (
-                              <ShieldCheck className="size-5" />
-                            ) : electricityBillStatus === "REJECTED" ? (
+                            {electricityBillStatus === "REJECTED" ? (
                               <AlertTriangle className="size-5" />
                             ) : (
                               <Clock className="size-5" />
@@ -1616,36 +2004,28 @@ export default function PropertyDetailPage() {
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold text-base-content">Address Verification</p>
                             <p className="text-xs text-base-content/70 leading-snug break-words">
-                              {electricityBillStatus === "VERIFIED"
-                                ? "Electricity bill verified by admin"
-                                : electricityBillStatus === "REJECTED"
-                                  ? (electricityBillRejectionReason ? `Rejected: ${electricityBillRejectionReason}` : "Electricity bill rejected by admin")
-                                  : "Electricity bill submitted & awaiting admin review"}
+                              {electricityBillStatus === "REJECTED"
+                                ? (electricityBillRejectionReason ? `Rejected: ${electricityBillRejectionReason}` : "Electricity bill rejected by admin")
+                                : "Electricity bill submitted & awaiting admin review"}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-                          {isOwner && electricityBillStatus !== "VERIFIED" && (
-                            <button
-                              type="button"
-                              onClick={() => setShowVerifyModal(true)}
-                              className="btn btn-xs btn-outline btn-primary"
-                            >
-                              {electricityBillStatus === "REJECTED" ? "Re-upload" : "Replace Bill"}
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => setShowVerifyModal(true)}
+                            className="btn btn-xs btn-outline btn-primary"
+                          >
+                            {electricityBillStatus === "REJECTED" ? "Re-upload" : "Replace Bill"}
+                          </button>
                           <span className={`font-semibold px-3 py-1 rounded-full text-xs sm:text-sm ${
-                            electricityBillStatus === "VERIFIED"
-                              ? "font-bold text-success bg-success/15"
-                              : electricityBillStatus === "REJECTED"
-                                ? "font-bold text-error bg-error/15"
-                                : "font-bold text-amber-600 dark:text-amber-400 bg-amber-500/15"
+                            electricityBillStatus === "REJECTED"
+                              ? "font-bold text-error bg-error/15"
+                              : "font-bold text-amber-600 dark:text-amber-400 bg-amber-500/15"
                           }`}>
-                            {electricityBillStatus === "VERIFIED"
-                              ? "✓ Address Verified"
-                              : electricityBillStatus === "REJECTED"
-                                ? "Verification Rejected"
-                                : "⏳ Verification Pending"}
+                            {electricityBillStatus === "REJECTED"
+                              ? "Verification Rejected"
+                              : "⏳ Verification Pending"}
                           </span>
                         </div>
                       </div>
@@ -1909,7 +2289,116 @@ export default function PropertyDetailPage() {
                     Share
                   </button>
 
-                  {!isOwner && !myOffer && (
+                  {!isOwner && isPgPost && (!myBooking || myBooking.status === "rejected") && (
+                    <button
+                      className="w-full py-3 px-4 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+                      onClick={() => setShowPgBookingModal(true)}
+                    >
+                      <Home className="size-5" />
+                      {myBooking?.status === "rejected" ? "Re-apply to This PG" : "Book This PG"}
+                    </button>
+                  )}
+                  {!isOwner && isPgPost && myBooking && (
+                    <div className={`w-full rounded-xl border p-4 space-y-2 ${
+                      myBooking.status === "pending" ? "border-warning/40 bg-warning/10" :
+                      myBooking.status === "active" ? "border-success/40 bg-success/10" :
+                      myBooking.status === "rejected" ? "border-error/40 bg-error/10" :
+                      "border-primary/40 bg-primary/10"
+                    }`}>
+                      {/* Status timeline dots */}
+                      <div className="flex items-center gap-1 mb-2">
+                        {["pending", "approved", "active"].map((s, i) => {
+                          const steps = ["pending", "approved", "active"];
+                          const currentIdx = steps.indexOf(myBooking.status);
+                          const isReject = myBooking.status === "rejected";
+                          const done = !isReject && currentIdx >= i;
+                          return (
+                            <div key={s} className="flex items-center gap-1">
+                              <div className={`w-2.5 h-2.5 rounded-full ${
+                                isReject && i === 0 ? "bg-error" :
+                                done ? "bg-success" : "bg-base-300"
+                              }`} />
+                              <span className="text-[10px] text-base-content/40 capitalize">{s === "active" ? "resident" : s}</span>
+                              {i < 2 && <div className={`w-4 h-0.5 ${done && currentIdx > i ? "bg-success" : "bg-base-300"}`} />}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <p className={`text-sm font-semibold ${
+                        myBooking.status === "pending" ? "text-warning" :
+                        myBooking.status === "active" ? "text-success" :
+                        myBooking.status === "rejected" ? "text-error" :
+                        "text-primary"
+                      }`}>
+                        {myBooking.status === "pending" && "Booking Request Pending"}
+                        {myBooking.status === "approved" && "Booking Approved — Move In!"}
+                        {myBooking.status === "active" && "You are a resident here"}
+                        {myBooking.status === "rejected" && "Booking Request Declined"}
+                      </p>
+                      <p className="text-xs text-base-content/60">
+                        {myBooking.roomType} · ₹{myBooking.monthlyRent?.toLocaleString("en-IN")}/mo
+                      </p>
+                      {myBooking.assignedRoom && (
+                        <p className="text-xs text-base-content/60">Room {myBooking.assignedRoom}{myBooking.assignedBed ? ` · Bed ${myBooking.assignedBed}` : ""}</p>
+                      )}
+                      {myBooking.ownerNote && myBooking.status !== "pending" && (
+                        <div className="rounded-lg bg-base-200/50 p-2">
+                          <p className="text-xs text-base-content/70 italic">&ldquo;{myBooking.ownerNote}&rdquo;</p>
+                        </div>
+                      )}
+                      {myBooking.status === "pending" && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-base-content/40">
+                            Waiting for the PG owner to review your request
+                          </p>
+                          <button
+                            onClick={() => cancelBooking(myBooking._id, {
+                              onSuccess: () => toast.success("Booking request cancelled"),
+                              onError: (err) => toast.error(err.response?.data?.message || "Failed to cancel"),
+                            })}
+                            disabled={isCancelling}
+                            className="btn btn-xs btn-ghost text-error gap-1"
+                          >
+                            {isCancelling ? <span className="loading loading-spinner loading-xs" /> : <X className="size-3" />}
+                            Cancel Request
+                          </button>
+                        </div>
+                      )}
+                      {myBooking.status === "active" && (
+                        <button
+                          className="btn btn-sm btn-ghost gap-1 text-primary"
+                          onClick={() => navigate("/my-pg")}
+                        >
+                          Go to My PG →
+                        </button>
+                      )}
+                      {myBooking.status === "rejected" && (
+                        <div className="space-y-1.5">
+                          {myBooking.ownerNote && (
+                            <p className="text-xs text-base-content/50">Reason: {myBooking.ownerNote}</p>
+                          )}
+                          <button
+                            className="btn btn-xs btn-primary gap-1"
+                            onClick={() => setShowPgBookingModal(true)}
+                          >
+                            Re-apply
+                          </button>
+                          {postData?.author?.phone && (
+                            <a
+                              href={`https://wa.me/${postData.author.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent("Hi, I'd like to discuss my PG booking request.")}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-xs btn-ghost text-green-600 gap-1"
+                            >
+                              Contact Owner
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {!isOwner && !isPgPost && !myOffer && (
                     <button
                       className="w-full py-3 px-4 bg-primary text-white font-semibold rounded-xl hover:bg-primary transition-colors flex items-center justify-center gap-2"
                       onClick={() => setOfferModal({ mode: "offer" })}
@@ -2074,6 +2563,259 @@ export default function PropertyDetailPage() {
           queryClient.invalidateQueries({ queryKey: ["propertyPost", id] });
         }}
       />
+
+      {isPgPost && (
+        <PgBookingModal
+          isOpen={showPgBookingModal}
+          pgPost={postData}
+          onClose={() => setShowPgBookingModal(false)}
+          onSuccess={() => {
+            setShowPgBookingModal(false);
+            queryClient.invalidateQueries({ queryKey: ["propertyPost", id] });
+          }}
+        />
+      )}
     </AppShell>
+  );
+}
+
+function PgBookingModal({ isOpen, pgPost, onClose, onSuccess }) {
+  const pgMeta = pgPost?.postMeta?.pgHostel || {};
+  const sharingTypes = pgMeta.sharingTypes || [];
+  const houseRules = pgMeta.houseRules || [];
+
+  const [step, setStep] = useState(1);
+  const [selectedRoom, setSelectedRoom] = useState(sharingTypes[0]?.type || "");
+  const [moveInDate, setMoveInDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [message, setMessage] = useState("");
+  const [rulesAccepted, setRulesAccepted] = useState(false);
+  const { mutate: requestBooking, isPending } = useRequestBooking();
+
+  const selectedSharing = sharingTypes.find((s) => s.type === selectedRoom);
+  const monthlyRent = selectedSharing?.price || 0;
+  const depositAmount = pgMeta.securityDeposit || monthlyRent * 2;
+  const totalMoveIn = monthlyRent + depositAmount;
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (houseRules.length > 0 && !rulesAccepted) {
+      toast.error("Please accept the house rules to proceed");
+      return;
+    }
+    requestBooking(
+      {
+        pgId: pgPost._id,
+        roomType: selectedRoom,
+        preferredMoveInDate: new Date(moveInDate).toISOString(),
+        monthlyRent,
+        depositAmount,
+        message: message.trim() || undefined,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Booking request sent! The PG owner will review it.");
+          setStep(1);
+          setRulesAccepted(false);
+          onSuccess?.();
+        },
+        onError: (err) => {
+          toast.error(err.response?.data?.message || "Failed to send request");
+        },
+      }
+    );
+  }
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        className="bg-base-100 rounded-2xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 py-4 border-b border-base-200 flex items-center justify-between shrink-0">
+          <div>
+            <h3 className="text-lg font-bold">Book This PG</h3>
+            <div className="flex items-center gap-2 mt-1">
+              <div className={`h-1 rounded-full flex-1 ${step >= 1 ? "bg-primary" : "bg-base-300"}`} />
+              <div className={`h-1 rounded-full flex-1 ${step >= 2 ? "bg-primary" : "bg-base-300"}`} />
+            </div>
+          </div>
+          <button onClick={() => { setStep(1); onClose(); }} className="btn btn-sm btn-ghost btn-circle">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1">
+          {step === 1 && (
+            <div className="p-6 space-y-5">
+              <div>
+                <h4 className="text-xs font-semibold text-base-content/60 uppercase tracking-wider mb-3">Step 1 — Select Room Type</h4>
+                <div className="space-y-2">
+                  {sharingTypes.map((st) => (
+                    <label
+                      key={st.type}
+                      className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                        selectedRoom === st.type
+                          ? "border-primary bg-primary/5"
+                          : "border-base-200 hover:border-base-300"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          name="roomType"
+                          value={st.type}
+                          checked={selectedRoom === st.type}
+                          onChange={() => setSelectedRoom(st.type)}
+                          className="radio radio-primary radio-sm"
+                        />
+                        <div>
+                          <p className="font-medium text-sm">{st.type} Sharing</p>
+                          <p className="text-xs text-base-content/50">Per person / month</p>
+                        </div>
+                      </div>
+                      <span className="font-bold text-primary">₹{st.price?.toLocaleString("en-IN")}</span>
+                    </label>
+                  ))}
+                  {sharingTypes.length === 0 && (
+                    <p className="text-sm text-base-content/50 text-center py-4">No room types listed</p>
+                  )}
+                </div>
+              </div>
+
+              {selectedRoom && (
+                <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 space-y-1.5">
+                  <p className="text-xs font-semibold text-primary uppercase tracking-wider">Cost Summary</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-base-content/60">Monthly Rent ({selectedRoom})</span>
+                    <span className="font-semibold">₹{monthlyRent.toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-base-content/60">Security Deposit</span>
+                    <span className="font-semibold">₹{depositAmount.toLocaleString("en-IN")}</span>
+                  </div>
+                  {pgMeta.lockInPeriodMonths > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-base-content/60">Lock-in Period</span>
+                      <span className="font-semibold">{pgMeta.lockInPeriodMonths} months</span>
+                    </div>
+                  )}
+                  {pgMeta.foodIncluded && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-base-content/60">Food</span>
+                      <span className="font-semibold text-green-600">Included</span>
+                    </div>
+                  )}
+                  <div className="border-t border-primary/20 pt-2 flex justify-between text-sm font-bold">
+                    <span>Total Due at Move-in</span>
+                    <span className="text-primary">₹{totalMoveIn.toLocaleString("en-IN")}</span>
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="button"
+                disabled={!selectedRoom}
+                className="btn btn-primary w-full"
+                onClick={() => setStep(2)}
+              >
+                Continue
+              </button>
+            </div>
+          )}
+
+          {step === 2 && (
+            <form onSubmit={handleSubmit} className="p-6 space-y-5">
+              <button type="button" onClick={() => setStep(1)} className="btn btn-ghost btn-xs gap-1 -ml-1 mb-1">
+                ← Back to room selection
+              </button>
+
+              <div>
+                <label className="text-xs font-semibold text-base-content/60 uppercase tracking-wider block mb-2">
+                  Preferred Move-in Date
+                </label>
+                <input
+                  type="date"
+                  value={moveInDate}
+                  onChange={(e) => setMoveInDate(e.target.value)}
+                  min={new Date().toISOString().split("T")[0]}
+                  required
+                  className="input input-bordered input-sm w-full"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-base-content/60 uppercase tracking-wider block mb-2">
+                  Message to Owner <span className="text-base-content/30">(optional)</span>
+                </label>
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Introduce yourself, mention your occupation, duration of stay..."
+                  rows={3}
+                  maxLength={500}
+                  className="textarea textarea-bordered textarea-sm w-full"
+                />
+              </div>
+
+              {houseRules.length > 0 && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <ShieldCheck size={14} />
+                    House Rules
+                  </p>
+                  <ul className="space-y-1.5">
+                    {houseRules.map((rule, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-base-content/70">
+                        <span className="mt-0.5 w-4 h-4 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0 text-[10px] font-bold text-amber-700 dark:text-amber-400">{i + 1}</span>
+                        {rule}
+                      </li>
+                    ))}
+                  </ul>
+                  <label className="flex items-center gap-2 cursor-pointer pt-1">
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-sm checkbox-warning"
+                      checked={rulesAccepted}
+                      onChange={(e) => setRulesAccepted(e.target.checked)}
+                    />
+                    <span className="text-xs font-medium">I accept the house rules</span>
+                  </label>
+                </div>
+              )}
+
+              <div className="rounded-xl bg-base-200/60 p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-base-content/60">{selectedRoom} Sharing (Monthly)</span>
+                  <span className="font-semibold">₹{monthlyRent.toLocaleString("en-IN")}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-base-content/60">Security Deposit</span>
+                  <span className="font-semibold">₹{depositAmount.toLocaleString("en-IN")}</span>
+                </div>
+                <div className="border-t border-base-300 pt-2 flex justify-between text-sm font-bold">
+                  <span>Total Due at Move-in</span>
+                  <span className="text-primary">₹{totalMoveIn.toLocaleString("en-IN")}</span>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isPending || !selectedRoom || (houseRules.length > 0 && !rulesAccepted)}
+                className="btn btn-primary w-full gap-2"
+              >
+                <CheckCircle2 size={18} />
+                {isPending ? "Sending..." : "Send Booking Request"}
+              </button>
+
+              <p className="text-xs text-base-content/40 text-center">
+                The PG owner will review your request and confirm availability.
+              </p>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

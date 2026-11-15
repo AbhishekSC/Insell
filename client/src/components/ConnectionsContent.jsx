@@ -254,9 +254,9 @@ export default function ConnectionsContent({ onOpenMessages }) {
   const totalIncomingCount = incomingRequests.length + messageRequests.length;
 
   return (
-    <div className="mx-auto w-full max-w-5xl min-w-0 space-y-4 px-2 sm:px-4 pb-12 box-border overflow-x-hidden">
-      {/* Top Header */}
-      <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-3 border-b border-base-200 pb-3 pt-1 box-border">
+    <div className="mx-auto w-full max-w-5xl min-w-0 space-y-4 px-2 pt-3 sm:px-4 sm:pt-4 xl:pt-0 pb-12 box-border overflow-x-hidden">
+      {/* Top Header — hidden on mobile where the back-bar already shows the title */}
+      <div className="hidden lg:flex w-full min-w-0 flex-wrap items-center justify-between gap-3 border-b border-base-200 pb-3 pt-1 box-border">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-base-content sm:text-2xl">
             Connections &amp; People
