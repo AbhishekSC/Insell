@@ -77,7 +77,6 @@ const VERDICT = {
 export default function AiValuationCard({
   postId,
   price,
-  propertyType = "Property",
   locality,
   city,
   listingType,
@@ -160,7 +159,7 @@ export default function AiValuationCard({
   const marketAverageSqft = valData?.marketAverageSqft;
   const subjectPricePerSqft = valData?.subjectPricePerSqft;
   const deltaPct = valData?.deltaPct ?? 0;
-  const locationLabel = valData?.locationLabel || locality || city || "this area";
+  const LocationLabel = valData?.locationLabel || locality || city || "this area";
 
   const v = VERDICT[dealTone] || VERDICT.fair;
   const VIcon = v.Icon;

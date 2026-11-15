@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   Building2, UtensilsCrossed, Receipt, AlertTriangle, Star, ArrowRight,
   Clock, CheckCircle2, IndianRupee, FileText, Send, ChevronDown, ChevronUp,
@@ -9,19 +8,20 @@ import toast from "react-hot-toast";
 import AppShell from "../components/AppShell";
 import { useMyResidencies, useGenerateFormalNotice } from "../hooks/usePgResidency";
 import { useMyBills, useMarkBillPaid } from "../hooks/usePgBills";
-import { useMyIssues, useCreateIssue, useUpdateIssue } from "../hooks/useIssueReports";
+import { useMyIssues, useCreateIssue } from "../hooks/useIssueReports";
 import { useRateMeal, useDailyMealRatings } from "../hooks/useMealRatings";
 import { useCreatePgReview } from "../hooks/usePgReviews";
 import {
   formatINR, formatDate, statusBadge, humanStatus,
-  REVIEW_CATEGORIES, ISSUE_CATEGORIES, MEAL_TYPES, ratingBg,
+  REVIEW_CATEGORIES, ISSUE_CATEGORIES, MEAL_TYPES,
 } from "../lib/pgHelpers";
 
-function StatCard({ icon: Icon, label, value, sub, accent }) {
+function StatCard(props) {
+  const { icon: IconComp, label, value, sub, accent } = props;
   return (
     <div className="rounded-xl border border-base-200 bg-base-100 p-4 shadow-sm">
       <div className="flex items-center gap-2 text-xs font-medium text-base-content/50 mb-1.5 uppercase tracking-wide">
-        <Icon size={14} className={accent || ""} />
+        <IconComp size={14} className={accent || ""} />
         <span>{label}</span>
       </div>
       <div className="text-2xl font-bold text-base-content">{value}</div>
@@ -43,9 +43,6 @@ function StarInput({ value, onChange, size = 20 }) {
 }
 
 export default function PgResidentPage() {
-  const qc = useQueryClient();
-  const authUser = qc.getQueryData(["authUser"])?.data?.user || qc.getQueryData(["authUser"])?.data || null;
-
   const { data: residencyData, isLoading: loadingRes } = useMyResidencies();
   const { data: billsData } = useMyBills();
   const { data: issuesData } = useMyIssues();

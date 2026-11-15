@@ -65,7 +65,7 @@ export function PgCompareTray() {
 }
 
 export function PgCompareModal() {
-  const { items, setShowModal, showModal, remove } = usePgCompare();
+  const { items, setShowModal, showModal } = usePgCompare();
   if (!showModal || items.length < 2) return null;
 
   const rows = [

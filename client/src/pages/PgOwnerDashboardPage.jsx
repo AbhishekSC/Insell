@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   Building2, Users, IndianRupee, AlertTriangle, Star, UtensilsCrossed,
   Bed, ChevronDown, ChevronUp, Clock, CheckCircle2, Phone, Receipt,
@@ -18,11 +17,12 @@ import {
 } from "../hooks/usePgResidency";
 import { formatINR, formatDate, statusBadge, humanStatus, ratingBg } from "../lib/pgHelpers";
 
-function StatCard({ icon: Icon, label, value, sub, accent }) {
+function StatCard(props) {
+  const { icon: IconComp, label, value, sub, accent } = props;
   return (
     <div className="rounded-xl border border-base-200 bg-base-100 p-4 shadow-sm">
       <div className="flex items-center gap-2 text-xs font-medium text-base-content/50 mb-1.5 uppercase tracking-wide">
-        <Icon size={14} className={accent || ""} />
+        <IconComp size={14} className={accent || ""} />
         <span>{label}</span>
       </div>
       <div className="text-2xl font-bold text-base-content">{value}</div>
@@ -32,9 +32,6 @@ function StatCard({ icon: Icon, label, value, sub, accent }) {
 }
 
 export default function PgOwnerDashboardPage() {
-  const qc = useQueryClient();
-  const authUser = qc.getQueryData(["authUser"])?.data?.user || qc.getQueryData(["authUser"])?.data || null;
-
   const { data: overviewData, isLoading: loadingOverview, isError: overviewError } = usePgOverview();
   const pgs = overviewData?.overview || [];
 
@@ -319,7 +316,7 @@ function OwnerOverview({ dash, pgId }) {
   );
 }
 
-function RentTab({ dash, pgId }) {
+function RentTab({ dash }) {
   const r = dash.rentCollection || {};
   const { mutate: refundDeposit, isPending } = useRecordDepositRefund();
   const [refundForm, setRefundForm] = useState(null);

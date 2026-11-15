@@ -10,6 +10,7 @@ import OwnerVerificationCard from "./OwnerVerificationCard";
 import PgOwnerRegistrationCard from "./PgOwnerRegistrationCard";
 import ReferralCard from "./ReferralCard";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const ALL_ROLES = ["Buyer", "Seller", "Tenant", "Landlord", "PG Owner", "Broker", "Investor"];
 
 export default function ProfileContent() {
@@ -22,7 +23,7 @@ export default function ProfileContent() {
     return all.filter((r) => r && r !== primary);
   }, [authUser?.userRoles, authUser?.primaryRole]);
 
-  const allUserRoles = useMemo(() => {
+  const _allUserRoles = useMemo(() => {
     const primary = authUser?.primaryRole || authUser?.activeRole || "Buyer";
     return [...new Set([primary, ...secondaryRoles])].filter(Boolean);
   }, [authUser?.primaryRole, authUser?.activeRole, secondaryRoles]);

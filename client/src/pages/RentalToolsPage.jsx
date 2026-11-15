@@ -76,7 +76,7 @@ function ReceiptsTab() {
 
   function handleSave(e) {
     e.preventDefault();
-    const { tenantName, ...paymentData } = form;
+    const { tenantName: _tenantName, ...paymentData } = form;
     savePayment(
       { ...paymentData, amount: Number(paymentData.amount) },
       {
@@ -92,7 +92,7 @@ function ReceiptsTab() {
       { ...form, amount: Number(form.amount) },
       {
         onSuccess: (blob) => { downloadBlob(blob, `rent-receipt-${form.month}-${form.year}.pdf`); toast.success("Receipt downloaded"); },
-        onError: (err) => toast.error("Failed to generate receipt"),
+        onError: () => toast.error("Failed to generate receipt"),
       }
     );
   }

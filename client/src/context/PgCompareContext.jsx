@@ -30,6 +30,7 @@ export function PgCompareProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePgCompare() {
   const ctx = useContext(PgCompareContext);
   if (!ctx) throw new Error("usePgCompare must be used within PgCompareProvider");

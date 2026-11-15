@@ -43,6 +43,7 @@ export function SafetyGradeCacheProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useSafetyGradeCache() {
   return useContext(SafetyGradeCacheContext);
 }

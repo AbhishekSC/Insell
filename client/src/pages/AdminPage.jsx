@@ -5011,7 +5011,6 @@ function QueuesPanel() {
 }
 
 function PgOwnersPanel() {
-  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("pending");
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
